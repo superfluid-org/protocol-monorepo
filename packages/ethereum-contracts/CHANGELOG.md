@@ -3,7 +3,7 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [UNRELEASED]
+## [v1.12.0]
 
 ### Added
 - Added functionality to `SuperTokenV1Library`, most notably `flowX` and `transferX`.
