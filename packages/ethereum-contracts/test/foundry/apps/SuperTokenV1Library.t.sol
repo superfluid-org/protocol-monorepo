@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { FoundrySuperfluidTester, ISuperToken, SuperTokenV1Library, ISuperfluidPool }
     from "../FoundrySuperfluidTester.sol";
 
@@ -11,6 +12,9 @@ import { FoundrySuperfluidTester, ISuperToken, SuperTokenV1Library, ISuperfluidP
 */
 contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
+
+    int96 internal constant DEFAULT_FLOWRATE = 1e12;
+    uint256 internal constant DEFAULT_AMOUNT = 1e18;
 
     constructor() FoundrySuperfluidTester(3) {
     }
@@ -34,25 +38,25 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         return sf.gda.getFlowRate(superToken, sender, pool);
     }
 
-    function testSetFlowrate() external {
-        int96 fr1 = 1e9;
-
+    function testSetCFAFlowRate() external {
         // initial createFlow
-        superToken.setFlowrate(bob, fr1);
-        assertEq(_getCFAFlowRate(address(this), bob), fr1, "createFlow unexpected result");
+        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE);
+        assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE, "createFlow unexpected result");
 
         // double it -> updateFlow
-        superToken.setFlowrate(bob, fr1 * 2);
-        assertEq(_getCFAFlowRate(address(this), bob), fr1 * 2, "updateFlow unexpected result");
+        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE * 2);
+        assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE * 2, "updateFlow unexpected result");
 
         // set to 0 -> deleteFlow
-       superToken.setFlowrate(bob, 0);
-       assertEq(_getCFAFlowRate(address(this), bob), 0, "deleteFlow unexpected result");
+        superToken.setCFAFlowRate(bob, 0);
+        assertEq(_getCFAFlowRate(address(this), bob), 0, "deleteFlow unexpected result");
+
+        // invalid flowrate
+        vm.expectRevert(IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE.selector);
+        this.__externalSetCFAFlowRate(address(this), bob, -1);
     }
 
-    function testSetFlowrateFrom() external {
-        int96 fr1 = 1e9;
-
+    function testSetCFAFlowRateFrom() external {
         // alice allows this Test contract to operate CFA flows on her behalf
         vm.startPrank(alice);
         sf.host.callAgreement(
@@ -63,68 +67,77 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         vm.stopPrank();
 
         // initial createFlow
-        superToken.setFlowrateFrom(alice, bob, fr1);
-        assertEq(_getCFAFlowRate(alice, bob), fr1, "createFlow unexpected result");
+        superToken.setCFAFlowRateFrom(alice, bob, DEFAULT_FLOWRATE);
+        assertEq(_getCFAFlowRate(alice, bob), DEFAULT_FLOWRATE, "createFlow unexpected result");
 
         // double it -> updateFlow
-        superToken.setFlowrateFrom(alice, bob, fr1 * 2);
-        assertEq(_getCFAFlowRate(alice, bob), fr1 * 2, "updateFlow unexpected result");
+        superToken.setCFAFlowRateFrom(alice, bob, DEFAULT_FLOWRATE * 2);
+        assertEq(_getCFAFlowRate(alice, bob), DEFAULT_FLOWRATE * 2, "updateFlow unexpected result");
 
         // set to 0 -> deleteFlow
-       superToken.setFlowrateFrom(alice, bob, 0);
-       assertEq(_getCFAFlowRate(alice, bob), 0, "deleteFlow unexpected result");
+        superToken.setCFAFlowRateFrom(alice, bob, 0);
+        assertEq(_getCFAFlowRate(alice, bob), 0, "deleteFlow unexpected result");
+
+        vm.expectRevert(IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE.selector);
+        this.__externalSetCFAFlowRateFrom(address(this), alice, bob, -1);
     }
 
     function testFlowXToAccount() external {
-        int96 fr1 = 1e9;
-
-        superToken.flowX(bob, fr1);
-        assertEq(_getCFAFlowRate(address(this), bob), fr1, "createFlow unexpected result");
+        superToken.flowX(bob, DEFAULT_FLOWRATE);
+        assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE, "createFlow unexpected result");
 
         // double it -> updateFlow
-        superToken.flowX(bob, fr1 * 2);
-        assertEq(_getCFAFlowRate(address(this), bob), fr1 * 2, "updateFlow unexpected result");
+        superToken.flowX(bob, DEFAULT_FLOWRATE * 2);
+        assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE * 2, "updateFlow unexpected result");
 
         // set to 0 -> deleteFlow
-       superToken.flowX(bob, 0);
-       assertEq(_getCFAFlowRate(address(this), bob), 0, "deleteFlow unexpected result");
+        superToken.flowX(bob, 0);
+        assertEq(_getCFAFlowRate(address(this), bob), 0, "deleteFlow unexpected result");
     }
 
     function testFlowXToPool() external {
-        int96 fr1 = 1e9;
-
         ISuperfluidPool pool = superToken.createPool();
         pool.updateMemberUnits(bob, 1);
 
-        superToken.flowX(address(pool), fr1);
-        assertEq(_getGDAFlowRate(address(this), pool), fr1, "distrbuteFlow (new) unexpected result");
+        superToken.flowX(address(pool), DEFAULT_FLOWRATE);
+        assertEq(_getGDAFlowRate(address(this), pool), DEFAULT_FLOWRATE, "distrbuteFlow (new) unexpected result");
 
         // double it -> updateFlow
-        superToken.flowX(address(pool), fr1 * 2);
-        assertEq(_getGDAFlowRate(address(this), pool), fr1 * 2, "distrbuteFlow (update) unexpected result");
+        superToken.flowX(address(pool), DEFAULT_FLOWRATE * 2);
+        assertEq(_getGDAFlowRate(address(this), pool), DEFAULT_FLOWRATE * 2, "distrbuteFlow (update) unexpected result");
 
         // set to 0 -> deleteFlow
-       superToken.flowX(address(pool), 0);
-       assertEq(_getGDAFlowRate(address(this), pool), 0, "distrbuteFlow (delete) unexpected result");
+        superToken.flowX(address(pool), 0);
+        assertEq(_getGDAFlowRate(address(this), pool), 0, "distrbuteFlow (delete) unexpected result");
     }
 
     function testTransferXToAccount() external {
-        uint256 amount = 1e18;
-
         uint256 bobBalBefore = superToken.balanceOf(bob);
-        superToken.transferX(bob, amount);
-        assertEq(superToken.balanceOf(bob) - bobBalBefore, amount, "transfer unexpected result");
+        superToken.transferX(bob, DEFAULT_AMOUNT);
+        assertEq(superToken.balanceOf(bob) - bobBalBefore, DEFAULT_AMOUNT, "transfer unexpected result");
     }
 
     function testTransferXToPool() external {
-        uint256 amount = 1e18;
-
         uint256 bobBalBefore = superToken.balanceOf(bob);
         ISuperfluidPool pool = superToken.createPool();
         pool.updateMemberUnits(bob, 1);
 
-        superToken.transferX(address(pool), amount);
+        superToken.transferX(address(pool), DEFAULT_AMOUNT);
         pool.claimAll(bob);
-        assertEq(superToken.balanceOf(bob) - bobBalBefore, amount, "distribute unexpected result");
+        assertEq(superToken.balanceOf(bob) - bobBalBefore, DEFAULT_AMOUNT, "distribute unexpected result");
+    }
+
+    // helpers converting the lib call to an external call, for exception checking
+
+    function __externalSetCFAFlowRate(address msgSender, address receiver, int96 flowRate) external {
+        vm.startPrank(msgSender);
+        superToken.setCFAFlowRate(receiver, flowRate);
+        vm.stopPrank();
+    }
+
+    function __externalSetCFAFlowRateFrom(address msgSender, address sender, address receiver, int96 flowRate) external {
+        vm.startPrank(msgSender);
+        superToken.setCFAFlowRateFrom(sender, receiver, flowRate);
+        vm.stopPrank();
     }
 }

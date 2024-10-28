@@ -6,11 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [UNRELEASED]
 
 ### Added
-- Added functionality to `SuperTokenV1Library`.
+- Added functionality to `SuperTokenV1Library`, most notably `flowX` and `transferX`.
 
 ### Breaking
 - Removed `CFAv1Library`, superseded by `SuperTokenV1Library`.
 - Removed `IDAv1Library` and IDA functionality from `SuperTokenV1Library`. IDA shall not be used anymore, the GDA covers all its functionality.
+- Removed some methods from `SuperTokenV1Library` which don't belong to the token interface.
 
 ## [v1.11.1]
 

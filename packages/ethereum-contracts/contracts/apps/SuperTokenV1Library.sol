@@ -1423,78 +1423,76 @@ library SuperTokenV1Library {
 
     // ************** Higher-Level Abstractions ***************
 
-    error INVALID_FLOW_RATE();
-
     /**
-     * @notice Sets the given flowrate between the caller and a given receiver.
-     * If there's no pre-existing flow and `flowrate` non-zero, a new flow is created.
-     * If there's an existing flow and `flowrate` non-zero, the flowrate of that flow is updated.
-     * If there's an existing flow and `flowrate` zero, the flow is deleted.
-     * If the existing and given flowrate are equal, no action is taken.
+     * @notice Sets the given CFA flowrate between the caller and a given receiver.
+     * If there's no pre-existing flow and `flowRate` non-zero, a new flow is created.
+     * If there's an existing flow and `flowRate` non-zero, the flowRate of that flow is updated.
+     * If there's an existing flow and `flowRate` zero, the flow is deleted.
+     * If the existing and given flowRate are equal, no action is taken.
      * On creation of a flow, a "buffer" amount is automatically detracted from the sender account's available balance.
      * If the sender account is solvent when the flow is deleted, this buffer is redeemed to it.
      * @param token Super token address
      * @param receiver The receiver of the flow
-     * @param flowrate The wanted flowrate in wad/second. Only positive values are valid here.
+     * @param flowRate The wanted flowrate in wad/second. Only positive values are valid here.
      * @return bool
      */
-    function setFlowrate(
+    function setCFAFlowRate(
         ISuperToken token,
         address receiver,
-        int96 flowrate
+        int96 flowRate
     ) internal returns (bool) {
         // note: from the lib's perspective, the caller is "this", NOT "msg.sender"
         address sender = address(this);
         int96 prevFlowRate = getCFAFlowRate(token, sender, receiver);
 
-        if (flowrate > 0) {
+        if (flowRate > 0) {
             if (prevFlowRate == 0) {
-                return createFlow(token, receiver, flowrate, new bytes(0));
-            } else if (prevFlowRate != flowrate) {
-                return updateFlow(token, receiver, flowrate, new bytes(0));
+                return createFlow(token, receiver, flowRate, new bytes(0));
+            } else if (prevFlowRate != flowRate) {
+                return updateFlow(token, receiver, flowRate, new bytes(0));
             } // else no change, do nothing
             return true;
-        } else if (flowrate == 0) {
+        } else if (flowRate == 0) {
             if (prevFlowRate > 0) {
                 return deleteFlow(token, sender, receiver, new bytes(0));
             } // else no change, do nothing
             return true;
         } else {
-            revert INVALID_FLOW_RATE();
+            revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
         }
     }
 
     /**
-     * @notice Like `setFlowrate`, but can be invoked by an account with flowOperator permissions
+     * @notice Like `setCFAFlowRate`, but can be invoked by an account with flowOperator permissions
      * on behalf of the sender account.
      * @param token Super token address
      * @param sender The sender of the flow
      * @param receiver The receiver of the flow
-     * @param flowrate The wanted flowrate in wad/second. Only positive values are valid here.
+     * @param flowRate The wanted flowRate in wad/second. Only positive values are valid here.
      * @return bool
      */
-    function setFlowrateFrom(
+    function setCFAFlowRateFrom(
         ISuperToken token,
         address sender,
         address receiver,
-        int96 flowrate
+        int96 flowRate
     ) internal returns (bool) {
         int96 prevFlowRate = getCFAFlowRate(token, sender, receiver);
 
-        if (flowrate > 0) {
+        if (flowRate > 0) {
             if (prevFlowRate == 0) {
-                return createFlowFrom(token, sender, receiver, flowrate, new bytes(0));
-            } else if (prevFlowRate != flowrate) {
-                return updateFlowFrom(token, sender, receiver, flowrate, new bytes(0));
+                return createFlowFrom(token, sender, receiver, flowRate, new bytes(0));
+            } else if (prevFlowRate != flowRate) {
+                return updateFlowFrom(token, sender, receiver, flowRate, new bytes(0));
             } // else no change, do nothing
             return true;
-        } else if (flowrate == 0) {
+        } else if (flowRate == 0) {
             if (prevFlowRate > 0) {
                 return deleteFlowFrom(token, sender, receiver, new bytes(0));
             } // else no change, do nothing
             return true;
         } else {
-            revert INVALID_FLOW_RATE();
+            revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
         }
     }
 
@@ -1503,10 +1501,10 @@ library SuperTokenV1Library {
      * If the receiver is an account, it uses the CFA, if it's a pool it uses the GDA.
      * @param token Super token address
      * @param receiverOrPool The receiver (account) or pool
-     * @param flowRate the flowrate to be set.
+     * @param flowRate the flowRate to be set.
      * @return A boolean value indicating whether the operation was successful.
      * Note that all the specifics of the underlying agreement used still apply.
-     * E.g. if the GDA is used, the effective flowrate may differ from the selected one.
+     * E.g. if the GDA is used, the effective flowRate may differ from the selected one.
      */
     function flowX(
         ISuperToken token,
@@ -1524,7 +1522,7 @@ library SuperTokenV1Library {
                 flowRate
             );
         } else {
-            return setFlowrate(token, receiverOrPool, flowRate);
+            return setCFAFlowRate(token, receiverOrPool, flowRate);
         }
     }
 
