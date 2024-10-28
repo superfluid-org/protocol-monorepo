@@ -38,7 +38,30 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         return sf.gda.getFlowRate(superToken, sender, pool);
     }
 
-    function testSetCFAFlowRate() external {
+    function _assertDefaultPoolConfig(ISuperfluidPool pool) internal {
+        assertEq(pool.transferabilityForUnitsOwner(), false);
+        assertEq(pool.distributionFromAnyAddress(), true);
+    }
+
+    function testGetCFAFlowRate() external {
+        assertEq(superToken.getCFAFlowRate(address(this), bob), 0);
+        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE);
+        assertEq(superToken.getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE);
+    }
+
+    function testGetCFAFlowInfo() external {
+        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE);
+        (uint256 refLastUpdated, int96 refFlowRate, uint256 refDeposit, uint256 refOwedDeposit)
+            = sf.cfa.getFlow(superToken, address(this), bob);
+        (uint256 lastUpdated, int96 flowRate, uint256 deposit, uint256 owedDeposit) =
+            superToken.getCFAFlowInfo(address(this), bob);
+        assertEq(refLastUpdated, lastUpdated);
+        assertEq(refFlowRate, flowRate);
+        assertEq(refDeposit, deposit);
+        assertEq(refOwedDeposit, owedDeposit);
+    }
+
+    function testSetGetCFAFlowRate() external {
         // initial createFlow
         superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE);
         assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE, "createFlow unexpected result");
@@ -125,6 +148,18 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         superToken.transferX(address(pool), DEFAULT_AMOUNT);
         pool.claimAll(bob);
         assertEq(superToken.balanceOf(bob) - bobBalBefore, DEFAULT_AMOUNT, "distribute unexpected result");
+    }
+
+    function testCreatePoolWithAdmin() external {
+        ISuperfluidPool pool = superToken.createPool(alice);
+        assertEq(pool.admin(), alice);
+        _assertDefaultPoolConfig(pool);
+    }
+
+    function testCreatePool() external {
+        ISuperfluidPool pool = superToken.createPool();
+        assertEq(pool.admin(), address(this));
+        _assertDefaultPoolConfig(pool);
     }
 
     // helpers converting the lib call to an external call, for exception checking
