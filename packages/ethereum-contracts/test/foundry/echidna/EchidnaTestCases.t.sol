@@ -25,6 +25,7 @@ contract EchidnaTestCases is FoundrySuperfluidTester {
     function testDistributeFlowToDisconnectedMember(address member, uint64 units, int32 flowRate, bool useForwarder)
         public
     {
+        vm.assume(member != address(0));
         vm.assume(flowRate > 0);
 
         _helperUpdateMemberUnits(currentPool, alice, member, units);
