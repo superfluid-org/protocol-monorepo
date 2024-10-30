@@ -1436,7 +1436,7 @@ library SuperTokenV1Library {
      * @param flowRate The wanted flowrate in wad/second. Only positive values are valid here.
      * @return bool
      */
-    function setCFAFlowRate(
+    function flow(
         ISuperToken token,
         address receiver,
         int96 flowRate
@@ -1463,7 +1463,7 @@ library SuperTokenV1Library {
     }
 
     /**
-     * @notice Like `setCFAFlowRate`, but can be invoked by an account with flowOperator permissions
+     * @notice Like `flow`, but can be invoked by an account with flowOperator permissions
      * on behalf of the sender account.
      * @param token Super token address
      * @param sender The sender of the flow
@@ -1471,7 +1471,7 @@ library SuperTokenV1Library {
      * @param flowRate The wanted flowRate in wad/second. Only positive values are valid here.
      * @return bool
      */
-    function setCFAFlowRateFrom(
+    function flowFrom(
         ISuperToken token,
         address sender,
         address receiver,
@@ -1522,7 +1522,7 @@ library SuperTokenV1Library {
                 flowRate
             );
         } else {
-            return setCFAFlowRate(token, receiverOrPool, flowRate);
+            return flow(token, receiverOrPool, flowRate);
         }
     }
 

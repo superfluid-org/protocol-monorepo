@@ -45,12 +45,12 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
 
     function testGetCFAFlowRate() external {
         assertEq(superToken.getCFAFlowRate(address(this), bob), 0);
-        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE);
+        superToken.flow(bob, DEFAULT_FLOWRATE);
         assertEq(superToken.getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE);
     }
 
     function testGetCFAFlowInfo() external {
-        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE);
+        superToken.flow(bob, DEFAULT_FLOWRATE);
         (uint256 refLastUpdated, int96 refFlowRate, uint256 refDeposit, uint256 refOwedDeposit)
             = sf.cfa.getFlow(superToken, address(this), bob);
         (uint256 lastUpdated, int96 flowRate, uint256 deposit, uint256 owedDeposit) =
@@ -63,23 +63,23 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
 
     function testSetGetCFAFlowRate() external {
         // initial createFlow
-        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE);
+        superToken.flow(bob, DEFAULT_FLOWRATE);
         assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE, "createFlow unexpected result");
 
         // double it -> updateFlow
-        superToken.setCFAFlowRate(bob, DEFAULT_FLOWRATE * 2);
+        superToken.flow(bob, DEFAULT_FLOWRATE * 2);
         assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE * 2, "updateFlow unexpected result");
 
         // set to 0 -> deleteFlow
-        superToken.setCFAFlowRate(bob, 0);
+        superToken.flow(bob, 0);
         assertEq(_getCFAFlowRate(address(this), bob), 0, "deleteFlow unexpected result");
 
         // invalid flowrate
         vm.expectRevert(IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE.selector);
-        this.__externalSetCFAFlowRate(address(this), bob, -1);
+        this.__externalflow(address(this), bob, -1);
     }
 
-    function testSetCFAFlowRateFrom() external {
+    function testflowFrom() external {
         // alice allows this Test contract to operate CFA flows on her behalf
         vm.startPrank(alice);
         sf.host.callAgreement(
@@ -90,19 +90,19 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         vm.stopPrank();
 
         // initial createFlow
-        superToken.setCFAFlowRateFrom(alice, bob, DEFAULT_FLOWRATE);
+        superToken.flowFrom(alice, bob, DEFAULT_FLOWRATE);
         assertEq(_getCFAFlowRate(alice, bob), DEFAULT_FLOWRATE, "createFlow unexpected result");
 
         // double it -> updateFlow
-        superToken.setCFAFlowRateFrom(alice, bob, DEFAULT_FLOWRATE * 2);
+        superToken.flowFrom(alice, bob, DEFAULT_FLOWRATE * 2);
         assertEq(_getCFAFlowRate(alice, bob), DEFAULT_FLOWRATE * 2, "updateFlow unexpected result");
 
         // set to 0 -> deleteFlow
-        superToken.setCFAFlowRateFrom(alice, bob, 0);
+        superToken.flowFrom(alice, bob, 0);
         assertEq(_getCFAFlowRate(alice, bob), 0, "deleteFlow unexpected result");
 
         vm.expectRevert(IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE.selector);
-        this.__externalSetCFAFlowRateFrom(address(this), alice, bob, -1);
+        this.__externalflowFrom(address(this), alice, bob, -1);
     }
 
     function testFlowXToAccount() external {
@@ -164,15 +164,15 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
 
     // helpers converting the lib call to an external call, for exception checking
 
-    function __externalSetCFAFlowRate(address msgSender, address receiver, int96 flowRate) external {
+    function __externalflow(address msgSender, address receiver, int96 flowRate) external {
         vm.startPrank(msgSender);
-        superToken.setCFAFlowRate(receiver, flowRate);
+        superToken.flow(receiver, flowRate);
         vm.stopPrank();
     }
 
-    function __externalSetCFAFlowRateFrom(address msgSender, address sender, address receiver, int96 flowRate) external {
+    function __externalflowFrom(address msgSender, address sender, address receiver, int96 flowRate) external {
         vm.startPrank(msgSender);
-        superToken.setCFAFlowRateFrom(sender, receiver, flowRate);
+        superToken.flowFrom(sender, receiver, flowRate);
         vm.stopPrank();
     }
 }
