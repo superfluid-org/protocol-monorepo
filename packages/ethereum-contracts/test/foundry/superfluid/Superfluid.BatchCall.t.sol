@@ -628,4 +628,18 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
         assertEq(address(forwarder).balance, 0, "DMZForwarder: balance still not 0");
         assertEq(bob.balance, amount, "DMZForwarder: where did the money go?");
     }
+
+    function testIncreaseAllowanceUsing2771ForwardCall(uint256 allowanceAmount) public {
+        ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
+        uint256 aliceToBobAllowanceBefore = superToken.allowance(alice, bob);
+        ops[0] = ISuperfluid.Operation({
+            operationType: BatchOperation.OPERATION_TYPE_ERC2771_FORWARD_CALL,
+            target: address(superToken),
+            data: abi.encodeCall(superToken.increaseAllowance, (bob, allowanceAmount))
+        });
+        vm.prank(alice);
+        sf.host.batchCall(ops);
+        uint256 aliceToBobAllowanceAfter = superToken.allowance(alice, bob);
+        assertEq(aliceToBobAllowanceAfter, aliceToBobAllowanceBefore + allowanceAmount);
+    }
 }

@@ -14,6 +14,7 @@ import {
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
+import { IRelayRecipient } from "../interfaces/utils/IRelayRecipient.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
@@ -35,7 +36,8 @@ interface IConstantInflowNFT {}
 contract SuperToken is
     UUPSProxiable,
     SuperfluidToken,
-    ISuperToken
+    ISuperToken,
+    IRelayRecipient
 {
 
     using SafeMath for uint256;
@@ -543,8 +545,10 @@ contract SuperToken is
     }
 
     function increaseAllowance(address spender, uint256 addedValue)
-        public virtual override returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender] + addedValue);
+        public virtual override returns (bool)
+    {
+        address msgSender = _msgSender();
+        _approve(msgSender, spender, _allowances[msgSender][spender] + addedValue);
         return true;
     }
 
@@ -884,6 +888,28 @@ contract SuperToken is
         onlyHost
     {
         _downgrade(msg.sender, account, to, amount, "", "");
+    }
+
+    /**************************************************************************
+    * IRelayRecipient
+    *************************************************************************/
+
+    /// @dev IRelayRecipient.isTrustedForwarder implementation
+    function isTrustedForwarder(address forwarder) public view override returns(bool) {
+        return forwarder == _host.getDMZForwarder();
+    }
+
+    /// @dev IRelayRecipient.versionRecipient implementation
+    function versionRecipient() external override pure returns (string memory) {
+        return "v1";
+    }
+
+    function _msgSender() internal virtual view returns (address) {
+        if(msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {
+            return address(bytes20(msg.data[msg.data.length - 20:]));
+        } else {
+            return msg.sender;
+        }
     }
 
     /**************************************************************************

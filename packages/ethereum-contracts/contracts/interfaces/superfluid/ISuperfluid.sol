@@ -645,6 +645,11 @@ interface ISuperfluid {
      */
     function forwardBatchCall(Operation[] calldata operations) external payable;
 
+    /**
+     * @dev Get the current DMZForwarder
+     */
+    function getDMZForwarder() external view returns(address);
+
     /**************************************************************************
      * Function modifiers for access control and parameter validations
      *

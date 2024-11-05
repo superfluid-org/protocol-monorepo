@@ -949,6 +949,10 @@ contract Superfluid is
         return "v1";
     }
 
+    function getDMZForwarder() external view override returns(address) {
+        return address(DMZ_FORWARDER);
+    }
+
     /**************************************************************************
     * Internal
     **************************************************************************/
