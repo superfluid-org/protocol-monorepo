@@ -126,7 +126,7 @@ contract("Embedded deployment scripts", (accounts) => {
                 true, // nonUpgradable
                 false, // appWhiteListingEnabled
                 3000000, // callbackGasLimit
-                ZERO_ADDRESS // dmzForwader
+                ZERO_ADDRESS // erc2771Forwader
             );
             assert.isFalse(await codeChanged(web3, Superfluid, a1.address));
         }

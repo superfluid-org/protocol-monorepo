@@ -232,7 +232,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         "PoolAdminNFT",
         "PoolMemberNFT",
         "IAccessControlEnumerable",
-        "DMZForwarder",
+        "ERC2771Forwarder",
     ];
     const mockContracts = [
         "SuperfluidMock",
@@ -271,7 +271,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         PoolAdminNFT,
         PoolMemberNFT,
         IAccessControlEnumerable,
-        DMZForwarder,
+        ERC2771Forwarder,
     } = await SuperfluidSDK.loadContracts({
         ...extractWeb3Options(options),
         additionalContracts: contracts.concat(useMocks ? mockContracts : []),
@@ -352,14 +352,14 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         `Superfluid.${protocolReleaseVersion}`,
         async (contractAddress) => !(await hasCode(web3, contractAddress)),
         async () => {
-            const dmzForwarder = await web3tx(DMZForwarder.new, "DMZForwarder.new")();
-            output += `DMZ_FORWARDER=${dmzForwarder.address}\n`;
+            const erc2771Forwarder = await web3tx(ERC2771Forwarder.new, "ERC2771Forwarder.new")();
+            output += `ERC2771_FORWARDER=${erc2771Forwarder.address}\n`;
 
             let superfluidAddress;
             const superfluidLogic = await web3tx(
                 SuperfluidLogic.new,
                 "SuperfluidLogic.new"
-            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, dmzForwarder.address);
+            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, erc2771Forwarder.address);
             console.log(
                 `Superfluid new code address ${superfluidLogic.address}`
             );
@@ -379,9 +379,12 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 superfluidAddress = superfluidLogic.address;
             }
             const superfluid = await Superfluid.at(superfluidAddress);
+            const simpleForwarderAddr = await superfluid.SIMPLE_FORWARDER();
+            console.log("SimpleForwarder address", simpleForwarderAddr);
+            output += `SIMPLE_FORWARDER=${simpleForwarderAddr}\n`;
             await web3tx(
-                dmzForwarder.transferOwnership,
-                "dmzForwarder.transferOwnership"
+                erc2771Forwarder.transferOwnership,
+                "erc2771Forwarder.transferOwnership"
             )(superfluid.address);
             await web3tx(
                 superfluid.initialize,
@@ -807,33 +810,33 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             throw new Error("Superfluid is not upgradable");
         }
 
-        async function getPrevDMZForwarderAddr() {
+        async function getPrevERC2771ForwarderAddr() {
             try {
-                return await superfluid.DMZ_FORWARDER();
+                return await superfluid.ERC2771_FORWARDER();
             } catch (err) {
-                console.error("### Error getting DMZForwarder address", err);
+                console.error("### Error getting ERC2771Forwarder address", err);
                 return ZERO_ADDRESS; // fallback
             }
         }
-        const prevDMZForwarderAddr = await getPrevDMZForwarderAddr();
+        const prevERC2771ForwarderAddr = await getPrevERC2771ForwarderAddr();
 
-        const dmzForwarderNewAddress = await deployContractIfCodeChanged(
+        const erc2771ForwarderNewAddress = await deployContractIfCodeChanged(
             web3,
-            DMZForwarder,
-            prevDMZForwarderAddr,
+            ERC2771Forwarder,
+            prevERC2771ForwarderAddr,
             async () => {
-                const dmzForwarder = await web3tx(DMZForwarder.new, "DMZForwarder.new")();
+                const erc2771Forwarder = await web3tx(ERC2771Forwarder.new, "ERC2771Forwarder.new")();
                 await web3tx(
-                    dmzForwarder.transferOwnership,
-                    "dmzForwarder.transferOwnership"
+                    erc2771Forwarder.transferOwnership,
+                    "erc2771Forwarder.transferOwnership"
                 )(superfluid.address);
-                output += `DMZ_FORWARDER=${dmzForwarder.address}\n`;
-                return dmzForwarder.address;
+                output += `ERC2771_FORWARDER=${erc2771Forwarder.address}\n`;
+                return erc2771Forwarder.address;
             }
         );
-        const dmzForwarderAddress = dmzForwarderNewAddress !== ZERO_ADDRESS
-            ? dmzForwarderNewAddress
-            : prevDMZForwarderAddr;
+        const erc2771ForwarderAddress = erc2771ForwarderNewAddress !== ZERO_ADDRESS
+            ? erc2771ForwarderNewAddress
+            : prevERC2771ForwarderAddr;
 
         // get previous callback gas limit, make sure we don't decrease it
         const prevCallbackGasLimit = await superfluid.CALLBACK_GAS_LIMIT();
@@ -855,7 +858,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 const superfluidLogic = await web3tx(
                     SuperfluidLogic.new,
                     "SuperfluidLogic.new"
-                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, dmzForwarderAddress);
+                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, erc2771ForwarderAddress);
                 output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
                 return superfluidLogic.address;
             }

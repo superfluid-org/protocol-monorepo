@@ -32,7 +32,7 @@ import { TOGA } from "./TOGA.sol";
 import { CFAv1Library } from "../apps/CFAv1Library.sol";
 import { IDAv1Library } from "../apps/IDAv1Library.sol";
 import { IResolver } from "../interfaces/utils/IResolver.sol";
-import { DMZForwarder } from "../utils/DMZForwarder.sol";
+import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
 import { MacroForwarder } from "../utils/MacroForwarder.sol";
 
 /// @title Superfluid Framework Deployment Steps
@@ -150,11 +150,11 @@ contract SuperfluidFrameworkDeploymentSteps {
             testGovernance = SuperfluidGovDeployerLibrary.deployTestGovernance();
             SuperfluidGovDeployerLibrary.transferOwnership(testGovernance, address(this));
         } else if (step == 1) { // CORE CONTRACT: Superfluid (Host)
-            DMZForwarder dmzForwarder = SuperfluidDMZForwarderDeployerLibrary.deploy();
+            ERC2771Forwarder erc2771Forwarder = SuperfluidERC2771ForwarderDeployerLibrary.deploy();
             // Deploy Host and initialize the test governance.
             // 3_000_000 is the min callback gas limit used in a prod deployment
-            host = SuperfluidHostDeployerLibrary.deploy(true, false, 3_000_000, address(dmzForwarder));
-            dmzForwarder.transferOwnership(address(host));
+            host = SuperfluidHostDeployerLibrary.deploy(true, false, 3_000_000, address(erc2771Forwarder));
+            erc2771Forwarder.transferOwnership(address(host));
 
             host.initialize(testGovernance);
 
@@ -325,10 +325,10 @@ library SuperfluidGovDeployerLibrary {
     }
 }
 
-library SuperfluidDMZForwarderDeployerLibrary {
+library SuperfluidERC2771ForwarderDeployerLibrary {
     // After deploying, you may want to transfer ownership to the host
-    function deploy() external returns (DMZForwarder) {
-        return new DMZForwarder();
+    function deploy() external returns (ERC2771Forwarder) {
+        return new ERC2771Forwarder();
     }
 }
 
@@ -337,11 +337,11 @@ library SuperfluidHostDeployerLibrary {
         bool _nonUpgradable,
         bool _appWhiteListingEnabled,
         uint64 callbackGasLimit,
-        address dmzForwarderAddress
+        address erc2771ForwarderAddress
     )
         external returns (Superfluid)
     {
-        return new Superfluid(_nonUpgradable, _appWhiteListingEnabled, callbackGasLimit, dmzForwarderAddress);
+        return new Superfluid(_nonUpgradable, _appWhiteListingEnabled, callbackGasLimit, erc2771ForwarderAddress);
     }
 }
 

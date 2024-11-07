@@ -4,28 +4,9 @@ pragma solidity ^0.8.23;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title DMZForwarder
- * @dev The purpose of this contract is to make arbitrary contract calls batchable
- * alongside Superfluid specific batch operations.
- * We route the calls through this dedicated contract in order to not have msg.sender set
- * to the host contract, for security reasons.
- * Forwarded calls can optionally use ERC-2771 to preserve the original msg.sender.
- * If native tokens (msg.value) are provided, they are forwarded as well.
+ * @title Forwards calls preserving the original msg.sender according to ERC-2771
  */
-contract DMZForwarder is Ownable {
-    /**
-     * @dev Forwards a call for which msg.sender doesn't matter
-     * @param target The target contract to call
-     * @param data The call data
-     */
-    function forwardCall(address target, bytes memory data)
-        external payable
-        returns(bool success, bytes memory returnData)
-    {
-        // solhint-disable-next-line avoid-low-level-calls
-        (success, returnData) = target.call{value: msg.value}(data);
-    }
-
+contract ERC2771Forwarder is Ownable {
     /**
      * @dev Forwards a call passing along the original msg.sender encoded as specified in ERC-2771.
      * @param target The target contract to call
