@@ -55,8 +55,10 @@ contract Superfluid is
 
     uint64 immutable public CALLBACK_GAS_LIMIT;
 
+    // simple forwarder contract used to relay arbitrary calls for batch operations
+    // Note: address will change with every contract upgrade
+    SimpleForwarder immutable public SIMPLE_FORWARDER;
     ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
-    SimpleForwarder immutable internal _SIMPLE_FORWARDER;
 
     /**
      * @dev Maximum number of level of apps can be composed together
@@ -109,7 +111,7 @@ contract Superfluid is
         APP_WHITE_LISTING_ENABLED = appWhiteListingEnabled;
         CALLBACK_GAS_LIMIT = callbackGasLimit;
         _ERC2771_FORWARDER = ERC2771Forwarder(erc2771ForwarderAddress);
-        _SIMPLE_FORWARDER = new SimpleForwarder();
+        SIMPLE_FORWARDER = new SimpleForwarder();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -891,7 +893,7 @@ contract Superfluid is
                     operations[i].data);
             } else if (operationType == BatchOperation.OPERATION_TYPE_SIMPLE_FORWARD_CALL) {
                 (bool success, bytes memory returnData) =
-                    _SIMPLE_FORWARDER.forwardCall{value: address(this).balance}(
+                    SIMPLE_FORWARDER.forwardCall{value: address(this).balance}(
                         operations[i].target,
                         operations[i].data);
                 if (!success) {

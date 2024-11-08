@@ -73,13 +73,14 @@ async function deployContractIfCodeChanged(
     Contract,
     codeAddress,
     deployFunc,
-    codeReplacements
+    codeReplacements,
+    debug = false
 ) {
     return deployContractIf(
         web3,
         Contract,
         async () =>
-            await codeChanged(web3, Contract, codeAddress, codeReplacements),
+            await codeChanged(web3, Contract, codeAddress, codeReplacements, debug),
         deployFunc
     );
 }
@@ -353,6 +354,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         async (contractAddress) => !(await hasCode(web3, contractAddress)),
         async () => {
             const erc2771Forwarder = await web3tx(ERC2771Forwarder.new, "ERC2771Forwarder.new")();
+            console.log("ERC2771Forwarder address:", erc2771Forwarder.address);
             output += `ERC2771_FORWARDER=${erc2771Forwarder.address}\n`;
 
             let superfluidAddress;
@@ -364,6 +366,10 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 `Superfluid new code address ${superfluidLogic.address}`
             );
             output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
+            // get the address of SimpleForwarder (deployed in constructor) for verification
+            const simpleForwarderAddr = await superfluidLogic.SIMPLE_FORWARDER();
+            console.log("SimpleForwarder address", simpleForwarderAddr);
+            output += `SIMPLE_FORWARDER=${simpleForwarderAddr}\n`;
             if (!nonUpgradable) {
                 const proxy = await web3tx(
                     UUPSProxy.new,
@@ -379,9 +385,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 superfluidAddress = superfluidLogic.address;
             }
             const superfluid = await Superfluid.at(superfluidAddress);
-            const simpleForwarderAddr = await superfluid.SIMPLE_FORWARDER();
-            console.log("SimpleForwarder address", simpleForwarderAddr);
-            output += `SIMPLE_FORWARDER=${simpleForwarderAddr}\n`;
             await web3tx(
                 erc2771Forwarder.transferOwnership,
                 "erc2771Forwarder.transferOwnership"
@@ -390,19 +393,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 superfluid.initialize,
                 "Superfluid.initialize"
             )(governance.address);
-            if (!nonUpgradable) {
-                if (
-                    await codeChanged(
-                        web3,
-                        SuperfluidLogic,
-                        await superfluid.getCodeAddress()
-                    )
-                ) {
-                    throw new Error(
-                        "Unexpected code change from fresh deployment"
-                    );
-                }
-            }
             return superfluid;
         }
     );
@@ -812,7 +802,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
 
         async function getPrevERC2771ForwarderAddr() {
             try {
-                return await superfluid.ERC2771_FORWARDER();
+                return await superfluid.getERC2771Forwarder();
             } catch (err) {
                 console.error("### Error getting ERC2771Forwarder address", err);
                 return ZERO_ADDRESS; // fallback
@@ -847,6 +837,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         }
 
         // deploy new superfluid host logic
+        const simpleForwarderAddr = await superfluid.SIMPLE_FORWARDER();
         superfluidNewLogicAddress = await deployContractIfCodeChanged(
             web3,
             SuperfluidLogic,
@@ -861,7 +852,12 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 )(nonUpgradable, appWhiteListing, appCallbackGasLimit, erc2771ForwarderAddress);
                 output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
                 return superfluidLogic.address;
-            }
+            },
+            [
+                ap(erc2771ForwarderAddress),
+                ap(simpleForwarderAddr),
+                appCallbackGasLimit.toString(16).padStart(64, "0")
+            ],
         );
 
         // deploy new CFA logic

@@ -116,7 +116,11 @@ async function hasCode(web3, address) {
 /**
  * @dev Check if the code at the address differs from the contract object provided
  * @param replacements should contain all immutable contract fields, encoded as words
- * TODO: this isn't always working as intended, see https://github.com/superfluid-finance/protocol-monorepo/issues/1448
+ * This comes with the following limitations:
+ * - possible false positive if a replacement value by chance is part of the code
+ *   other than as the immutable to be replaced
+ * - if an update only involves changing the value of an immutable,
+ *   the check will wrongly claim that nothing changed
  */
 async function codeChanged(
     web3,
@@ -125,38 +129,55 @@ async function codeChanged(
     replacements = [],
     debug = false
 ) {
-    // use .binary instead of .bytecode
-    // since .binary will have the linked library addresses
-    const binaryFromCompiler = contract.binary;
-    const code = await web3.eth.getCode(address);
+    // Use .binary instead of .bytecode to include linked library addresses
+    let binaryFromCompiler = contract.binary.toLowerCase();
+    // Trim `binaryFromCompiler` to start from the first occurrence of "6080604052"
+    const firstIndex = binaryFromCompiler.indexOf("6080604052");
+    if (firstIndex !== -1) {
+        binaryFromCompiler = binaryFromCompiler.slice(firstIndex);
+    }
 
-    // no code
+    let code = (await web3.eth.getCode(address)).toLowerCase().replace(/^0x/, "");;
+
+    // No code at the address indicates a change
     if (code.length <= 3) return true;
 
-    // SEE: https://github.com/ConsenSys/bytecode-verifier/blob/master/src/verifier.js
-    // find the second occurance of the init code
-    let codeTrimed = code.slice(code.lastIndexOf("6080604052")).toLowerCase();
-    const binaryTrimed = binaryFromCompiler
-        .slice(binaryFromCompiler.lastIndexOf("6080604052"))
-        .toLowerCase();
-
-    // extra replacements usually for constructor parameters
+    // Apply replacements only to the on-chain code for dynamic values (e.g., constructor parameters)
+    if (debug) {
+        console.log("replacements", replacements);
+    }
+    let codeReplaced = code;
     replacements.forEach((r) => {
-        codeTrimed = codeTrimed.replace(
+        codeReplaced = codeReplaced.replace(
             new RegExp(r, "g"),
             "0".repeat(r.length)
         );
     });
 
+    // Check if the on-chain code (with replacements) is a subset of the binary from the compiler
+    const isSubset = binaryFromCompiler.includes(codeReplaced);
+
     if (debug) {
-        console.debug(codeTrimed);
-        console.debug(binaryTrimed);
+        console.log("  binaryFromCompiler", binaryFromCompiler);
+        console.log("  code", code);
+        console.log("  codeReplaced", codeReplaced);
     }
-    // console.log(code);
-    // console.log(bytecodeFromCompiler);
-    // console.log(bytecodeFromCompiler.indexOf(code.slice(2)));
-    return binaryTrimed !== codeTrimed;
+
+    if (isSubset) {
+        // Find where `codeReplaced` ends within `binaryFromCompiler`
+        const endIndex = binaryFromCompiler.indexOf(codeReplaced) + codeReplaced.length;
+
+        // Verify that either `binaryFromCompiler` ends there or has "6080604052" following
+        const isMatch = endIndex === binaryFromCompiler.length ||
+                        binaryFromCompiler.slice(endIndex).startsWith("6080604052");
+
+        return !isMatch;
+    }
+
+    // If not a subset, it's a mismatch
+    return true;
 }
+
 
 /**
  * @dev Check if the address is a UUPS proxiable
