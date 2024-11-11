@@ -804,7 +804,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             try {
                 return await superfluid.getERC2771Forwarder();
             } catch (err) {
-                console.error("### Error getting ERC2771Forwarder address", err);
+                console.error("### Error getting ERC2771Forwarder address, likely not yet deployed");
                 return ZERO_ADDRESS; // fallback
             }
         }
@@ -836,8 +836,14 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             console.log(` !!! CHANGING APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
         }
 
+        // get prev SimpleForwarder addr (only for replacements for codeChanged check)
+        let simpleForwarderAddr;
+        try {
+            simpleForwarderAddr = await superfluid.SIMPLE_FORWARDER();
+        } catch (error) {
+            simpleForwarderAddr = ZERO_ADDRESS;
+        }
         // deploy new superfluid host logic
-        const simpleForwarderAddr = await superfluid.SIMPLE_FORWARDER();
         superfluidNewLogicAddress = await deployContractIfCodeChanged(
             web3,
             SuperfluidLogic,

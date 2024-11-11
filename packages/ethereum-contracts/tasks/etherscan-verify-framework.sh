@@ -182,11 +182,9 @@ if [ -n "$SUPER_TOKEN_NATIVE_COIN" ];then
 fi
 
 # testnet tokens
-for var in $(compgen -v); do
-    if [[ $var == NON_SUPER_TOKEN_* ]]; then
-        addr=${!var}
-        try_verify TestToken@"$addr"
-    fi
+for var in "${!NON_SUPER_TOKEN_@}"; do
+    addr=${!var}
+    try_verify TestToken@"$addr"
 done
 
 # optional peripery contracts
