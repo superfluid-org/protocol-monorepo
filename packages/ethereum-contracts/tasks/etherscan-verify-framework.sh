@@ -9,6 +9,8 @@
 
 CONTRACTS_DIR=build/truffle
 
+SOURCIFY_ONLY_NETWORKS=("degenchain")
+
 TRUFFLE_NETWORK=$1
 ADDRESSES_VARS=$2
 
@@ -29,10 +31,16 @@ EXTRA_ARGS="$*"
 # shellcheck disable=SC1090
 source "$ADDRESSES_VARS"
 
+if [[ " ${SOURCIFY_ONLY_NETWORKS[*]} " == *" $TRUFFLE_NETWORK "* ]]; then
+    VERIFIERS="sourcify"
+else
+    VERIFIERS="etherscan,sourcify"
+fi
+
 FAILED_VERIFICATIONS=()
 function try_verify() {
     echo # newline for better readability
-    cmd="npx truffle run --network $TRUFFLE_NETWORK verify $* ${EXTRA_ARGS:+$EXTRA_ARGS}"
+    cmd="npx truffle run --network $TRUFFLE_NETWORK --verifiers=$VERIFIERS verify $* ${EXTRA_ARGS:+$EXTRA_ARGS}"
     echo "> $cmd"
     $cmd || FAILED_VERIFICATIONS[${#FAILED_VERIFICATIONS[@]}]="$*"
         # NOTE: append using length so that having spaces in the element is not a problem
