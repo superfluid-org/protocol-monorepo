@@ -3,6 +3,11 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.11.2]
+
+### Changed
+* Added `getERC2771Forwarder()` to `ISuperfluid`, to be used by batch call targets who want to use ERC-2771 for msg sender preservation.
+
 ## [v1.11.1]
 
 ### Changed
