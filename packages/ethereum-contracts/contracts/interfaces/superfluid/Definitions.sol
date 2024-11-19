@@ -238,6 +238,11 @@ library BatchOperation {
      *     target,
      *     data
      * )
+     * NOTE: This operation allows to make arbitrary calls to arbitrary targets.
+     * The calls are routed through a dedicated utility contract `SimpleForwarder`.
+     * This is important because the host contract has privileged access to other framework contracts,
+     * SuperTokens, SuperApps etc.
+     * Allowing arbitrary calls to arbitrary targets with the host as sender would thus be unsafe.
      */
     uint32 constant internal OPERATION_TYPE_SIMPLE_FORWARD_CALL = 1 + 300;
     /**
