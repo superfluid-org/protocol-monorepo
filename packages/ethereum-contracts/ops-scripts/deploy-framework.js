@@ -426,6 +426,9 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         if (config.gdaFwd) {
             trustedForwarders.push(config.gdaFwd);
         }
+        if (config.macroFwd) {
+            trustedForwarders.push(config.macroFwd);
+        }
         console.log(`initializing TestGovernance with config: ${JSON.stringify({
             liquidationPeriod: config.liquidationPeriod,
             patricianPeriod: config.patricityPeriod,
