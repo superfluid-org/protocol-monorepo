@@ -5,8 +5,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [v1.11.2]
 
-### Changed
-* Added `getERC2771Forwarder()` to `ISuperfluid`, to be used by batch call targets who want to use ERC-2771 for msg sender preservation.
+### Added
+* `ISuperfluid.getERC2771Forwarder()`: to be used by batch call targets who want to use ERC-2771 for msg sender preservation.
+* Utility contracts for forwarding of calls in the context of batch operations:
+  * `SimpleForwarder`: for forwarding arbitrary calls to arbitrary targets
+  * `ERC2771Forwarder`: for forwarding arbitrary calls to arbitrary targets with msg sender authenticated according to ERC-2771. Requires the target contract to recognize it as trusted forwarder.
 
 ## [v1.11.1]
 
