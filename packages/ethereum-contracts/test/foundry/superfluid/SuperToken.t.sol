@@ -10,7 +10,7 @@ import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1
 import { PoolMemberNFT, IPoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
-import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.sol";
+import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.s.sol";
 
 contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     constructor() FoundrySuperfluidTester(0) { }
