@@ -7,7 +7,7 @@ import { BatchOperation, ISuperfluid, Superfluid } from "../../../contracts/supe
 import { SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IGeneralDistributionAgreementV1, ISuperfluidPool, PoolConfig } from "../../../contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { IConstantFlowAgreementV1, ISuperToken, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { SuperAppMock } from "../../../contracts/mocks/SuperAppMocks.t.sol";
 import { SimpleForwarder } from "../../../contracts/utils/SimpleForwarder.sol";

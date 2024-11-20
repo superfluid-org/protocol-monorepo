@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "forge-std/console.sol";
 
-import "../FoundrySuperfluidTester.sol";
+import "../FoundrySuperfluidTester.t.sol";
 
 import {
     ISuperToken,

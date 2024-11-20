@@ -12,7 +12,7 @@ import "@superfluid-finance/ethereum-contracts/contracts/agreements/InstantDistr
 import "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
 import "@superfluid-finance/ethereum-contracts/contracts/apps/IDAv1Library.sol";
 import {SuperTokenV1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
-import "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.sol";
+import "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.s.sol";
 
 contract SuperfluidTester {
     using SuperTokenV1Library for ISuperToken;

@@ -5,7 +5,7 @@ import { ISuperfluid, BatchOperation } from "../../../contracts/interfaces/super
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { MacroForwarder, IUserDefinedMacro } from "../../../contracts/utils/MacroForwarder.sol";
-import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 
 using SuperTokenV1Library for ISuperToken;
 

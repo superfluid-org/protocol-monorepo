@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { IERC721Metadata } from "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { PoolAdminNFTMock, PoolMemberNFTMock } from "./PoolNFTMock.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";

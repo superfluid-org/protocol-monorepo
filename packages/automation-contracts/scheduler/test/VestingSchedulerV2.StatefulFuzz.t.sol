@@ -5,7 +5,7 @@ import {ISuperToken} from "@superfluid-finance/ethereum-contracts/contracts/inte
 import {FlowOperatorDefinitions} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 import {IVestingSchedulerV2} from "./../contracts/interface/IVestingSchedulerV2.sol";
 import {VestingSchedulerV2} from "./../contracts/VestingSchedulerV2.sol";
-import {FoundrySuperfluidTester} from "@superfluid-finance/ethereum-contracts/test/foundry/FoundrySuperfluidTester.sol";
+import {FoundrySuperfluidTester} from "@superfluid-finance/ethereum-contracts/test/foundry/FoundrySuperfluidTester.t.sol";
 import {SuperTokenV1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import "forge-std/console2.sol";
 

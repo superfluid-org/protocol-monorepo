@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { FoundrySuperfluidTester } from "../../foundry/FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../../foundry/FoundrySuperfluidTester.t.sol";
 import { ISuperfluidPool, SuperfluidPool } from "../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { ISuperToken, SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
