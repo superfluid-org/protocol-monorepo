@@ -11,7 +11,7 @@ import {
     SuperfluidFrameworkDeployer,
     TestToken,
     SuperToken
-} from "../../../contracts/utils/SuperfluidFrameworkDeployer.sol";
+} from "../../../contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 
 contract SlotsBitmapLibraryPropertyTest is Test {
     SuperfluidFrameworkDeployer internal immutable sfDeployer;

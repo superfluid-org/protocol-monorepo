@@ -7,10 +7,11 @@ import { BatchOperation, ISuperfluid, Superfluid } from "../../../contracts/supe
 import { SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IGeneralDistributionAgreementV1, ISuperfluidPool, PoolConfig } from "../../../contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { IConstantFlowAgreementV1, ISuperToken, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { SuperAppMock } from "../../../contracts/mocks/SuperAppMocks.t.sol";
-import { DMZForwarder } from "../../../contracts/utils/DMZForwarder.sol";
+import { SimpleForwarder } from "../../../contracts/utils/SimpleForwarder.sol";
+import { ERC2771Forwarder } from "../../../contracts/utils/ERC2771Forwarder.sol";
 import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
 import { BaseRelayRecipient } from "../../../contracts/libs/BaseRelayRecipient.sol";
 
@@ -68,18 +69,17 @@ contract TestContract2771 is TestContract, Ownable, BaseRelayRecipient {
     }
 }
 
-// Same as TestContract2771, but only trusts the host's DMZForwarder
+// Same as TestContract2771, but only trusts the host's ERC2771Forwarder
 contract TestContract2771Checked is TestContract2771 {
-    Superfluid internal _host;
+    ISuperfluid internal _host;
 
-    constructor(Superfluid host) {
+    constructor(ISuperfluid host) {
         _host = host;
     }
 
     /// @dev BaseRelayRecipient.isTrustedForwarder implementation
     function isTrustedForwarder(address forwarder) public view override returns(bool) {
-        // TODO: shall we add this to ISuperfluid and recommend as general pattern?
-        return forwarder == address(_host.DMZ_FORWARDER());
+        return forwarder == address(_host.getERC2771Forwarder());
     }
 }
 
@@ -385,7 +385,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
     }
 
     function testSimpleForwardCall() public {
-        DMZForwarder forwarder = new DMZForwarder();
+        SimpleForwarder forwarder = new SimpleForwarder();
         TestContract testContract = new TestContract();
 
         (bool success, bytes memory returnValue) = forwarder.forwardCall(
@@ -394,8 +394,8 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
         );
         // decoded return value
         bool retVal = abi.decode(returnValue, (bool));
-        assertTrue(success, "DMZForwarder: call failed");
-        assertEq(retVal, true, "DMZForwarder: unexpected return value");
+        assertTrue(success, "SimpleForwarder: call failed");
+        assertEq(retVal, true, "SimpleForwarder: unexpected return value");
     }
 
     function testSimpleForwardCallBatchCall() public {
@@ -426,7 +426,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
     }
 
     function test2771ForwardCall() public {
-        DMZForwarder forwarder = new DMZForwarder();
+        ERC2771Forwarder forwarder = new ERC2771Forwarder();
 
         TestContract2771 testContract = new TestContract2771();
         // alice has privileged access to the testContract
@@ -440,9 +440,9 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
         );
         // decoded return value
         bool retVal = abi.decode(returnValue, (bool));
-        assertTrue(success, "DMZForwarder: call failed");
+        assertTrue(success, "ERC2771Forwarder: call failed");
         assertEq(testContract.stateChanged(), true, "TestContract: unexpected state");
-        assertEq(retVal, true, "DMZForwarder: unexpected return value");
+        assertEq(retVal, true, "ERC2771Forwarder: unexpected return value");
 
         // if relaying for bob, it should fail
         (success,) = forwarder.forward2771Call(
@@ -450,7 +450,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
             bob,
             abi.encodeCall(testContract.privilegedFn, ())
         );
-        assertFalse(success, "DMZForwarder: call should have failed");
+        assertFalse(success, "ERC2771Forwarder: call should have failed");
 
         // only the owner of the forwarder shall be allowed to relay
         vm.startPrank(eve);
@@ -605,17 +605,17 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
         assertEq(address(sf.host).balance, 0, "batchCall host: native tokens left");
     }
 
-    function testWithdrawLostNativeTokensFromDMZForwarder() public {
+    function testWithdrawLostNativeTokensFromSimpleForwarder() public {
         uint256 amount = 42;
 
-        DMZForwarder forwarder = new DMZForwarder();
+        SimpleForwarder forwarder = new SimpleForwarder();
 
         // failing call which causes `amount` to get stuck in the forwarder contract
         (bool success, ) = forwarder.forwardCall{value: amount}(
             address(sf.host), new bytes(0x1));
 
-        assertFalse(success, "DMZForwarder: call should have failed");
-        assertEq(address(forwarder).balance, amount, "DMZForwarder: unexpected balance");
+        assertFalse(success, "SimpleForwarder: call should have failed");
+        assertEq(address(forwarder).balance, amount, "SimpleForwarder: unexpected balance");
 
         // eve isn't allowed to withdraw
         vm.startPrank(eve);
@@ -625,7 +625,31 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
 
         // but we can withdraw
         forwarder.withdrawLostNativeTokens(payable(bob));
-        assertEq(address(forwarder).balance, 0, "DMZForwarder: balance still not 0");
-        assertEq(bob.balance, amount, "DMZForwarder: where did the money go?");
+        assertEq(address(forwarder).balance, 0, "SimpleForwarder: balance still not 0");
+        assertEq(bob.balance, amount, "SimpleForwarder: where did the money go?");
+    }
+
+    function testWithdrawLostNativeTokensFromERC2771Forwarder() public {
+        uint256 amount = 42;
+
+        ERC2771Forwarder forwarder = new ERC2771Forwarder();
+
+        // failing call which causes `amount` to get stuck in the forwarder contract
+        (bool success, ) = forwarder.forward2771Call{value: amount}(
+            address(sf.host), address(this), new bytes(0x1));
+
+        assertFalse(success, "ERC2771Forwarder: call should have failed");
+        assertEq(address(forwarder).balance, amount, "ERC2771Forwarder: unexpected balance");
+
+        // eve isn't allowed to withdraw
+        vm.startPrank(eve);
+        vm.expectRevert("Ownable: caller is not the owner");
+        forwarder.withdrawLostNativeTokens(payable(bob));
+        vm.stopPrank();
+
+        // but we can withdraw
+        forwarder.withdrawLostNativeTokens(payable(bob));
+        assertEq(address(forwarder).balance, 0, "ERC2771Forwarder: balance still not 0");
+        assertEq(bob.balance, amount, "ERC2771Forwarder: where did the money go?");
     }
 }

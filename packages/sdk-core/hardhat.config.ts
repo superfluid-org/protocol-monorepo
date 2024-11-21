@@ -49,6 +49,7 @@ const config: HardhatUserConfig = {
     networks: {
         hardhat: {
             chainId: 31337,
+            allowUnlimitedContractSize: true,
         },
         matic: {
             url: process.env.MATIC_PROVIDER_URL || "",

@@ -16,7 +16,7 @@
     "license": "AGPL-3.0",
     "main": "index.js",
     "peerDependencies": {
-        "@superfluid-finance/ethereum-contracts": "1.8.0"
+        "@superfluid-finance/ethereum-contracts": "1.11.1"
     },
     "repository": {
         "type": "git",

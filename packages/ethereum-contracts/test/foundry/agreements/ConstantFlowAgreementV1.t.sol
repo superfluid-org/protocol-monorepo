@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { console } from "forge-std/Test.sol";
-import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 
 contract ConstantFlowAgreementV1IntegrationTest is FoundrySuperfluidTester {

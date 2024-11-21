@@ -11,7 +11,7 @@ import {
 } from "@superfluid-finance/ethereum-contracts/contracts/agreements/ConstantFlowAgreementV1.sol";
 import {
     SuperfluidFrameworkDeployer
-} from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.sol";
+} from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import {
     SuperTokenV1Library
 } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";

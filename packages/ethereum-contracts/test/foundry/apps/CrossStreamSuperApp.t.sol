@@ -7,7 +7,7 @@ import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { ISuperToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 import "forge-std/Test.sol";
 

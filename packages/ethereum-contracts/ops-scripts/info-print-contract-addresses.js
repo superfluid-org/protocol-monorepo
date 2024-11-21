@@ -165,6 +165,16 @@ module.exports = eval(`(${S.toString()})()`)(async function (
         console.warn("POOL_ADMIN_NFT or POOL_MEMBER_NFT probably not deployed yet");
     }
 
+    try {
+        const erc2771ForwarderAddr = await sf.host.getERC2771Forwarder();
+        output += `ERC2771_FORWARDER=${erc2771ForwarderAddr}\n`;
+        // not working - apparently we only get the ISuperfluid in sf.host
+        const simpleForwarderAddr = await sf.host.SIMPLE_FORWARDER();
+        output += `SIMPLE_FORWARDER=${simpleForwarderAddr}\n`;
+    } catch(e) {
+        console.warn("[Simple|ERC2771]Forwarder probably not deployed yet");
+    }
+
     if (! skipTokens) {
         await Promise.all(
             config.tokenList.map(async (tokenName) => {

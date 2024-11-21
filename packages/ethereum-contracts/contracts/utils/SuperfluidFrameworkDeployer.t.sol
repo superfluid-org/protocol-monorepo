@@ -3,7 +3,7 @@ pragma solidity >=0.8.11;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SuperfluidFrameworkDeploymentSteps, TokenDeployerLibrary } from "./SuperfluidFrameworkDeploymentSteps.sol";
+import { SuperfluidFrameworkDeploymentSteps, TokenDeployerLibrary } from "./SuperfluidFrameworkDeploymentSteps.t.sol";
 import { ISuperTokenFactory } from "../superfluid/SuperTokenFactory.sol";
 import { SuperToken } from "../superfluid/SuperToken.sol";
 import { TestToken } from "./TestToken.sol";

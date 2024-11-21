@@ -7,24 +7,30 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 - Added functionality to `SuperTokenV1Library`, most notably `flowX` and `transferX`.
+- `ISuperfluid.getERC2771Forwarder()`: to be used by batch call targets who want to use ERC-2771 for msg sender preservation.
+- Utility contracts for forwarding of calls in the context of batch operations:
+  - `SimpleForwarder`: for forwarding arbitrary calls to arbitrary targets
+  - `ERC2771Forwarder`: for forwarding arbitrary calls to arbitrary targets with msg sender authenticated according to ERC-2771. Requires the target contract to recognize it as trusted forwarder.
 
 ### Breaking
 - Removed `CFAv1Library`, superseded by `SuperTokenV1Library`.
 - Removed `IDAv1Library` and IDA functionality from `SuperTokenV1Library`. IDA shall not be used anymore, the GDA covers all its functionality.
 - Removed some methods from `SuperTokenV1Library` which don't belong to the token interface.
+- Source file `SuperfluidFrameworkDeployer.sol` renamed to `SuperfluidFrameworkDeployer.t.sol`
+- Source file `FoundrySuperfluidTester.sol` renamed to `FoundrySuperfluidTester.t.sol`
 
 ## [v1.11.1]
 
 ### Changed
 
-* `MacroForwarder` made payable.
-* `IUserDefinedMacro`: added a method `postCheck()` which allows to verify state changes after running the macro.
-* `SuperfluidFrameworkDeployer` now also deploys and `MacroForwarder` and enables it as trusted forwarder.
-* `deploy-test-environment.js` now deploys fUSDC (the underlying) with 6 decimals (instead of 18) to better resemble the actual USDC.
+- `MacroForwarder` made payable.
+- `IUserDefinedMacro`: added a method `postCheck()` which allows to verify state changes after running the macro.
+- `SuperfluidFrameworkDeployer` now also deploys and `MacroForwarder` and enables it as trusted forwarder.
+- `deploy-test-environment.js` now deploys fUSDC (the underlying) with 6 decimals (instead of 18) to better resemble the actual USDC.
 
 ### Fixed
 
-* GDA Pools are not multi-tokens ready, added a permission check (#2010).
+- GDA Pools are not multi-tokens ready, added a permission check (#2010).
 
 ## [v1.11.0]
 

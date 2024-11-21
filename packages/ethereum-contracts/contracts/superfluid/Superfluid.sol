@@ -23,7 +23,8 @@ import { SuperfluidUpgradeableBeacon } from "../upgradability/SuperfluidUpgradea
 import { CallUtils } from "../libs/CallUtils.sol";
 import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { BaseRelayRecipient } from "../libs/BaseRelayRecipient.sol";
-import { DMZForwarder } from "../utils/DMZForwarder.sol";
+import { SimpleForwarder } from "../utils/SimpleForwarder.sol";
+import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
 
 /**
  * @dev The Superfluid host implementation.
@@ -54,7 +55,10 @@ contract Superfluid is
 
     uint64 immutable public CALLBACK_GAS_LIMIT;
 
-    DMZForwarder immutable public DMZ_FORWARDER;
+    // simple forwarder contract used to relay arbitrary calls for batch operations
+    // Note: address will change with every contract upgrade
+    SimpleForwarder immutable public SIMPLE_FORWARDER;
+    ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
 
     /**
      * @dev Maximum number of level of apps can be composed together
@@ -101,12 +105,13 @@ contract Superfluid is
         bool nonUpgradable,
         bool appWhiteListingEnabled,
         uint64 callbackGasLimit,
-        address dmzForwarderAddress
+        address erc2771ForwarderAddress
     ) {
         NON_UPGRADABLE_DEPLOYMENT = nonUpgradable;
         APP_WHITE_LISTING_ENABLED = appWhiteListingEnabled;
         CALLBACK_GAS_LIMIT = callbackGasLimit;
-        DMZ_FORWARDER = DMZForwarder(dmzForwarderAddress);
+        _ERC2771_FORWARDER = ERC2771Forwarder(erc2771ForwarderAddress);
+        SIMPLE_FORWARDER = new SimpleForwarder();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -888,7 +893,7 @@ contract Superfluid is
                     operations[i].data);
             } else if (operationType == BatchOperation.OPERATION_TYPE_SIMPLE_FORWARD_CALL) {
                 (bool success, bytes memory returnData) =
-                    DMZ_FORWARDER.forwardCall{value: address(this).balance}(
+                    SIMPLE_FORWARDER.forwardCall{value: address(this).balance}(
                         operations[i].target,
                         operations[i].data);
                 if (!success) {
@@ -896,7 +901,7 @@ contract Superfluid is
                 }
             } else if (operationType == BatchOperation.OPERATION_TYPE_ERC2771_FORWARD_CALL) {
                 (bool success, bytes memory returnData) =
-                    DMZ_FORWARDER.forward2771Call{value: address(this).balance}(
+                    _ERC2771_FORWARDER.forward2771Call{value: address(this).balance}(
                         operations[i].target,
                         msgSender,
                         operations[i].data);
@@ -947,6 +952,10 @@ contract Superfluid is
         returns (string memory)
     {
         return "v1";
+    }
+
+    function getERC2771Forwarder() external view override returns(address) {
+        return address(_ERC2771_FORWARDER);
     }
 
     /**************************************************************************

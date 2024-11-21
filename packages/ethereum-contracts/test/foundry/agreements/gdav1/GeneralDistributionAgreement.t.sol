@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
-import "../../FoundrySuperfluidTester.sol";
+import "../../FoundrySuperfluidTester.t.sol";
 import {
     GeneralDistributionAgreementV1,
     IGeneralDistributionAgreementV1

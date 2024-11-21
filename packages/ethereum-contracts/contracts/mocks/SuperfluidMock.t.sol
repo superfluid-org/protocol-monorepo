@@ -134,9 +134,9 @@ contract SuperfluidMock is Superfluid {
         bool nonUpgradable,
         bool appWhiteListingEnabled,
         uint64 callbackGasLimit,
-        address dmzForwarder
+        address erc2771Forwarder
     )
-        Superfluid(nonUpgradable, appWhiteListingEnabled, callbackGasLimit, dmzForwarder)
+        Superfluid(nonUpgradable, appWhiteListingEnabled, callbackGasLimit, erc2771Forwarder)
     // solhint-disable-next-line no-empty-blocks
     {
     }
