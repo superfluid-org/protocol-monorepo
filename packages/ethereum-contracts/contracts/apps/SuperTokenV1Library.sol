@@ -813,6 +813,20 @@ library SuperTokenV1Library {
     }
 
     /**
+     * @dev get flowrate between a distributor and pool for given token
+     * @param token The token used in flow
+     * @param distributor The ditributor of the flow
+     * @param pool The GDA pool
+     * @return flowRate The flow rate
+     */
+    function getGDAFlowRate(ISuperToken token, address distributor, ISuperfluidPool pool)
+        internal view returns(int96 flowRate)
+    {
+        (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
+        return gda.getFlowRate(token, distributor, pool);
+    }
+
+    /**
      * @dev get CFA flow info between two accounts for given token
      * @param token The token used in flow
      * @param sender The sender of the flow
@@ -833,7 +847,7 @@ library SuperTokenV1Library {
     /**
      * @dev get flow info of a distributor to a pool for given token
      * @param token The token used in flow
-     * @param distributor The sitributor of the flow
+     * @param distributor The ditributor of the flow
      * @param pool The GDA pool
      * @return lastUpdated Timestamp of flow creation or last flowrate change
      * @return flowRate The flow rate
@@ -846,10 +860,6 @@ library SuperTokenV1Library {
         (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
         return gda.getFlow(token, distributor, pool);
     }
-
-    /* function getGDAFlowInfo(ISuperToken token, address distributor, ISuperfluidPool pool) */
-    /* { */
-    /* } */
 
     /**
      * @dev get net flow rate for given account for given token (CFA + GDA)
