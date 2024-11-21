@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { FoundrySuperfluidTester, ISuperToken, SuperTokenV1Library, ISuperfluidPool }
-    from "../FoundrySuperfluidTester.sol";
+    from "../FoundrySuperfluidTester.t.sol";
 
 /*
 * Note: since libs are used by contracts, not EOAs, do NOT try to use
