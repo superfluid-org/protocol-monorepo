@@ -3,13 +3,17 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v1.11.2]
+## [Unreleased]
 
 ### Added
 * `ISuperfluid.getERC2771Forwarder()`: to be used by batch call targets who want to use ERC-2771 for msg sender preservation.
 * Utility contracts for forwarding of calls in the context of batch operations:
   * `SimpleForwarder`: for forwarding arbitrary calls to arbitrary targets
   * `ERC2771Forwarder`: for forwarding arbitrary calls to arbitrary targets with msg sender authenticated according to ERC-2771. Requires the target contract to recognize it as trusted forwarder.
+
+### Breaking
+* Source file `SuperfluidFrameworkDeployer.sol` renamed to `SuperfluidFrameworkDeployer.t.sol`
+* Source file `FoundrySuperfluidTester.sol` renamed to `FoundrySuperfluidTester.t.sol`
 
 ## [v1.11.1]
 
