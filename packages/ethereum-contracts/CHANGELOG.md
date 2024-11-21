@@ -6,7 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [v1.12.0]
 
 ### Added
-- Added functionality to `SuperTokenV1Library`, most notably `flowX` and `transferX`.
+- `SuperTokenV1Library`
+  - added agreement specific variants for `getFlowRate`, `getFlowInfo`, `getNetFlowRate` and `getNetFlowInfo`, e.g. `getCFAFlowRate` and `getGDAFlowRate`, ...
+  - added `flow` for changing CFA flows, can be used instead of the CRUD methods
+  - added `flowFrom` for changing CFA flows using ACL permissions
+  - added `transferX` and `flowX` for agreement abstracted instant or flow transfers/distributions.
+  - added `getTotalAmountReceivedFromPool`
 - `ISuperfluid.getERC2771Forwarder()`: to be used by batch call targets who want to use ERC-2771 for msg sender preservation.
 - Utility contracts for forwarding of calls in the context of batch operations:
   - `SimpleForwarder`: for forwarding arbitrary calls to arbitrary targets
@@ -14,8 +19,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Breaking
 - Removed `CFAv1Library`, superseded by `SuperTokenV1Library`.
-- Removed `IDAv1Library` and IDA functionality from `SuperTokenV1Library`. IDA shall not be used anymore, the GDA covers all its functionality.
-- Removed some methods from `SuperTokenV1Library` which don't belong to the token interface.
+- The IDA is now declared as deprecated, shouldn't be used anymore. The GDA covers all its functionality.
+- Removed `IDAv1Library`.
+- `SuperTokenV1Library`
+  - removed IDA specific functionality. `distribute` now maps to the GDA.
+  - `getFlowRate`, `getFlowInfo`, `getNetFlowRate` and `getNetFlowInfo` now work for both CFA and GDA flows (uses GDA if "receiver" is a pool)
+  - removed `updateMemberUnits` (use ISuperfluidPool.updateMemberUnits instead)
 - Source file `SuperfluidFrameworkDeployer.sol` renamed to `SuperfluidFrameworkDeployer.t.sol`
 - Source file `FoundrySuperfluidTester.sol` renamed to `FoundrySuperfluidTester.t.sol`
 
