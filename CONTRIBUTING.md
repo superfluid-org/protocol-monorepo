@@ -10,8 +10,8 @@ Before interacting with the Superfluid community, please read and understand our
 
 At minimum, you will need to have these available in your development environment:
 
-- yarn, sufficiently recent version, the actual yarn version is locked in `.yarnrc`.
-- nodejs 18.x.
+- Yarn, sufficiently recent version, the actual yarn version is locked in `.yarnrc`.
+- Node.js 18.x.
 
 Additionally recommended:
 - jq
