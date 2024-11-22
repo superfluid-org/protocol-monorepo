@@ -102,8 +102,8 @@ library SuperTokenV1Library {
     function getFlowRate(ISuperToken token, address sender, address receiverOrPool)
         internal view returns(int96 flowRate)
     {
-        (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
-        if (gda.isPool(token, receiverOrPool)) {
+        if (_isPool(token, receiverOrPool)) {
+            (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
             (, flowRate,) = gda.getFlow(token, sender, ISuperfluidPool(receiverOrPool));
         } else {
             (, IConstantFlowAgreementV1 cfa) = _getHostAndCFA(token);
@@ -126,8 +126,8 @@ library SuperTokenV1Library {
         internal view
         returns(uint256 lastUpdated, int96 flowRate, uint256 deposit, uint256 owedDeposit)
     {
-        (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
-        if (gda.isPool(token, receiverOrPool)) {
+        if (_isPool(token, receiverOrPool)) {
+            (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
             (lastUpdated, flowRate, deposit) = gda.getFlow(token, sender, ISuperfluidPool(receiverOrPool));
         } else {
             (, IConstantFlowAgreementV1 cfa) = _getHostAndCFA(token);
@@ -1301,6 +1301,22 @@ library SuperTokenV1Library {
     /**
      * @dev Tries to distribute `requestedAmount` amount of `token` from `from` to `pool`.
      * @param token The Super Token address.
+     * @param pool The Superfluid Pool address.
+     * @param requestedAmount The amount of tokens to distribute.
+     * @return A boolean value indicating whether the distribution was successful.
+     */
+    function distribute(ISuperToken token, ISuperfluidPool pool, uint256 requestedAmount)
+        internal
+        returns (bool)
+    {
+        return distribute(token, address(this), pool, requestedAmount, new bytes(0));
+    }
+
+    /**
+     * @dev Tries to distribute `requestedAmount` amount of `token` from `from` to `pool`.
+     * NOTE: has an additional argument `from`, but can only be msg.sender because GDA
+     * currently doesn't have ACL support. Only included for API completeness.
+     * @param token The Super Token address.
      * @param from The address from which to distribute tokens.
      * @param pool The Superfluid Pool address.
      * @param requestedAmount The amount of tokens to distribute.
@@ -1338,6 +1354,22 @@ library SuperTokenV1Library {
 
     /**
      * @dev Tries to distribute flow at `requestedFlowRate` of `token` from `from` to `pool`.
+     * @param token The Super Token address.
+     * @param pool The Superfluid Pool address.
+     * @param requestedFlowRate The flow rate of tokens to distribute.
+     * @return A boolean value indicating whether the distribution was successful.
+     */
+    function distributeFlow(ISuperToken token, ISuperfluidPool pool, int96 requestedFlowRate)
+        internal
+        returns (bool)
+    {
+        return distributeFlow(token, address(this), pool, requestedFlowRate, new bytes(0));
+    }
+
+    /**
+     * @dev Tries to distribute flow at `requestedFlowRate` of `token` from `from` to `pool`.
+     * NOTE: The ability to set the `from` argument is needed only when liquidating a GDA flow.
+     * The GDA currently doesn't have ACL support.
      * @param token The Super Token address.
      * @param from The address from which to distribute tokens.
      * @param pool The Superfluid Pool address.
@@ -1790,5 +1822,16 @@ library SuperTokenV1Library {
         }
         assert(address(host) != address(0));
         assert(address(gda) != address(0));
+    }
+
+    function _isPool(ISuperToken token, address maybePool)
+        private view returns (bool) {
+        // first check if it's a contract (saves some gas if not)
+        if (maybePool.code.length > 0) {
+            // it's a contract, now check if it's a pool
+            (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
+            return (gda.isPool(token, maybePool));
+        }
+        return false;
     }
 }
