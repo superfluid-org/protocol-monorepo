@@ -107,7 +107,7 @@
       gnuplot
       # yellowpaper pipeline tooling
       ghcPkgs.lhs2tex
-      python39Packages.pygments
+      python312Packages.pygments
       (texlive.combine {
         inherit (texlive)
         scheme-basic metafont
