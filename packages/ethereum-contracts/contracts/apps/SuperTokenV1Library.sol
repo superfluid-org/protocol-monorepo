@@ -433,8 +433,8 @@ library SuperTokenV1Library {
      * @param token The token used in flow
      * @param flowOperator The address given flow permissions
      * @param allowCreate creation permissions
-     * @param allowCreate update permissions
-     * @param allowCreate deletion permissions
+     * @param allowUpdate update permissions
+     * @param allowDelete deletion permissions
      * @param flowRateAllowance The allowance provided to flowOperator
      */
     function setFlowPermissions(
