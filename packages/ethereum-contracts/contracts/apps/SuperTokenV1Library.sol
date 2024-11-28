@@ -1244,6 +1244,16 @@ library SuperTokenV1Library {
     }
 
     /**
+     * @dev Claims all tokens from the pool for the msg.sender
+     * @param token The Super Token address.
+     * @param pool The Superfluid Pool to claim from.
+     * @return A boolean value indicating whether the claim was successful.
+     */
+    function claimAll(ISuperToken token, ISuperfluidPool pool) internal returns (bool) {
+        return claimAll(token, pool, address(this), new bytes(0));
+    }
+
+    /**
      * @dev Claims all tokens from the pool.
      * @param token The Super Token address.
      * @param pool The Superfluid Pool to claim from.

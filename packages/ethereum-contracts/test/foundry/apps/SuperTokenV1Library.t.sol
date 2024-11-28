@@ -123,6 +123,26 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         assertEq(actualAmount, DEFAULT_AMOUNT, "transferX wrong return value");
     }
 
+    function testClaimAllToMsgSender() external {
+        superToken.transfer(alice, DEFAULT_AMOUNT);
+
+        uint256 balBefore = superToken.balanceOf(address(this));
+        ISuperfluidPool pool = superToken.createPool();
+        pool.updateMemberUnits(address(this), 1);
+
+        vm.startPrank(alice);
+        // using callAgreement here because prank won't work as expected with the lib function
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distribute, (superToken, alice, pool, DEFAULT_AMOUNT, new bytes(0))),
+            new bytes(0) // userData
+        );
+        vm.stopPrank();
+
+        superToken.claimAll(pool);
+        assertEq(superToken.balanceOf(address(this)) - balBefore, DEFAULT_AMOUNT, "distribute unexpected result");
+    }
+
     function testCreatePool() external {
         ISuperfluidPool pool = superToken.createPool();
         assertEq(pool.admin(), address(this));
