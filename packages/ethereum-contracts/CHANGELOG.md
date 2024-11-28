@@ -3,6 +3,12 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+### Added
+
+- `SuperTokenV1Library`: overloaded `claimAll` for the msg.sender to claim for themselves.
+
 ## [v1.12.0]
 
 ### Added
