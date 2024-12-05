@@ -34,5 +34,4 @@ interface ISuperAgreement {
             uint256 deposit,
             uint256 owedDeposit
         );
-
 }

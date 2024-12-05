@@ -1348,8 +1348,7 @@ contract ConstantFlowAgreementV1 is
         // do not enforce balance checks during callbacks for the appCreditToken
         if (currentContext.callType != ContextDefinitions.CALL_INFO_CALL_TYPE_APP_CALLBACK ||
             currentContext.appCreditToken != token) {
-            (int256 availableBalance,,) = token.realtimeBalanceOf(flowSender, currentContext.timestamp);
-            if (availableBalance < 0) {
+            if (! token.hasRealtimeBalanceOfAtLeast(flowSender, currentContext.timestamp, 0)) {
                 revert CFA_INSUFFICIENT_BALANCE();
             }
         }

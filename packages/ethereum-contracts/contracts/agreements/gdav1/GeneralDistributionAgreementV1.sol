@@ -150,6 +150,38 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         owedBuffer = 0;
     }
 
+    function hasRealtimeBalanceOfAtLeast(ISuperfluidToken token, address account, uint256 time, int256 minBalance)
+        public view override returns (bool)
+    {
+        UniversalIndexData memory universalIndexData = _getUIndexData(abi.encode(token), account);
+
+        int256 balance;
+        if (_isPool(token, account)) {
+            balance = ISuperfluidPool(account).getDisconnectedBalance(uint32(time));
+        } else {
+            // this is outflow and can only be negative or 0
+            balance = Value.unwrap(_getBasicParticleFromUIndex(universalIndexData).rtb(Time.wrap(uint32(time))));
+        }
+        // subtract buffer
+        balance -= universalIndexData.totalBuffer.toInt256();
+
+        {
+            if (balance >= minBalance) {
+                return true; // it can only increase from here, so we can stop calculating
+            }
+            (uint32[] memory slotIds, bytes32[] memory pidList) = _listPoolConnectionIds(token, account);
+            for (uint256 i = 0; i < slotIds.length; ++i) {
+                address pool = address(uint160(uint256(pidList[i])));
+                (bool exist, PoolMemberData memory poolMemberData) =
+                    _getPoolMemberData(token, account, ISuperfluidPool(pool));
+                assert(exist);
+                assert(poolMemberData.pool == pool);
+                balance += ISuperfluidPool(pool).getClaimable(account, uint32(time));
+            }
+        }
+        return balance >= minBalance;
+    }
+
     /// @dev ISuperAgreement.realtimeBalanceOf implementation
     function realtimeBalanceOfNow(ISuperfluidToken token, address account)
         external

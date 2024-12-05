@@ -277,4 +277,17 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
         view
         virtual
         returns (bool);
+
+
+    function hasRealtimeBalanceOfAtLeast(
+        ISuperfluidToken token,
+        address account,
+        uint256 time,
+        int256 minAmount
+    )
+        external
+        view
+        virtual
+        returns (bool);
+
 }

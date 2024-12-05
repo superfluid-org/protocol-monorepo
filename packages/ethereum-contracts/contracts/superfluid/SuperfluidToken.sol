@@ -7,7 +7,8 @@ import {
     ISuperfluid,
     ISuperAgreement,
     ISuperfluidGovernance,
-    ISuperfluidToken
+    ISuperfluidToken,
+    IGeneralDistributionAgreementV1
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { FixedSizeData } from "../libs/FixedSizeData.sol";
 
@@ -103,6 +104,49 @@ abstract contract SuperfluidToken is ISuperfluidToken
                     (agreementDeposit - agreementOwedDeposit) : 0
                 ).toInt256();
         }
+    }
+
+    function hasRealtimeBalanceOfAtLeast(
+       address account,
+       uint256 timestamp,
+       int256 minBalance
+    )
+       public view virtual override
+       returns (bool)
+    {
+        int256 availableBalance = _sharedSettledBalances[account];
+        ISuperAgreement[] memory activeAgreements = getAccountActiveAgreements(account);
+        IGeneralDistributionAgreementV1 gda;
+        for (uint256 i = 0; i < activeAgreements.length; ++i) {
+            if (activeAgreements[i].agreementType() ==
+                keccak256("org.superfluid-finance.agreements.GeneralDistributionAgreement.v1"))
+            {
+                gda = IGeneralDistributionAgreementV1(address(activeAgreements[i]));
+                continue;
+            } else {
+                (
+                    int256 agreementDynamicBalance,
+                    uint256 agreementDeposit,
+                    uint256 agreementOwedDeposit) = activeAgreements[i]
+                        .realtimeBalanceOf(
+                            this,
+                            account,
+                            timestamp
+                        );
+
+                availableBalance = availableBalance
+                    + agreementDynamicBalance
+                    - (
+                        agreementDeposit > agreementOwedDeposit ?
+                        (agreementDeposit - agreementOwedDeposit) : 0
+                    ).toInt256();
+            }
+        }
+        if (address(gda) != address(0)) {
+            return gda.hasRealtimeBalanceOfAtLeast(this, account, timestamp, minBalance - availableBalance);
+        }
+
+        return availableBalance >= minBalance;
     }
 
     /// @dev ISuperfluidToken.realtimeBalanceOfNow implementation
@@ -211,8 +255,7 @@ abstract contract SuperfluidToken is ISuperfluidToken
     )
         internal
     {
-        (int256 availableBalance,,) = realtimeBalanceOf(from, _host.getNow());
-        if (availableBalance < amount) {
+        if (! hasRealtimeBalanceOfAtLeast(from, _host.getNow(), amount)) {
             revert SF_TOKEN_MOVE_INSUFFICIENT_BALANCE();
         }
         _sharedSettledBalances[from] = _sharedSettledBalances[from] - amount;

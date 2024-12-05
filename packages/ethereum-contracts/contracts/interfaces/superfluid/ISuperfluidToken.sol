@@ -31,7 +31,7 @@ interface ISuperfluidToken {
     /**
      * @dev Encoded liquidation type data mainly used for handling stack to deep errors
      *
-     * @custom:note 
+     * @custom:note
      * - version: 1
      * - liquidationType key:
      *    - 0 = reward account receives reward (PIC period)
@@ -82,6 +82,10 @@ interface ISuperfluidToken {
             uint256 deposit,
             uint256 owedDeposit,
             uint256 timestamp);
+
+    function hasRealtimeBalanceOfAtLeast(address account, uint256 timestamp, int256 minBalance)
+        external view
+        returns (bool);
 
     /**
     * @notice Check if account is critical
@@ -231,7 +235,7 @@ interface ISuperfluidToken {
      * @dev Update agreement state slot
      * @param account Account to be updated
      *
-     * @custom:note 
+     * @custom:note
      * - To clear the storage out, provide zero-ed array of intended length
      */
     function updateAgreementStateSlot(
@@ -274,7 +278,7 @@ interface ISuperfluidToken {
      * @param account Account to query.
      * @param delta Amount of balance delta to be settled
      *
-     * @custom:modifiers 
+     * @custom:modifiers
      *  - onlyAgreement
      */
     function settleBalance(
@@ -293,7 +297,7 @@ interface ISuperfluidToken {
      * @param rewardAmount The amount the rewarded account will receive
      * @param targetAccountBalanceDelta The delta amount the target account balance should change by
      *
-     * @custom:note 
+     * @custom:note
      * - If a bailout is required (bailoutAmount > 0)
      *   - the actual reward (single deposit) goes to the executor,
      *   - while the reward account becomes the bailout account
@@ -303,7 +307,7 @@ interface ISuperfluidToken {
      *   - the targetAccount will pay the rewardAmount
      *   - the liquidator (reward account in PIC period) will receive the rewardAmount
      *
-     * @custom:modifiers 
+     * @custom:modifiers
      *  - onlyAgreement
      */
     function makeLiquidationPayoutsV2
@@ -327,7 +331,7 @@ interface ISuperfluidToken {
      * @param targetAccountBalanceDelta The amount the sender account balance should change by
      * @param liquidationTypeData The encoded liquidation type data including the version (how to decode)
      *
-     * @custom:note 
+     * @custom:note
      * Reward account rule:
      * - if the agreement is liquidated during the PIC period
      *   - the rewardAmountReceiver will get the rewardAmount (remaining deposit), regardless of the liquidatorAccount
@@ -412,7 +416,7 @@ interface ISuperfluidToken {
      *
      * @custom:deprecated Use AgreementLiquidatedV2 instead
      *
-     * @custom:note 
+     * @custom:note
      * Reward account rule:
      * - if bailout is equal to 0, then
      *   - the bondAccount will get the rewardAmount,
