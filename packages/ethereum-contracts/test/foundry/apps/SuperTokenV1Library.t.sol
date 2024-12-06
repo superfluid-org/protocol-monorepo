@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
-import { FoundrySuperfluidTester, ISuperToken, SuperTokenV1Library, ISuperfluidPool }
-    from "../FoundrySuperfluidTester.t.sol";
+import { IConstantFlowAgreementV1, ISuperfluid, ISuperToken, ISuperfluidPool, ISuperApp }
+    from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { CFASuperAppBase } from "../../../contracts/apps/CFASuperAppBase.sol";
+import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 /*
 * Note: since libs are used by contracts, not EOAs, do NOT try to use
@@ -314,15 +316,60 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         assert(lastUpdated2 > lastUpdated1);
     }
 
+    function testFlowWithCtx(bool useACL) external {
+        SuperAppMock superApp = new SuperAppMock(sf.host);
+        superApp.selfRegister(true, true, true);
+        address superAppAddr = address(superApp);
+
+        address flowSender = superAppAddr;
+        address flowReceiver = address(this);
+
+        if (useACL) {
+            vm.startPrank(alice);
+            superApp.setACLFlowSender();
+            sf.host.callAgreement(
+                sf.cfa,
+                abi.encodeCall(sf.cfa.authorizeFlowOperatorWithFullControl, (superToken, superAppAddr, new bytes(0))),
+                new bytes(0) // userData
+            );
+            vm.stopPrank();
+            flowSender = alice;
+        }
+
+        // initial createFlow
+        superToken.flow(superAppAddr, DEFAULT_FLOWRATE);
+        assertEq(_getCFAFlowRate(flowSender, flowReceiver), DEFAULT_FLOWRATE, "createFlow unexpected result");
+
+        // double it -> updateFlow
+        superToken.flow(superAppAddr, DEFAULT_FLOWRATE * 2);
+        assertEq(_getCFAFlowRate(flowSender, flowReceiver), DEFAULT_FLOWRATE * 2, "updateFlow unexpected result");
+
+        if (! useACL) {
+            // delete the mirrored flow (check if remains sticky)
+            superToken.deleteFlow(superAppAddr, address(this));
+            assertEq(_getCFAFlowRate(flowSender, flowReceiver), DEFAULT_FLOWRATE * 2, "flow not sticky");
+        }
+
+        // set to 0 -> deleteFlow
+        superToken.flow(superAppAddr, 0);
+        assertEq(_getCFAFlowRate(flowSender, flowReceiver), 0, "deleteFlow unexpected result");
+
+        // invalid flowrate
+        vm.expectRevert(IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE.selector);
+        this.__externalflow(flowSender, superAppAddr, -1);
+
+        assertFalse(sf.host.isAppJailed(ISuperApp(superAppAddr)), "superApp is jailed");
+    }
+
     // HELPER FUNCTIONS ========================================================================================
 
-        // direct use of the agreement for assertions
-    function _getCFAFlowRate(address sender, address receiver) public view returns (int96 flowRate) {
+    // direct use of the agreement for assertions
+    function _getCFAFlowRate(address sender, address receiver) internal view returns (int96 flowRate) {
         (,flowRate,,) = sf.cfa.getFlow(superToken, sender, receiver);
     }
 
     // Note: this is without adjustmentFR
-    function _getGDAFlowRate(address sender, ISuperfluidPool pool) public view returns (int96 flowRate) {
+    function _getGDAFlowRate(address sender, ISuperfluidPool pool) internal view returns (int96 flowRate) {
         return sf.gda.getFlowRate(superToken, sender, pool);
     }
 
@@ -343,5 +390,67 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         vm.startPrank(msgSender);
         superToken.flowFrom(sender, receiver, flowRate);
         vm.stopPrank();
+    }
+}
+
+// SuperApp for testing withCtx methods.
+// mirrors (default mode) or matches (ACL mode) the incoming flow
+contract SuperAppMock is CFASuperAppBase {
+    using SuperTokenV1Library for ISuperToken;
+
+    // if not set (0), the SuperApp itself is the flowSender
+    address aclFlowSender;
+
+    constructor(ISuperfluid host) CFASuperAppBase(host) { }
+
+    // enable ACL mode by setting a sender
+    function setACLFlowSender() external {
+        aclFlowSender = msg.sender;
+    }
+
+    function onFlowCreated(
+        ISuperToken superToken,
+        address sender,
+        bytes calldata ctx
+    ) internal virtual override returns (bytes memory /*newCtx*/) {
+        return _mirrorOrMatchIncomingFlow(superToken, sender, ctx);
+    }
+
+    function onFlowUpdated(
+        ISuperToken superToken,
+        address sender,
+        int96 /*previousFlowRate*/,
+        uint256 /*lastUpdated*/,
+        bytes calldata ctx
+    ) internal virtual override returns (bytes memory /*newCtx*/) {
+        return _mirrorOrMatchIncomingFlow(superToken, sender, ctx);
+    }
+
+    function onFlowDeleted(
+        ISuperToken superToken,
+        address sender,
+        address receiver,
+        int96 previousFlowRate,
+        uint256 /*lastUpdated*/,
+        bytes calldata ctx
+    ) internal virtual override returns (bytes memory /*newCtx*/) {
+        if (receiver == address(this)) {
+            return _mirrorOrMatchIncomingFlow(superToken, sender, ctx);
+        } else {
+            // outflow was deleted by the sender we mirror to,
+            // we make it "sticky" by simply restoring it.
+            return superToken.flowWithCtx(receiver, previousFlowRate, ctx);
+        }
+    }
+
+    function _mirrorOrMatchIncomingFlow(ISuperToken superToken, address senderAndReceiver, bytes memory ctx)
+        internal returns (bytes memory newCtx)
+    {
+        int96 flowRate = superToken.getFlowRate(senderAndReceiver, address(this));
+        if (aclFlowSender == address(0)) {
+            return superToken.flowWithCtx(senderAndReceiver, flowRate, ctx);
+        } else {
+            return superToken.flowFromWithCtx(aclFlowSender, senderAndReceiver, flowRate, ctx);
+        }
     }
 }

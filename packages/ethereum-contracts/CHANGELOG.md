@@ -7,7 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- `SuperTokenV1Library`: overloaded `claimAll` for the msg.sender to claim for themselves.
+- `SuperTokenV1Library`
+  - overloaded `claimAll` for the msg.sender to claim for themselves
+  - added `flowWithCtx` and `flowFromWithCtx`
 
 ## [v1.12.0]
 
