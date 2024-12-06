@@ -267,6 +267,7 @@ library SuperTokenV1Library {
             } // else no change, do nothing
             return true;
         } else {
+            // can't set negative flowrate
             revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
         }
     }
@@ -805,7 +806,78 @@ library SuperTokenV1Library {
     /** CFA With CTX FUNCTIONS ************************************* */
 
     /**
-     * @dev Create flow with context and userData
+     * @dev Set CFA flowrate with context
+     * @param token Super token address
+     * @param receiver The receiver of the flow
+     * @param flowRate The wanted flowrate in wad/second. Only positive values are valid here.
+     * @param ctx Context bytes (see ISuperfluid.sol for Context struct)
+     * @return newCtx The updated context after the execution of the agreement function
+     */
+    function flowWithCtx(
+        ISuperToken token,
+        address receiver,
+        int96 flowRate,
+        bytes memory ctx
+    ) internal returns (bytes memory newCtx) {
+        // note: from the lib's perspective, the caller is "this", NOT "msg.sender"
+        address sender = address(this);
+        int96 prevFlowRate = getCFAFlowRate(token, sender, receiver);
+
+        if (flowRate > 0) {
+            if (prevFlowRate == 0) {
+                return createFlowWithCtx(token, receiver, flowRate, ctx);
+            } else if (prevFlowRate != flowRate) {
+                return updateFlowWithCtx(token, receiver, flowRate, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else if (flowRate == 0) {
+            if (prevFlowRate > 0) {
+                return deleteFlowWithCtx(token, sender, receiver, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else {
+            // can't set negative flowrate
+            revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
+        }
+    }
+
+    /**
+     * @notice Like `flowFrom`, with context
+     * @param token Super token address
+     * @param sender The sender of the flow
+     * @param receiver The receiver of the flow
+     * @param flowRate The wanted flowRate in wad/second. Only positive values are valid here.
+     * @param ctx Context bytes (see ISuperfluid.sol for Context struct)
+     * @return newCtx The updated context after the execution of the agreement function
+     */
+    function flowFromWithCtx(
+        ISuperToken token,
+        address sender,
+        address receiver,
+        int96 flowRate,
+        bytes memory ctx
+    ) internal returns (bytes memory newCtx) {
+        int96 prevFlowRate = getCFAFlowRate(token, sender, receiver);
+
+        if (flowRate > 0) {
+            if (prevFlowRate == 0) {
+                return createFlowFromWithCtx(token, sender, receiver, flowRate, ctx);
+            } else if (prevFlowRate != flowRate) {
+                return updateFlowFromWithCtx(token, sender, receiver, flowRate, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else if (flowRate == 0) {
+            if (prevFlowRate > 0) {
+                return deleteFlowFromWithCtx(token, sender, receiver, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else {
+            revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
+        }
+    }
+
+    /**
+     * @dev Create flow with context
      * @param token The token to flow
      * @param receiver The receiver of the flow
      * @param flowRate The desired flowRate
@@ -1401,6 +1473,8 @@ library SuperTokenV1Library {
 
     /**
      * @dev Tries to distribute flow at `requestedFlowRate` of `token` from `from` to `pool`.
+     * Note: the "actual" flowrate set can also be less than `requestedFlowRate, depending on the
+     * current total pool units. In order to know beforehand, use `estimateDistributionActualAmount`.
      * NOTE: The ability to set the `from` argument is needed only when liquidating a GDA flow.
      * The GDA currently doesn't have ACL support.
      * @param token The Super Token address.
