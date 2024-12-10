@@ -170,7 +170,11 @@ export default class Operation {
         }
 
         // Handles Superfluid.callAppAction
-        if (this.type === "CALL_APP_ACTION") {
+        if (
+            this.type === "CALL_APP_ACTION" ||
+            this.type === "SIMPLE_FORWARD_CALL" ||
+            this.type === "ERC2771_FORWARD_CALL"
+        ) {
             const functionArgs = getCallDataFunctionArgs(
                 Superfluid__factory.abi,
                 populatedTransaction.data
