@@ -20,7 +20,9 @@ export type BatchOperationType =
     | "SUPERTOKEN_UPGRADE" // 101
     | "SUPERTOKEN_DOWNGRADE" // 102
     | "SUPERFLUID_CALL_AGREEMENT" // 201
-    | "CALL_APP_ACTION"; // 202
+    | "CALL_APP_ACTION" // 202
+    | "SIMPLE_FORWARD_CALL" // 301
+    | "ERC2771_FORWARD_CALL"; // 302
 
 /**
  * Operation Helper Class
