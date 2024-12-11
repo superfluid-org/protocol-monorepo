@@ -170,11 +170,7 @@ export default class Operation {
         }
 
         // Handles Superfluid.callAppAction
-        if (
-            this.type === "CALL_APP_ACTION" ||
-            this.type === "SIMPLE_FORWARD_CALL" ||
-            this.type === "ERC2771_FORWARD_CALL"
-        ) {
+        if (this.type === "CALL_APP_ACTION") {
             const functionArgs = getCallDataFunctionArgs(
                 Superfluid__factory.abi,
                 populatedTransaction.data
@@ -187,7 +183,16 @@ export default class Operation {
             };
         }
 
-        // Handles remaining ERC20/ERC777/SuperToken Operations
+        if (this.type === "SIMPLE_FORWARD_CALL" || this.type === "ERC2771_FORWARD_CALL") {
+            // TODO: Should sighash be removed here?
+            return {
+                operationType: batchOperationType,
+                target: populatedTransaction.to,
+                data: populatedTransaction.data,
+            };
+        }
+
+        // Handles remaining ERC20/ERC777/SuperToken Operations (including SIMPLE_FORWARD_CALL and ERC2771_FORWARD_CALL)
         return {
             operationType: batchOperationType,
             target: populatedTransaction.to,
