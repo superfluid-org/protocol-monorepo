@@ -2,14 +2,14 @@ import { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { Framework } from "../src/index";
 import { getPerSecondFlowRateByMonth } from "../src";
-import { IConstantFlowAgreementV1__factory } from "../src/typechain-types";
+import { ERC20, ERC20__factory, IConstantFlowAgreementV1__factory, TestToken, TestToken__factory } from "../src/typechain-types";
 import Operation from "../src/Operation";
 import hre from "hardhat";
 import { SuperAppTester } from "../typechain-types";
 import { SuperAppTester__factory } from "../typechain-types";
 const cfaInterface = IConstantFlowAgreementV1__factory.createInterface();
 import { TestEnvironment, makeSuite } from "./TestEnvironment";
-import { ethers } from "ethers";
+import { BigNumber, Contract, ethers } from "ethers";
 import multiplyGasLimit from "../src/multiplyGasLimit";
 
 /**
@@ -207,6 +207,51 @@ makeSuite("Operation Tests", (testEnv: TestEnvironment) => {
             } catch (err: any) {
                 expect(err.message).to.not.be.null;
             }
+        });
+
+        it("Should be able to execute SimpleForwarder operation from framework.", async () => {
+            const contract = (new Contract(
+                testEnv.wrapperSuperToken.underlyingToken.address,
+                TestToken__factory.abi
+            ) as TestToken).connect(testEnv.alice);
+
+            const beforeBalance = await contract.balanceOf(testEnv.alice.address);
+
+            const txn1 = contract
+                .populateTransaction.mint(
+                    testEnv.alice.address,
+                    "100"
+                );
+            const txn2 = contract
+                .populateTransaction.mint(
+                    testEnv.alice.address,
+                    "200"
+                );
+
+            const operation1 = testEnv.sdkFramework.operation(
+                txn1,
+                "SIMPLE_FORWARD_CALL"
+            );
+            const operation2 = testEnv.sdkFramework.operation(
+                txn2,
+                "SIMPLE_FORWARD_CALL"
+            );
+
+            const batchCall = testEnv.sdkFramework.batchCall(
+                [
+                    operation1,
+                    operation2
+                ]
+            );
+
+            const txResponse = await batchCall.exec(testEnv.alice);
+            const txReceipt = await txResponse.wait();
+            expect(txReceipt.status).to.equal(1);
+
+            const afterBalance = await contract.balanceOf(testEnv.alice.address);
+
+            expect(beforeBalance.lt(afterBalance)).to.be.true;
+            expect(afterBalance.sub(BigNumber.from(300)).eq(beforeBalance)).to.be.true;
         });
 
         context(

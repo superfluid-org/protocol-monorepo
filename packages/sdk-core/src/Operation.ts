@@ -187,7 +187,6 @@ export default class Operation {
             this.type === "SIMPLE_FORWARD_CALL" ||
             this.type === "ERC2771_FORWARD_CALL"
         ) {
-            // TODO: Should sighash be removed here?
             return {
                 operationType: batchOperationType,
                 target: populatedTransaction.to,
