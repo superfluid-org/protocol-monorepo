@@ -492,7 +492,7 @@ makeSuite("Batch Call Tests", (testEnv: TestEnvironment) => {
         expect(beforeBalanceAlice.sub(afterBalanceAlice).gte(value)).to.be.true;
     });
 
-    it.only("Should throw an error when multiple Operations with ETH value", async () => {
+    it("Should throw an error when multiple Operations with ETH value", async () => {
         const operation1 = testEnv.sdkFramework.operation(
             testEnv.alice.populateTransaction({
                 to: testEnv.bob.address,
