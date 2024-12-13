@@ -166,6 +166,7 @@ export default class Operation {
                 operationType: batchOperationType,
                 target: functionArgs["agreementClass"],
                 data,
+                value: populatedTransaction.value,
             };
         }
 
@@ -180,6 +181,7 @@ export default class Operation {
                 operationType: batchOperationType,
                 target: functionArgs["app"],
                 data: functionArgs["callData"],
+                value: populatedTransaction.value,
             };
         }
 
@@ -191,6 +193,7 @@ export default class Operation {
                 operationType: batchOperationType,
                 target: populatedTransaction.to,
                 data: populatedTransaction.data,
+                value: populatedTransaction.value,
             };
         }
 
@@ -199,6 +202,7 @@ export default class Operation {
             operationType: batchOperationType,
             target: populatedTransaction.to,
             data: removeSigHashFromCallData(populatedTransaction.data),
+            value: populatedTransaction.value,
         };
     };
 }
