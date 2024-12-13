@@ -10,6 +10,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 ### Fixed
 
+## [0.9.0] - 2024-12-13
+
+### Added
+- Handle new Operation types with BatchCall
+- Forward ETH value with BatchCall and Operation
+
 ## [0.8.0] - 2024-08-01
 
 ### Breaking
