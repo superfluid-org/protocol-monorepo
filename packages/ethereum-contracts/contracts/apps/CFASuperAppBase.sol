@@ -103,7 +103,7 @@ abstract contract CFASuperAppBase is ISuperApp {
 
     /// @dev override if the SuperApp shall have custom logic invoked when a new flow
     ///      to it is created.
-    function onFlowCreated(
+    function onInflowCreated(
         ISuperToken /*superToken*/,
         address /*sender*/,
         bytes calldata ctx
@@ -113,7 +113,7 @@ abstract contract CFASuperAppBase is ISuperApp {
 
     /// @dev override if the SuperApp shall have custom logic invoked when an existing flow
     ///      to it is updated (flowrate change).
-    function onFlowUpdated(
+    function onInflowUpdated(
         ISuperToken /*superToken*/,
         address /*sender*/,
         int96 /*previousFlowRate*/,
@@ -127,9 +127,25 @@ abstract contract CFASuperAppBase is ISuperApp {
     ///      to it is deleted (flowrate set to 0).
     ///      Unlike the other callbacks, this method is NOT allowed to revert.
     ///      Failing to satisfy that requirement leads to jailing (defunct SuperApp).
-    function onFlowDeleted(
+    function onInflowDeleted(
         ISuperToken /*superToken*/,
         address /*sender*/,
+        int96 /*previousFlowRate*/,
+        uint256 /*lastUpdated*/,
+        bytes calldata ctx
+    ) internal virtual returns (bytes memory /*newCtx*/) {
+        return ctx;
+    }
+
+    /// @dev override if the SuperApp shall have custom logic invoked when an outgoing flow
+    ///      is deleted by the receiver (it's not triggered when deleted by the SuperApp itself).
+    ///      A possible implementation is to make outflows "sticky" by simply reopening it.
+    ///      Like onInflowDeleted, this method is NOT allowed to revert.
+    /// Note: In theory this hook could also be triggered by a liquidation, but this would imply
+    /// that the SuperApp is insolvent, and would thus be jailed already.
+    /// Thus in practice this is triggered only when a receiver deletes the flow.
+    function onOutflowDeleted(
+        ISuperToken /*superToken*/,
         address /*receiver*/,
         int96 /*previousFlowRate*/,
         uint256 /*lastUpdated*/,
@@ -173,7 +189,7 @@ abstract contract CFASuperAppBase is ISuperApp {
         (address sender, ) = abi.decode(agreementData, (address, address));
 
         return
-            onFlowCreated(
+            onInflowCreated(
                 superToken,
                 sender,
                 ctx // userData can be acquired with `host.decodeCtx(ctx).userData`
@@ -218,7 +234,7 @@ abstract contract CFASuperAppBase is ISuperApp {
         (int96 previousFlowRate, uint256 lastUpdated) = abi.decode(cbdata, (int96, uint256));
 
         return
-            onFlowUpdated(
+            onInflowUpdated(
                 superToken,
                 sender,
                 previousFlowRate,
@@ -272,15 +288,26 @@ abstract contract CFASuperAppBase is ISuperApp {
         (address sender, address receiver) = abi.decode(agreementData, (address, address));
         (uint256 lastUpdated, int96 previousFlowRate) = abi.decode(cbdata, (uint256, int96));
 
-        return
-            onFlowDeleted(
-                superToken,
-                sender,
-                receiver,
-                previousFlowRate,
-                lastUpdated,
-                ctx
+        if (receiver == address(this)) {
+            return
+                onInflowDeleted(
+                    superToken,
+                    sender,
+                    previousFlowRate,
+                    lastUpdated,
+                    ctx
+                );
+        } else {
+            return
+                onOutflowDeleted(
+                    superToken,
+                    receiver,
+                    previousFlowRate,
+                    lastUpdated,
+                    ctx
+                )
             );
+        }
     }
 
 
