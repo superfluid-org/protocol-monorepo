@@ -1,12 +1,11 @@
 {
     "name": "@superfluid-finance/sdk-core",
     "description": "SDK Core for building with Superfluid Protocol",
-    "version": "0.8.0",
+    "version": "0.9.0",
     "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
     "dependencies": {
         "@superfluid-finance/ethereum-contracts": "1.12.0",
         "@superfluid-finance/metadata": "^1.5.2",
-        "browserify": "17.0.0",
         "graphql-request": "6.1.0",
         "lodash": "4.17.21",
         "tsify": "5.0.4"
@@ -16,6 +15,7 @@
         "@graphql-codegen/near-operation-file-preset": "^3.0.0",
         "@graphql-typed-document-node/core": "^3.2.0",
         "ajv": "^8.17.1",
+        "browserify": "^17.0.1",
         "ethers": "^5.7.2",
         "get-graphql-schema": "^2.1.2",
         "mocha": "^10.7.3"

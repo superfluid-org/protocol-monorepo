@@ -9,7 +9,7 @@ import { SuperAppTester } from "../typechain-types";
 import { SuperAppTester__factory } from "../typechain-types";
 const cfaInterface = IConstantFlowAgreementV1__factory.createInterface();
 import { TestEnvironment, makeSuite } from "./TestEnvironment";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import multiplyGasLimit from "../src/multiplyGasLimit";
 
 /**
@@ -172,6 +172,33 @@ makeSuite("Operation Tests", (testEnv: TestEnvironment) => {
             );
             const txn = await operation.exec(testEnv.alice, 2);
             expect(txn.gasLimit).to.equal("500000");
+        });
+
+        it("Should move ETH value passed from the Overrides", async () => {
+            const value = BigNumber.from(Number(0.1e18).toString());
+
+            const beforeBalanceAlice = await testEnv.alice.getBalance();
+            const beforeBalanceBob = await testEnv.bob.getBalance();
+
+            expect(beforeBalanceAlice.gt(value)).to.be.true;
+
+            const operation = testEnv.sdkFramework.operation(
+                testEnv.alice.populateTransaction({
+                    to: testEnv.bob.address,
+                    value
+                }) as Promise<ethers.PopulatedTransaction>,
+                "SIMPLE_FORWARD_CALL"
+            );
+
+            const txn = await operation.exec(testEnv.alice, 2);
+            const txReceipt = await txn.wait();
+            expect(txReceipt.status).to.equal(1);
+
+            const afterBalanceAlice = await testEnv.alice.getBalance();
+            const afterBalanceBob = await testEnv.bob.getBalance();
+
+            expect(afterBalanceBob.sub(beforeBalanceBob)).to.equal(value);
+            expect(beforeBalanceAlice.sub(afterBalanceAlice).gte(value)).to.be.true;
         });
 
         it("Should throw an error when trying to execute a transaction with faulty callData", async () => {

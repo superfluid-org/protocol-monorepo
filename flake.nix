@@ -55,6 +55,7 @@
       # test utilities
       lcov
       actionlint
+      git
     ];
 
     # solidity dev inputs
