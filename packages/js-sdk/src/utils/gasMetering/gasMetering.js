@@ -56,7 +56,7 @@ module.exports = class GasMeter {
                 // TODO
                 break;
             default:
-                throw new Error(`Unsuported report type ${outputFormat}`);
+                throw new Error(`Unsupported report type ${outputFormat}`);
         }
         this.gasPrice = new this.BN(gasPrice);
         this.records = [];

@@ -39,7 +39,7 @@ jobs:
       - name: Download artifact
         continue-on-error: true
         id: download_artifact
-        uses: dawidd6/action-download-artifact@v4
+        uses: dawidd6/action-download-artifact@v6
         with:
           workflow: ${{ github.event.workflow_run.workflow_id }}
           workflow_conclusion: success
