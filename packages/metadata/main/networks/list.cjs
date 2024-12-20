@@ -280,7 +280,7 @@ module.exports =
         "shortName": "matic",
         "uppercaseName": "POLYGON_MAINNET",
         "humanReadableName": "Polygon",
-        "nativeTokenSymbol": "MATIC",
+        "nativeTokenSymbol": "POL",
         "nativeTokenWrapper": "0x3aD736904E9e65189c3000c7DD2c8AC8bB7cD4e3",
         "duneName": "polygon",
         "contractsV1": {
@@ -763,7 +763,8 @@ module.exports =
             "name": "protocol-v1-scroll-mainnet",
             "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/scroll-mainnet/protocol-v1"
         },
-        "publicRPCs": ["https://rpc.scroll.io"]
+        "publicRPCs": ["https://rpc.scroll.io"],
+        "coinGeckoId": "scroll"
     },
     {
         "name": "degenchain",
@@ -799,6 +800,7 @@ module.exports =
             "name": "protocol-v1-degenchain",
             "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/degenchain/protocol-v1"
 	    },
-        "publicRPCs": ["https://rpc.degen.tips"]
+        "publicRPCs": ["https://rpc.degen.tips"],
+        "coinGeckoId": "degen"
     }
 ]
