@@ -127,17 +127,13 @@ contract("Embedded deployment scripts", (accounts) => {
                 false, // nonUpgradable
                 false, // appWhiteListingEnabled
                 callbackGasLimit, // callbackGasLimit
-                ZERO_ADDRESS // erc2771Forwader
+                ZERO_ADDRESS, // simpleForwarder
+                ZERO_ADDRESS // erc2771Forwarder
             );
-            const simpleForwarderAddr = await a1.SIMPLE_FORWARDER();
             assert.isFalse(
                 await codeChanged(web3, Superfluid, a1.address, [
                     // replace immutables with 0
                     callbackGasLimit.toString(16).padStart(64, "0"),
-                    simpleForwarderAddr
-                        .toLowerCase()
-                        .slice(2)
-                        .padStart(64, "0"),
                 ])
             );
         }

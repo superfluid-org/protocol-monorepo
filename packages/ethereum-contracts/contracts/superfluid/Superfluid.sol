@@ -56,8 +56,7 @@ contract Superfluid is
     uint64 immutable public CALLBACK_GAS_LIMIT;
 
     // simple forwarder contract used to relay arbitrary calls for batch operations
-    // Note: address will change with every contract upgrade
-    SimpleForwarder immutable public SIMPLE_FORWARDER;
+    SimpleForwarder immutable internal SIMPLE_FORWARDER;
     ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
 
     /**
@@ -105,13 +104,14 @@ contract Superfluid is
         bool nonUpgradable,
         bool appWhiteListingEnabled,
         uint64 callbackGasLimit,
+        address simpleForwarderAddress,
         address erc2771ForwarderAddress
     ) {
         NON_UPGRADABLE_DEPLOYMENT = nonUpgradable;
         APP_WHITE_LISTING_ENABLED = appWhiteListingEnabled;
         CALLBACK_GAS_LIMIT = callbackGasLimit;
+        SIMPLE_FORWARDER = SimpleForwarder(simpleForwarderAddress);
         _ERC2771_FORWARDER = ERC2771Forwarder(erc2771ForwarderAddress);
-        SIMPLE_FORWARDER = new SimpleForwarder();
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

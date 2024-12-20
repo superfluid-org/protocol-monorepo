@@ -12,7 +12,7 @@ import { CallUtils } from "../libs/CallUtils.sol";
 contract SuperfluidUpgradabilityTester is Superfluid {
 
     // 3_000_000 is the min callback gas limit used in a prod deployment
-    constructor() Superfluid(false, false, 3_000_000, address(0))
+    constructor() Superfluid(false, false, 3_000_000, address(0), address(0))
     // solhint-disable-next-line no-empty-blocks
     {
     }
@@ -134,9 +134,12 @@ contract SuperfluidMock is Superfluid {
         bool nonUpgradable,
         bool appWhiteListingEnabled,
         uint64 callbackGasLimit,
-        address erc2771Forwarder
+        address simpleForwarderAddress,
+        address erc2771ForwarderAddress
     )
-        Superfluid(nonUpgradable, appWhiteListingEnabled, callbackGasLimit, erc2771Forwarder)
+        Superfluid(
+            nonUpgradable, appWhiteListingEnabled, callbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress
+        )
     // solhint-disable-next-line no-empty-blocks
     {
     }
