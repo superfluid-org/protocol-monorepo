@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 
 // Notes: We use these interfaces in natspec documentation below, grep @inheritdoc
 // solhint-disable-next-line no-unused-import
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     BasicParticle,
@@ -101,6 +101,11 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     /// @inheritdoc ISuperfluidPool
     bool public distributionFromAnyAddress;
 
+    // ERC20 metadata
+    string internal _erc20Name;
+    string internal _erc20Symbol;
+    uint8 internal _erc20Decimals;
+
     constructor(GeneralDistributionAgreementV1 gda) {
         GDA = gda;
     }
@@ -109,12 +114,18 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         address admin_,
         ISuperfluidToken superToken_,
         bool transferabilityForUnitsOwner_,
-        bool distributionFromAnyAddress_
+        bool distributionFromAnyAddress_,
+        string memory erc20Name_,
+        string memory erc20Symbol_,
+        uint8 erc20Decimals_
     ) external initializer {
         admin = admin_;
         superToken = superToken_;
         transferabilityForUnitsOwner = transferabilityForUnitsOwner_;
         distributionFromAnyAddress = distributionFromAnyAddress_;
+        _erc20Name = erc20Name_;
+        _erc20Symbol = erc20Symbol_;
+        _erc20Decimals = erc20Decimals_;
     }
 
     function proxiableUUID() public pure override returns (bytes32) {
@@ -282,6 +293,27 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         if (units == 0) return 0;
         // @note total units must never exceed type(int96).max
         else return (_index.wrappedFlowRate * uint256(units).toInt256()).toInt96();
+    }
+
+    /**
+     * @dev Returns the name of the token.
+     */
+    function name() external view returns (string memory) {
+
+    }
+
+    /**
+     * @dev Returns the symbol of the token.
+     */
+    function symbol() external view returns (string memory) {
+
+    }
+
+    /**
+     * @dev Returns the decimals places of the token.
+     */
+    function decimals() external view returns (uint8) {
+        return 1;
     }
 
     function _pdPoolIndexToPoolIndexData(PDPoolIndex memory pdPoolIndex)
