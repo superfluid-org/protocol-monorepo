@@ -305,8 +305,7 @@ abstract contract CFASuperAppBase is ISuperApp {
                     previousFlowRate,
                     lastUpdated,
                     ctx
-                )
-            );
+                );
         }
     }
 
