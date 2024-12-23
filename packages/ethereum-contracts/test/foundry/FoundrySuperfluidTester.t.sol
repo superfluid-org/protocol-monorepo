@@ -11,7 +11,8 @@ import { Superfluid } from "../../contracts/superfluid/Superfluid.sol";
 import { ISuperfluidPool, SuperfluidPool } from "../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import {
     IGeneralDistributionAgreementV1,
-    PoolConfig
+    PoolConfig,
+    PoolERC20Metadata
 } from "../../contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { IPoolNFTBase } from "../../contracts/interfaces/agreements/gdav1/IPoolNFTBase.sol";
 import { IPoolAdminNFT } from "../../contracts/interfaces/agreements/gdav1/IPoolAdminNFT.sol";
@@ -1078,9 +1079,7 @@ contract FoundrySuperfluidTester is Test {
         address _poolAdmin,
         bool _useForwarder,
         PoolConfig memory _poolConfig
-    ) internal returns (ISuperfluidPool) {
-        ISuperfluidPool localPool;
-
+    ) internal returns (ISuperfluidPool localPool) {
         vm.startPrank(_caller);
         if (!_useForwarder) {
             localPool = SuperfluidPool(address(sf.gda.createPool(_superToken, _poolAdmin, _poolConfig)));
@@ -1088,9 +1087,33 @@ contract FoundrySuperfluidTester is Test {
             (, localPool) = sf.gdaV1Forwarder.createPool(_superToken, _poolAdmin, _poolConfig);
         }
         vm.stopPrank();
-        _addAccount(address(localPool));
+        _assertPoolCreation(localPool, _useForwarder, _superToken, _poolAdmin, false, PoolERC20Metadata("", "", 0));
+    }
 
-        // Assert Pool Creation was properly handled
+    function _helperCreatePoolWithCustomERC20Metadata(
+        ISuperToken _superToken,
+        address _caller,
+        address _poolAdmin,
+        PoolConfig memory _poolConfig,
+        PoolERC20Metadata memory _poolERC20Metadata
+    ) internal returns (ISuperfluidPool localPool) {
+        vm.startPrank(_caller);
+        localPool = SuperfluidPool(address(sf.gda.createPoolWithCustomERC20Metadata(
+            _superToken, _poolAdmin, _poolConfig, _poolERC20Metadata)));
+        vm.stopPrank();
+        _assertPoolCreation(localPool, false, _superToken, _poolAdmin, true, _poolERC20Metadata);
+    }
+
+    // Assert Pool Creation was properly handled
+    function _assertPoolCreation(
+        ISuperfluidPool localPool,
+        bool _useForwarder,
+        ISuperToken _superToken,
+        address _poolAdmin,
+        bool _useCustomERC20Metadata,
+        PoolERC20Metadata memory _poolERC20Metadata
+    ) private {
+        _addAccount(address(localPool));
         address poolAdmin = localPool.admin();
         {
             bool isPool = _useForwarder
@@ -1124,7 +1147,19 @@ contract FoundrySuperfluidTester is Test {
             assertEq(poolAdmin, adjustmentFlowRecipient, "_helperCreatePool: Incorrect pool adjustment flow receiver");
         }
 
-        return localPool;
+        // Assert ERC20 Metadata as expected
+        {
+            if (_useCustomERC20Metadata) {
+                assertEq(localPool.name(), _poolERC20Metadata.name, "_helperCreatePool: Pool ERC20 Metadata name mismatch");
+                assertEq(localPool.symbol(), _poolERC20Metadata.symbol, "_helperCreatePool: Pool ERC20 Metadata symbol mismatch");
+                assertEq(localPool.decimals(), _poolERC20Metadata.decimals, "_helperCreatePool: Pool ERC20 Metadata decimals mismatch");
+            } else {
+                // expect the default/fallback values hardcoded in the pool contract
+                assertEq(localPool.name(), "Superfluid Pool", "_helperCreatePool: Pool ERC20 Metadata name mismatch");
+                assertEq(localPool.symbol(), "POOL", "_helperCreatePool: Pool ERC20 Metadata symbol mismatch");
+                assertEq(localPool.decimals(), 0, "_helperCreatePool: Pool ERC20 Metadata decimals mismatch");
+            }
+        }
     }
 
     function _helperCreatePool(ISuperToken _superToken, address _caller, address _poolAdmin)
