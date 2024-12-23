@@ -18,7 +18,6 @@ const SuperTokenFactoryDeployerLibraryArtifact = require("@superfluid-finance/et
 const SuperfluidFrameworkDeployerArtifact = require("@superfluid-finance/ethereum-contracts/build/hardhat/contracts/utils/SuperfluidFrameworkDeployer.t.sol/SuperfluidFrameworkDeployer.json");
 const SlotsBitmapLibraryArtifact = require("@superfluid-finance/ethereum-contracts/build/hardhat/contracts/libs/SlotsBitmapLibrary.sol/SlotsBitmapLibrary.json");
 const TokenDeployerLibraryArtifact = require("@superfluid-finance/ethereum-contracts/build/hardhat/contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol/TokenDeployerLibrary.json");
-const SuperfluidERC2771ForwarderDeployerLibraryArtifact = require("@superfluid-finance/ethereum-contracts/build/hardhat/contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol/SuperfluidERC2771ForwarderDeployerLibrary.json");
 
 const ERC1820Registry = require("../dev-scripts/artifacts/ERC1820Registry.json");
 
@@ -225,12 +224,6 @@ const _deployTestFramework = async (provider, signer) => {
         TokenDeployerLibraryArtifact,
         signer
     );
-    const SuperfluidERC2771ForwarderDeployerLibrary =
-        await _getFactoryAndReturnDeployedContract(
-            "SuperfluidERC2771ForwarderDeployerLibrary",
-            SuperfluidERC2771ForwarderDeployerLibraryArtifact,
-            signer
-        );
 
     const sfDeployer = await _getFactoryAndReturnDeployedContract(
         "SuperfluidFrameworkDeployer",
@@ -276,9 +269,6 @@ const _deployTestFramework = async (provider, signer) => {
                     SuperTokenFactoryDeployerLibrary
                 ),
                 TokenDeployerLibrary: getContractAddress(TokenDeployerLibrary),
-                SuperfluidERC2771ForwarderDeployerLibrary: getContractAddress(
-                    SuperfluidERC2771ForwarderDeployerLibrary
-                ),
             },
         }
     );
