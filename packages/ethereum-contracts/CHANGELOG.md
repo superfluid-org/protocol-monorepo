@@ -3,6 +3,12 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+### Added
+- Superfluid Pools now implement `IERC20Metadata`, thus going forward have a name, symbol and decimals
+- `ISuperfluidPool.createPoolWithCustomERC20Metadata` for creating pools with custom ERC20 metadata
+
 ## [v1.12.0]
 
 ### Added
