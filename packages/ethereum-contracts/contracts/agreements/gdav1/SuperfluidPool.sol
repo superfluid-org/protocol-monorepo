@@ -81,8 +81,15 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         int256 claimedValue;
     }
 
+    // Constants & Immutables
+
+    string internal constant _DEFAULT_ERC20_NAME = "Superfluid Pool";
+    string internal constant _DEFAULT_ERC20_SYMBOL = "POOL";
+    // ERC20 decimals implicitly defaults to 0
 
     GeneralDistributionAgreementV1 public immutable GDA;
+
+    // State variables - NEVER REORDER!
 
     ISuperfluidToken public superToken;
     address public admin;
@@ -295,25 +302,19 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         else return (_index.wrappedFlowRate * uint256(units).toInt256()).toInt96();
     }
 
-    /**
-     * @dev Returns the name of the token.
-     */
-    function name() external view returns (string memory) {
-
+    /// @inheritdoc IERC20Metadata
+    function name() external view override returns (string memory) {
+        return bytes(_erc20Name).length == 0 ? "Superfluid Pool" : _erc20Name;
     }
 
-    /**
-     * @dev Returns the symbol of the token.
-     */
-    function symbol() external view returns (string memory) {
-
+    /// @inheritdoc IERC20Metadata
+    function symbol() external view override returns (string memory) {
+        return bytes(_erc20Symbol).length == 0 ? "POOL" : _erc20Symbol;
     }
 
-    /**
-     * @dev Returns the decimals places of the token.
-     */
-    function decimals() external view returns (uint8) {
-        return 1;
+    /// @inheritdoc IERC20Metadata
+    function decimals() external view override returns (uint8) {
+        return _erc20Decimals;
     }
 
     function _pdPoolIndexToPoolIndexData(PDPoolIndex memory pdPoolIndex)

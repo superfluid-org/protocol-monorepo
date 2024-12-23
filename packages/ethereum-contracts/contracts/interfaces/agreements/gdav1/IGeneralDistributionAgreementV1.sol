@@ -14,6 +14,12 @@ struct PoolConfig {
     bool distributionFromAnyAddress;
 }
 
+struct PoolERC20Metadata {
+    string name;
+    string symbol;
+    uint8 decimals;
+}
+
 /**
  * @title General Distribution Agreement interface
  * @author Superfluid
@@ -177,6 +183,19 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
         external
         virtual
         returns (ISuperfluidPool pool);
+
+    /// @notice Creates a new pool for `token` with custom ERC20 metadata.
+    /// @param token The token address
+    /// @param admin The admin of the pool
+    /// @param poolConfig The pool configuration (see PoolConfig struct)
+    /// @param poolERC20Metadata The pool ERC20 metadata (see PoolERC20Metadata struct)
+    /// @return pool The pool address
+    function createPoolWithCustomERC20Metadata(
+        ISuperfluidToken token,
+        address admin,
+        PoolConfig memory poolConfig,
+        PoolERC20Metadata memory poolERC20Metadata
+    ) external virtual returns (ISuperfluidPool pool);
 
     function updateMemberUnits(ISuperfluidPool pool, address memberAddress, uint128 newUnits, bytes calldata ctx)
         external
