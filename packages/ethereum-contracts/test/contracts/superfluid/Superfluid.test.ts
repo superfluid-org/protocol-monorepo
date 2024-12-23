@@ -114,13 +114,15 @@ describe("Superfluid Host Contract", function () {
                     false /* nonUpgradable */,
                     false /* appWhiteListingEnabled */,
                     3000000 /* callbackGasLimit */,
+                    ZERO_ADDRESS /* simpleForwarder */,
                     ZERO_ADDRESS /* erc2771Forwarder */
                 );
                 const mock2 = await sfMockFactory.deploy(
                     true /* nonUpgradable */,
                     false /* appWhiteListingEnabled */,
                     3000000 /* callbackGasLimit */,
-                    ZERO_ADDRESS /* erc2771Forwader */
+                    ZERO_ADDRESS /* simpleForwarder */,
+                    ZERO_ADDRESS /* erc2771Forwarder */
                 );
                 await governance.updateContracts(
                     superfluid.address,
@@ -2693,7 +2695,8 @@ describe("Superfluid Host Contract", function () {
                     false /* nonUpgradable */,
                     false /* appWhiteListingEnabled */,
                     3000000 /* callbackGasLimit */,
-                    ZERO_ADDRESS /* erc2771Forwader */
+                    ZERO_ADDRESS /* simpleForwarder */,
+                    ZERO_ADDRESS /* erc2771Forwarder */
                 );
                 await expectCustomError(
                     governance.updateContracts(

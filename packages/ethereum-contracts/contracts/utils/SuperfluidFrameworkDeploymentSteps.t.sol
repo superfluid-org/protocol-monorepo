@@ -148,6 +148,7 @@ contract SuperfluidFrameworkDeploymentSteps {
             host = SuperfluidHostDeployerLibrary.deploy(
                 true, false, 3_000_000, address(simpleForwarder), address(erc2771Forwarder)
             );
+            simpleForwarder.transferOwnership(address(host));
             erc2771Forwarder.transferOwnership(address(host));
 
             host.initialize(testGovernance);

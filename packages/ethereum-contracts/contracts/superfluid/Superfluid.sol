@@ -56,7 +56,7 @@ contract Superfluid is
     uint64 immutable public CALLBACK_GAS_LIMIT;
 
     // simple forwarder contract used to relay arbitrary calls for batch operations
-    SimpleForwarder immutable internal SIMPLE_FORWARDER;
+    SimpleForwarder immutable public SIMPLE_FORWARDER;
     ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
 
     /**
