@@ -4,7 +4,7 @@
     "version": "0.3.0",
     "devDependencies": {
         "@openzeppelin/contracts": "^4.9.6",
-        "@superfluid-finance/ethereum-contracts": "^1.12.0",
+        "@superfluid-finance/ethereum-contracts": "^1.12.1",
         "@superfluid-finance/metadata": "^1.5.2"
     },
     "license": "MIT",

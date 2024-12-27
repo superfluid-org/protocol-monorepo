@@ -10,13 +10,13 @@
         "@openzeppelin/contracts": "4.9.6"
     },
     "devDependencies": {
-        "@superfluid-finance/ethereum-contracts": "^1.12.0"
+        "@superfluid-finance/ethereum-contracts": "^1.12.1"
     },
     "homepage": "https://github.com/superfluid-finance/protocol-monorepo#readme",
     "license": "AGPL-3.0",
     "main": "index.js",
     "peerDependencies": {
-        "@superfluid-finance/ethereum-contracts": "1.12.0"
+        "@superfluid-finance/ethereum-contracts": "1.12.1"
     },
     "repository": {
         "type": "git",
