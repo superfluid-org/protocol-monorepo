@@ -50,5 +50,14 @@ contract SuperfluidPoolStorageLayoutMock is SuperfluidPool, StorageLayoutTestBas
 
         assembly { slot := distributionFromAnyAddress.slot offset := distributionFromAnyAddress.offset }
         if (slot != 10 || offset != 1) revert STORAGE_LOCATION_CHANGED("distributionFromAnyAddress");
+
+        assembly { slot := _erc20Name.slot offset := _erc20Name.offset }
+        if (slot != 11 || offset != 0) revert STORAGE_LOCATION_CHANGED("_erc20Name");
+
+        assembly { slot := _erc20Symbol.slot offset := _erc20Symbol.offset }
+        if (slot != 12 || offset != 0) revert STORAGE_LOCATION_CHANGED("_erc20Symbol");
+
+        assembly { slot := _erc20Decimals.slot offset := _erc20Decimals.offset }
+        if (slot != 13 || offset != 0) revert STORAGE_LOCATION_CHANGED("_erc20Decimals");
     }
 }

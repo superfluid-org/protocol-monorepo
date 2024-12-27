@@ -166,6 +166,13 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         _helperCreatePool(superToken, alice, alice, useForwarder, config);
     }
 
+    function testCreatePoolWithCustomERC20Metadata(PoolConfig memory config, uint8 decimals) public {
+        vm.assume(decimals < 32);
+        _helperCreatePoolWithCustomERC20Metadata(
+            superToken, alice, alice, config, PoolERC20Metadata("My SuperToken", "MYST", decimals)
+        );
+    }
+
     function testRevertConnectPoolByNonHost(address notHost, PoolConfig memory config) public {
         ISuperfluidPool pool = _helperCreatePool(superToken, alice, alice, false, config);
         vm.assume(notHost != address(sf.host));

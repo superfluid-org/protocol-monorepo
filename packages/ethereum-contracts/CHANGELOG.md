@@ -8,6 +8,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 - Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
 
+### Added
+- Superfluid Pools now implement `IERC20Metadata`, thus going forward have a name, symbol and decimals
+- `ISuperfluidPool.createPoolWithCustomERC20Metadata` for creating pools with custom ERC20 metadata
+
 ## [v1.12.0]
 
 ### Added
