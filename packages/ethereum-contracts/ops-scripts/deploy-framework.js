@@ -796,12 +796,20 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             superfluid,
             ForwarderContract,
             getPrevAddrFn,
-            outputKey = null // optional parameter for writing to output string
+            outputKey
         ) {
             const prevAddr = await getPrevAddrFn().catch(_err => {
                 console.error(`### Error getting ${ForwarderContract.contractName} address, likely not yet deployed`);
                 return ZERO_ADDRESS;
             });
+
+            // we found a previous deployment. Now verify it has the host as owner.
+            // the first mainnet deployment didn't have this for SimpleForwarder, thus needs a redeployment.
+            const ownerAddr = await (await Ownable.at(prevAddr)).owner();
+            if (ownerAddr != superfluid.address) {
+                console.log(`  !!! ${outputKey} has wrong owner, needs re-deployment`);
+                return ZERO_ADDRESS;
+            }
 
             const newAddress = await deployContractIfCodeChanged(
                 web3,
@@ -814,10 +822,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                         "forwarder.transferOwnership"
                     )(superfluid.address);
 
-                    if (outputKey) {
-                        output += `${outputKey}=${forwarder.address}\n`;
-                    }
-
+                    output += `${outputKey}=${forwarder.address}\n`;
                     return forwarder.address;
                 }
             );
@@ -828,7 +833,8 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         const simpleForwarderAddress = await getOrDeployForwarder(
             superfluid,
             SimpleForwarder,
-            () => superfluid.SIMPLE_FORWARDER()
+            () => superfluid.SIMPLE_FORWARDER(),
+            "SIMPLE_FORWARDER"
         );
 
         const erc2771ForwarderAddress = await getOrDeployForwarder(
