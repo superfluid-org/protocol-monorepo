@@ -3,14 +3,14 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [UNRELEASED]
-
-### Changed
-- Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
+## [v1.12.1]
 
 ### Added
 - Superfluid Pools now implement `IERC20Metadata`, thus going forward have a name, symbol and decimals
 - `ISuperfluidPool.createPoolWithCustomERC20Metadata` for creating pools with custom ERC20 metadata
+
+### Changed
+- Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
 
 ## [v1.12.0]
 
