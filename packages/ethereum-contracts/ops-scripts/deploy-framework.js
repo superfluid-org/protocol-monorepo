@@ -798,17 +798,20 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             getPrevAddrFn,
             outputKey
         ) {
-            const prevAddr = await getPrevAddrFn().catch(_err => {
+            let prevAddr = await getPrevAddrFn().catch(_err => {
                 console.error(`### Error getting ${ForwarderContract.contractName} address, likely not yet deployed`);
                 return ZERO_ADDRESS;
             });
 
-            // we found a previous deployment. Now verify it has the host as owner.
-            // the first mainnet deployment didn't have this for SimpleForwarder, thus needs a redeployment.
-            const ownerAddr = await (await Ownable.at(prevAddr)).owner();
-            if (ownerAddr != superfluid.address) {
-                console.log(`  !!! ${outputKey} has wrong owner, needs re-deployment`);
-                return ZERO_ADDRESS;
+            {
+                // TEMPORARY FIX - can be removed after applied
+                // we found a previous deployment. Now verify it has the host as owner.
+                // the first mainnet deployment didn't have this for SimpleForwarder, thus needs a redeployment.
+                const ownerAddr = await (await Ownable.at(prevAddr)).owner();
+                if (ownerAddr != superfluid.address) {
+                    console.log(`  !!! ${outputKey} has wrong owner, needs re-deployment`);
+                    prevAddr = ZERO_ADDRESS; // by setting zero, we force a re-deployment
+                }
             }
 
             const newAddress = await deployContractIfCodeChanged(
