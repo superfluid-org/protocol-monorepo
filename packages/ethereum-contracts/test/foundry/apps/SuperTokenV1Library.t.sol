@@ -407,12 +407,6 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         superToken.flowFrom(sender, receiver, flowRate);
         vm.stopPrank();
     }
-
-    function __external_distributeFlow(address msgSender, ISuperfluidPool pool, int96 requestedFlowRate) external {
-        vm.startPrank(msgSender);
-        superToken.distributeFlow(pool, requestedFlowRate);
-        vm.stopPrank();
-    }
 }
 
 // needed to emulate "prank" for methods where prank doesn't work because of the lib using address(this)
