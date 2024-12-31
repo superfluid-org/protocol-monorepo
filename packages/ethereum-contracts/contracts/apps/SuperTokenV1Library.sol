@@ -1398,7 +1398,7 @@ library SuperTokenV1Library {
      * @param pool The Superfluid Pool address.
      * @param requestedFlowRate The flow rate of tokens to distribute.
      * @return actualFlowRate The flowrate actually set, which is equal or smaller than `requestedFlowRate`,
-     * depending on pool state - see IGeneralDistributionAgreement.estimateFlowDistributionActualFlowRate().
+     * depending on pool state - see IGeneralDistributionAgreementV1.estimateFlowDistributionActualFlowRate().
      */
     function distributeFlow(ISuperToken token, address from, ISuperfluidPool pool, int96 requestedFlowRate)
         internal
@@ -1415,7 +1415,7 @@ library SuperTokenV1Library {
      * @param requestedFlowRate The flow rate of tokens to distribute.
      * @param userData User-specific data.
      * @return actualFlowRate The flowrate actually set, which is equal or smaller than `requestedFlowRate`,
-     * depending on pool state - see IGeneralDistributionAgreement.estimateFlowDistributionActualFlowRate().
+     * depending on pool state - see IGeneralDistributionAgreementV1.estimateFlowDistributionActualFlowRate().
      */
     function distributeFlow(
         ISuperToken token,
