@@ -2,8 +2,10 @@
 pragma solidity ^0.8.23;
 
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
-import { FoundrySuperfluidTester, ISuperToken, SuperTokenV1Library, ISuperfluidPool }
+import { FoundrySuperfluidTester, ISuperToken, SuperTokenV1Library, ISuperfluidPool, PoolConfig, PoolERC20Metadata }
     from "../FoundrySuperfluidTester.t.sol";
+
+using SuperTokenV1Library for ISuperToken;
 
 /*
 * Note: since libs are used by contracts, not EOAs, do NOT try to use
@@ -11,8 +13,6 @@ import { FoundrySuperfluidTester, ISuperToken, SuperTokenV1Library, ISuperfluidP
 * Instead, let the Test contract itself be the mock sender.
 */
 contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
-    using SuperTokenV1Library for ISuperToken;
-
     int96 internal constant DEFAULT_FLOWRATE = 1e12;
     uint256 internal constant DEFAULT_AMOUNT = 1e18;
 
@@ -45,7 +45,7 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
 
         // invalid flowrate
         vm.expectRevert(IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE.selector);
-        this.__externalflow(address(this), bob, -1);
+        this.__external_flow(address(this), bob, -1);
     }
 
     function testflowFrom() external {
@@ -71,12 +71,13 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         assertEq(_getCFAFlowRate(alice, bob), 0, "deleteFlow unexpected result");
 
         vm.expectRevert(IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE.selector);
-        this.__externalflowFrom(address(this), alice, bob, -1);
+        this.__external_flowFrom(address(this), alice, bob, -1);
     }
 
     function testFlowXToAccount() external {
-        superToken.flowX(bob, DEFAULT_FLOWRATE);
+        int96 fr = superToken.flowX(bob, DEFAULT_FLOWRATE);
         assertEq(_getCFAFlowRate(address(this), bob), DEFAULT_FLOWRATE, "createFlow unexpected result");
+        assertEq(fr, DEFAULT_FLOWRATE, "flowX wrong return value");
 
         // double it -> updateFlow
         superToken.flowX(bob, DEFAULT_FLOWRATE * 2);
@@ -91,8 +92,9 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         ISuperfluidPool pool = superToken.createPool();
         pool.updateMemberUnits(bob, 1);
 
-        superToken.flowX(address(pool), DEFAULT_FLOWRATE);
+        int96 fr = superToken.flowX(address(pool), DEFAULT_FLOWRATE);
         assertEq(_getGDAFlowRate(address(this), pool), DEFAULT_FLOWRATE, "distrbuteFlow (new) unexpected result");
+        assertEq(fr, DEFAULT_FLOWRATE, "flowX wrong return value");
 
         // double it -> updateFlow
         superToken.flowX(address(pool), DEFAULT_FLOWRATE * 2);
@@ -105,8 +107,9 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
 
     function testTransferXToAccount() external {
         uint256 bobBalBefore = superToken.balanceOf(bob);
-        superToken.transferX(bob, DEFAULT_AMOUNT);
-        assertEq(superToken.balanceOf(bob) - bobBalBefore, DEFAULT_AMOUNT, "transfer unexpected result");
+        uint256 actualAmount = superToken.transferX(bob, DEFAULT_AMOUNT);
+        assertEq(superToken.balanceOf(bob) - bobBalBefore, actualAmount, "transfer unexpected result");
+        assertEq(actualAmount, DEFAULT_AMOUNT, "transferX wrong return value");
     }
 
     function testTransferXToPool() external {
@@ -114,9 +117,10 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         ISuperfluidPool pool = superToken.createPool();
         pool.updateMemberUnits(bob, 1);
 
-        superToken.transferX(address(pool), DEFAULT_AMOUNT);
+        uint256 actualAmount = superToken.transferX(address(pool), DEFAULT_AMOUNT);
         pool.claimAll(bob);
-        assertEq(superToken.balanceOf(bob) - bobBalBefore, DEFAULT_AMOUNT, "distribute unexpected result");
+        assertEq(superToken.balanceOf(bob) - bobBalBefore, actualAmount, "distribute unexpected result");
+        assertEq(actualAmount, DEFAULT_AMOUNT, "transferX wrong return value");
     }
 
     function testCreatePool() external {
@@ -129,6 +133,18 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         ISuperfluidPool pool = superToken.createPool(alice);
         assertEq(pool.admin(), alice);
         _assertDefaultPoolConfig(pool);
+    }
+
+    function testCreatePoolWithCustomERC20Metadata() external {
+        ISuperfluidPool pool = superToken.createPoolWithCustomERC20Metadata(
+            alice,
+            PoolConfig(true, true),
+            PoolERC20Metadata("My Token", "MTK", 6)
+        );
+
+        assertEq(pool.name(), "My Token", "pool unexpected ERC20 name");
+        assertEq(pool.symbol(), "MTK", "pool unexpected ERC20 symbol");
+        assertEq(pool.decimals(), 6, "pool unexpected ERC20 decimals");
     }
 
     function testGetCFAFlowRate() external {
@@ -294,6 +310,69 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         assert(lastUpdated2 > lastUpdated1);
     }
 
+    // Make sure actualFlowrate and actualAmount returned by distributeFlow and distribute are always correct.
+    // This is tested here because not provided by the GDA call itself, but added by the lib.
+    function testDistributeAndDistributeFlowAndReturnCorrectActualFlowrate(
+        uint32 u1, uint32 u2,
+        int96 fr1, int96 fr2, int96 fr3,
+        uint56 a1, uint56 a2, uint56 a3
+    )
+        external
+    {
+        fr1 = _boundFlowRate(fr1);
+        fr2 = _boundFlowRate(fr2);
+        fr3 = _boundFlowRate(fr3);
+
+        // create distributors & fund them
+        CallProxy sender1 = new CallProxy();
+        CallProxy sender2 = new CallProxy();
+        superToken.transfer(address(sender1), 5e18);
+        superToken.transfer(address(sender2), 5e18);
+
+        // create pool
+        ISuperfluidPool pool = superToken.createPool(
+            address(this),
+            PoolConfig({
+                transferabilityForUnitsOwner: false,    
+                distributionFromAnyAddress: true
+            })
+        );
+
+        // assign units to member1
+        pool.updateMemberUnits(alice, u1);
+        // distributeFlow from sender1 flowRate1
+        {
+            int96 actualFr = sender1.distributeFlow(superToken, pool, fr1);
+            assertEq(actualFr, superToken.getFlowRate(address(sender1), address(pool)), "step 1 unexpected actual flowrate");
+            // distribute from sender1 amount1
+            uint256 balBefore = superToken.balanceOf(address(sender1));
+            uint256 actualAmount = sender1.distribute(superToken, pool, a1);
+            assertEq(actualAmount, balBefore - superToken.balanceOf(address(sender1)), "step 1 unexpected actual amount");
+        }
+
+        // assign units to member2
+        pool.updateMemberUnits(bob, u2);
+        // distributeFlow from sender2 flowRate2
+        {
+            int96 actualFr = sender2.distributeFlow(superToken, pool, fr2);
+            assertEq(actualFr, superToken.getFlowRate(address(sender2), address(pool)), "step 2 unexpected actual flowrate");
+            // distribute from sender2 amount2
+            uint256 balBefore = superToken.balanceOf(address(sender2));
+            uint256 actualAmount = sender2.distribute(superToken, pool, a2);
+            assertEq(actualAmount, balBefore - superToken.balanceOf(address(sender2)), "step 2 unexpected actual amount");
+        }
+
+        // distributeFlow from sender1 flowRate3
+        {
+            int96 actualFr = sender1.distributeFlow(superToken, pool, fr3);
+            assertEq(actualFr, superToken.getFlowRate(address(sender1), address(pool)), "step 3 unexpected actual flowrate");
+            // distribute from sender1 amount3
+            uint256 balBefore = superToken.balanceOf(address(sender1));
+            uint256 actualAmount = sender1.distribute(superToken, pool, a3);
+            assertEq(actualAmount, balBefore - superToken.balanceOf(address(sender1)), "step 3 unexpected actual amount");
+        }
+    }
+
     // HELPER FUNCTIONS ========================================================================================
 
         // direct use of the agreement for assertions
@@ -311,17 +390,42 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         assertEq(pool.distributionFromAnyAddress(), true);
     }
 
+    function _boundFlowRate(int96 flowRate) internal pure returns (int96) {
+        return int96(bound(flowRate, 1, int96(uint96(type(uint32).max))));
+    }
+
     // helpers converting the lib call to an external call, for exception checking
 
-    function __externalflow(address msgSender, address receiver, int96 flowRate) external {
+    function __external_flow(address msgSender, address receiver, int96 flowRate) external {
         vm.startPrank(msgSender);
         superToken.flow(receiver, flowRate);
         vm.stopPrank();
     }
 
-    function __externalflowFrom(address msgSender, address sender, address receiver, int96 flowRate) external {
+    function __external_flowFrom(address msgSender, address sender, address receiver, int96 flowRate) external {
         vm.startPrank(msgSender);
         superToken.flowFrom(sender, receiver, flowRate);
         vm.stopPrank();
+    }
+
+    function __external_distributeFlow(address msgSender, ISuperfluidPool pool, int96 requestedFlowRate) external {
+        vm.startPrank(msgSender);
+        superToken.distributeFlow(pool, requestedFlowRate);
+        vm.stopPrank();
+    }
+}
+
+// needed to emulate "prank" for methods where prank doesn't work because of the lib using address(this)
+contract CallProxy {
+    function distributeFlow(ISuperToken token, ISuperfluidPool pool, int96 requestedFlowRate)
+        external returns (int96 actualFlowRate)
+    {
+        return token.distributeFlow(pool, requestedFlowRate);
+    }
+
+    function distribute(ISuperToken token, ISuperfluidPool pool, uint256 requestedAmount)
+        external returns (uint256 actualAmount)
+    {
+        return token.distribute(pool, requestedAmount);
     }
 }
