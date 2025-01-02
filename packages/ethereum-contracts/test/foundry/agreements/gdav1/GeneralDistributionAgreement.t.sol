@@ -207,17 +207,26 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.assume(requestedFlowRate < int96(type(int64).max));
         vm.startPrank(alice);
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_ONLY_SUPER_TOKEN_POOL.selector);
-        superToken.distributeFlow(alice, ISuperfluidPool(bob), requestedFlowRate);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distributeFlow, (superToken, alice, ISuperfluidPool(bob), requestedFlowRate, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 
     function testRevertDistributeFlowToPoolOfWrongToken(int96 requestedFlowRate) public {
+        ISuperfluidPool pool = _helperCreatePool(superToken, alice, alice, false, poolConfig);
         vm.assume(requestedFlowRate >= 0);
         vm.assume(requestedFlowRate < int96(type(int64).max));
         ISuperToken badToken = sfDeployer.deployNativeAssetSuperToken("Super Bad", "BADx");
         vm.startPrank(alice);
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_ONLY_SUPER_TOKEN_POOL.selector);
-        badToken.distributeFlow(alice, ISuperfluidPool(bob), requestedFlowRate);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distributeFlow, (badToken, alice, pool, requestedFlowRate, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 
@@ -227,7 +236,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
 
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_DISTRIBUTE_FROM_ANY_ADDRESS_NOT_ALLOWED.selector);
         vm.startPrank(bob);
-        superToken.distribute(bob, pool, 1);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distribute, (superToken, bob, pool, 1, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 
@@ -237,7 +250,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
 
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_DISTRIBUTE_FROM_ANY_ADDRESS_NOT_ALLOWED.selector);
         vm.startPrank(bob);
-        superToken.distributeFlow(bob, pool, 1);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distributeFlow, (superToken, bob, pool, 1, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 
@@ -266,7 +283,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
 
         vm.startPrank(alice);
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_NO_NEGATIVE_FLOW_RATE.selector);
-        superToken.distributeFlow(alice, pool, requestedFlowRate);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distributeFlow, (superToken, alice, pool, requestedFlowRate, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 
@@ -275,7 +296,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
 
         vm.startPrank(alice);
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_ONLY_SUPER_TOKEN_POOL.selector);
-        superToken.distribute(alice, ISuperfluidPool(bob), requestedAmount);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distribute, (superToken, alice, ISuperfluidPool(bob), requestedAmount, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 
@@ -284,7 +309,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         ISuperToken badToken = sfDeployer.deployNativeAssetSuperToken("Super Bad", "BADx");
         vm.startPrank(alice);
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_ONLY_SUPER_TOKEN_POOL.selector);
-        badToken.distribute(alice, ISuperfluidPool(bob), requestedAmount);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distribute, (badToken, alice, ISuperfluidPool(bob), requestedAmount, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 
@@ -348,7 +377,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
 
         vm.startPrank(bob);
         vm.expectRevert(IGeneralDistributionAgreementV1.GDA_NON_CRITICAL_SENDER.selector);
-        superToken.distributeFlow(alice, pool, 0);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.distributeFlow, (superToken, alice, pool, 0, new bytes(0))),
+            new bytes(0)
+        );
         vm.stopPrank();
     }
 

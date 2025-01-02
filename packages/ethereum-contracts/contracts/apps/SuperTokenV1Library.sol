@@ -1368,10 +1368,10 @@ library SuperTokenV1Library {
         bytes memory userData
     ) internal returns (uint256 actualAmount) {
         (ISuperfluid host, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
-        actualAmount = gda.estimateDistributionActualAmount(token, from, pool, requestedAmount);
         host.callAgreement(
             gda, abi.encodeCall(gda.distribute, (token, from, pool, requestedAmount, new bytes(0))), userData
         );
+        return gda.estimateDistributionActualAmount(token, from, pool, requestedAmount);
     }
 
     /**
@@ -1425,10 +1425,10 @@ library SuperTokenV1Library {
         bytes memory userData
     ) internal returns (int96 actualFlowRate) {
         (ISuperfluid host, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
-        (actualFlowRate,) = gda.estimateFlowDistributionActualFlowRate(token, from, pool, requestedFlowRate);
         host.callAgreement(
             gda, abi.encodeCall(gda.distributeFlow, (token, from, pool, requestedFlowRate, new bytes(0))), userData
         );
+        return gda.getFlowRate(token, from, pool);
     }
 
     /** GDA WITH CTX FUNCTIONS ************************************* */
