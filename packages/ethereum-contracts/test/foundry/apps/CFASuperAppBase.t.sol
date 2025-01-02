@@ -194,7 +194,7 @@ contract CFASuperAppBaseTest is FoundrySuperfluidTester {
         vm.stopPrank();
     }
 
-    // test delete flow
+    // test delete flow to superApp (incoming flow)
     function testDeleteFlowToSuperApp(int96 flowRate) public {
         flowRate = int96(bound(flowRate, 1, int96(uint96(type(uint32).max))));
         vm.startPrank(alice);
@@ -207,10 +207,24 @@ contract CFASuperAppBaseTest is FoundrySuperfluidTester {
         superToken.deleteFlow(alice, superAppAddress);
         assertEq(superToken.getFlowRate(alice, superAppAddress), 0, "SuperAppBase: deleteFlow2 | flowRate incorrect");
         assertEq(superApp.afterSenderHolder(), alice, "SuperAppBase: deleteFlow2 | afterSenderHolder incorrect");
-        assertEq(
-            superApp.afterReceiverHolder(), superAppAddress, "SuperAppBase: deleteFlow2 | afterReceiverHolder incorrect"
-        );
         assertEq(superApp.oldFlowRateHolder(), flowRate, "SuperAppBase: deleteFlow2 | oldFlowRateHolder incorrect");
+        vm.stopPrank();
+    }
+
+    // test delete flow from superApp
+    function testDeleteFlowFromSuperApp(int96 flowRate) public {
+        flowRate = int96(bound(flowRate, 1, int96(uint96(type(uint32).max))));
+
+        vm.startPrank(alice);
+        // fund the superApp and start a stream from it to alice
+        superToken.transfer(superAppAddress, 1e18);
+        superApp.startStream(superToken, alice, flowRate);
+
+        // let alice delete the flow, triggering the onOutFlowDeleted callback
+        superToken.deleteFlow(superAppAddress, alice);
+        assertEq(superApp.lastUpdateHolder(), block.timestamp, "SuperAppBase: deleteFlow | lastUpdateHolder incorrect");
+        assertEq(superApp.oldFlowRateHolder(), flowRate, "SuperAppBase: deleteFlow | oldFlowRateHolder incorrect");
+        assertEq(superApp.afterReceiverHolder(), alice, "SuperAppBase: deleteFlow | afterReceiverHolder incorrect");
         vm.stopPrank();
     }
 

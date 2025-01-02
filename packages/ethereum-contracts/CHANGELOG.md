@@ -12,6 +12,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 - Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
 
+# Breaking
+- CFASuperAppBase: `onFlowDeleted` from now on only handles events related to incoming flows, while for events triggered by outgoing flows `onOutFlowDeleted` is invoked.
+  This is safer because the latter case is in many cases unexpected and may thus not be handled correctly, potentially leading to state corruption or SuperApp jailing.
+  The change is breaking because of a signature change in `onFlowDeleted`. The removal of the now unnecessary `receiver` argument also makes sure
+  that this change can't without notice break implementations which correctly handled the corner case of an outgoing flow with the previous implementation of CFASuperAppBase.
+  Many applications may not want/need to handle the case of outgoing flows being deleted, thus don't need to override the newly added `onOutFlowDeleted`.
+
 ## [v1.12.0]
 
 ### Added

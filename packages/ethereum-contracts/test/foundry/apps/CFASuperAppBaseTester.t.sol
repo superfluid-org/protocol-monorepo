@@ -75,7 +75,6 @@ contract CFASuperAppBaseTester is CFASuperAppBase {
     function onFlowDeleted(
         ISuperToken, /*superToken*/
         address sender,
-        address receiver,
         int96 previousFlowRate,
         uint256 lastUpdated,
         bytes calldata ctx
@@ -83,6 +82,18 @@ contract CFASuperAppBaseTester is CFASuperAppBase {
         lastUpdateHolder = lastUpdated;
         oldFlowRateHolder = previousFlowRate;
         afterSenderHolder = sender;
+        return ctx;
+    }
+
+    function onOutflowDeleted(
+        ISuperToken, /*superToken*/
+        address receiver,
+        int96 previousFlowRate,
+        uint256 lastUpdated,
+        bytes calldata ctx
+    ) internal override returns (bytes memory newCtx) {
+        lastUpdateHolder = lastUpdated;
+        oldFlowRateHolder = previousFlowRate;
         afterReceiverHolder = receiver;
         return ctx;
     }

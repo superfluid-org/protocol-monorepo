@@ -132,7 +132,6 @@ contract FlowSplitter is CFASuperAppBase {
     function onFlowDeleted(
         ISuperToken superToken,
         address, /*sender*/
-        address receiver,
         int96 previousFlowRate,
         uint256, /*lastUpdated*/
         bytes calldata ctx
@@ -144,11 +143,6 @@ contract FlowSplitter is CFASuperAppBase {
             acceptedSuperToken.getFlowRate(address(this), mainReceiver)
                 + acceptedSuperToken.getFlowRate(address(this), sideReceiver)
         ) - previousFlowRate;
-
-        // handle "rogue recipients" with sticky stream - see readme
-        if (receiver == mainReceiver || receiver == sideReceiver) {
-            newCtx = superToken.createFlowWithCtx(receiver, previousFlowRate, newCtx);
-        }
 
         // if there is no more inflow, outflows should be deleted
         if (remainingInflow <= 0) {
@@ -163,6 +157,21 @@ contract FlowSplitter is CFASuperAppBase {
             );
 
             newCtx = superToken.updateFlowWithCtx(sideReceiver, (remainingInflow * sideReceiverPortion) / 1000, newCtx);
+        }
+    }
+
+    function onOutflowDeleted(
+        ISuperToken superToken,
+        address receiver,
+        int96 previousFlowRate,
+        uint256, /*lastUpdated*/
+        bytes calldata ctx
+    ) internal override returns (bytes memory newCtx) {
+        newCtx = ctx;
+
+        // handle "rogue recipients" with sticky stream - see readme
+        if (receiver == mainReceiver || receiver == sideReceiver) {
+            newCtx = superToken.createFlowWithCtx(receiver, previousFlowRate, newCtx);
         }
     }
 }
