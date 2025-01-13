@@ -22,11 +22,36 @@ import {
  * This library mitigates that by providing a more convenient Solidity API for SuperTokens.
  * While most methods are just wrappers around equivalent methods in a Superfluid agreement,
  * some implement higher level abstractions.
+ *
  * Note using the library in foundry tests can lead to counter-intuitive behaviour.
- * E.g. "prank" won't set the expected msg.sender for calls done using the library.
- * Also, reverts caused by the library itself won't be recognized by foundry, because
- * it expects them to happen in the context of an external call.
- * This is not specific to this library, but a general limitation of foundry when using libraries in tests.
+ * 1) `prank` does not behave consistently with some methods.
+ * Many library methods require the host address and/or agreement addresses in order to interact with this contracts.
+ * This framework addresses are determined through the token contract (`token.getHost()`).
+ * In order to avoid this gas cost overhead for future invocations, the library caches those addresses in storage.
+ * A side effect of this optimization is that as long as this caching hasn't taken place
+ * (which is the initial condition), `prank` will already be _consumed_ by the call fetching the host address,
+ * not having any effect on the following call(s) which execute the actual action.
+ * Possible mitigations:
+ * - use `startPrank` instead of `prank`
+ * - only use `prank` after doing a library call which did "warm up" the cache
+ * 2) For some methods, `startPrank` doesn't change behaviour in the expected way either.
+ * That affects all library methods using `address(this)`. The reason is as follows:
+ * Some library methods are convenience wrappers which set the calling contract itself as sender.
+ * Since the library code is executed in the context of the contract using it, _self_ means `address(this)`.
+ * That however means that `prank` and `startPrank` won't override it.
+ * Possible mitigations:
+ * - if possible, design the test case such that the test contract itself can be the intended sender
+ * - avoid using this convenience wrappers in tests, use methods with explicit sender argument instead
+ * - create a helper contract which is the designated sender, and route calls through it
+ * 3) `expectRevert` sometimes doesn't _see_ reverts.
+ * `expectRevert` expects a revert in the next call.
+ * If a revert is triggered by library code itself (vs by a call), `expectRevert` will thus not _see_ that.
+ * Possible mitigations:
+ * - avoid higher-level library methods which can themselves trigger reverts in tests where this is is an issue
+ * - wrap the method invocation into an external helper method which you then invoke with `this.helperMethod()`,
+ *   which makes it an external call
+ * Also be aware of other limitations, see
+ * https://book.getfoundry.sh/cheatcodes/expect-revert
  */
 library SuperTokenV1Library {
 
