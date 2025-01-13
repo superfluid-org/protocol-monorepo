@@ -288,9 +288,11 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         ISuperfluidPool pool = superToken.createPool();
         pool.updateMemberUnits(bob, 1);
 
-        assertEq(superToken.getFlowRate(address(this), address(pool)), 0);
+        assertEq(superToken.getFlowRate(address(this), address(pool)), 0, "getFlowRate to pool not zero");
+        assertEq(superToken.getFlowRate(address(pool), bob), 0, "getFlowRate to pool member not zero");
         superToken.distributeFlow(pool, DEFAULT_FLOWRATE);
-        assertEq(superToken.getFlowRate(address(this), address(pool)), DEFAULT_FLOWRATE);
+        assertEq(superToken.getFlowRate(address(this), address(pool)), DEFAULT_FLOWRATE, "getFlowRate to pool wrong");
+        assertEq(superToken.getFlowRate(address(pool), bob), DEFAULT_FLOWRATE, "getFlowRate to pool member wrong");
     }
 
     function testGetFlowInfoWithCFA() external {
@@ -302,7 +304,6 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         assertEq(owedDeposit1, 0);
 
         superToken.flow(bob, DEFAULT_FLOWRATE);
-
         (uint256 lastUpdated2, int96 flowRate2, uint256 deposit2, uint256 owedDeposit2) =
             superToken.getFlowInfo(address(this), bob);
         assertEq(flowRate2, DEFAULT_FLOWRATE);
@@ -316,20 +317,26 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         ISuperfluidPool pool = superToken.createPool();
         pool.updateMemberUnits(bob, 1);
 
-        (uint256 lastUpdated1, int96 flowRate1, uint256 deposit1, uint256 owedDeposit1) =
+        (uint256 lastUpdatedToPoolBefore, int96 flowRateToPoolBefore, uint256 depositToPoolBefore, uint256 owedDepositToPoolBefore) =
             superToken.getFlowInfo(address(this), address(pool));
-        assertEq(flowRate1, 0);
-        assertEq(deposit1, 0);
-        assertEq(owedDeposit1, 0);
+        assertEq(flowRateToPoolBefore, 0);
+        assertEq(depositToPoolBefore, 0);
+        assertEq(owedDepositToPoolBefore, 0);
+
+        (, int96 flowRateToMemberBefore, , ) = superToken.getFlowInfo(address(pool), bob);
+        assertEq(flowRateToMemberBefore, 0);
 
         superToken.distributeFlow(pool, DEFAULT_FLOWRATE);
 
-        (uint256 lastUpdated2, int96 flowRate2, uint256 deposit2, uint256 owedDeposit2) =
+        (uint256 lastUpdatedToPoolAfter, int96 flowRateToPoolAfter, uint256 depositToPoolAfter, uint256 owedDepositToPoolAfter) =
             superToken.getFlowInfo(address(this), address(pool));
-        assertEq(flowRate2, DEFAULT_FLOWRATE);
-        assert(deposit2 > 0);
-        assertEq(owedDeposit2, 0); // GDA doesn't use owed deposits
-        assert(lastUpdated2 > lastUpdated1);
+        assertEq(flowRateToPoolAfter, DEFAULT_FLOWRATE);
+        assert(depositToPoolAfter > 0);
+        assertEq(owedDepositToPoolAfter, 0); // GDA doesn't use owed deposits
+        assert(lastUpdatedToPoolAfter > lastUpdatedToPoolBefore);
+
+        (, int96 flowRateToMemberAfter, , ) = superToken.getFlowInfo(address(pool), bob);
+        assertEq(flowRateToMemberAfter, DEFAULT_FLOWRATE);
     }
 
     // Make sure actualFlowrate and actualAmount returned by distributeFlow and distribute are always correct.
