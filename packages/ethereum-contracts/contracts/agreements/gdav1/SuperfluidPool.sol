@@ -386,7 +386,15 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool) {
         if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
 
-        _updateMemberUnits(memberAddr, newUnits);
+        uint128 oldUnits = _updateMemberUnits(memberAddr, newUnits);
+
+        // Unit updates by admin are effectively mint/burn operations when viewed through the ERC20 lens.
+        // We thus emit a Transfer even from/to the zero address accordingly.
+        if (oldUnits < newUnits) {
+            emit Transfer(address(0), memberAddr, newUnits - oldUnits);
+        } else if (oldUnits > newUnits) {
+            emit Transfer(memberAddr, address(0), oldUnits - newUnits);
+        }
 
         return true;
     }
@@ -433,7 +441,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         }
     }
 
-    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (bool) {
+    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
         // @note normally we keep the sanitization in the external functions, but here
         // this is used in both updateMemberUnits and transfer
         if (GDA.isPool(superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
@@ -447,7 +455,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         MemberData memory memberData = _membersData[memberAddr];
         PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(memberData);
 
-        uint128 oldUnits = memberData.ownedUnits;
+        oldUnits = memberData.ownedUnits;
 
         PDPoolMemberMU memory mu = PDPoolMemberMU(pdPoolIndex, pdPoolMember);
 
@@ -468,8 +476,6 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
 
         _handlePoolMemberNFT(memberAddr, newUnits);
-
-        return true;
     }
 
     function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {
