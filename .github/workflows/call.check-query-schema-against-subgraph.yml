@@ -11,7 +11,7 @@ jobs:
   check-subgraph-indexing-statuses-on-deployed-networks:
     name: Check SDK-Core Schema Against Deployed Subgraphs (${{ inputs.subgraph-release }})
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       sdk-core-working-directory: ./packages/sdk-core

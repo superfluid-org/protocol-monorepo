@@ -16,7 +16,7 @@ jobs:
   check:
     name: Checking what packages need to be built
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
@@ -137,7 +137,7 @@ jobs:
 
   all-packages-tested:
     name: All packages tested (Dev Branch)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-not-requiring-successful-dependent-jobs
     if: ${{ always() }}
 
@@ -180,7 +180,7 @@ jobs:
 
     needs: [all-packages-tested]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
@@ -222,7 +222,7 @@ jobs:
 
     needs: [all-packages-tested]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
@@ -280,7 +280,7 @@ jobs:
 
     needs: [all-packages-tested]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false

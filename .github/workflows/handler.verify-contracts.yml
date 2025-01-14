@@ -16,7 +16,7 @@ jobs:
   verify-on-etherscan:
     name: Verify on Etherscan
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       RELEASE_VERSION: ${{ github.event.inputs.release_version }}

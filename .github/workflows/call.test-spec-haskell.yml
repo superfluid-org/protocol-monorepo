@@ -7,7 +7,7 @@ jobs:
   test-spec-haskell:
     name: Test Spec Haskell - Linux - ${{ matrix.compiler-name }}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:

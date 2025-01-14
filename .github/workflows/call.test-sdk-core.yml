@@ -19,7 +19,7 @@ jobs:
   matrix-prep:
     name: Preparing Conditional Strategy Matrix
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -39,7 +39,7 @@ jobs:
 
     needs: [matrix-prep]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix: ${{ fromJson(needs.matrix-prep.outputs.matrix) }}
