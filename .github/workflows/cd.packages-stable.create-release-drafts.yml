@@ -17,7 +17,7 @@ jobs:
   create-ethereum-contracts-release-draft:
     name: Create Ethereum-Contracts Release Draft
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     permissions: write-all
 
@@ -47,7 +47,7 @@ jobs:
   create-subgraph-release-draft:
     name: Create Subgraph Release Draft
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     permissions: write-all
 
@@ -87,7 +87,7 @@ jobs:
   create-and-publish-metadata-package:
     name: Create Metadata Release Draft and Publish to NPM
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     permissions: write-all
 
@@ -126,7 +126,7 @@ jobs:
   check-sdk-core-version:
     name: Checking if SDK-Core should be published
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     outputs:
       publish_sdk_core: ${{ env.SHOULD_PUBLISH_SDK_CORE }}
@@ -159,7 +159,7 @@ jobs:
   create-sdk-core-release-draft:
     name: Create SDK-Core Release Draft
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     needs:
       [
@@ -191,7 +191,7 @@ jobs:
   create-sdk-redux-release-draft:
     name: Create SDK-Redux Release Draft
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     permissions: write-all
 

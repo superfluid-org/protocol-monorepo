@@ -16,7 +16,7 @@ on:
 jobs:
   deploy-to-forked-network:
     name: Deploy Framework and Update Tokens on a Forked Network
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       ethereum-contracts-working-directory: ./packages/ethereum-contracts
 

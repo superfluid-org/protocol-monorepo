@@ -803,7 +803,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 return ZERO_ADDRESS;
             });
 
-            {
+            if (prevAddr !== ZERO_ADDRESS) {
                 // TEMPORARY FIX - can be removed after applied
                 // we found a previous deployment. Now verify it has the host as owner.
                 // the first mainnet deployment didn't have this for SimpleForwarder, thus needs a redeployment.

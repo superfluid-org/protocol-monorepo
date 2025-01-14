@@ -7,7 +7,7 @@ jobs:
   test-solidity-semantic-money:
     name: Test solidity-semantic-money - Linux
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
      run:

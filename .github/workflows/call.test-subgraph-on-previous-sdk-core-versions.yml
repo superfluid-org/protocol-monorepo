@@ -14,7 +14,7 @@ jobs:
   build-and-test-live-subgraph-previous-releases:
     name: Build and test current subgraph release with previous sdk-core versions
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:

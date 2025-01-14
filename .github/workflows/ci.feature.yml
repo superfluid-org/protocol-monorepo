@@ -20,7 +20,7 @@ jobs:
   check:
     name: Checking what packages need to be built
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
@@ -149,7 +149,7 @@ jobs:
   all-packages-tested:
     name: All packages tested (Feature Branch)
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     if: always()
 

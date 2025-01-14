@@ -7,7 +7,8 @@ import {
     IConstantFlowAgreementV1,
     IGeneralDistributionAgreementV1,
     ISuperfluidPool,
-    PoolConfig
+    PoolConfig,
+    PoolERC20Metadata
 } from "../interfaces/superfluid/ISuperfluid.sol";
 
 
@@ -21,11 +22,36 @@ import {
  * This library mitigates that by providing a more convenient Solidity API for SuperTokens.
  * While most methods are just wrappers around equivalent methods in a Superfluid agreement,
  * some implement higher level abstractions.
+ *
  * Note using the library in foundry tests can lead to counter-intuitive behaviour.
- * E.g. "prank" won't set the expected msg.sender for calls done using the library.
- * Also, reverts caused by the library itself won't be recognized by foundry, because
- * it expects them to happen in the context of an external call.
- * This is not specific to this library, but a general limitation of foundry when using libraries in tests.
+ * 1) `prank` does not behave consistently with some methods.
+ * Many library methods require the host address and/or agreement addresses in order to interact with this contracts.
+ * This framework addresses are determined through the token contract (`token.getHost()`).
+ * In order to avoid this gas cost overhead for future invocations, the library caches those addresses in storage.
+ * A side effect of this optimization is that as long as this caching hasn't taken place
+ * (which is the initial condition), `prank` will already be _consumed_ by the call fetching the host address,
+ * not having any effect on the following call(s) which execute the actual action.
+ * Possible mitigations:
+ * - use `startPrank` instead of `prank`
+ * - only use `prank` after doing a library call which did "warm up" the cache
+ * 2) For some methods, `startPrank` doesn't change behaviour in the expected way either.
+ * That affects all library methods using `address(this)`. The reason is as follows:
+ * Some library methods are convenience wrappers which set the calling contract itself as sender.
+ * Since the library code is executed in the context of the contract using it, _self_ means `address(this)`.
+ * That however means that `prank` and `startPrank` won't override it.
+ * Possible mitigations:
+ * - if possible, design the test case such that the test contract itself can be the intended sender
+ * - avoid using this convenience wrappers in tests, use methods with explicit sender argument instead
+ * - create a helper contract which is the designated sender, and route calls through it
+ * 3) `expectRevert` sometimes doesn't _see_ reverts.
+ * `expectRevert` expects a revert in the next call.
+ * If a revert is triggered by library code itself (vs by a call), `expectRevert` will thus not _see_ that.
+ * Possible mitigations:
+ * - avoid higher-level library methods which can themselves trigger reverts in tests where this is is an issue
+ * - wrap the method invocation into an external helper method which you then invoke with `this.helperMethod()`,
+ *   which makes it an external call
+ * Also be aware of other limitations, see
+ * https://book.getfoundry.sh/cheatcodes/expect-revert
  */
 library SuperTokenV1Library {
 
@@ -37,7 +63,7 @@ library SuperTokenV1Library {
      * @param token Super token address
      * @param receiverOrPool The receiver (account) or pool
      * @param flowRate the flowRate to be set.
-     * @return A boolean value indicating whether the operation was successful.
+     * @return newFlowRate The new flow rate after the operation.
      * Note that all the specifics of the underlying agreement used still apply.
      * E.g. if the GDA is used, the effective flowRate may differ from the selected one.
      */
@@ -45,7 +71,7 @@ library SuperTokenV1Library {
         ISuperToken token,
         address receiverOrPool,
         int96 flowRate
-    ) internal returns(bool) {
+    ) internal returns(int96 newFlowRate) {
         address sender = address(this);
 
         (, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
@@ -57,7 +83,8 @@ library SuperTokenV1Library {
                 flowRate
             );
         } else {
-            return flow(token, receiverOrPool, flowRate);
+            flow(token, receiverOrPool, flowRate);
+            return flowRate;
         }
     }
 
@@ -66,14 +93,14 @@ library SuperTokenV1Library {
      * @param token Super token address
      * @param receiverOrPool The receiver (account) or pool
      * @param amount the amount to be transferred/distributed
-     * @return A boolean value indicating whether the operation was successful.
+     * @return distributedAmount The amount actually transferred/distributed
      * Note in case of distribution, the effective amount may be smaller than requested.
      */
     function transferX(
         ISuperToken token,
         address receiverOrPool,
         uint256 amount
-    ) internal returns(bool) {
+    ) internal returns(uint256 distributedAmount) {
         address sender = address(this);
 
         (, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
@@ -85,7 +112,8 @@ library SuperTokenV1Library {
                 amount
             );
         } else {
-            return token.transfer(receiverOrPool, amount);
+            token.transfer(receiverOrPool, amount);
+            return amount;
         }
     }
 
@@ -94,44 +122,55 @@ library SuperTokenV1Library {
     /**
      * @dev get flow rate between two accounts for given token
      * @param token The token used in flow
-     * @param sender The sender of the flow
+     * @param senderOrPool The sender or pool sending the flow
      * @param receiverOrPool The receiver or pool receiving or distributing the flow
-     * @return flowRate The flow rate
-     * Note: edge case: if a CFA stream is going to a pool, it will return 0.
+     * @return flowRate The flowrate
+     * Note: this method auto-detects if it shall look at CFA or GDA flows.
+     * For GDA flows, either sender or receiver need to be a pool.
      */
-    function getFlowRate(ISuperToken token, address sender, address receiverOrPool)
+    function getFlowRate(ISuperToken token, address senderOrPool, address receiverOrPool)
         internal view returns(int96 flowRate)
     {
+        // GDA account (distributor) -> pool
         if (_isPool(token, receiverOrPool)) {
             (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
-            (, flowRate,) = gda.getFlow(token, sender, ISuperfluidPool(receiverOrPool));
+            (, flowRate,) = gda.getFlow(token, senderOrPool, ISuperfluidPool(receiverOrPool));
+        // GDA pool -> account (pool member)
+        } else if (_isPool(token, senderOrPool)) {
+            flowRate = ISuperfluidPool(senderOrPool).getMemberFlowRate(receiverOrPool);
+        // CFA account -> account
         } else {
             (, IConstantFlowAgreementV1 cfa) = _getHostAndCFA(token);
-            (, flowRate, , ) = cfa.getFlow(token, sender, receiverOrPool);
+            (, flowRate, , ) = cfa.getFlow(token, senderOrPool, receiverOrPool);
         }
     }
 
     /**
-     * @dev get flow info between an account and another account or pool for given token
+     * @dev get flow info between an account or pool and another account or pool for given token
      * @param token The token used in flow
-     * @param sender The sender of the flow
+     * @param senderOrPool The sender or pool sending the flow
      * @param receiverOrPool The receiver or pool receiving or distributing the flow
-     * @return lastUpdated Timestamp of flow creation or last flowrate change
-     * @return flowRate The flow rate
-     * @return deposit The amount of deposit the flow
-     * @return owedDeposit The amount of owed deposit of the flow
-     * Note: edge case: a CFA stream going to a pool will not be "seen".
+     * @return lastUpdated Timestamp of flow creation or last flowrate change. Not set if the sender is a pool.
+     * @return flowRate The flow rate.
+     * @return deposit The amount of deposit of the flow.
+     * @return owedDeposit The amount of owed deposit of the flow.
      */
-    function getFlowInfo(ISuperToken token, address sender, address receiverOrPool)
+    function getFlowInfo(ISuperToken token, address senderOrPool, address receiverOrPool)
         internal view
         returns(uint256 lastUpdated, int96 flowRate, uint256 deposit, uint256 owedDeposit)
     {
+        // GDA account (distributor) -> pool
         if (_isPool(token, receiverOrPool)) {
             (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
-            (lastUpdated, flowRate, deposit) = gda.getFlow(token, sender, ISuperfluidPool(receiverOrPool));
+            (lastUpdated, flowRate, deposit) = gda.getFlow(token, senderOrPool, ISuperfluidPool(receiverOrPool));
+        // GDA pool -> account (pool member)
+        } else if (_isPool(token, senderOrPool)) {
+            flowRate = ISuperfluidPool(senderOrPool).getMemberFlowRate(receiverOrPool);
+            // deposit and lastUpdated are not set in this case
+        // CFA account -> account
         } else {
             (, IConstantFlowAgreementV1 cfa) = _getHostAndCFA(token);
-            (lastUpdated, flowRate, deposit, owedDeposit) = cfa.getFlow(token, sender, receiverOrPool);
+            (lastUpdated, flowRate, deposit, owedDeposit) = cfa.getFlow(token, senderOrPool, receiverOrPool);
         }
     }
 
@@ -264,6 +303,7 @@ library SuperTokenV1Library {
             } // else no change, do nothing
             return true;
         } else {
+            // can't set negative flowrate
             revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
         }
     }
@@ -430,8 +470,8 @@ library SuperTokenV1Library {
      * @param token The token used in flow
      * @param flowOperator The address given flow permissions
      * @param allowCreate creation permissions
-     * @param allowCreate update permissions
-     * @param allowCreate deletion permissions
+     * @param allowUpdate update permissions
+     * @param allowDelete deletion permissions
      * @param flowRateAllowance The allowance provided to flowOperator
      */
     function setFlowPermissions(
@@ -802,7 +842,78 @@ library SuperTokenV1Library {
     /** CFA With CTX FUNCTIONS ************************************* */
 
     /**
-     * @dev Create flow with context and userData
+     * @dev Set CFA flowrate with context
+     * @param token Super token address
+     * @param receiver The receiver of the flow
+     * @param flowRate The wanted flowrate in wad/second. Only positive values are valid here.
+     * @param ctx Context bytes (see ISuperfluid.sol for Context struct)
+     * @return newCtx The updated context after the execution of the agreement function
+     */
+    function flowWithCtx(
+        ISuperToken token,
+        address receiver,
+        int96 flowRate,
+        bytes memory ctx
+    ) internal returns (bytes memory newCtx) {
+        // note: from the lib's perspective, the caller is "this", NOT "msg.sender"
+        address sender = address(this);
+        int96 prevFlowRate = getCFAFlowRate(token, sender, receiver);
+
+        if (flowRate > 0) {
+            if (prevFlowRate == 0) {
+                return createFlowWithCtx(token, receiver, flowRate, ctx);
+            } else if (prevFlowRate != flowRate) {
+                return updateFlowWithCtx(token, receiver, flowRate, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else if (flowRate == 0) {
+            if (prevFlowRate > 0) {
+                return deleteFlowWithCtx(token, sender, receiver, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else {
+            // can't set negative flowrate
+            revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
+        }
+    }
+
+    /**
+     * @notice Like `flowFrom`, with context
+     * @param token Super token address
+     * @param sender The sender of the flow
+     * @param receiver The receiver of the flow
+     * @param flowRate The wanted flowRate in wad/second. Only positive values are valid here.
+     * @param ctx Context bytes (see ISuperfluid.sol for Context struct)
+     * @return newCtx The updated context after the execution of the agreement function
+     */
+    function flowFromWithCtx(
+        ISuperToken token,
+        address sender,
+        address receiver,
+        int96 flowRate,
+        bytes memory ctx
+    ) internal returns (bytes memory newCtx) {
+        int96 prevFlowRate = getCFAFlowRate(token, sender, receiver);
+
+        if (flowRate > 0) {
+            if (prevFlowRate == 0) {
+                return createFlowFromWithCtx(token, sender, receiver, flowRate, ctx);
+            } else if (prevFlowRate != flowRate) {
+                return updateFlowFromWithCtx(token, sender, receiver, flowRate, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else if (flowRate == 0) {
+            if (prevFlowRate > 0) {
+                return deleteFlowFromWithCtx(token, sender, receiver, ctx);
+            } // else no change, do nothing
+            return ctx;
+        } else {
+            revert IConstantFlowAgreementV1.CFA_INVALID_FLOW_RATE();
+        }
+    }
+
+    /**
+     * @dev Create flow with context
      * @param token The token to flow
      * @param receiver The receiver of the flow
      * @param flowRate The desired flowRate
@@ -1213,12 +1324,41 @@ library SuperTokenV1Library {
 
     /**
      * @dev Creates a new Superfluid Pool with default PoolConfig and the caller set as admin
+     * @param token The Super Token address.
      * @return pool The address of the deployed Superfluid Pool
      */
     function createPool(ISuperToken token) internal returns (ISuperfluidPool pool) {
         // note: from the perspective of the lib, msg.sender is the contract using the lib.
         // from the perspective of the GDA contract, that will be the msg.sender
         return createPool(token, address(this));
+    }
+
+    /**
+     * @dev Creates a new Superfluid Pool with custom ERC20 metadata.
+     * @param token The Super Token address.
+     * @param admin The pool admin address.
+     * @param poolConfig The pool configuration (see PoolConfig in IGeneralDistributionAgreementV1.sol)
+     * @param poolERC20Metadata The pool ERC20 metadata (see PoolERC20Metadata in IGeneralDistributionAgreementV1.sol)
+     * @return pool The pool address
+     */
+    function createPoolWithCustomERC20Metadata(
+        ISuperToken token,
+        address admin,
+        PoolConfig memory poolConfig,
+        PoolERC20Metadata memory poolERC20Metadata
+    ) internal returns (ISuperfluidPool pool) {
+        (, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
+        pool = gda.createPoolWithCustomERC20Metadata(token, admin, poolConfig, poolERC20Metadata);
+    }
+
+    /**
+     * @dev Claims all tokens from the pool for the msg.sender
+     * @param token The Super Token address.
+     * @param pool The Superfluid Pool to claim from.
+     * @return A boolean value indicating whether the claim was successful.
+     */
+    function claimAll(ISuperToken token, ISuperfluidPool pool) internal returns (bool) {
+        return claimAll(token, pool, address(this), new bytes(0));
     }
 
     /**
@@ -1303,11 +1443,11 @@ library SuperTokenV1Library {
      * @param token The Super Token address.
      * @param pool The Superfluid Pool address.
      * @param requestedAmount The amount of tokens to distribute.
-     * @return A boolean value indicating whether the distribution was successful.
+     * @return actualAmount The amount actually distributed, which is equal or smaller than `requestedAmount`
      */
     function distribute(ISuperToken token, ISuperfluidPool pool, uint256 requestedAmount)
         internal
-        returns (bool)
+        returns (uint256 actualAmount)
     {
         return distribute(token, address(this), pool, requestedAmount, new bytes(0));
     }
@@ -1320,11 +1460,11 @@ library SuperTokenV1Library {
      * @param from The address from which to distribute tokens.
      * @param pool The Superfluid Pool address.
      * @param requestedAmount The amount of tokens to distribute.
-     * @return A boolean value indicating whether the distribution was successful.
+     * @return actualAmount The amount actually distributed, which is equal or smaller than `requestedAmount`
      */
     function distribute(ISuperToken token, address from, ISuperfluidPool pool, uint256 requestedAmount)
         internal
-        returns (bool)
+        returns (uint256 actualAmount)
     {
         return distribute(token, from, pool, requestedAmount, new bytes(0));
     }
@@ -1336,7 +1476,7 @@ library SuperTokenV1Library {
      * @param pool The Superfluid Pool address.
      * @param requestedAmount The amount of tokens to distribute.
      * @param userData User-specific data.
-     * @return A boolean value indicating whether the distribution was successful.
+     * @return actualAmount The amount actually distributed, which is equal or smaller than `requestedAmount`
      */
     function distribute(
         ISuperToken token,
@@ -1344,12 +1484,12 @@ library SuperTokenV1Library {
         ISuperfluidPool pool,
         uint256 requestedAmount,
         bytes memory userData
-    ) internal returns (bool) {
+    ) internal returns (uint256 actualAmount) {
         (ISuperfluid host, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
         host.callAgreement(
             gda, abi.encodeCall(gda.distribute, (token, from, pool, requestedAmount, new bytes(0))), userData
         );
-        return true;
+        return gda.estimateDistributionActualAmount(token, from, pool, requestedAmount);
     }
 
     /**
@@ -1357,28 +1497,32 @@ library SuperTokenV1Library {
      * @param token The Super Token address.
      * @param pool The Superfluid Pool address.
      * @param requestedFlowRate The flow rate of tokens to distribute.
-     * @return A boolean value indicating whether the distribution was successful.
+     * @return actualFlowRate The flowrate actually set, which is equal or smaller than `requestedFlowRate`,
+     * depending on pool state - see IGeneralDistributionAgreement.estimateFlowDistributionActualFlowRate().
      */
     function distributeFlow(ISuperToken token, ISuperfluidPool pool, int96 requestedFlowRate)
         internal
-        returns (bool)
+        returns (int96 actualFlowRate)
     {
         return distributeFlow(token, address(this), pool, requestedFlowRate, new bytes(0));
     }
 
     /**
      * @dev Tries to distribute flow at `requestedFlowRate` of `token` from `from` to `pool`.
+     * Note: the "actual" flowrate set can also be less than `requestedFlowRate, depending on the
+     * current total pool units. In order to know beforehand, use `estimateDistributionActualAmount`.
      * NOTE: The ability to set the `from` argument is needed only when liquidating a GDA flow.
      * The GDA currently doesn't have ACL support.
      * @param token The Super Token address.
      * @param from The address from which to distribute tokens.
      * @param pool The Superfluid Pool address.
      * @param requestedFlowRate The flow rate of tokens to distribute.
-     * @return A boolean value indicating whether the distribution was successful.
+     * @return actualFlowRate The flowrate actually set, which is equal or smaller than `requestedFlowRate`,
+     * depending on pool state - see IGeneralDistributionAgreementV1.estimateFlowDistributionActualFlowRate().
      */
     function distributeFlow(ISuperToken token, address from, ISuperfluidPool pool, int96 requestedFlowRate)
         internal
-        returns (bool)
+        returns (int96 actualFlowRate)
     {
         return distributeFlow(token, from, pool, requestedFlowRate, new bytes(0));
     }
@@ -1390,7 +1534,8 @@ library SuperTokenV1Library {
      * @param pool The Superfluid Pool address.
      * @param requestedFlowRate The flow rate of tokens to distribute.
      * @param userData User-specific data.
-     * @return A boolean value indicating whether the distribution was successful.
+     * @return actualFlowRate The flowrate actually set, which is equal or smaller than `requestedFlowRate`,
+     * depending on pool state - see IGeneralDistributionAgreementV1.estimateFlowDistributionActualFlowRate().
      */
     function distributeFlow(
         ISuperToken token,
@@ -1398,12 +1543,12 @@ library SuperTokenV1Library {
         ISuperfluidPool pool,
         int96 requestedFlowRate,
         bytes memory userData
-    ) internal returns (bool) {
+    ) internal returns (int96 actualFlowRate) {
         (ISuperfluid host, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
         host.callAgreement(
             gda, abi.encodeCall(gda.distributeFlow, (token, from, pool, requestedFlowRate, new bytes(0))), userData
         );
-        return true;
+        return gda.getFlowRate(token, from, pool);
     }
 
     /** GDA WITH CTX FUNCTIONS ************************************* */

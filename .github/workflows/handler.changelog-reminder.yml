@@ -8,7 +8,7 @@ jobs:
   check:
     name: Check which packages have been modified
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     outputs:
       build_ethereum_contracts: ${{ env.BUILD_ETHEREUM_CONTRACTS }}
@@ -29,7 +29,7 @@ jobs:
       pull-requests: write
       issues: write
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     needs: [check]
     if: needs.check.outputs.build_ethereum_contracts || needs.check.outputs.build_sdk_core || needs.check.outputs.build_sdk_redux || needs.check.outputs.build_spec_haskell

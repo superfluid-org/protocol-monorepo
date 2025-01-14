@@ -7,10 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 - Superfluid Pools now implement `IERC20Metadata`, thus going forward have a name, symbol and decimals
-- `ISuperfluidPool.createPoolWithCustomERC20Metadata` for creating pools with custom ERC20 metadata
+- `IGeneralDistributionAgreementV1.createPoolWithCustomERC20Metadata` and `SuperTokenV1Library.createPoolWithCustomERC20Metadata` for creating pools with custom ERC20 metadata
+- `SuperTokenV1Library`
+  - overloaded `claimAll` for the msg.sender to claim for themselves
+  - added `flowWithCtx` and `flowFromWithCtx`
 
 ### Changed
 - Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
+- `SuperTokenV1Library.getFlowRate` and `SuperTokenV1Library.getFlowInfo` now also allow querying the flowrate between pools and pool members.
+
+### Breaking
+- `SuperTokenV1Library.distributeFlow`: return `actualFlowRate` instead of a bool
+- `SuperTokenV1Library.distribute`: return `actualAmount` instead of a bool
 
 # Breaking
 - CFASuperAppBase: `onFlowDeleted` from now on only handles events related to incoming flows, while for events triggered by outgoing flows `onOutFlowDeleted` is invoked.
