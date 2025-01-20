@@ -389,7 +389,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         uint128 oldUnits = _updateMemberUnits(memberAddr, newUnits);
 
         // Unit updates by admin are effectively mint/burn operations when viewed through the ERC20 lens.
-        // We thus emit a Transfer even from/to the zero address accordingly.
+        // We thus emit a Transfer event from/to the zero address accordingly.
         if (oldUnits < newUnits) {
             emit Transfer(address(0), memberAddr, newUnits - oldUnits);
         } else if (oldUnits > newUnits) {
