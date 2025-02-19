@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
 - `SuperTokenV1Library.getFlowRate` and `SuperTokenV1Library.getFlowInfo` now also allow querying the flowrate between pools and pool members
 - Superfluid Pools now emit a Transfer event when changing units with `updateMemberUnits`.
+- Dependency foundry updated to 1.0
 
 ### Breaking
 - `SuperTokenV1Library.distributeFlow`: return `actualFlowRate` instead of a bool

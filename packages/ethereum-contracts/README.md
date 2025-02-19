@@ -138,7 +138,7 @@ function testRevertIfDecreaseFlowRateAllowanceAndACLCreateFlow() {
 
 #### Internal Helper Functions
 
-See [`FoundrySuperfluidTester.sol`](test/foundry/FoundrySuperfluidTester.sol) for examples of commonly used internal helper functions.
+See [`FoundrySuperfluidTester.t.sol`](test/foundry/FoundrySuperfluidTester.t.sol) for examples of commonly used internal helper functions.
 If you are writing a test that requires a helper function, the helper function is prefixed with `_` and uses camelCase to indicate that it is an internal helper function. For example:
 
 ```solidity
@@ -199,7 +199,7 @@ In foundry, you can use the `SuperfluidFrameworkDeployer` to deploy the Superflu
 import "forge-std/Test.sol";
 
 import { ERC1820RegistryCompiled } from "@superfluid-finance/ethereum-contracts/contracts/libs/ERC1820RegistryCompiled.sol";
-import { SuperfluidFrameworkDeployer } from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.sol";
+import { SuperfluidFrameworkDeployer } from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import { TestToken } from "@superfluid-finance/ethereum-contracts/contracts/utils/TestToken.sol";
 import { SuperToken } from "@superfluid-finance/ethereum-contracts/contracts/superfluid/SuperToken.sol";
 
@@ -218,7 +218,7 @@ contract SomeTest is Test {
     }
 }
 ```
-See [SuperfluidFrameworkDeployer.sol](contracts/utils/SuperfluidFrameworkDeployer.sol) for more details.
+See [SuperfluidFrameworkDeployer.t.sol](contracts/utils/SuperfluidFrameworkDeployer.t.sol) for more details.
 
 You can also deploy to a local blockchain (`hardhat` or `anvil`) via a forge script. For example, an example `Deploy.s.sol` file:
 
