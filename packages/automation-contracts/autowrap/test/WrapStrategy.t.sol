@@ -60,7 +60,8 @@ contract WrapStrategyTests is FoundrySuperfluidTester {
 
     /// TESTS
 
-    function testFailDeploymentWithoutManager() public {
+    function test_RevertWhen_DeploymentWithoutManager() public {
+        vm.expectRevert(IStrategy.ZeroAddress.selector);
         new WrapStrategy(address(0));
     }
 
