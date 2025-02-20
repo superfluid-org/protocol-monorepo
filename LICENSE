@@ -1,6 +1,6 @@
 Superfluid Protocol
 
-Copyright @ 2020-2023 Superfluid Finance Ltd
+Copyright @ 2020-2025 Superfluid Finance Ltd
 
 This is the monorepo of Superfluid Protocol.
 
@@ -10,8 +10,9 @@ Notably:
 
 - packages/spec-haskell               - MIT
 - packages/solidity-semantic-money    - MIT
-- packages/ethereum-contracts         - AGPLv3 (core contracts) & MIT (for external developers)
-- packages/subgraph                   - AGPLv3
+- packages/ethereum-contracts         - MIT
+- packages/metadata                   - MIT
+- packages/subgraph                   - MIT
 - packages/automation-contracts/*     - MIT
 - packages/js-sdk                     - MIT
 - packages/sdk-core                   - MIT
