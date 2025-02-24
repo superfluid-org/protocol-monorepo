@@ -343,10 +343,12 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
     }
 
     /// @dev IVestingScheduler.updateVestingSchedule implementation.
-    function updateVestingSchedule(ISuperToken superToken, address receiver, uint256 totalAmount, bytes memory ctx)
-        external
-        returns (bytes memory newCtx)
-    {
+    function updateVestingScheduleAmount(
+        ISuperToken superToken,
+        address receiver,
+        uint256 totalAmount,
+        bytes memory ctx
+    ) external returns (bytes memory newCtx) {
         newCtx = ctx;
         address sender = _getSender(ctx);
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
