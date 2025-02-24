@@ -16,15 +16,18 @@ interface IVestingSchedulerV3 {
     error CannotClaimScheduleOnBehalf();
     error AlreadyExecuted();
     error ScheduleNotClaimed();
+    error InvalidUpdate();
 
     /**
      * @dev Vesting configuration provided by user.
      * @param cliffAndFlowDate Date of flow start and cliff execution (if a cliff was specified)
      * @param endDate End date of the vesting
-     * @param claimValidityDate Date before which the claimable schedule must be claimed
-     * @param flowRate For the stream
-     * @param cliffAmount Amount to be transferred at the cliff
-     * @param remainderAmount Amount transferred during early end to achieve an accurate "total vested amount"
+     * @param flowRate Flow rate of the stream in tokens per second
+     * @param cliffAmount Amount to be transferred at the cliff date
+     * @param remainderAmount Amount to be transferred at the end to account for rounding errors
+     * @param claimValidityDate Date before which the claimable schedule must be claimed (0 if not claimable)
+     * @param totalAmount Total amount to be vested over the entire schedule (includes cliff and streamed amount)
+     * @param alreadyVestedAmount Amount that has already been vested
      */
     struct VestingSchedule {
         uint32 cliffAndFlowDate;
@@ -33,6 +36,8 @@ interface IVestingSchedulerV3 {
         uint256 cliffAmount;
         uint96 remainderAmount;
         uint32 claimValidityDate;
+        uint256 totalAmount;
+        uint256 alreadyVestedAmount;
     }
 
     /**
