@@ -9,11 +9,12 @@ import {
 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 import {SuperAppBase} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
 import {SuperTokenV1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
+import {IRelayRecipient} from "@superfluid-finance/ethereum-contracts/contracts/interfaces/utils/IRelayRecipient.sol";
 import {IVestingSchedulerV3} from "./interface/IVestingSchedulerV3.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
+contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipient {
     using SuperTokenV1Library for ISuperToken;
 
     ISuperfluid public immutable HOST;
@@ -86,7 +87,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         _validateAndCreateVestingSchedule(
             ScheduleCreationParams({
                 superToken: superToken,
-                sender: msg.sender,
+                sender: _msgSender(),
                 receiver: receiver,
                 startDate: _normalizeStartDate(startDate),
                 claimValidityDate: claimValidityDate,
@@ -172,7 +173,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         _validateAndCreateVestingSchedule(
             mapCreateVestingScheduleParams(
                 superToken,
-                msg.sender,
+                _msgSender(),
                 receiver,
                 totalAmount,
                 totalDuration,
@@ -518,7 +519,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         VestingSchedule memory schedule = agg.schedule;
 
         // Ensure that the caller is the sender or the receiver if the vesting schedule requires claiming.
-        if (msg.sender != agg.sender && msg.sender != agg.receiver) {
+        if (_msgSender() != agg.sender && _msgSender() != agg.receiver) {
             revert CannotClaimScheduleOnBehalf();
         }
 
@@ -527,7 +528,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         }
 
         delete vestingSchedules[agg.id].claimValidityDate;
-        emit VestingClaimed(agg.superToken, agg.sender, agg.receiver, msg.sender);
+        emit VestingClaimed(agg.superToken, agg.sender, agg.receiver, _msgSender());
     }
 
     /// @dev IVestingScheduler.executeCliffAndFlow implementation.
@@ -731,7 +732,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
             if (msg.sender != address(HOST)) revert HostInvalid();
             sender = HOST.decodeCtx(ctx).msgSender;
         } else {
-            sender = msg.sender;
+            sender = _msgSender();
         }
         // This is an invariant and should never happen.
         assert(sender != address(0));
@@ -744,5 +745,24 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
 
     function _getId(address superToken, address sender, address receiver) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(superToken, sender, receiver));
+    }
+
+    /// @dev IRelayRecipient.isTrustedForwarder implementation
+    function isTrustedForwarder(address forwarder) public view override returns(bool) {
+        return forwarder == HOST.getERC2771Forwarder();
+    }
+
+    /// @dev IRelayRecipient.versionRecipient implementation
+    function versionRecipient() external override pure returns (string memory) {
+        return "v1";
+    }
+
+    /// @dev gets the relayed sender from calldata as specified by EIP-2771, falling back to msg.sender
+    function _msgSender() internal virtual view returns (address) {
+        if(msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {
+            return address(bytes20(msg.data[msg.data.length - 20:]));
+        } else {
+            return msg.sender;
+        }
     }
 }
