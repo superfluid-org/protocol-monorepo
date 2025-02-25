@@ -415,7 +415,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         vm.stopPrank();
         vm.startPrank(alice);
-        vestingScheduler.updateVestingSchedule(superToken, bob, uint32(END_DATE + 1000), EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleEndDate(superToken, bob, uint32(END_DATE + 1000), EMPTY_CTX);
         //assert storage data
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -440,23 +440,21 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.startPrank(alice);
 
         vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingSchedule(superToken, bob, uint32(initialTimestamp - 1), EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleEndDate(superToken, bob, uint32(initialTimestamp - 1), EMPTY_CTX);
 
         vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingSchedule(superToken, bob, uint32(initialTimestamp), EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleEndDate(superToken, bob, uint32(initialTimestamp), EMPTY_CTX);
     }
 
-    function testCannotUpdateVestingScheduleIfNotRunning() public {
-        _createVestingScheduleWithDefaultData(alice, bob);
+    function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
         vm.startPrank(alice);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleNotFlowing.selector);
-        vestingScheduler.updateVestingSchedule(superToken, bob, END_DATE, EMPTY_CTX);
-    }
+        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+        vestingScheduler.updateVestingScheduleEndDate(superToken, bob, END_DATE, EMPTY_CTX);
 
-    function testCannotUpdateVestingScheduleIfDataDontExist() public {
-        vm.startPrank(alice);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleNotFlowing.selector);
-        vestingScheduler.updateVestingSchedule(superToken, bob, END_DATE, EMPTY_CTX);
+        newAmount = bound(newAmount, 1, type(uint256).max);
+        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+        vestingScheduler.updateVestingScheduleAmount(superToken, bob, newAmount, EMPTY_CTX);
+        vm.stopPrank();
     }
 
     function testDeleteVestingSchedule() public {
@@ -542,16 +540,18 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
     }
 
     function testExecuteCliffAndFlowWithUpdatedEndDate() public {
-        uint32 NEW_END_DATE = END_DATE - 1000;
         uint256 aliceInitialBalance = superToken.balanceOf(alice);
         uint256 bobInitialBalance = superToken.balanceOf(bob);
-        _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
         _createVestingScheduleWithDefaultData(alice, bob);
+
         vm.prank(alice);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
         vm.startPrank(admin);
+
         uint256 initialTimestamp = block.timestamp + 10 days + 1800;
         vm.warp(initialTimestamp);
+
         uint256 flowDelayCompensation = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE);
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, CLIFF_TRANSFER_AMOUNT + flowDelayCompensation);
@@ -559,28 +559,38 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         emit VestingCliffAndFlowExecuted(
             superToken, alice, bob, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, flowDelayCompensation
         );
+
         bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         assertTrue(success, "executeVesting should return true");
         vm.stopPrank();
+
+        uint32 NEW_END_DATE = END_DATE - 1000;
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, NEW_END_DATE, 0);
-        vestingScheduler.updateVestingSchedule(superToken, bob, NEW_END_DATE, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleEndDate(superToken, bob, NEW_END_DATE, EMPTY_CTX);
+
         uint256 finalTimestamp = block.timestamp + 10 days - 3600;
         vm.warp(finalTimestamp);
+
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+        (uint256 lastUpdated, int96 currentFlowRate,,) = superToken.getFlowInfo(alice, bob);
+        uint256 adjustedAmountClosing = schedule.totalAmount
+            - (schedule.alreadyVestedAmount + (block.timestamp - lastUpdated) * uint96(currentFlowRate));
+
         vm.expectEmit(true, true, true, true);
-        uint256 timeDiffToEndDate = NEW_END_DATE > block.timestamp ? NEW_END_DATE - block.timestamp : 0;
-        uint256 adjustedAmountClosing = timeDiffToEndDate * uint96(FLOW_RATE);
         emit Transfer(alice, bob, adjustedAmountClosing);
         vm.expectEmit(true, true, true, true);
         emit VestingEndExecuted(superToken, alice, bob, NEW_END_DATE, adjustedAmountClosing, false);
         success = vestingScheduler.executeEndVesting(superToken, alice, bob);
         assertTrue(success, "executeCloseVesting should return true");
-        uint256 aliceFinalBalance = superToken.balanceOf(alice);
-        uint256 bobFinalBalance = superToken.balanceOf(bob);
-        uint256 aliceShouldStream = (NEW_END_DATE - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
-        assertEq(aliceInitialBalance - aliceFinalBalance, aliceShouldStream, "(sender) wrong final balance");
-        assertEq(bobFinalBalance, bobInitialBalance + aliceShouldStream, "(receiver) wrong final balance");
+
+        // Total amount streamed should be the same as the original amount planned (should just stream it faster with updated end date).
+        uint256 aliceShouldStream = (END_DATE - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+
+        assertEq(aliceInitialBalance - superToken.balanceOf(alice), aliceShouldStream, "(sender) wrong final balance");
+        assertEq(superToken.balanceOf(bob), bobInitialBalance + aliceShouldStream, "(receiver) wrong final balance");
     }
 
     function testExecuteCliffAndFlowRevertClosingTransfer() public {
@@ -2370,14 +2380,13 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(CLIFF_DATE != 0 ? CLIFF_DATE : START_DATE);
         vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
 
-        uint32 newEndDate = type(uint32).max - 1234;
-
+        uint32 newEndDate = END_DATE + 1234;
         // Setting up a batch call. Superfluid Protocol will replace the emtpy context with data about the sender. That's where the sender is retrieved from.
         ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_APP_ACTION,
             target: address(vestingScheduler),
-            data: abi.encodeCall(vestingScheduler.updateVestingSchedule, (superToken, bob, newEndDate, EMPTY_CTX))
+            data: abi.encodeCall(vestingScheduler.updateVestingScheduleEndDate, (superToken, bob, newEndDate, EMPTY_CTX))
         });
 
         // Act
