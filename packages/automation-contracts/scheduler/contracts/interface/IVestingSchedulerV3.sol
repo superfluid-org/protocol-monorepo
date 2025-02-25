@@ -259,7 +259,7 @@ interface IVestingSchedulerV3 {
      * @param endDate The timestamp when the stream should stop
      * @param ctx Superfluid context used when batching operations. (or bytes(0) if not SF batching)
      */
-    function updateVestingSchedule(ISuperToken superToken, address receiver, uint32 endDate, bytes memory ctx)
+    function updateVestingScheduleEndDate(ISuperToken superToken, address receiver, uint32 endDate, bytes memory ctx)
         external
         returns (bytes memory newCtx);
 
