@@ -551,10 +551,10 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
         vm.startPrank(admin);
 
-        uint256 initialTimestamp = block.timestamp + 10 days + 1800;
-        vm.warp(initialTimestamp);
+        vm.warp(block.timestamp + CLIFF_DATE + 30 minutes);
 
         uint256 flowDelayCompensation = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE);
+
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, CLIFF_TRANSFER_AMOUNT + flowDelayCompensation);
         vm.expectEmit(true, true, true, true);
@@ -566,19 +566,20 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         assertTrue(success, "executeVesting should return true");
         vm.stopPrank();
 
-        uint32 NEW_END_DATE = END_DATE - 1000;
+        uint32 NEW_END_DATE = END_DATE - 4 hours;
+
+        vm.warp(block.timestamp + 2 days);
         vm.prank(alice);
         vm.expectEmit(true, true, true, true);
         emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, NEW_END_DATE, 0);
         vestingScheduler.updateVestingScheduleEndDate(superToken, bob, NEW_END_DATE, EMPTY_CTX);
 
-        uint256 finalTimestamp = block.timestamp + 10 days - 3600;
-        vm.warp(finalTimestamp);
-
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
 
-        uint256 adjustedAmountClosing = totalAmountToVest - schedule.alreadyVestedAmount;
+        vm.warp(schedule.endDate - 1 hours);
+
+        uint256 adjustedAmountClosing = uint96(schedule.flowRate) * 1 hours + schedule.remainderAmount;
 
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, adjustedAmountClosing);
@@ -653,11 +654,16 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
     function testCannotExecuteEndWithoutStreamRunning() public {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
+
+        // Create Vesting Schedule
         _createVestingScheduleWithDefaultData(alice, bob);
+
+        // Sender increase allowance to vesting scheduler
         vm.prank(alice);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
-        vm.startPrank(admin);
-        uint256 initialTimestamp = block.timestamp + 10 days + 1800;
+
+        // Move time to 30 minutes after the `cliffAndFlowDate`
+        uint256 initialTimestamp = block.timestamp + CLIFF_DATE + 30 minutes;
         vm.warp(initialTimestamp);
 
         uint256 flowDelayCompensation = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE);
@@ -670,9 +676,9 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             superToken, alice, bob, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, flowDelayCompensation
         );
 
+        vm.prank(admin);
         bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         assertTrue(success, "executeVesting should return true");
-        vm.stopPrank();
         vm.startPrank(alice);
         superToken.deleteFlow(alice, bob);
         vm.stopPrank();
@@ -691,7 +697,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         uint256 aliceInitialBalance = superToken.balanceOf(alice);
         uint256 bobInitialBalance = superToken.balanceOf(bob);
 
-        // # Create schedule
+        // Create schedule
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
 
         vm.startPrank(alice);
@@ -724,9 +730,9 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             0,
             EMPTY_CTX
         );
-        // ---
+        vm.stopPrank();
 
-        // # Execute start
+        // Execute start
         vm.expectEmit();
         emit Transfer(alice, bob, CLIFF_TRANSFER_AMOUNT);
 
@@ -734,30 +740,28 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         emit VestingCliffAndFlowExecuted(
             superToken, alice, bob, startAndCliffDate, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, uint256(0)
         );
-        vm.stopPrank();
 
-        vm.startPrank(admin);
+        vm.prank(admin);
         bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
-        vm.stopPrank();
 
         assertTrue(success, "executeVesting should return true");
-        // ---
 
-        // # Execute end
-        uint256 finalTimestamp = END_DATE - 3600;
-        vm.warp(finalTimestamp);
+        // Execute end
+        vm.warp(END_DATE - 1 hours);
 
-        uint256 timeDiffToEndDate = END_DATE > block.timestamp ? END_DATE - block.timestamp : 0;
-        uint256 adjustedAmountClosing = timeDiffToEndDate * uint96(FLOW_RATE);
+        uint256 totalAmount = CLIFF_TRANSFER_AMOUNT + ((END_DATE - startAndCliffDate) * uint96(FLOW_RATE));
+        uint256 adjustedAmountClosing =
+            totalAmount - CLIFF_TRANSFER_AMOUNT - ((block.timestamp - startAndCliffDate) * uint96(FLOW_RATE));
 
         vm.expectEmit();
         emit Transfer(alice, bob, adjustedAmountClosing);
 
         vm.expectEmit();
         emit VestingEndExecuted(superToken, alice, bob, END_DATE, adjustedAmountClosing, false);
-        vm.startPrank(admin);
+
+        vm.prank(admin);
         success = vestingScheduler.executeEndVesting(superToken, alice, bob);
-        vm.stopPrank();
+
         assertTrue(success, "executeCloseVesting should return true");
 
         uint256 aliceFinalBalance = superToken.balanceOf(alice);
@@ -765,7 +769,6 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         uint256 aliceShouldStream = (END_DATE - startAndCliffDate) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
         assertEq(aliceInitialBalance - aliceFinalBalance, aliceShouldStream, "(sender) wrong final balance");
         assertEq(bobFinalBalance, bobInitialBalance + aliceShouldStream, "(receiver) wrong final balance");
-        // ---
     }
 
     function test_createScheduleFromAmountAndDuration_reverts() public {
