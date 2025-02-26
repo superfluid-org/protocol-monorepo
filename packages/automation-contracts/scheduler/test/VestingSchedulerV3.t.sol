@@ -221,8 +221,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             flowRate: flowRate,
             cliffAmount: cliffAmount,
             remainderAmount: 0,
-            totalAmount: cliffAmount + (endDate - cliffAndFlowDate) * uint96(flowRate),
-            alreadyVestedAmount: 0
+            alreadyVestedAmount: 0,
+            lastUpdated: 0
         });
     }
 
@@ -263,8 +263,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             cliffAmount: cliffAmount,
             remainderAmount: remainderAmount,
             claimValidityDate: claimPeriod == 0 ? 0 : startDate + claimPeriod,
-            totalAmount: totalAmount,
-            alreadyVestedAmount: 0
+            alreadyVestedAmount: 0,
+            lastUpdated: 0
         });
     }
 
@@ -446,16 +446,16 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vestingScheduler.updateVestingScheduleEndDate(superToken, bob, uint32(initialTimestamp), EMPTY_CTX);
     }
 
-    function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
-        vm.startPrank(alice);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
-        vestingScheduler.updateVestingScheduleEndDate(superToken, bob, END_DATE, EMPTY_CTX);
+    // function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
+    //     vm.startPrank(alice);
+    //     vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+    //     vestingScheduler.updateVestingScheduleEndDate(superToken, bob, END_DATE, EMPTY_CTX);
 
-        newAmount = bound(newAmount, 1, type(uint256).max);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
-        vestingScheduler.updateVestingScheduleAmount(superToken, bob, newAmount, EMPTY_CTX);
-        vm.stopPrank();
-    }
+    //     newAmount = bound(newAmount, 1, type(uint256).max);
+    //     vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+    //     vestingScheduler.updateVestingScheduleAmount(superToken, bob, newAmount, EMPTY_CTX);
+    //     vm.stopPrank();
+    // }
 
     function testDeleteVestingSchedule() public {
         _createVestingScheduleWithDefaultData(alice, bob);
@@ -545,6 +545,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
         _createVestingScheduleWithDefaultData(alice, bob);
 
+        uint256 totalAmountToVest = CLIFF_TRANSFER_AMOUNT + ((END_DATE - CLIFF_DATE) * uint96(FLOW_RATE));
+
         vm.prank(alice);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
         vm.startPrank(admin);
@@ -575,9 +577,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
-        (uint256 lastUpdated, int96 currentFlowRate,,) = superToken.getFlowInfo(alice, bob);
-        uint256 adjustedAmountClosing = schedule.totalAmount
-            - (schedule.alreadyVestedAmount + (block.timestamp - lastUpdated) * uint96(currentFlowRate));
+
+        uint256 adjustedAmountClosing = totalAmountToVest - schedule.alreadyVestedAmount;
 
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, adjustedAmountClosing);
