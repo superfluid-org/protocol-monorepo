@@ -36,8 +36,8 @@ interface IVestingSchedulerV3 {
         uint256 cliffAmount;
         uint96 remainderAmount;
         uint32 claimValidityDate;
-        uint256 totalAmount;
         uint256 alreadyVestedAmount;
+        uint256 lastUpdated;
     }
 
     /**
