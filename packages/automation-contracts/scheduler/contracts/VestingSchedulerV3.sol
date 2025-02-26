@@ -623,12 +623,13 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
     function _executeCliffAndFlow(ScheduleAggregate memory agg) private returns (bool success) {
         VestingSchedule memory schedule = agg.schedule;
 
+        // Settle the amount already vested
         uint256 alreadyVestedAmount = _settle(agg);
 
         // Invalidate configuration straight away -- avoid any chance of re-execution or re-entry.
         delete vestingSchedules[agg.id].cliffAndFlowDate;
 
-        // If there's cliff then transfer that amount.
+        // Transfer the amount already vested (includes the cliff, if any)
         if (alreadyVestedAmount != 0) {
             // Note: Super Tokens revert, not return false, i.e. we expect always true here.
             assert(agg.superToken.transferFrom(agg.sender, agg.receiver, alreadyVestedAmount));
@@ -644,7 +645,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
             schedule.cliffAndFlowDate,
             schedule.flowRate,
             schedule.cliffAmount,
-            alreadyVestedAmount
+            alreadyVestedAmount - schedule.cliffAmount
         );
 
         return true;
@@ -686,7 +687,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         uint256 actualLastUpdate = schedule.lastUpdated == 0 ? schedule.cliffAndFlowDate : schedule.lastUpdated;
 
         totalVestedAmount = schedule.alreadyVestedAmount + schedule.cliffAmount + schedule.remainderAmount
-            + (schedule.endDate - actualLastUpdate) * SafeCast.toUint256(schedule.flowRate);
+            + ((schedule.endDate - actualLastUpdate) * SafeCast.toUint256(schedule.flowRate));
     }
 
     /// @dev IVestingScheduler.executeEndVesting implementation.
@@ -699,14 +700,14 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
 
         _validateBeforeEndVesting(schedule, /* disableClaimCheck: */ false);
 
+        uint256 alreadyVestedAmount = _settle(agg);
+        uint256 totalVestedAmount = _getTotalVestedAmount(schedule);
+
         // Invalidate configuration straight away -- avoid any chance of re-execution or re-entry.
         delete vestingSchedules[agg.id];
 
         // If vesting is not running, we can't do anything, just emit failing event.
         if (_isFlowOngoing(superToken, sender, receiver)) {
-            uint256 alreadyVestedAmount = _settle(agg);
-            uint256 totalVestedAmount = _getTotalVestedAmount(schedule);
-
             // delete first the stream and unlock deposit amount.
             superToken.deleteFlowFrom(sender, receiver);
 
