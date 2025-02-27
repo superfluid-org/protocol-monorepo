@@ -403,10 +403,11 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         vestingSchedules[agg.id].lastUpdated = block.timestamp;
 
         if (block.timestamp >= schedule.endDate) {
+            // If the schedule end date has passed, settle the total amount vested
             alreadyVestedAmount = _getTotalVestedAmount(schedule);
-
             vestingSchedules[agg.id].alreadyVestedAmount = alreadyVestedAmount;
         } else {
+            // If the schedule end date has not passed, accrue the amount already vested
             uint256 actualLastUpdate = schedule.lastUpdated == 0 ? schedule.cliffAndFlowDate : schedule.lastUpdated;
 
             // Accrue the amount already vested
@@ -455,7 +456,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
 
         vestingSchedules[agg.id].remainderAmount = SafeCast.toUint96(
             (totalVestedAmount - alreadyVestedAmount)
-                / (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * (endDate - block.timestamp))
+                - (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * (endDate - block.timestamp))
         );
 
         if (schedule.cliffAndFlowDate == 0) {
@@ -686,8 +687,11 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
     function _getTotalVestedAmount(VestingSchedule memory schedule) private pure returns (uint256 totalVestedAmount) {
         uint256 actualLastUpdate = schedule.lastUpdated == 0 ? schedule.cliffAndFlowDate : schedule.lastUpdated;
 
-        totalVestedAmount = schedule.alreadyVestedAmount + schedule.cliffAmount + schedule.remainderAmount
-            + ((schedule.endDate - actualLastUpdate) * SafeCast.toUint256(schedule.flowRate));
+        uint256 currentFlowDuration = schedule.endDate - actualLastUpdate;
+        uint256 currentFlowAmount = currentFlowDuration * SafeCast.toUint256(schedule.flowRate);
+
+        totalVestedAmount =
+            schedule.alreadyVestedAmount + schedule.cliffAmount + schedule.remainderAmount + currentFlowAmount;
     }
 
     /// @dev IVestingScheduler.executeEndVesting implementation.
