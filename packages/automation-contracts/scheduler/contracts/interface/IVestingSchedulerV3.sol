@@ -252,6 +252,50 @@ interface IVestingSchedulerV3 {
     );
 
     /**
+     * @dev Event emitted when a vesting schedule's total amount is updated
+     * @param superToken The superToken being vested
+     * @param sender The vesting sender
+     * @param receiver The vesting receiver
+     * @param previousFlowRate The flow rate before the update
+     * @param newFlowRate The flow rate after the update
+     * @param previousTotalAmount The total amount to be vested before the update
+     * @param newTotalAmount The total amount to be vested after the update
+     * @param remainderAmount The remainder amount that cannot be streamed
+     */
+    event VestingScheduleTotalAmountUpdated(
+        ISuperToken indexed superToken,
+        address indexed sender,
+        address indexed receiver,
+        int96 previousFlowRate,
+        int96 newFlowRate,
+        uint256 previousTotalAmount,
+        uint256 newTotalAmount,
+        uint96 remainderAmount
+    );
+
+    /**
+     * @dev Event emitted when a vesting schedule's end date is updated
+     * @param superToken The superToken being vested
+     * @param sender The vesting sender
+     * @param receiver The vesting receiver
+     * @param oldEndDate The end date before the update
+     * @param endDate The end date after the update
+     * @param previousFlowRate The flow rate before the update
+     * @param newFlowRate The flow rate after the update
+     * @param remainderAmount The remainder amount that cannot be streamed
+     */
+    event VestingScheduleEndDateUpdated(
+        ISuperToken indexed superToken,
+        address indexed sender,
+        address indexed receiver,
+        uint32 oldEndDate,
+        uint32 endDate,
+        int96 previousFlowRate,
+        int96 newFlowRate,
+        uint96 remainderAmount
+    );
+
+    /**
      * @dev Updates a vesting schedule flow rate based on a new total amount to be vested
      * @param superToken SuperToken to be vested
      * @param receiver Vesting receiver
@@ -273,9 +317,12 @@ interface IVestingSchedulerV3 {
      * @param endDate The timestamp when the stream should stop
      * @param ctx Superfluid context used when batching operations. (or bytes(0) if not SF batching)
      */
-    function updateVestingScheduleEndDate(ISuperToken superToken, address receiver, uint32 endDate, bytes memory ctx)
-        external
-        returns (bytes memory newCtx);
+    function updateVestingScheduleFlowRateFromEndDate(
+        ISuperToken superToken,
+        address receiver,
+        uint32 endDate,
+        bytes memory ctx
+    ) external returns (bytes memory newCtx);
 
     /**
      * @dev Event emitted on deletion of a vesting schedule

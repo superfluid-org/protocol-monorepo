@@ -404,7 +404,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
             (newTotalAmount - alreadyVestedAmount) - (SafeCast.toUint256(newFlowRate) * timeLeftToVest)
         );
 
-        // if the schedule is flowing, update the existing flow rate to the new calculated flow rate
+        // If the schedule is flowing, update the existing flow rate to the new calculated flow rate
         if (schedule.cliffAndFlowDate == 0) {
             if (newCtx.length != 0) {
                 newCtx = superToken.flowFromWithCtx(sender, receiver, newFlowRate, newCtx);
@@ -414,18 +414,30 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         }
 
         // Emit VestingSchedulerV2 event for backward compatibility
-        emit VestingScheduleUpdated(superToken, sender, receiver, schedule.endDate, schedule.endDate, 0);
+        emit VestingScheduleUpdated(
+            superToken, sender, receiver, schedule.endDate, schedule.endDate, vestingSchedules[agg.id].remainderAmount
+        );
 
         // Emit VestingSchedulerV3 event for additional data
-        // emit VestingScheduleUpdated([...]);
+        emit VestingScheduleTotalAmountUpdated(
+            superToken,
+            sender,
+            receiver,
+            schedule.flowRate,
+            newFlowRate,
+            _getTotalVestedAmount(schedule),
+            newTotalAmount,
+            vestingSchedules[agg.id].remainderAmount
+        );
     }
 
     /// @dev IVestingSchedulerV3.updateVestingScheduleEndDate implementation.
-    /// FIXME : updateVestingScheduleFlowRateFromEndDate();
-    function updateVestingScheduleEndDate(ISuperToken superToken, address receiver, uint32 endDate, bytes memory ctx)
-        external
-        returns (bytes memory newCtx)
-    {
+    function updateVestingScheduleFlowRateFromEndDate(
+        ISuperToken superToken,
+        address receiver,
+        uint32 endDate,
+        bytes memory ctx
+    ) external returns (bytes memory newCtx) {
         newCtx = ctx;
         address sender = _getSender(ctx);
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
@@ -471,10 +483,21 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase {
         }
 
         // Emit VestingSchedulerV2 event for backward compatibility
-        emit VestingScheduleUpdated(superToken, sender, receiver, schedule.endDate, endDate, 0);
+        emit VestingScheduleUpdated(
+            superToken, sender, receiver, schedule.endDate, endDate, vestingSchedules[agg.id].remainderAmount
+        );
 
         // Emit VestingSchedulerV3 event for additional data
-        // emit VestingScheduleUpdated([...]);
+        emit VestingScheduleEndDateUpdated(
+            superToken,
+            sender,
+            receiver,
+            schedule.endDate,
+            endDate,
+            schedule.flowRate,
+            vestingSchedules[agg.id].flowRate,
+            vestingSchedules[agg.id].remainderAmount
+        );
     }
 
     /// @dev IVestingScheduler.updateVestingScheduleAmountAndEndDate implementation.
