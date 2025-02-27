@@ -545,8 +545,6 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
         _createVestingScheduleWithDefaultData(alice, bob);
 
-        uint256 totalAmountToVest = CLIFF_TRANSFER_AMOUNT + ((END_DATE - CLIFF_DATE) * uint96(FLOW_RATE));
-
         vm.prank(alice);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
         vm.startPrank(admin);
@@ -1130,10 +1128,12 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         if (randomizer % 7 != 0) {
             // # Test end execution on time.
-
             console.log("Executing end vesting early.");
-            uint32 randomEarlyEndTime =
-                (vestingScheduler.END_DATE_VALID_BEFORE() - (vestingScheduler.END_DATE_VALID_BEFORE() / randomizer));
+            // uint32 randomEarlyEndTime =
+            //     (vestingScheduler.END_DATE_VALID_BEFORE() - (vestingScheduler.END_DATE_VALID_BEFORE() / randomizer));
+
+            uint32 randomEarlyEndTime = uint32(bound(randomizer, 1, vestingScheduler.END_DATE_VALID_BEFORE()));
+
             vm.warp($.expectedSchedule.endDate - randomEarlyEndTime);
             vm.expectEmit();
             uint256 earlyEndCompensation = randomEarlyEndTime * SafeCast.toUint256($.expectedSchedule.flowRate)
