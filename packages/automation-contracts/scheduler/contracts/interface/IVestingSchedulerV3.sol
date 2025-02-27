@@ -252,6 +252,20 @@ interface IVestingSchedulerV3 {
     );
 
     /**
+     * @dev Updates a vesting schedule flow rate based on a new total amount to be vested
+     * @param superToken SuperToken to be vested
+     * @param receiver Vesting receiver
+     * @param newTotalAmount The new total amount to be vested
+     * @param ctx Superfluid context used when batching operations. (or bytes(0) if not SF batching)
+     */
+    function updateVestingScheduleFlowRateFromAmount(
+        ISuperToken superToken,
+        address receiver,
+        uint256 newTotalAmount,
+        bytes memory ctx
+    ) external returns (bytes memory newCtx);
+
+    /**
      * @dev Updates the end date for a vesting schedule which already reached the cliff
      * @notice When updating, there's no restriction to the end date other than not being in the past
      * @param superToken SuperToken to be vested
