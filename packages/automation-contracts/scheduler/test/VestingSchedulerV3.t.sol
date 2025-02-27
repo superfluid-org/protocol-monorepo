@@ -448,16 +448,16 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, uint32(initialTimestamp), EMPTY_CTX);
     }
 
-    // function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
-    //     vm.startPrank(alice);
-    //     vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
-    //     vestingScheduler.updateVestingScheduleEndDate(superToken, bob, END_DATE, EMPTY_CTX);
+    function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
+        vm.startPrank(alice);
+        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE, EMPTY_CTX);
 
-    //     newAmount = bound(newAmount, 1, type(uint256).max);
-    //     vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
-    //     vestingScheduler.updateVestingScheduleAmount(superToken, bob, newAmount, EMPTY_CTX);
-    //     vm.stopPrank();
-    // }
+        newAmount = bound(newAmount, 1, type(uint256).max);
+        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
+        vm.stopPrank();
+    }
 
     function testDeleteVestingSchedule() public {
         _createVestingScheduleWithDefaultData(alice, bob);
@@ -541,7 +541,71 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         assertEq(bobFinalBalance, bobInitialBalance + aliceShouldStream, "(receiver) wrong final balance");
     }
 
-    function testExecuteCliffAndFlowWithUpdatedEndDate() public {
+    function testExecuteCliffAndFlowWithUpdatedEndDate_longerDuration() public {
+        uint256 aliceInitialBalance = superToken.balanceOf(alice);
+        uint256 bobInitialBalance = superToken.balanceOf(bob);
+
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
+        _createVestingScheduleWithDefaultData(alice, bob);
+        uint256 totalAmount = (END_DATE - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+
+        vm.prank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+        vm.startPrank(admin);
+
+        vm.warp(block.timestamp + CLIFF_DATE + 30 minutes);
+
+        uint256 flowDelayCompensation = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE);
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, CLIFF_TRANSFER_AMOUNT + flowDelayCompensation);
+        vm.expectEmit(true, true, true, true);
+        emit VestingCliffAndFlowExecuted(
+            superToken, alice, bob, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, flowDelayCompensation
+        );
+
+        bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        assertTrue(success, "executeVesting should return true");
+        vm.stopPrank();
+
+        uint32 NEW_END_DATE = END_DATE + 4 hours;
+
+        vm.warp(block.timestamp + 2 days);
+
+        uint256 timeLeftToVest = NEW_END_DATE - block.timestamp;
+        uint256 alreadyVestedAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+        int96 newFlowRate =
+            SafeCast.toInt96(SafeCast.toInt256(totalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest));
+
+        uint96 expectedRemainder =
+            SafeCast.toUint96((totalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
+
+        vm.expectEmit(true, true, true, true);
+        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, NEW_END_DATE, expectedRemainder);
+
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE, EMPTY_CTX);
+
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        uint256 earlyEndDelay = 1 hours;
+        vm.warp(schedule.endDate - earlyEndDelay);
+
+        uint256 adjustedAmountClosing = uint96(schedule.flowRate) * earlyEndDelay + schedule.remainderAmount;
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, adjustedAmountClosing);
+        vm.expectEmit(true, true, true, true);
+        emit VestingEndExecuted(superToken, alice, bob, NEW_END_DATE, adjustedAmountClosing, false);
+        success = vestingScheduler.executeEndVesting(superToken, alice, bob);
+        assertTrue(success, "executeCloseVesting should return true");
+
+        assertEq(aliceInitialBalance - superToken.balanceOf(alice), totalAmount, "(sender) wrong final balance");
+        assertEq(superToken.balanceOf(bob), bobInitialBalance + totalAmount, "(receiver) wrong final balance");
+    }
+
+    function testExecuteCliffAndFlowWithUpdatedEndDate_shorterDuration() public {
         uint256 aliceInitialBalance = superToken.balanceOf(alice);
         uint256 bobInitialBalance = superToken.balanceOf(bob);
 
@@ -570,8 +634,6 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         uint32 NEW_END_DATE = END_DATE - 4 hours;
 
-        // Expected remainder = (total amount - vested amount) - (new flow rate * time left to vest)
-
         vm.warp(block.timestamp + 2 days);
 
         uint256 timeLeftToVest = NEW_END_DATE - block.timestamp;
@@ -591,9 +653,10 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
 
-        vm.warp(schedule.endDate - 1 hours);
+        uint256 earlyEndDelay = 1 hours;
+        vm.warp(schedule.endDate - earlyEndDelay);
 
-        uint256 adjustedAmountClosing = uint96(schedule.flowRate) * 1 hours + schedule.remainderAmount;
+        uint256 adjustedAmountClosing = uint96(schedule.flowRate) * earlyEndDelay + schedule.remainderAmount;
 
         vm.expectEmit(true, true, true, true);
         emit Transfer(alice, bob, adjustedAmountClosing);
@@ -604,6 +667,159 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         assertEq(aliceInitialBalance - superToken.balanceOf(alice), totalAmount, "(sender) wrong final balance");
         assertEq(superToken.balanceOf(bob), bobInitialBalance + totalAmount, "(receiver) wrong final balance");
+    }
+
+    function testExecuteCliffAndFlowWithUpdatedAmount_largerAmount() public {
+        uint256 aliceInitialBalance = superToken.balanceOf(alice);
+        uint256 bobInitialBalance = superToken.balanceOf(bob);
+
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
+        _createVestingScheduleWithDefaultData(alice, bob);
+        uint256 totalAmount = (END_DATE - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+
+        vm.prank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+        vm.startPrank(admin);
+
+        vm.warp(block.timestamp + CLIFF_DATE + 30 minutes);
+
+        uint256 flowDelayCompensation = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE);
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, CLIFF_TRANSFER_AMOUNT + flowDelayCompensation);
+        vm.expectEmit(true, true, true, true);
+        emit VestingCliffAndFlowExecuted(
+            superToken, alice, bob, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, flowDelayCompensation
+        );
+
+        bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        assertTrue(success, "executeVesting should return true");
+        vm.stopPrank();
+
+        uint256 newTotalAmount = totalAmount + (totalAmount / 2);
+
+        vm.warp(block.timestamp + 2 days);
+
+        uint256 timeLeftToVest = END_DATE - block.timestamp;
+        uint256 alreadyVestedAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+        int96 newFlowRate = SafeCast.toInt96(
+            SafeCast.toInt256(newTotalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest)
+        );
+
+        uint96 expectedRemainder =
+            SafeCast.toUint96((newTotalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
+
+        vm.expectEmit(true, true, true, true);
+        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, END_DATE, expectedRemainder);
+
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount, EMPTY_CTX);
+
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        uint256 earlyEndDelay = 1 hours;
+        vm.warp(schedule.endDate - earlyEndDelay);
+
+        uint256 adjustedAmountClosing = uint96(schedule.flowRate) * earlyEndDelay + schedule.remainderAmount;
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, adjustedAmountClosing);
+        vm.expectEmit(true, true, true, true);
+        emit VestingEndExecuted(superToken, alice, bob, END_DATE, adjustedAmountClosing, false);
+        success = vestingScheduler.executeEndVesting(superToken, alice, bob);
+        assertTrue(success, "executeCloseVesting should return true");
+
+        uint256 expectedTotalAmountTransferred =
+            alreadyVestedAmount + (timeLeftToVest * uint96(newFlowRate)) + schedule.remainderAmount;
+
+        assertEq(
+            aliceInitialBalance - superToken.balanceOf(alice),
+            expectedTotalAmountTransferred,
+            "(sender) wrong final balance"
+        );
+        assertEq(
+            superToken.balanceOf(bob),
+            bobInitialBalance + expectedTotalAmountTransferred,
+            "(receiver) wrong final balance"
+        );
+    }
+
+    function testExecuteCliffAndFlowWithUpdatedAmount_smallerAmount() public {
+        uint256 aliceInitialBalance = superToken.balanceOf(alice);
+        uint256 bobInitialBalance = superToken.balanceOf(bob);
+
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
+        _createVestingScheduleWithDefaultData(alice, bob);
+        uint256 totalAmount = (END_DATE - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+
+        vm.prank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+        vm.startPrank(admin);
+
+        vm.warp(block.timestamp + CLIFF_DATE + 30 minutes);
+
+        uint256 flowDelayCompensation = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE);
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, CLIFF_TRANSFER_AMOUNT + flowDelayCompensation);
+        vm.expectEmit(true, true, true, true);
+        emit VestingCliffAndFlowExecuted(
+            superToken, alice, bob, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, flowDelayCompensation
+        );
+
+        bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        assertTrue(success, "executeVesting should return true");
+        vm.stopPrank();
+
+        uint256 newTotalAmount = totalAmount - (totalAmount / 10000);
+
+        vm.warp(block.timestamp + 2 days);
+        uint256 timeLeftToVest = END_DATE - block.timestamp;
+
+        uint256 alreadyVestedAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+
+        int96 newFlowRate = SafeCast.toInt96(
+            SafeCast.toInt256(newTotalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest)
+        );
+
+        uint96 expectedRemainder =
+            SafeCast.toUint96((newTotalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
+
+        vm.expectEmit(true, true, true, true);
+        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, END_DATE, expectedRemainder);
+
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount, EMPTY_CTX);
+
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        uint256 earlyEndDelay = 1 hours;
+        vm.warp(schedule.endDate - earlyEndDelay);
+
+        uint256 adjustedAmountClosing = uint96(schedule.flowRate) * earlyEndDelay + schedule.remainderAmount;
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, adjustedAmountClosing);
+        vm.expectEmit(true, true, true, true);
+        emit VestingEndExecuted(superToken, alice, bob, END_DATE, adjustedAmountClosing, false);
+        success = vestingScheduler.executeEndVesting(superToken, alice, bob);
+        assertTrue(success, "executeCloseVesting should return true");
+
+        uint256 expectedTotalAmountTransferred =
+            alreadyVestedAmount + (timeLeftToVest * uint96(newFlowRate)) + schedule.remainderAmount;
+
+        assertEq(
+            aliceInitialBalance - superToken.balanceOf(alice),
+            expectedTotalAmountTransferred,
+            "(sender) wrong final balance"
+        );
+        assertEq(
+            superToken.balanceOf(bob),
+            bobInitialBalance + expectedTotalAmountTransferred,
+            "(receiver) wrong final balance"
+        );
     }
 
     function testExecuteCliffAndFlowRevertClosingTransfer() public {
