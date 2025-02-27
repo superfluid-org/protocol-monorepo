@@ -1129,10 +1129,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         if (randomizer % 7 != 0) {
             // # Test end execution on time.
             console.log("Executing end vesting early.");
-            // uint32 randomEarlyEndTime =
-            //     (vestingScheduler.END_DATE_VALID_BEFORE() - (vestingScheduler.END_DATE_VALID_BEFORE() / randomizer));
-
-            uint32 randomEarlyEndTime = uint32(bound(randomizer, 1, vestingScheduler.END_DATE_VALID_BEFORE()));
+            uint32 randomEarlyEndTime =
+                (vestingScheduler.END_DATE_VALID_BEFORE() - (vestingScheduler.END_DATE_VALID_BEFORE() / randomizer));
 
             vm.warp($.expectedSchedule.endDate - randomEarlyEndTime);
             vm.expectEmit();
