@@ -77,11 +77,15 @@ contract ManagerTests is FoundrySuperfluidTester {
 
     /// TESTS
 
-    function testFailDeploymentWithoutCFA() public {
+    function test_RevertWhen_DeploymentWithoutCFA() public {
+        vm.expectRevert(IManager.ZeroAddress.selector);
         new Manager(address(0), 1, 2);
     }
 
-    function testFailDeploymentWrongLimits() public {
+    function test_RevertWhen_DeploymentWrongLimits() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(IManager.WrongLimits.selector, 2, 1)
+        );
         new Manager(address(sf.cfa), 2, 1);
     }
 
