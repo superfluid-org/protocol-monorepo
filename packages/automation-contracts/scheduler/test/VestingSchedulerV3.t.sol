@@ -2264,6 +2264,57 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         testAssertScheduleDoesNotExist(address(superToken), alice, bob);
     }
 
+    function test_executeCliffAndFlow_claimableScheduleWithCliffAmount_receiverClaim_withUpdatedAmountAfterClaim()
+        public
+    {
+        uint256 aliceInitialBalance = superToken.balanceOf(alice);
+        uint256 bobInitialBalance = superToken.balanceOf(bob);
+
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
+        _createClaimableVestingScheduleWithDefaultData(alice, bob);
+
+        vm.prank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+
+        vm.warp(block.timestamp + CLIFF_DATE + 30 minutes);
+
+        uint256 flowDelayCompensation = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE);
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, CLIFF_TRANSFER_AMOUNT + flowDelayCompensation);
+        vm.expectEmit(true, true, true, true);
+        emit VestingCliffAndFlowExecuted(
+            superToken, alice, bob, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, flowDelayCompensation
+        );
+
+        vm.prank(bob);
+        bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        assertTrue(success, "executeVesting should return true");
+
+        // Move time to 1 hour before end of vesting
+        uint256 finalTimestamp = block.timestamp + 10 days - 1 hours;
+        vm.warp(finalTimestamp);
+
+        uint256 timeDiffToEndDate = END_DATE > block.timestamp ? END_DATE - block.timestamp : 0;
+        uint256 adjustedAmountClosing = timeDiffToEndDate * uint96(FLOW_RATE);
+
+        vm.expectEmit(true, true, true, true);
+        emit Transfer(alice, bob, adjustedAmountClosing);
+        vm.expectEmit(true, true, true, true);
+        emit VestingEndExecuted(superToken, alice, bob, END_DATE, adjustedAmountClosing, false);
+
+        success = vestingScheduler.executeEndVesting(superToken, alice, bob);
+        assertTrue(success, "executeCloseVesting should return true");
+
+        uint256 aliceFinalBalance = superToken.balanceOf(alice);
+        uint256 bobFinalBalance = superToken.balanceOf(bob);
+        uint256 aliceShouldStream = (END_DATE - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+
+        assertEq(aliceInitialBalance - aliceFinalBalance, aliceShouldStream, "(sender) wrong final balance");
+        assertEq(bobFinalBalance, bobInitialBalance + aliceShouldStream, "(receiver) wrong final balance");
+
+        testAssertScheduleDoesNotExist(address(superToken), alice, bob);
+    }
+
     function test_executeCliffAndFlow_claimAfterEndDate(uint256 delayAfterEndDate, uint256 claimDate, uint8 randomizer)
         public
     {
@@ -2631,5 +2682,283 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
         assertEq(schedule.endDate, newEndDate);
+    }
+
+    // VestingSchedulerV3 Scenarios :
+    /* Scenario 1 :
+    Assuming a 5 month long schedule:
+
+    Define schedule for 1000 USDC (guaranteeing only 200USDC for 1 month)
+
+    One month later, update schedule to 1400 USDC (with four months left and 200USDC already transferred, this means 300 USDC/mo)
+
+    One month later, update schedule to 1100 USDC (with 3 months left, and 500 USDC already transferred, this means 200 USDC/mo)
+
+    At the time of the last month, with the total amount set at 1500 USDC, the stream shall be closed up to ±24hrs early, settling any differences to the expected total
+    */
+    function testVestingSchedulerV3_scenario_notClaimable() public {
+        // Initial setup
+        uint256 aliceInitialBalance = superToken.balanceOf(alice);
+        uint256 bobInitialBalance = superToken.balanceOf(bob);
+
+        // Define constants for the test
+        uint256 initialTotalAmount = 1000 ether;
+        uint32 totalDuration = 150 days; // 5 months
+
+        // Set up permissions for Alice
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max); // Allow any flow rate
+
+        // Create the initial vesting schedule
+        vm.startPrank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+
+        uint32 startDate = uint32(block.timestamp + 10 days);
+        vestingScheduler.createVestingScheduleFromAmountAndDuration(
+            superToken,
+            bob,
+            initialTotalAmount,
+            totalDuration,
+            startDate,
+            0, // No cliff period
+            0, // No claim period
+            EMPTY_CTX
+        );
+        vm.stopPrank();
+
+        // Get the schedule
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        // Verify initial schedule
+        assertEq(schedule.endDate - startDate, totalDuration, "Duration should be 5 months");
+
+        // Warp to cliff date and execute cliff and flow
+        vm.warp(startDate);
+
+        vm.prank(alice);
+        bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        assertTrue(success, "executeCliffAndFlow should return true");
+
+        vm.warp(startDate + 30 days);
+        // Verify Bob received the first month's amount (200 USDC)
+        uint256 firstMonthAmount = initialTotalAmount / 5; // 200 USDC
+        assertApproxEqAbs(
+            superToken.balanceOf(bob) - bobInitialBalance,
+            firstMonthAmount,
+            firstMonthAmount * 10 / 10_000,
+            "Bob should have received 200 USDC after first month"
+        );
+
+        // Warp to second month and update schedule to 1400 USDC
+        vm.warp(startDate + 2 * 30 days);
+
+        uint256 secondUpdateAmount = 1400 ether;
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, secondUpdateAmount, EMPTY_CTX);
+
+        // Verify the flow rate has been updated
+        schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+        uint256 remainingMonths = 4;
+        uint256 remainingAmount = secondUpdateAmount - schedule.alreadyVestedAmount;
+        int96 expectedFlowRate =
+            SafeCast.toInt96(SafeCast.toInt256(remainingAmount / (schedule.endDate - block.timestamp)));
+        assertEq(schedule.flowRate, expectedFlowRate, "Flow rate should be updated for 300 USDC/month");
+
+        // Warp to third month and update schedule to 1100 USDC
+        vm.warp(startDate + 3 * 30 days);
+
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1100 ether, EMPTY_CTX);
+
+        // Verify the flow rate has been updated again
+        schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        // Calculate new flow rate for remaining 3 months
+        remainingMonths = 3;
+        remainingAmount = 1100 ether - schedule.alreadyVestedAmount;
+        expectedFlowRate = SafeCast.toInt96(SafeCast.toInt256(remainingAmount / (schedule.endDate - block.timestamp)));
+        assertEq(schedule.flowRate, expectedFlowRate, "Flow rate should be updated for 200 USDC/month");
+
+        // Warp to last month and update schedule to 1500 USDC
+        vm.warp(startDate + 4 * 30 days);
+
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1500 ether, EMPTY_CTX);
+
+        // Warp to 24 hours before end date and execute end vesting
+        vm.warp(schedule.endDate - 24 hours);
+
+        vm.prank(alice);
+        success = vestingScheduler.executeEndVesting(superToken, alice, bob);
+        assertTrue(success, "executeEndVesting should return true");
+
+        // Verify final balances
+        assertEq(
+            aliceInitialBalance - superToken.balanceOf(alice),
+            1500 ether,
+            "Alice should have transferred the full 1500 USDC"
+        );
+        assertEq(
+            superToken.balanceOf(bob) - bobInitialBalance, 1500 ether, "Bob should have received the full 1500 USDC"
+        );
+
+        // Verify schedule no longer exists
+        testAssertScheduleDoesNotExist(address(superToken), alice, bob);
+    }
+
+    /* Scenario 1 :
+    Assuming a 5 month long schedule that requires the receiver to claim the schedule:
+
+    Define schedule for 1000 USDC (guaranteeing only 200USDC for 1 month)
+
+    One month later, update schedule to 1400 USDC (with four months left and 200USDC meant to be transferred, this means 300 USDC/mo)
+    The receiver claims the schedule right after the update
+
+    One month later, update schedule to 1100 USDC (with 3 months left, and 500 USDC already transferred, this means 200 USDC/mo)
+
+    At the time of the last month, with the total amount set at 1500 USDC, the stream shall be closed up to ±24hrs early, settling any differences to the expected total
+    */
+    function testVestingSchedulerV3_scenario_withClaim() public {
+        // Initial setup
+        uint256 aliceInitialBalance = superToken.balanceOf(alice);
+        uint256 bobInitialBalance = superToken.balanceOf(bob);
+
+        // Define constants for the test
+        uint256 initialTotalAmount = 1000 ether;
+        uint32 totalDuration = 150 days; // 5 months
+        uint32 claimPeriod = 60 days; // Receiver has 60 days to claim
+
+        // Set up permissions for Alice
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max); // Allow any flow rate
+
+        // Create the initial vesting schedule with claim period
+        vm.startPrank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+
+        uint32 startDate = uint32(block.timestamp);
+        vestingScheduler.createVestingScheduleFromAmountAndDuration(
+            superToken,
+            bob,
+            initialTotalAmount,
+            totalDuration,
+            startDate,
+            0, // No cliff period
+            claimPeriod, // Claim period of 60 days
+            EMPTY_CTX
+        );
+        vm.stopPrank();
+
+        // Get the schedule
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        // Verify initial schedule
+        assertEq(schedule.endDate - startDate, totalDuration, "Duration should be 5 months");
+        assertEq(schedule.claimValidityDate, startDate + claimPeriod, "Claim validity date should be set correctly");
+
+        // Warp to first month (30 days) and update schedule to 1400 USDC
+        vm.warp(startDate + 30 days);
+
+        uint256 updatedTotalAmount = 1400 ether;
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, updatedTotalAmount, EMPTY_CTX);
+
+        // Get the updated schedule
+        schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        // Calculate expected flow rate after update
+        int96 expectedFlowRate = SafeCast.toInt96(
+            SafeCast.toInt256(
+                (updatedTotalAmount - schedule.alreadyVestedAmount) / (schedule.endDate - block.timestamp)
+            )
+        );
+
+        // Verify the flow rate has been updated correctly
+        assertApproxEqAbs(
+            schedule.flowRate,
+            expectedFlowRate,
+            1e10, // Allow small rounding differences
+            "Flow rate should be updated correctly"
+        );
+
+        // Bob claims the schedule right after the update
+        vm.prank(bob);
+        bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        assertTrue(success, "executeCliffAndFlow should return true");
+
+        // Calculate expected amount received at claim time
+        // This should be approximately 1 month's worth of the original schedule (200 USDC)
+        uint256 expectedClaimAmount = initialTotalAmount / 5; // 200 USDC for first month
+
+        // Verify Bob received the correct amount at claim time
+        assertApproxEqAbs(
+            superToken.balanceOf(bob) - bobInitialBalance,
+            expectedClaimAmount,
+            expectedClaimAmount * 10 / 10_000, // Allow 0.1% difference
+            "Bob should have received ~200 USDC at claim time"
+        );
+
+        // Warp to second month (60 days total)
+        vm.warp(startDate + 60 days);
+
+        // Calculate expected amount after second month
+        // First month at original rate + second month at updated rate
+        uint256 expectedTotalAfterTwoMonths = expectedClaimAmount + (SafeCast.toUint256(expectedFlowRate) * 30 days);
+
+        // Verify Bob's balance after second month
+        assertApproxEqAbs(
+            superToken.balanceOf(bob) - bobInitialBalance,
+            expectedTotalAfterTwoMonths,
+            expectedTotalAfterTwoMonths * 10 / 10_000, // Allow 0.1% difference
+            "Bob should have received ~500 USDC after second month"
+        );
+
+        // Update schedule again to 1100 USDC
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1100 ether, EMPTY_CTX);
+
+        // Warp to third month (90 days total)
+        vm.warp(startDate + 90 days);
+
+        // Calculate expected amount after third month
+        // First two months + third month at reduced rate
+        schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+        uint256 thirdMonthAmount = (1100 ether - schedule.alreadyVestedAmount) / 3; // ~200 USDC/month
+
+        // Verify Bob's balance after third month
+        assertApproxEqAbs(
+            superToken.balanceOf(bob) - bobInitialBalance,
+            expectedTotalAfterTwoMonths + thirdMonthAmount,
+            (expectedTotalAfterTwoMonths + thirdMonthAmount) * 10 / 10_000, // Allow 0.1% difference
+            "Bob should have received ~680 USDC after third month"
+        );
+
+        // Update schedule one last time to 1500 USDC
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1500 ether, EMPTY_CTX);
+
+        // Warp to 24 hours before end date and execute end vesting
+        vm.warp(schedule.endDate - 24 hours);
+
+        vm.prank(alice);
+        success = vestingScheduler.executeEndVesting(superToken, alice, bob);
+        assertTrue(success, "executeEndVesting should return true");
+
+        // Verify final balances
+        assertApproxEqAbs(
+            aliceInitialBalance - superToken.balanceOf(alice),
+            1500 ether,
+            1e16, // Allow small rounding differences
+            "Alice should have transferred approximately 1500 USDC"
+        );
+        assertApproxEqAbs(
+            superToken.balanceOf(bob) - bobInitialBalance,
+            1500 ether,
+            1e16, // Allow small rounding differences
+            "Bob should have received approximately 1500 USDC"
+        );
+
+        // Verify schedule no longer exists
+        testAssertScheduleDoesNotExist(address(superToken), alice, bob);
     }
 }
