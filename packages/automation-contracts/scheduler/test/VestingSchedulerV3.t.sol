@@ -2978,7 +2978,9 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_ERC2771_FORWARD_CALL,
             target: address(vestingScheduler),
-            data: abi.encodeCall(vestingScheduler.updateVestingScheduleEndDate, (superToken, bob, newEndDate, EMPTY_CTX))
+            data: abi.encodeCall(
+                vestingScheduler.updateVestingScheduleFlowRateFromEndDate, (superToken, bob, newEndDate, EMPTY_CTX)
+            )
         });
 
         // Act
