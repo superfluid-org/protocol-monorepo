@@ -2961,4 +2961,34 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
         assertEq(schedule.endDate, newEndDate);
     }
+
+    function test_use_2771_forward_call() public {
+        vm.startPrank(alice);
+        vestingScheduler.createVestingSchedule(
+            superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
+        );
+        _arrangeAllowances(alice, FLOW_RATE);
+        vm.stopPrank();
+
+        vm.warp(CLIFF_DATE != 0 ? CLIFF_DATE : START_DATE);
+        vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+
+        uint32 newEndDate = END_DATE + 1234;
+        ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
+        ops[0] = ISuperfluid.Operation({
+            operationType: BatchOperation.OPERATION_TYPE_ERC2771_FORWARD_CALL,
+            target: address(vestingScheduler),
+            data: abi.encodeCall(vestingScheduler.updateVestingScheduleEndDate, (superToken, bob, newEndDate, EMPTY_CTX))
+        });
+
+        // Act
+        vm.prank(alice);
+        sf.host.batchCall(ops);
+        vm.stopPrank();
+
+        // Assert
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+        assertEq(schedule.endDate, newEndDate);
+    }
 }
