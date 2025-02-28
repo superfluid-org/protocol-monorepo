@@ -365,6 +365,21 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         alreadyVestedAmount = vestingSchedules[agg.id].alreadyVestedAmount;
     }
 
+    function _updateFlowRateAndRemainderAmount(
+        ScheduleAggregate memory agg,
+        uint256 amountLeftToVest,
+        uint256 timeLeftToVest
+    ) internal {
+        // Calculate the new flow rate and remainder amount
+        int96 newFlowRate = SafeCast.toInt96(SafeCast.toInt256(amountLeftToVest) / SafeCast.toInt256(timeLeftToVest));
+        uint96 newRemainderAmount =
+            SafeCast.toUint96(amountLeftToVest - (SafeCast.toUint256(newFlowRate) * timeLeftToVest));
+
+        // Update the flow rate and remainder amount
+        vestingSchedules[agg.id].flowRate = newFlowRate;
+        vestingSchedules[agg.id].remainderAmount = newRemainderAmount;
+    }
+
     /// @dev IVestingScheduler.updateVestingScheduleFlowRateFromAmount implementation.
     function updateVestingScheduleFlowRateFromAmount(
         ISuperToken superToken,
@@ -399,11 +414,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         uint256 timeLeftToVest = schedule.endDate - block.timestamp;
 
         // Update the vesting flow rate and remainder amount
-        vestingSchedules[agg.id].flowRate =
-            SafeCast.toInt96(SafeCast.toInt256(amountLeftToVest) / SafeCast.toInt256(timeLeftToVest));
-        vestingSchedules[agg.id].remainderAmount = SafeCast.toUint96(
-            amountLeftToVest - (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * timeLeftToVest)
-        );
+        _updateFlowRateAndRemainderAmount(agg, amountLeftToVest, timeLeftToVest);
 
         // If the schedule is started, update the existing flow rate to the new calculated flow rate
         if (schedule.cliffAndFlowDate == 0) {
@@ -465,11 +476,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         uint256 timeLeftToVest = endDate - block.timestamp;
 
         // Update the vesting flow rate and remainder amount
-        vestingSchedules[agg.id].flowRate =
-            SafeCast.toInt96(SafeCast.toInt256(amountLeftToVest) / SafeCast.toInt256(timeLeftToVest));
-        vestingSchedules[agg.id].remainderAmount = SafeCast.toUint96(
-            amountLeftToVest - (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * timeLeftToVest)
-        );
+        _updateFlowRateAndRemainderAmount(agg, amountLeftToVest, timeLeftToVest);
 
         // If the schedule is started, update the existing flow rate to the new calculated flow rate
         if (schedule.cliffAndFlowDate == 0) {
