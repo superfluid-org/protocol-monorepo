@@ -2650,40 +2650,6 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.stopPrank();
     }
 
-    function test_getSender_works_in_a_batch_call() public {
-        // Create a vesting schedule to update with a batch call that uses the context
-        vm.startPrank(alice);
-        vestingScheduler.createVestingSchedule(
-            superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
-        );
-        _arrangeAllowances(alice, FLOW_RATE);
-        vm.stopPrank();
-
-        vm.warp(CLIFF_DATE != 0 ? CLIFF_DATE : START_DATE);
-        vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
-
-        uint32 newEndDate = END_DATE + 1234;
-        // Setting up a batch call. Superfluid Protocol will replace the emtpy context with data about the sender. That's where the sender is retrieved from.
-        ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
-        ops[0] = ISuperfluid.Operation({
-            operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_APP_ACTION,
-            target: address(vestingScheduler),
-            data: abi.encodeCall(
-                vestingScheduler.updateVestingScheduleFlowRateFromEndDate, (superToken, bob, newEndDate, EMPTY_CTX)
-            )
-        });
-
-        // Act
-        vm.prank(alice);
-        sf.host.batchCall(ops);
-        vm.stopPrank();
-
-        // Assert
-        IVestingSchedulerV3.VestingSchedule memory schedule =
-            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
-        assertEq(schedule.endDate, newEndDate);
-    }
-
     // VestingSchedulerV3 Scenarios :
     /* Scenario 1 :
     Assuming a 5 month long schedule:
@@ -2960,5 +2926,39 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Verify schedule no longer exists
         testAssertScheduleDoesNotExist(address(superToken), alice, bob);
+    }
+
+    function test_getSender_works_in_a_batch_call() public {
+        // Create a vesting schedule to update with a batch call that uses the context
+        vm.startPrank(alice);
+        vestingScheduler.createVestingSchedule(
+            superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
+        );
+        _arrangeAllowances(alice, FLOW_RATE);
+        vm.stopPrank();
+
+        vm.warp(CLIFF_DATE != 0 ? CLIFF_DATE : START_DATE);
+        vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+
+        uint32 newEndDate = END_DATE + 1234;
+        // Setting up a batch call. Superfluid Protocol will replace the emtpy context with data about the sender. That's where the sender is retrieved from.
+        ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
+        ops[0] = ISuperfluid.Operation({
+            operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_APP_ACTION,
+            target: address(vestingScheduler),
+            data: abi.encodeCall(
+                vestingScheduler.updateVestingScheduleFlowRateFromEndDate, (superToken, bob, newEndDate, EMPTY_CTX)
+            )
+        });
+
+        // Act
+        vm.prank(alice);
+        sf.host.batchCall(ops);
+        vm.stopPrank();
+
+        // Assert
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+        assertEq(schedule.endDate, newEndDate);
     }
 }
