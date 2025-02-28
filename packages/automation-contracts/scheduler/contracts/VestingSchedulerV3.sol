@@ -363,7 +363,6 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
     }
 
     /// @dev IVestingScheduler.updateVestingScheduleFlowRateFromAmount implementation.
-    /// FIXME : add testing for this function
     function updateVestingScheduleFlowRateFromAmount(
         ISuperToken superToken,
         address receiver,
@@ -380,17 +379,18 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
 
         /*
         Schedule update is not allowed if :
-            - schedule should already have ended
-            - cliff and flow date is in the future
+            - the schedule end date has passed
+            - the cliff and flow date is in the future
         */
-        if (schedule.endDate < block.timestamp || block.timestamp < schedule.cliffAndFlowDate) {
+        if (schedule.endDate <= block.timestamp || block.timestamp < schedule.cliffAndFlowDate) {
             revert TimeWindowInvalid();
         }
 
+        // Settle the amount already vested
         uint256 alreadyVestedAmount = _settle(agg);
 
-        // Ensure that the new total amount is not less than the amount already vested
-        if (alreadyVestedAmount >= newTotalAmount) revert InvalidUpdate();
+        // Ensure that the new total amount is larger than the amount already vested
+        if (newTotalAmount <= alreadyVestedAmount) revert InvalidUpdate();
 
         uint256 timeLeftToVest = schedule.endDate - block.timestamp;
 
@@ -405,7 +405,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             (newTotalAmount - alreadyVestedAmount) - (SafeCast.toUint256(newFlowRate) * timeLeftToVest)
         );
 
-        // If the schedule is flowing, update the existing flow rate to the new calculated flow rate
+        // If the schedule is started, update the existing flow rate to the new calculated flow rate
         if (schedule.cliffAndFlowDate == 0) {
             if (newCtx.length != 0) {
                 newCtx = superToken.flowFromWithCtx(sender, receiver, newFlowRate, newCtx);
@@ -449,12 +449,12 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
 
         /*
         Schedule update is not allowed if :
-            - schedule should already have ended
-            - new end date is in the past
-            - cliff and flow date is in the future
+            - the current end date has passed
+            - the new end date is in the past
+            - the cliff and flow date is in the future
         */
         if (
-            schedule.endDate < block.timestamp || endDate <= block.timestamp
+            schedule.endDate <= block.timestamp || endDate <= block.timestamp
                 || block.timestamp < schedule.cliffAndFlowDate
         ) revert TimeWindowInvalid();
 
@@ -462,20 +462,21 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         vestingSchedules[agg.id].endDate = endDate;
 
         uint256 totalVestedAmount = _getTotalVestedAmount(schedule);
+
+        // Settle the amount already vested
         uint256 alreadyVestedAmount = _settle(agg);
 
-        // Update the vesting flow rate
+        // Update the vesting flow rate and remainder amount
         vestingSchedules[agg.id].flowRate = SafeCast.toInt96(
             SafeCast.toInt256(totalVestedAmount - alreadyVestedAmount) / SafeCast.toInt256(endDate - block.timestamp)
         );
-
         vestingSchedules[agg.id].remainderAmount = SafeCast.toUint96(
             (totalVestedAmount - alreadyVestedAmount)
                 - (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * (endDate - block.timestamp))
         );
 
+        // If the schedule is started, update the existing flow rate to the new calculated flow rate
         if (schedule.cliffAndFlowDate == 0) {
-            // Update the flow from sender to receiver with the new calculated flow rate
             if (newCtx.length != 0) {
                 newCtx = superToken.flowFromWithCtx(sender, receiver, vestingSchedules[agg.id].flowRate, newCtx);
             } else {
@@ -794,18 +795,18 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
     }
 
     /// @dev IRelayRecipient.isTrustedForwarder implementation
-    function isTrustedForwarder(address forwarder) public view override returns(bool) {
+    function isTrustedForwarder(address forwarder) public view override returns (bool) {
         return forwarder == HOST.getERC2771Forwarder();
     }
 
     /// @dev IRelayRecipient.versionRecipient implementation
-    function versionRecipient() external override pure returns (string memory) {
+    function versionRecipient() external pure override returns (string memory) {
         return "v1";
     }
 
     /// @dev gets the relayed sender from calldata as specified by EIP-2771, falling back to msg.sender
-    function _msgSender() internal virtual view returns (address) {
-        if(msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {
+    function _msgSender() internal view virtual returns (address) {
+        if (msg.data.length >= 20 && isTrustedForwarder(msg.sender)) {
             return address(bytes20(msg.data[msg.data.length - 20:]));
         } else {
             return msg.sender;
