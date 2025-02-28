@@ -342,6 +342,9 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
     function _settle(ScheduleAggregate memory agg) internal returns (uint256 alreadyVestedAmount) {
         VestingSchedule memory schedule = agg.schedule;
 
+        // Ensure that the cliff and flow date has passed
+        assert(block.timestamp >= schedule.cliffAndFlowDate);
+
         // Delete the cliff amount and account for it in the already vested amount
         delete vestingSchedules[agg.id].cliffAmount;
 
