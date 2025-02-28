@@ -392,25 +392,22 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         // Ensure that the new total amount is larger than the amount already vested
         if (newTotalAmount <= alreadyVestedAmount) revert InvalidUpdate();
 
+        uint256 amountLeftToVest = newTotalAmount - alreadyVestedAmount;
         uint256 timeLeftToVest = schedule.endDate - block.timestamp;
 
-        // Calculate the new flow rate based on the new total amount, the amount already vested and the time left to vest
-        int96 newFlowRate = SafeCast.toInt96(
-            SafeCast.toInt256(newTotalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest)
-        );
-
         // Update the vesting flow rate and remainder amount
-        vestingSchedules[agg.id].flowRate = newFlowRate;
+        vestingSchedules[agg.id].flowRate =
+            SafeCast.toInt96(SafeCast.toInt256(amountLeftToVest) / SafeCast.toInt256(timeLeftToVest));
         vestingSchedules[agg.id].remainderAmount = SafeCast.toUint96(
-            (newTotalAmount - alreadyVestedAmount) - (SafeCast.toUint256(newFlowRate) * timeLeftToVest)
+            amountLeftToVest - (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * timeLeftToVest)
         );
 
         // If the schedule is started, update the existing flow rate to the new calculated flow rate
         if (schedule.cliffAndFlowDate == 0) {
             if (newCtx.length != 0) {
-                newCtx = superToken.flowFromWithCtx(sender, receiver, newFlowRate, newCtx);
+                newCtx = superToken.flowFromWithCtx(sender, receiver, vestingSchedules[agg.id].flowRate, newCtx);
             } else {
-                superToken.flowFrom(sender, receiver, newFlowRate);
+                superToken.flowFrom(sender, receiver, vestingSchedules[agg.id].flowRate);
             }
         }
 
@@ -425,7 +422,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             sender,
             receiver,
             schedule.flowRate,
-            newFlowRate,
+            vestingSchedules[agg.id].flowRate,
             _getTotalVestedAmount(schedule),
             newTotalAmount,
             vestingSchedules[agg.id].remainderAmount
@@ -461,18 +458,14 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         // Update the schedule end date
         vestingSchedules[agg.id].endDate = endDate;
 
-        uint256 totalVestedAmount = _getTotalVestedAmount(schedule);
-
-        // Settle the amount already vested
-        uint256 alreadyVestedAmount = _settle(agg);
+        uint256 amountLeftToVest = _getTotalVestedAmount(schedule) - _settle(agg);
+        uint256 timeLeftToVest = endDate - block.timestamp;
 
         // Update the vesting flow rate and remainder amount
-        vestingSchedules[agg.id].flowRate = SafeCast.toInt96(
-            SafeCast.toInt256(totalVestedAmount - alreadyVestedAmount) / SafeCast.toInt256(endDate - block.timestamp)
-        );
+        vestingSchedules[agg.id].flowRate =
+            SafeCast.toInt96(SafeCast.toInt256(amountLeftToVest) / SafeCast.toInt256(timeLeftToVest));
         vestingSchedules[agg.id].remainderAmount = SafeCast.toUint96(
-            (totalVestedAmount - alreadyVestedAmount)
-                - (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * (endDate - block.timestamp))
+            amountLeftToVest - (SafeCast.toUint256(vestingSchedules[agg.id].flowRate) * timeLeftToVest)
         );
 
         // If the schedule is started, update the existing flow rate to the new calculated flow rate
