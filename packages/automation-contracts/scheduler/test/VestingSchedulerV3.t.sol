@@ -400,7 +400,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         _createVestingScheduleWithDefaultData(alice, bob);
     }
 
-    function testUpdateVestingSchedule() public {
+    function testUpdateVestingScheduleFlowRateFromEndDate() public {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
         vm.expectEmit(true, true, true, true);
         emit VestingScheduleCreated(
@@ -423,29 +423,86 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         assertTrue(schedule.endDate == END_DATE + 1000, "schedule.endDate");
     }
 
-    function test_updateVestingSchedule_invalidEndDate() public {
+    function test_updateVestingScheduleFlowRateFromEndDate_invalidTimeWindow() public {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
         vm.expectEmit(true, true, true, true);
         emit VestingScheduleCreated(
             superToken, alice, bob, START_DATE, CLIFF_DATE, FLOW_RATE, END_DATE, CLIFF_TRANSFER_AMOUNT, 0, 0
         );
         _createVestingScheduleWithDefaultData(alice, bob);
-        vm.prank(alice);
-        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
-        vm.startPrank(admin);
-        uint256 initialTimestamp = block.timestamp + 10 days + 1800;
-        vm.warp(initialTimestamp);
-        vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
-        vm.stopPrank();
         vm.startPrank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
 
+        uint256 beforeCliffAndFlowDate = CLIFF_DATE - 30 minutes;
+        vm.warp(beforeCliffAndFlowDate);
+
+        // Schedule update is not allowed if : "the cliff and flow date is in the future"
+        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE + 1 hours, EMPTY_CTX);
+
+        uint256 afterCliffAndFlowDate = CLIFF_DATE + 30 minutes;
+        vm.warp(afterCliffAndFlowDate);
+
+        // Schedule update is not allowed if : "the new end date is in the past"
         vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
-            superToken, bob, uint32(initialTimestamp - 1), EMPTY_CTX
+            superToken, bob, uint32(afterCliffAndFlowDate - 1), EMPTY_CTX
         );
 
+        // Schedule update is not allowed if : "the new end date is in right now (block.timestamp)"
         vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, uint32(initialTimestamp), EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
+            superToken, bob, uint32(afterCliffAndFlowDate), EMPTY_CTX
+        );
+
+        uint256 afterEndDate = END_DATE + 1 hours;
+        vm.warp(afterEndDate);
+
+        // Schedule update is not allowed if : "the current end date has passed"
+        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
+            superToken, bob, uint32(afterEndDate + 1 hours), EMPTY_CTX
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_updateVestingScheduleFlowRateFromAmount_invalidParameters() public {
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
+        vm.expectEmit(true, true, true, true);
+        emit VestingScheduleCreated(
+            superToken, alice, bob, START_DATE, CLIFF_DATE, FLOW_RATE, END_DATE, CLIFF_TRANSFER_AMOUNT, 0, 0
+        );
+        _createVestingScheduleWithDefaultData(alice, bob);
+
+        uint256 newAmount = CLIFF_TRANSFER_AMOUNT + (END_DATE - CLIFF_DATE) * uint96(FLOW_RATE) + 10 ether;
+
+        vm.startPrank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+
+        uint256 beforeCliffAndFlowDate = CLIFF_DATE - 30 minutes;
+        vm.warp(beforeCliffAndFlowDate);
+
+        // Schedule update is not allowed if : "the cliff and flow date is in the future"
+        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
+
+        uint256 afterCliffAndFlowDate = CLIFF_DATE + 30 minutes;
+        vm.warp(afterCliffAndFlowDate);
+
+        // Amount is invalid if it is less than the already vested amount
+        uint256 invalidNewAmount = CLIFF_TRANSFER_AMOUNT;
+        vm.expectRevert(IVestingSchedulerV3.InvalidUpdate.selector);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, invalidNewAmount, EMPTY_CTX);
+
+        uint256 afterEndDate = END_DATE + 1 hours;
+        vm.warp(afterEndDate);
+
+        // Schedule update is not allowed if : "the current end date has passed"
+        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
+
+        vm.stopPrank();
     }
 
     function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
