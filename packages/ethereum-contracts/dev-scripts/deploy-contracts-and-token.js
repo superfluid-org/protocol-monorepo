@@ -1,4 +1,4 @@
-const {ethers} = require("hardhat");
+const {ethers, network} = require("hardhat");
 const testResolverArtifact = require("@superfluid-finance/ethereum-contracts/build/hardhat/contracts/utils/TestResolver.sol/TestResolver.json");
 
 const {
@@ -6,6 +6,19 @@ const {
 } = require("@superfluid-finance/ethereum-contracts/dev-scripts/deploy-test-framework");
 
 async function deployContractsAndToken() {
+    if (network.config.allowUnlimitedContractSize === false) {
+        throw new Error(`
+The Superfluid deployer for test environments requires the EIP-170 contract size limit to be disabled on the test network.
+You can do this by setting "allowUnlimitedContractSize = true" in the hardhat config file:
+
+  networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true,
+    },
+  }
+        `);
+    }
+
     const [Deployer] = await ethers.getSigners();
 
     const {frameworkDeployer: deployer} =

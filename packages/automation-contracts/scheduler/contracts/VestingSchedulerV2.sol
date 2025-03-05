@@ -2,17 +2,19 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 import {
-    ISuperfluid, ISuperToken, SuperAppDefinitions, IConstantFlowAgreementV1
+    ISuperfluid, ISuperToken, SuperAppDefinitions
 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 import { SuperAppBase } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
-import { CFAv1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
+import { SuperTokenV1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import { IVestingSchedulerV2 } from "./interface/IVestingSchedulerV2.sol";
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
-    using CFAv1Library for CFAv1Library.InitData;
-    CFAv1Library.InitData public cfaV1;
+
+    using SuperTokenV1Library for ISuperToken;
+
+    ISuperfluid public immutable HOST;
     mapping(bytes32 => VestingSchedule) public vestingSchedules; // id = keccak(supertoken, sender, receiver)
 
     uint32 public constant MIN_VESTING_DURATION = 7 days;
@@ -28,16 +30,6 @@ contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
     }
 
     constructor(ISuperfluid host) {
-        cfaV1 = CFAv1Library.InitData(
-            host,
-            IConstantFlowAgreementV1(
-                address(
-                    host.getAgreementClass(
-                        keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
-                    )
-                )
-            )
-        );
         // Superfluid SuperApp registration. This is a dumb SuperApp, only for front-end tx batch calls.
         uint256 configWord = SuperAppDefinitions.APP_LEVEL_FINAL |
         SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP |
@@ -47,6 +39,7 @@ contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
         SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP |
         SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
         host.registerApp(configWord);
+        HOST = host;
     }
 
     /// @dev IVestingScheduler.createVestingSchedule implementation.
@@ -505,7 +498,7 @@ contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
                     agg.sender, agg.receiver, schedule.cliffAmount + flowDelayCompensation));
         }
         // Create a flow according to the vesting schedule configuration.
-        cfaV1.createFlowByOperator(agg.sender, agg.receiver, agg.superToken, schedule.flowRate);
+        agg.superToken.createFlowFrom(agg.sender, agg.receiver, schedule.flowRate);
         emit VestingCliffAndFlowExecuted(
             agg.superToken,
             agg.sender,
@@ -579,7 +572,7 @@ contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
         // If vesting is not running, we can't do anything, just emit failing event.
         if (_isFlowOngoing(superToken, sender, receiver)) {
             // delete first the stream and unlock deposit amount.
-            cfaV1.deleteFlowByOperator(sender, receiver, superToken);
+            superToken.deleteFlowFrom(sender, receiver);
 
             uint256 earlyEndCompensation = schedule.endDate >= block.timestamp 
                 ? (schedule.endDate - block.timestamp) * uint96(schedule.flowRate) + schedule.remainderAmount
@@ -695,8 +688,8 @@ contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
     /// @dev get sender of transaction from Superfluid Context or transaction itself.
     function _getSender(bytes memory ctx) private view returns (address sender) {
         if (ctx.length != 0) {
-            if (msg.sender != address(cfaV1.host)) revert HostInvalid();
-            sender = cfaV1.host.decodeCtx(ctx).msgSender;
+            if (msg.sender != address(HOST)) revert HostInvalid();
+            sender = HOST.decodeCtx(ctx).msgSender;
         } else {
             sender = msg.sender;
         }
@@ -706,8 +699,7 @@ contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
 
     /// @dev get flowRate of stream
     function _isFlowOngoing(ISuperToken superToken, address sender, address receiver) private view returns (bool) {
-        (,int96 flowRate,,) = cfaV1.cfa.getFlow(superToken, sender, receiver);
-        return flowRate != 0;
+        return superToken.getFlowRate(sender, receiver) != 0;
     }
 
     function _getId(

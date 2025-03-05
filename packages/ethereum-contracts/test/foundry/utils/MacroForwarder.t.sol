@@ -5,7 +5,7 @@ import { ISuperfluid, BatchOperation } from "../../../contracts/interfaces/super
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { MacroForwarder, IUserDefinedMacro } from "../../../contracts/utils/MacroForwarder.sol";
-import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 
 using SuperTokenV1Library for ISuperToken;
 
@@ -65,7 +65,7 @@ contract GoodMacro is IUserDefinedMacro {
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
 
     // recommended view function for parameter encoding
-    function getParams(ISuperToken token, int96 flowRate, address[] calldata recipients) external pure returns (bytes memory) {
+    function paramsCreateFlows(ISuperToken token, int96 flowRate, address[] calldata recipients) external pure returns (bytes memory) {
         return abi.encode(token, flowRate, recipients);
     }
 }
@@ -103,7 +103,7 @@ contract MultiFlowDeleteMacro is IUserDefinedMacro {
     }
 
     // recommended view function for parameter encoding
-    function getParams(ISuperToken superToken, address sender, address[] memory receivers, uint256 minBalanceAfter)
+    function paramsDeleteFlows(ISuperToken superToken, address sender, address[] memory receivers, uint256 minBalanceAfter)
         external pure
         returns (bytes memory)
     {
@@ -121,7 +121,7 @@ contract MultiFlowDeleteMacro is IUserDefinedMacro {
 }
 
 /*
- * Example for a macro which has all the state needed, thus needs no additional calldata
+ * Example for a macro which has auint8 state needed, thus needs no additionalata
  * in the context of batch calls.
  * Important: state changes do NOT take place in the context of macro calls.
  */
@@ -169,6 +169,131 @@ contract StatefulMacro is IUserDefinedMacro {
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
 }
 
+/// Example for a macro which takes a fee for CFA operations
+contract PaidCFAOpsMacro is IUserDefinedMacro {
+    uint8 constant ACTION_CODE_CREATE_FLOW = 0;
+    uint8 constant ACTION_CODE_UPDATE_FLOW = 1;
+    uint8 constant ACTION_CODE_DELETE_FLOW = 2;
+
+    address payable immutable FEE_RECEIVER;
+    uint256 immutable FEE_AMOUNT;
+
+    error UnknownAction();
+    error FeeOverpaid();
+
+    constructor(address payable feeReceiver, uint256 feeAmount) {
+        FEE_RECEIVER = feeReceiver;
+        FEE_AMOUNT = feeAmount;
+    }
+
+    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/) external override view
+        returns (ISuperfluid.Operation[] memory operations)
+    {
+        IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(address(host.getAgreementClass(
+            keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
+        )));
+
+        // first operation: take fee
+        operations = new ISuperfluid.Operation[](2);
+
+        operations[0] = ISuperfluid.Operation({
+            operationType: BatchOperation.OPERATION_TYPE_SIMPLE_FORWARD_CALL,
+            target: address(this),
+            data: abi.encodeCall(this.takeFee, (FEE_AMOUNT))
+        });
+
+        // second operation: manage flow
+        // param parsing is now a 2-step process.
+        // first we parse the actionCode, then depending on its value the arguments
+        (uint8 actionCode, bytes memory actionArgs) = abi.decode(params, (uint8, bytes));
+        if (actionCode == ACTION_CODE_CREATE_FLOW) {
+            (ISuperToken token, address receiver, int96 flowRate) =
+                abi.decode(actionArgs, (ISuperToken, address, int96));
+            operations[1] = ISuperfluid.Operation({
+                operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT,
+                target: address(cfa),
+                data: abi.encode(
+                    abi.encodeCall(
+                        cfa.createFlow,
+                        (token, receiver, flowRate, new bytes(0))
+                    ),
+                    new bytes(0) // userdata
+                )
+            });
+        } else if (actionCode == ACTION_CODE_UPDATE_FLOW) {
+            (ISuperToken token, address receiver, int96 flowRate) =
+                abi.decode(actionArgs, (ISuperToken, address, int96));
+            operations[1] = ISuperfluid.Operation({
+                operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT,
+                target: address(cfa),
+                data: abi.encode(
+                    abi.encodeCall(
+                        cfa.updateFlow,
+                        (token, receiver, flowRate, new bytes(0))
+                    ),
+                    new bytes(0) // userdata
+                )
+            });
+        } else if (actionCode == ACTION_CODE_DELETE_FLOW) {
+            (ISuperToken token, address sender, address receiver) =
+                abi.decode(actionArgs, (ISuperToken, address, address));
+            operations[1] = ISuperfluid.Operation({
+                operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT,
+                target: address(cfa),
+                data: abi.encode(
+                    abi.encodeCall(
+                        cfa.deleteFlow,
+                        (token, sender, receiver, new bytes(0))
+                    ),
+                    new bytes(0) // userdata
+                )
+            });
+        } else {
+            revert UnknownAction();
+        }
+    }
+
+    // Forwards a fee in native tokens to the FEE_RECEIVER.
+    // Will fail if less than `amount` is provided.
+    function takeFee(uint256 amount) external payable {
+        FEE_RECEIVER.transfer(amount);
+    }
+
+    // Don't allow native tokens in excess of the required fee
+    // Note: this is safe only as long as this contract can't receive native tokens through other means,
+    // e.g. by implementing a fallback or receive function.
+    function postCheck(ISuperfluid /*host*/, bytes memory /*params*/, address /*msgSender*/) external view {
+        if (address(this).balance != 0) revert FeeOverpaid();
+    }
+
+    // recommended view functions for parameter construction
+    // since this is a multi-method macro, a dispatch logic using actionCode codes is applied.
+
+    // view function for getting params for createFlow
+    function encodeCreateFlow(ISuperToken token, address receiver, int96 flowRate) external pure returns (bytes memory) {
+        return abi.encode(
+            ACTION_CODE_CREATE_FLOW, // actionCode
+            abi.encode(token, receiver, flowRate) // actionArgs
+        );
+    }
+
+    // view function for getting params for updateFlow
+    function encodeUpdateFlow(ISuperToken token, address receiver, int96 flowRate) external pure returns (bytes memory) {
+        return abi.encode(
+            ACTION_CODE_UPDATE_FLOW, // actionCode
+            abi.encode(token, receiver, flowRate) // actionArgs
+        );
+    }
+
+    // view function for getting params for deleteFlow
+    function encodeDeleteFlow(ISuperToken token, address sender, address receiver) external pure returns (bytes memory) {
+        return abi.encode(
+            ACTION_CODE_DELETE_FLOW, // actionCode
+            abi.encode(token, sender, receiver) // actionArgs
+        );
+    }
+}
+
 // ============== Test Contract ==============
 
 contract MacroForwarderTest is FoundrySuperfluidTester {
@@ -195,21 +320,7 @@ contract MacroForwarderTest is FoundrySuperfluidTester {
         vm.startPrank(admin);
         // NOTE! This is different from abi.encode(superToken, int96(42), [bob, carol]),
         //       which is a fixed array: address[2].
-        sf.macroForwarder.runMacro(m, abi.encode(superToken, int96(42), recipients));
-        assertEq(sf.cfa.getNetFlow(superToken, bob), 42);
-        assertEq(sf.cfa.getNetFlow(superToken, carol), 42);
-        vm.stopPrank();
-    }
-
-    function testGoodMacroUsingGetParams() external {
-        GoodMacro m = new GoodMacro();
-        address[] memory recipients = new address[](2);
-        recipients[0] = bob;
-        recipients[1] = carol;
-        vm.startPrank(admin);
-        // NOTE! This is different from abi.encode(superToken, int96(42), [bob, carol]),
-        //       which is a fixed array: address[2].
-        sf.macroForwarder.runMacro(m, m.getParams(superToken, int96(42), recipients));
+        sf.macroForwarder.runMacro(m, m.paramsCreateFlows(superToken, int96(42), recipients));
         assertEq(sf.cfa.getNetFlow(superToken, bob), 42);
         assertEq(sf.cfa.getNetFlow(superToken, carol), 42);
         vm.stopPrank();
@@ -244,7 +355,7 @@ contract MacroForwarderTest is FoundrySuperfluidTester {
             superToken.createFlow(recipients[i], 42);
         }
         // now batch-delete them
-        sf.macroForwarder.runMacro(m, m.getParams(superToken, sender, recipients, 0));
+        sf.macroForwarder.runMacro(m, m.paramsDeleteFlows(superToken, sender, recipients, 0));
 
         for (uint i = 0; i < recipients.length; ++i) {
             assertEq(sf.cfa.getNetFlow(superToken, recipients[i]), 0);
@@ -278,5 +389,43 @@ contract MacroForwarderTest is FoundrySuperfluidTester {
 
         // reasonable reward expectation: post check passes
         sf.macroForwarder.runMacro(m, abi.encode(superToken, alice, recipients, danBalanceBefore + (uint256(uint96(flowRate)) * 600)));
+    }
+
+    function testPaidCFAOps() external {
+        address payable feeReceiver = payable(address(0x420));
+        uint256 feeAmount = 1e15;
+        int96 flowRate1 = 42;
+        int96 flowRate2 = 42;
+
+        // alice needs funds for fee payment
+        vm.deal(alice, 1 ether);
+
+        PaidCFAOpsMacro m = new PaidCFAOpsMacro(feeReceiver, feeAmount);
+
+        vm.startPrank(alice);
+
+        // alice creates a flow to bob
+        sf.macroForwarder.runMacro{value: feeAmount}(
+            m,
+            m.encodeCreateFlow(superToken, bob, flowRate1)
+        );
+        assertEq(feeReceiver.balance, feeAmount, "unexpected fee receiver balance");
+        assertEq(sf.cfa.getNetFlow(superToken, bob), flowRate1);
+
+        // ... then updates that flow
+        sf.macroForwarder.runMacro{value: feeAmount}(
+            m,
+            m.encodeUpdateFlow(superToken, bob, flowRate2)
+        );
+        assertEq(feeReceiver.balance, feeAmount * 2, "unexpected fee receiver balance");
+        assertEq(sf.cfa.getNetFlow(superToken, bob), flowRate2);
+
+        // ... and finally deletes it
+        sf.macroForwarder.runMacro{value: feeAmount}(
+            m,
+            m.encodeDeleteFlow(superToken, alice, bob)
+        );
+        assertEq(feeReceiver.balance, feeAmount * 3, "unexpected fee receiver balance");
+        assertEq(sf.cfa.getNetFlow(superToken, bob), 0);
     }
 }

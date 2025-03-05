@@ -6,7 +6,7 @@ import { IBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.
 import "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
 
 import { ERC1820RegistryCompiled } from "../../../../contracts/libs/ERC1820RegistryCompiled.sol";
-import { SuperfluidFrameworkDeployer} from "../../../../contracts/utils/SuperfluidFrameworkDeployer.sol";
+import { SuperfluidFrameworkDeployer} from "../../../../contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import { TestToken } from "../../../../contracts/utils/TestToken.sol";
 import { SuperfluidUpgradeableBeacon } from "../../../../contracts/upgradability/SuperfluidUpgradeableBeacon.sol";
 import { ISuperToken, SuperToken } from "../../../../contracts/superfluid/SuperToken.sol";

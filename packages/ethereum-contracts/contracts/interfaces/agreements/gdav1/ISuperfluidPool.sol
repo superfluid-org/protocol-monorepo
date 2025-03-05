@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity >=0.8.4;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ISuperfluidToken } from "../../superfluid/ISuperfluidToken.sol";
 
 /**
  * @dev The interface for any super token pool regardless of the distribution schemes.
  */
-interface ISuperfluidPool is IERC20 {
+interface ISuperfluidPool is IERC20, IERC20Metadata {
     // Custom Errors
 
     error SUPERFLUID_POOL_INVALID_TIME();               // 0x83c35016

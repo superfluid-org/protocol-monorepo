@@ -1,7 +1,7 @@
 {
     "name": "@superfluid-finance/ethereum-contracts",
     "description": " Ethereum contracts implementation for the Superfluid Protocol",
-    "version": "1.11.0",
+    "version": "1.12.1",
     "dependencies": {
         "@decentral.ee/web3-helpers": "0.5.3",
         "@nomiclabs/hardhat-ethers": "2.2.3",
@@ -12,13 +12,13 @@
         "hardhat": "2.22.9"
     },
     "devDependencies": {
-        "@d10r/truffle-plugin-verify": "^0.6.10",
+        "@d10r/truffle-plugin-verify": "^0.6.11",
         "@nomiclabs/hardhat-truffle5": "^2.0.7",
         "@safe-global/safe-core-sdk": "^3.3.5",
         "@safe-global/safe-service-client": "^2.0.3",
         "@safe-global/safe-web3-lib": "^1.9.4",
         "@superfluid-finance/js-sdk": "^0.6.3",
-        "@superfluid-finance/metadata": "^1.5.0",
+        "@superfluid-finance/metadata": "^1.5.2",
         "async": "^3.2.6",
         "csv-writer": "^1.6.0",
         "ethers": "^5.7.2",
@@ -74,7 +74,7 @@
         "build:post-contracts": "run-p -l build:post-contracts:*",
         "build:post-contracts:abi-bundle": "tasks/build-bundled-abi.sh",
         "build:post-contracts:dev-scripts-typings": "rm -rf dev-scripts/*.d.ts dev-scripts/*.d.ts.map; tsc -p tsconfig.scripts.json",
-        "build:post-contracts:contracts-size": "forge build --sizes > build/contracts-sizes.txt",
+        "build:post-contracts:contracts-size": "forge build --sizes --skip test --skip script > build/contracts-sizes.txt",
         "verify-framework": "tasks/etherscan-verify-framework.sh",
         "testenv:start": "test/testenv-ctl.sh start",
         "testenv:stop": "test/testenv-ctl.sh stop",

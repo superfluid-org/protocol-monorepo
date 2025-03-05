@@ -7,8 +7,8 @@ import { ForwarderBase } from "../utils/ForwarderBase.sol";
 
 
 /**
- * @dev This is a trusted forwarder with high degree of extensibility through permission-less and user-defined "macro
- * contracts". This is a vanilla version without EIP-712 support.
+ * @dev This is a minimal version of a trusted forwarder with high degree of extensibility
+ * through permissionless and user-defined "macro contracts".
  */
 contract MacroForwarder is ForwarderBase {
     constructor(ISuperfluid host) ForwarderBase(host) {}
@@ -29,11 +29,12 @@ contract MacroForwarder is ForwarderBase {
      * @dev Run the macro defined by the provided macro contract and params.
      * @param  m      Target macro.
      * @param  params Parameters to run the macro.
+     * If value (native coins) is provided, it is forwarded.
      */
-    function runMacro(IUserDefinedMacro m, bytes calldata params) external returns (bool)
+    function runMacro(IUserDefinedMacro m, bytes calldata params) external payable returns (bool)
     {
         ISuperfluid.Operation[] memory operations = buildBatchOperations(m, params);
-        bool retVal = _forwardBatchCall(operations);
+        bool retVal = _forwardBatchCallWithValue(operations, msg.value);
         m.postCheck(_host, params, msg.sender);
         return retVal;
     }

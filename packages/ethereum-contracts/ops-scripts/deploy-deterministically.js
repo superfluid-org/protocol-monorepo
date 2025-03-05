@@ -21,7 +21,7 @@ const MacroForwarder = artifacts.require("MacroForwarder");
  * @param web3 The web3 instance to be used
  * @param from address to use for funding the deployer account
  *
- * Usage: npx truffle exec ops-scripts/deploy-deterministically.js : {CONTRACT NAME} [{NONCE}]
+ * Usage: npx truffle exec ops-scripts/deploy-deterministically.js : {CONTRACT NAME}
  *        CONTRACT NAME must be one of SuperfluidLoader, AgreementForwarder
  *        If NONCE is not defined, 0 is assumed (-> first tx done from the deployer account)
  *
@@ -32,6 +32,7 @@ const MacroForwarder = artifacts.require("MacroForwarder");
  *        GAS_PRICE: override the estimated gas price
  *        EST_TX_COST: override the estimated tx cost (amount to be sent to deployer)
  *                   for networks with different cost derivation structure (Optimism)
+ *        NONCE: if NONCE is not defined, 0 is assumed (-> first tx done from the deployer account)
  */
 module.exports = eval(`(${S.toString()})()`)(async function (
     args,
@@ -41,18 +42,12 @@ module.exports = eval(`(${S.toString()})()`)(async function (
 
     console.log("======== Deploying deterministically ========");
 
-    let nonce = 0;
-    if (args.length === 2) {
-        nonce = parseInt(args.pop());
-        if (nonce < 0) {
-            console.error("nonce must be >= 0");
-            process.exit(1);
-        }
-    } else if (args.length !== 1) {
+    if (args.length !== 1) {
         throw new Error("Wrong number of arguments");
     }
     const contractName = args.pop();
 
+    const nonce = parseInt(process.env.NONCE) || 0;
     const privKey = process.env.DETERMINISTIC_DEPLOYER_PK;
     const deployer = web3.eth.accounts.privateKeyToAccount(privKey);
     console.log("deployer:", deployer.address);
@@ -100,10 +95,7 @@ module.exports = eval(`(${S.toString()})()`)(async function (
 
     const deployerTxCnt = await web3.eth.getTransactionCount(deployer.address);
     if (nonce !== deployerTxCnt) {
-        console.error(
-            `### ERR: requested nonce is ${nonce}, but next usable nonce is ${deployerTxCnt}`
-        );
-        process.exit(1);
+        throw new Error(`### ERR: requested nonce is ${nonce}, but next usable nonce is ${deployerTxCnt}`);
     }
 
     const deployerBalance = await web3.eth.getBalance(deployer.address);

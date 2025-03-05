@@ -29,12 +29,17 @@ import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
 import { ISuperAgreement } from "./ISuperAgreement.sol";
 import { IConstantFlowAgreementV1 } from "../agreements/IConstantFlowAgreementV1.sol";
 import { IInstantDistributionAgreementV1 } from "../agreements/IInstantDistributionAgreementV1.sol";
-import { IGeneralDistributionAgreementV1, PoolConfig } from "../agreements/gdav1/IGeneralDistributionAgreementV1.sol";
+import { 
+    IGeneralDistributionAgreementV1, 
+    PoolConfig, 
+    PoolERC20Metadata 
+} from "../agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { ISuperfluidPool } from "../agreements/gdav1/ISuperfluidPool.sol";
 /// Superfluid App interfaces:
 import { ISuperApp } from "./ISuperApp.sol";
 /// Superfluid governance
 import { ISuperfluidGovernance } from "./ISuperfluidGovernance.sol";
+
 
 /**
  * @title Host interface
@@ -644,6 +649,14 @@ interface ISuperfluid {
      * with an optional refund going to the encoded msgSender.
      */
     function forwardBatchCall(Operation[] calldata operations) external payable;
+
+    /**
+     * @dev returns the address of the forwarder contract used to route batch operations of type
+     * OPERATION_TYPE_ERC2771_FORWARD_CALL.
+     * Needs to be set as _trusted forwarder_ by the call targets of such operations.
+     */
+    // solhint-disable func-name-mixedcase
+    function getERC2771Forwarder() external view returns(address);
 
     /**************************************************************************
      * Function modifiers for access control and parameter validations

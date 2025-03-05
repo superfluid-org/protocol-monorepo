@@ -73,13 +73,14 @@ async function deployContractIfCodeChanged(
     Contract,
     codeAddress,
     deployFunc,
-    codeReplacements
+    codeReplacements,
+    debug = false
 ) {
     return deployContractIf(
         web3,
         Contract,
         async () =>
-            await codeChanged(web3, Contract, codeAddress, codeReplacements),
+            await codeChanged(web3, Contract, codeAddress, codeReplacements, debug),
         deployFunc
     );
 }
@@ -206,7 +207,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
     const contracts = [
         "Ownable",
         "CFAv1Forwarder",
-        "IDAv1Forwarder",
         "GDAv1Forwarder",
         "IMultiSigWallet",
         "ISafe",
@@ -232,7 +232,8 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         "PoolAdminNFT",
         "PoolMemberNFT",
         "IAccessControlEnumerable",
-        "DMZForwarder",
+        "SimpleForwarder",
+        "ERC2771Forwarder",
     ];
     const mockContracts = [
         "SuperfluidMock",
@@ -244,7 +245,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         IMultiSigWallet,
         ISafe,
         CFAv1Forwarder,
-        IDAv1Forwarder,
         GDAv1Forwarder,
         SuperfluidGovernanceBase,
         Resolver,
@@ -271,7 +271,8 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         PoolAdminNFT,
         PoolMemberNFT,
         IAccessControlEnumerable,
-        DMZForwarder,
+        SimpleForwarder,
+        ERC2771Forwarder,
     } = await SuperfluidSDK.loadContracts({
         ...extractWeb3Options(options),
         additionalContracts: contracts.concat(useMocks ? mockContracts : []),
@@ -352,18 +353,24 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         `Superfluid.${protocolReleaseVersion}`,
         async (contractAddress) => !(await hasCode(web3, contractAddress)),
         async () => {
-            const dmzForwarder = await web3tx(DMZForwarder.new, "DMZForwarder.new")();
-            output += `DMZ_FORWARDER=${dmzForwarder.address}\n`;
+            const simpleForwarder = await web3tx(SimpleForwarder.new, "SimpleForwarder.new")();
+            console.log("SimpleForwarder address:", simpleForwarder.address);
+            output += `SIMPLE_FORWARDER=${simpleForwarder.address}\n`;
+
+            const erc2771Forwarder = await web3tx(ERC2771Forwarder.new, "ERC2771Forwarder.new")();
+            console.log("ERC2771Forwarder address:", erc2771Forwarder.address);
+            output += `ERC2771_FORWARDER=${erc2771Forwarder.address}\n`;
 
             let superfluidAddress;
             const superfluidLogic = await web3tx(
                 SuperfluidLogic.new,
                 "SuperfluidLogic.new"
-            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, dmzForwarder.address);
+            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarder.address, erc2771Forwarder.address);
             console.log(
                 `Superfluid new code address ${superfluidLogic.address}`
             );
             output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
+
             if (!nonUpgradable) {
                 const proxy = await web3tx(
                     UUPSProxy.new,
@@ -380,26 +387,18 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             }
             const superfluid = await Superfluid.at(superfluidAddress);
             await web3tx(
-                dmzForwarder.transferOwnership,
-                "dmzForwarder.transferOwnership"
+                simpleForwarder.transferOwnership,
+                "simpleForwarder.transferOwnership"
             )(superfluid.address);
+            await web3tx(
+                erc2771Forwarder.transferOwnership,
+                "erc2771Forwarder.transferOwnership"
+            )(superfluid.address);
+
             await web3tx(
                 superfluid.initialize,
                 "Superfluid.initialize"
             )(governance.address);
-            if (!nonUpgradable) {
-                if (
-                    await codeChanged(
-                        web3,
-                        SuperfluidLogic,
-                        await superfluid.getCodeAddress()
-                    )
-                ) {
-                    throw new Error(
-                        "Unexpected code change from fresh deployment"
-                    );
-                }
-            }
             return superfluid;
         }
     );
@@ -432,6 +431,9 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         }
         if (config.gdaFwd) {
             trustedForwarders.push(config.gdaFwd);
+        }
+        if (config.macroFwd) {
+            trustedForwarders.push(config.macroFwd);
         }
         console.log(`initializing TestGovernance with config: ${JSON.stringify({
             liquidationPeriod: config.liquidationPeriod,
@@ -762,23 +764,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             }
         );
 
-        // deploy IDAv1Forwarder for test deployments
-        // for other (permanent) deployments, it's not handled by this script
-        await deployAndRegisterContractIf(
-            IDAv1Forwarder,
-            "IDAv1Forwarder",
-            async (contractAddress) => contractAddress === ZERO_ADDRESS,
-            async () => {
-                const forwarder = await IDAv1Forwarder.new(superfluid.address);
-                output += `IDA_V1_FORWARDER=${forwarder.address}\n`;
-                await web3tx(
-                    governance.enableTrustedForwarder,
-                    `Governance set IDAv1Forwarder`
-                )(superfluid.address, ZERO_ADDRESS, forwarder.address);
-                return forwarder;
-            }
-        );
-
         // deploy GDAv1Forwarder for test deployments
         // for other (permanent) deployments, it's not handled by this script
         await deployAndRegisterContractIf(
@@ -807,33 +792,60 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             throw new Error("Superfluid is not upgradable");
         }
 
-        async function getPrevDMZForwarderAddr() {
-            try {
-                return await superfluid.DMZ_FORWARDER();
-            } catch (err) {
-                console.error("### Error getting DMZForwarder address", err);
-                return ZERO_ADDRESS; // fallback
-            }
-        }
-        const prevDMZForwarderAddr = await getPrevDMZForwarderAddr();
+        async function getOrDeployForwarder(
+            superfluid,
+            ForwarderContract,
+            getPrevAddrFn,
+            outputKey
+        ) {
+            let prevAddr = await getPrevAddrFn().catch(_err => {
+                console.error(`### Error getting ${ForwarderContract.contractName} address, likely not yet deployed`);
+                return ZERO_ADDRESS;
+            });
 
-        const dmzForwarderNewAddress = await deployContractIfCodeChanged(
-            web3,
-            DMZForwarder,
-            prevDMZForwarderAddr,
-            async () => {
-                const dmzForwarder = await web3tx(DMZForwarder.new, "DMZForwarder.new")();
-                await web3tx(
-                    dmzForwarder.transferOwnership,
-                    "dmzForwarder.transferOwnership"
-                )(superfluid.address);
-                output += `DMZ_FORWARDER=${dmzForwarder.address}\n`;
-                return dmzForwarder.address;
+            if (prevAddr !== ZERO_ADDRESS) {
+                // TEMPORARY FIX - can be removed after applied
+                // we found a previous deployment. Now verify it has the host as owner.
+                // the first mainnet deployment didn't have this for SimpleForwarder, thus needs a redeployment.
+                const ownerAddr = await (await Ownable.at(prevAddr)).owner();
+                if (ownerAddr != superfluid.address) {
+                    console.log(`  !!! ${outputKey} has wrong owner, needs re-deployment`);
+                    prevAddr = ZERO_ADDRESS; // by setting zero, we force a re-deployment
+                }
             }
+
+            const newAddress = await deployContractIfCodeChanged(
+                web3,
+                ForwarderContract,
+                prevAddr,
+                async () => {
+                    const forwarder = await web3tx(ForwarderContract.new, `${ForwarderContract.contractName}.new`)();
+                    await web3tx(
+                        forwarder.transferOwnership,
+                        "forwarder.transferOwnership"
+                    )(superfluid.address);
+
+                    output += `${outputKey}=${forwarder.address}\n`;
+                    return forwarder.address;
+                }
+            );
+
+            return newAddress !== ZERO_ADDRESS ? newAddress : prevAddr;
+        }
+
+        const simpleForwarderAddress = await getOrDeployForwarder(
+            superfluid,
+            SimpleForwarder,
+            () => superfluid.SIMPLE_FORWARDER(),
+            "SIMPLE_FORWARDER"
         );
-        const dmzForwarderAddress = dmzForwarderNewAddress !== ZERO_ADDRESS
-            ? dmzForwarderNewAddress
-            : prevDMZForwarderAddr;
+
+        const erc2771ForwarderAddress = await getOrDeployForwarder(
+            superfluid,
+            ERC2771Forwarder,
+            () => superfluid.getERC2771Forwarder(),
+            "ERC2771_FORWARDER"
+        );
 
         // get previous callback gas limit, make sure we don't decrease it
         const prevCallbackGasLimit = await superfluid.CALLBACK_GAS_LIMIT();
@@ -855,10 +867,15 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 const superfluidLogic = await web3tx(
                     SuperfluidLogic.new,
                     "SuperfluidLogic.new"
-                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, dmzForwarderAddress);
+                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress);
                 output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
                 return superfluidLogic.address;
-            }
+            },
+            [
+                ap(erc2771ForwarderAddress),
+                ap(simpleForwarderAddress),
+                appCallbackGasLimit.toString(16).padStart(64, "0")
+            ],
         );
 
         // deploy new CFA logic

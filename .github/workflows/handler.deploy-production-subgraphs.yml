@@ -46,10 +46,8 @@ jobs:
       subgraph-endpoint: http://localhost:8000/subgraphs/name/superfluid-test
 
   deploy-subgraphs:
-    if: ${{ success() }}
     uses: ./.github/workflows/call.deploy-subgraph.yml
-    # build-and-test-local-subgraph-against-previous-sdk-core-releases is currently not "needed" here because it fails.
-    needs: [build-and-test-local-subgraph]
+    needs: [build-and-test-local-subgraph, build-and-test-local-subgraph-against-previous-sdk-core-releases]
     name: Deploy graph to ${{ github.event.inputs.vendor }} vendor
     with:
       deployment_env: ${{ github.event.inputs.deployment_env }}

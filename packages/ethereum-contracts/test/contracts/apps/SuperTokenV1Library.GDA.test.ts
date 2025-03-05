@@ -170,7 +170,7 @@ describe("SuperTokenV1Library.GDA", function () {
                     pool.address,
                     requestedDistributionAmount
                 );
-            await superTokenLibraryGDAMock.distributeToPoolTest(
+            await superTokenLibraryGDAMock.distributeTest(
                 superToken.address,
                 superTokenLibraryGDAMock.address,
                 pool.address,

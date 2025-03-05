@@ -18,7 +18,8 @@ import { poolIndexDataToPDPoolIndex, SuperfluidPool } from "./SuperfluidPool.sol
 import { SuperfluidPoolDeployerLibrary } from "./SuperfluidPoolDeployerLibrary.sol";
 import {
     IGeneralDistributionAgreementV1,
-    PoolConfig
+    PoolConfig,
+    PoolERC20Metadata
 } from "../../interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { SuperfluidUpgradeableBeacon } from "../../upgradability/SuperfluidUpgradeableBeacon.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
@@ -265,16 +266,22 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         actualAmount = uint256(Value.unwrap(actualDistributionAmount));
     }
 
-    function _createPool(ISuperfluidToken token, address admin, PoolConfig memory config)
-        internal
-        returns (ISuperfluidPool pool)
-    {
+    function _createPool(
+        ISuperfluidToken token,
+        address admin,
+        PoolConfig memory config,
+        PoolERC20Metadata memory poolERC20Metadata
+    ) internal returns (ISuperfluidPool pool) {
         // @note ensure if token and admin are the same that nothing funky happens with echidna
         if (admin == address(0)) revert GDA_NO_ZERO_ADDRESS_ADMIN();
         if (_isPool(token, admin)) revert GDA_ADMIN_CANNOT_BE_POOL();
 
         pool = ISuperfluidPool(
-            address(SuperfluidPoolDeployerLibrary.deploy(address(superfluidPoolBeacon), admin, token, config))
+            address(
+                SuperfluidPoolDeployerLibrary.deploy(
+                    address(superfluidPoolBeacon), admin, token, config, poolERC20Metadata
+                )
+            )
         );
 
         // @note We utilize the storage slot for Universal Index State
@@ -298,7 +305,22 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (ISuperfluidPool pool)
     {
-        return _createPool(token, admin, config);
+        return _createPool(
+            token,
+            admin,
+            config,
+            PoolERC20Metadata("", "", 0) // use defaults specified by the implementation contract
+        );
+    }
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function createPoolWithCustomERC20Metadata(
+        ISuperfluidToken token,
+        address admin,
+        PoolConfig memory config,
+        PoolERC20Metadata memory poolERC20Metadata
+    ) external override returns (ISuperfluidPool pool) {
+        return _createPool(token, admin, config, poolERC20Metadata);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1

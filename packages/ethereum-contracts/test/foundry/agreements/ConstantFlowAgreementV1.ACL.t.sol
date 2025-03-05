@@ -5,7 +5,7 @@ import { ISuperToken, SuperToken } from "../../../contracts/superfluid/SuperToke
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { FlowOperatorDefinitions } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluidToken.sol";
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 
 contract ConstantFlowAgreementV1ACLTest is FoundrySuperfluidTester {

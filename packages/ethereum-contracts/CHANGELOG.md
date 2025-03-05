@@ -3,16 +3,63 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.12.1]
+
+### Added
+- Superfluid Pools now implement `IERC20Metadata`, thus going forward have a name, symbol and decimals
+- `IGeneralDistributionAgreementV1.createPoolWithCustomERC20Metadata` and `SuperTokenV1Library.createPoolWithCustomERC20Metadata` for creating pools with custom ERC20 metadata
+- `SuperTokenV1Library`
+  - overloaded `claimAll` for the msg.sender to claim for themselves
+  - added `flowWithCtx` and `flowFromWithCtx`
+
+### Changed
+- Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
+- `SuperTokenV1Library.getFlowRate` and `SuperTokenV1Library.getFlowInfo` now also allow querying the flowrate between pools and pool members
+- Superfluid Pools now emit a Transfer event when changing units with `updateMemberUnits`.
+- Dependency foundry updated to 1.0
+
+### Breaking
+- `SuperTokenV1Library.distributeFlow`: return `actualFlowRate` instead of a bool
+- `SuperTokenV1Library.distribute`: return `actualAmount` instead of a bool
+
+## [v1.12.0]
+
+### Added
+- `SuperTokenV1Library`
+  - added agreement specific variants for `getFlowRate`, `getFlowInfo`, `getNetFlowRate` and `getNetFlowInfo`, e.g. `getCFAFlowRate`, `getGDAFlowRate`, ...
+  - added `flow` for changing CFA flows, can be used instead of the CRUD methods
+  - added `flowFrom` for changing CFA flows using ACL permissions, can be used instead of the CRUD methods
+  - added `distribute` and `distributeFlow` variants (overloaded) without `from` argument
+  - added `transferX` and `flowX` for agreement abstracted instant or flow transfers/distributions
+  - added `getTotalAmountReceivedFromPool` (alias for `getTotalAmountReceivedByMember`)
+- Host: added `ISuperfluid.getERC2771Forwarder`: to be used by batch call targets who want to use ERC-2771 for msg sender preservation
+- Utility contracts for forwarding of calls in the context of batch operations:
+  - `SimpleForwarder`: for forwarding arbitrary calls to arbitrary targets
+  - `ERC2771Forwarder`: for forwarding arbitrary calls to arbitrary targets with msg sender authenticated according to ERC-2771. Requires the target contract to recognize it as trusted forwarder.
+
+### Breaking
+- Removed `CFAv1Library`, superseded by `SuperTokenV1Library`.
+- The IDA is now declared as deprecated, shouldn't be used anymore. The GDA covers all its functionality.
+- Removed `IDAv1Library`.
+- `SuperTokenV1Library`
+  - removed IDA specific functionality. `distribute` now maps to the GDA.
+  - `getFlowRate` and `getFlowInfo` now work return the GDA flowrate/info if the receiver is a pool (previously it would return 0). In order to specifically query the CFA flowrate, use the newly added `getCFAFlowRate` and `getCFAFlowInfo`.
+  - removed `updateMemberUnits` (use ISuperfluidPool.updateMemberUnits instead)
+- Source file `SuperfluidFrameworkDeployer.sol` renamed to `SuperfluidFrameworkDeployer.t.sol`
+- Source file `FoundrySuperfluidTester.sol` renamed to `FoundrySuperfluidTester.t.sol`
+
+## [v1.11.1]
 
 ### Changed
 
-* `IUserDefinedMacro`: added a method `postCheck()` which allows to verify state changes after running the macro.
-* `SuperfluidFrameworkDeployer` now also deploys and `MacroForwarder` and enables it as trusted forwarder.
+- `MacroForwarder` made payable.
+- `IUserDefinedMacro`: added a method `postCheck()` which allows to verify state changes after running the macro.
+- `SuperfluidFrameworkDeployer` now also deploys and `MacroForwarder` and enables it as trusted forwarder.
+- `deploy-test-environment.js` now deploys fUSDC (the underlying) with 6 decimals (instead of 18) to better resemble the actual USDC.
 
 ### Fixed
 
-* GDA Pools are not multi-tokens ready, added a permission check (#2010).
+- GDA Pools are not multi-tokens ready, added a permission check (#2010).
 
 ## [v1.11.0]
 

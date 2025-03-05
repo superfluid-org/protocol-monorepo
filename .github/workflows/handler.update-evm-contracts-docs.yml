@@ -6,7 +6,7 @@ on:
 
 jobs:
   update-evm-contracts-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
           echo github.base_ref: ${{ github.base_ref }}
 
       - name: Use Node.js 18.x
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18.x
           cache: "yarn"

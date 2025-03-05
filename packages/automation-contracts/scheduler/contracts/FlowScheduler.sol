@@ -2,10 +2,10 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.0;
 import {
-    ISuperfluid, ISuperToken, SuperAppDefinitions, IConstantFlowAgreementV1
+    ISuperfluid, ISuperToken, SuperAppDefinitions
 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 import { SuperAppBase } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
-import { CFAv1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
+import { SuperTokenV1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import { IFlowScheduler } from "./interface/IFlowScheduler.sol";
 
 /**
@@ -14,24 +14,12 @@ import { IFlowScheduler } from "./interface/IFlowScheduler.sol";
  */
 contract FlowScheduler is IFlowScheduler, SuperAppBase {
 
+    using SuperTokenV1Library for ISuperToken;
+
+    ISuperfluid public immutable HOST;
     mapping(bytes32 => FlowSchedule) public flowSchedules; // id = keccak(supertoken, sender, receiver)
 
-    using CFAv1Library for CFAv1Library.InitData;
-    CFAv1Library.InitData public cfaV1; //initialize cfaV1 variable
-
     constructor(ISuperfluid host) {
-        // Initialize CFA Library
-        cfaV1 = CFAv1Library.InitData(
-            host,
-            IConstantFlowAgreementV1(
-                address(
-                    host.getAgreementClass(
-                        keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
-                    )
-                )
-            )
-        );
-
         // super app registration. This is a dumb superApp, only for frontend batching calls.
         uint256 configWord = SuperAppDefinitions.APP_LEVEL_FINAL |
         SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP |
@@ -41,6 +29,7 @@ contract FlowScheduler is IFlowScheduler, SuperAppBase {
         SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP |
         SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
         host.registerApp(configWord);
+        HOST = host;
     }
 
     /// @dev IFlowScheduler.createFlowSchedule implementation.
@@ -158,7 +147,7 @@ contract FlowScheduler is IFlowScheduler, SuperAppBase {
         }
 
         // Create a flow accordingly as per the flow schedule data.
-        cfaV1.createFlowByOperator(sender, receiver, superToken, schedule.flowRate, userData);
+        superToken.createFlowFrom(sender, receiver, schedule.flowRate, userData);
 
         emit CreateFlowExecuted(
             superToken,
@@ -188,7 +177,7 @@ contract FlowScheduler is IFlowScheduler, SuperAppBase {
         // revert if userData was set by user, but caller didn't provide it
         if ((userData.length != 0 ? keccak256(userData) : bytes32(0x0)) != schedule.userData) revert UserDataInvalid();
 
-        cfaV1.deleteFlowByOperator(sender, receiver, superToken, userData);
+        superToken.deleteFlowFrom(sender, receiver, userData);
 
         emit DeleteFlowExecuted(
             superToken,
@@ -209,8 +198,8 @@ contract FlowScheduler is IFlowScheduler, SuperAppBase {
 
     function _getSender(bytes memory ctx) internal view returns(address sender) {
         if(ctx.length != 0) {
-            if(msg.sender != address(cfaV1.host)) revert HostInvalid();
-            sender = cfaV1.host.decodeCtx(ctx).msgSender;
+            if(msg.sender != address(HOST)) revert HostInvalid();
+            sender = HOST.decodeCtx(ctx).msgSender;
         } else {
             sender = msg.sender;
         }

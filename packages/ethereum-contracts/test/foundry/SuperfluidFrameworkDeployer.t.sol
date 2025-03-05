@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { FoundrySuperfluidTester } from "./FoundrySuperfluidTester.sol";
-import { IPureSuperToken, ISETH, TestToken, SuperToken } from "../../contracts/utils/SuperfluidFrameworkDeployer.sol";
+import { FoundrySuperfluidTester } from "./FoundrySuperfluidTester.t.sol";
+import { IPureSuperToken, ISETH, TestToken, SuperToken } from "../../contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import { SuperfluidLoader } from "../../contracts/utils/SuperfluidLoader.sol";
 
 contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
@@ -19,7 +19,6 @@ contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
         assertTrue(address(sf.resolver) != address(0), "SFDeployer: resolver not deployed");
         assertTrue(address(sf.superfluidLoader) != address(0), "SFDeployer: superfluidLoader not deployed");
         assertTrue(address(sf.cfaV1Forwarder) != address(0), "SFDeployer: cfaV1Forwarder not deployed");
-        assertTrue(address(sf.idaV1Forwarder) != address(0), "SFDeployer: idaV1Forwarder not deployed");
         assertTrue(address(sf.gdaV1Forwarder) != address(0), "SFDeployer: gdaV1Forwarder not deployed");
         assertTrue(address(sf.macroForwarder) != address(0), "SFDeployer: macroForwarder not deployed");
         assertTrue(address(sf.batchLiquidator) != address(0), "SFDeployer: batchLiquidator not deployed");

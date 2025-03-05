@@ -12,7 +12,7 @@ env:
 jobs:
   subgraph-unit-tests:
     name: Run subgraph unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
@@ -51,7 +51,7 @@ jobs:
   subgraph-integration-tests:
     name: Run subgraph integration tests
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:

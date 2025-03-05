@@ -31,23 +31,16 @@ interface IUserDefinedMacro {
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view;
 
     /*
-     * Additional to the required interface, we recommend to implement the following function:
-     * `function getParams(...) external view returns (bytes memory);`
+     * Additional to the required interface, we recommend to implement one or multiple view functions
+     * which take operation specific typed arguments and return the abi encoded bytes.
+     * As a convention, the name of those functions shall start with `params`.
      *
-     * It shall return abi encoded params as required as second argument of `MacroForwarder.runMacro()`.
-     *
-     * The function name shall be `getParams` and the return type shall be `bytes memory`.
-     * The number, type and name of arguments are free to choose such that they best fit the macro use case.
-     *
-     * In conjunction with the name of the Macro contract, the signature should be as self-explanatory as possible.
-     *
-     * Example for a contract `MultiFlowDeleteMacro` which lets a user delete multiple flows in one transaction:
-     * `function getParams(ISuperToken superToken, address[] memory receivers) external view returns (bytes memory)`
-     *
-     *
-     * Implementing this view function has several advantages:
+     * Implementing this view function(s) has several advantages:
+     * - Allows to build more complex macros with internally encapsulated dispatching logic
      * - Allows to use generic tooling like Explorers to interact with the macro
      * - Allows to build auto-generated UIs based on the contract ABI
      * - Makes it easier to interface with the macro from Dapps
+     *
+     * You can consult the related test code in `MacroForwarderTest.t.sol` for examples.
      */
 }

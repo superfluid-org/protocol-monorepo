@@ -20,7 +20,9 @@ export type BatchOperationType =
     | "SUPERTOKEN_UPGRADE" // 101
     | "SUPERTOKEN_DOWNGRADE" // 102
     | "SUPERFLUID_CALL_AGREEMENT" // 201
-    | "CALL_APP_ACTION"; // 202
+    | "CALL_APP_ACTION" // 202
+    | "SIMPLE_FORWARD_CALL" // 301
+    | "ERC2771_FORWARD_CALL"; // 302
 
 /**
  * Operation Helper Class
@@ -164,6 +166,7 @@ export default class Operation {
                 operationType: batchOperationType,
                 target: functionArgs["agreementClass"],
                 data,
+                value: populatedTransaction.value,
             };
         }
 
@@ -178,14 +181,28 @@ export default class Operation {
                 operationType: batchOperationType,
                 target: functionArgs["app"],
                 data: functionArgs["callData"],
+                value: populatedTransaction.value,
             };
         }
 
-        // Handles remaining ERC20/ERC777/SuperToken Operations
+        if (
+            this.type === "SIMPLE_FORWARD_CALL" ||
+            this.type === "ERC2771_FORWARD_CALL"
+        ) {
+            return {
+                operationType: batchOperationType,
+                target: populatedTransaction.to,
+                data: populatedTransaction.data,
+                value: populatedTransaction.value,
+            };
+        }
+
+        // Handles remaining ERC20/ERC777/SuperToken Operations (including SIMPLE_FORWARD_CALL and ERC2771_FORWARD_CALL)
         return {
             operationType: batchOperationType,
             target: populatedTransaction.to,
             data: removeSigHashFromCallData(populatedTransaction.data),
+            value: populatedTransaction.value,
         };
     };
 }

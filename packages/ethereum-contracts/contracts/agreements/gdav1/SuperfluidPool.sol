@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 
 // Notes: We use these interfaces in natspec documentation below, grep @inheritdoc
 // solhint-disable-next-line no-unused-import
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     BasicParticle,
@@ -81,8 +81,15 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         int256 claimedValue;
     }
 
+    // Constants & Immutables
+
+    string internal constant _DEFAULT_ERC20_NAME = "Superfluid Pool";
+    string internal constant _DEFAULT_ERC20_SYMBOL = "POOL";
+    // ERC20 decimals implicitly defaults to 0
 
     GeneralDistributionAgreementV1 public immutable GDA;
+
+    // State variables - NEVER REORDER!
 
     ISuperfluidToken public superToken;
     address public admin;
@@ -101,6 +108,11 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     /// @inheritdoc ISuperfluidPool
     bool public distributionFromAnyAddress;
 
+    // ERC20 metadata
+    string internal _erc20Name;
+    string internal _erc20Symbol;
+    uint8 internal _erc20Decimals;
+
     constructor(GeneralDistributionAgreementV1 gda) {
         GDA = gda;
     }
@@ -109,12 +121,18 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         address admin_,
         ISuperfluidToken superToken_,
         bool transferabilityForUnitsOwner_,
-        bool distributionFromAnyAddress_
+        bool distributionFromAnyAddress_,
+        string memory erc20Name_,
+        string memory erc20Symbol_,
+        uint8 erc20Decimals_
     ) external initializer {
         admin = admin_;
         superToken = superToken_;
         transferabilityForUnitsOwner = transferabilityForUnitsOwner_;
         distributionFromAnyAddress = distributionFromAnyAddress_;
+        _erc20Name = erc20Name_;
+        _erc20Symbol = erc20Symbol_;
+        _erc20Decimals = erc20Decimals_;
     }
 
     function proxiableUUID() public pure override returns (bytes32) {
@@ -284,6 +302,21 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         else return (_index.wrappedFlowRate * uint256(units).toInt256()).toInt96();
     }
 
+    /// @inheritdoc IERC20Metadata
+    function name() external view override returns (string memory) {
+        return bytes(_erc20Name).length == 0 ? "Superfluid Pool" : _erc20Name;
+    }
+
+    /// @inheritdoc IERC20Metadata
+    function symbol() external view override returns (string memory) {
+        return bytes(_erc20Symbol).length == 0 ? "POOL" : _erc20Symbol;
+    }
+
+    /// @inheritdoc IERC20Metadata
+    function decimals() external view override returns (uint8) {
+        return _erc20Decimals;
+    }
+
     function _pdPoolIndexToPoolIndexData(PDPoolIndex memory pdPoolIndex)
         internal
         pure
@@ -353,7 +386,15 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool) {
         if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
 
-        _updateMemberUnits(memberAddr, newUnits);
+        uint128 oldUnits = _updateMemberUnits(memberAddr, newUnits);
+
+        // Unit updates by admin are effectively mint/burn operations when viewed through the ERC20 lens.
+        // We thus emit a Transfer event from/to the zero address accordingly.
+        if (oldUnits < newUnits) {
+            emit Transfer(address(0), memberAddr, newUnits - oldUnits);
+        } else if (oldUnits > newUnits) {
+            emit Transfer(memberAddr, address(0), oldUnits - newUnits);
+        }
 
         return true;
     }
@@ -400,7 +441,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         }
     }
 
-    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (bool) {
+    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
         // @note normally we keep the sanitization in the external functions, but here
         // this is used in both updateMemberUnits and transfer
         if (GDA.isPool(superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
@@ -414,7 +455,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         MemberData memory memberData = _membersData[memberAddr];
         PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(memberData);
 
-        uint128 oldUnits = memberData.ownedUnits;
+        oldUnits = memberData.ownedUnits;
 
         PDPoolMemberMU memory mu = PDPoolMemberMU(pdPoolIndex, pdPoolMember);
 
@@ -435,8 +476,6 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
 
         _handlePoolMemberNFT(memberAddr, newUnits);
-
-        return true;
     }
 
     function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {

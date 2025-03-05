@@ -14,7 +14,8 @@ import { AgreementLibrary } from "./AgreementLibrary.sol";
 
 
 /**
- * @title InstantDistributionAgreementV1 contract
+ * @title [DEPRECATED] InstantDistributionAgreementV1 contract
+ * @custom:deprecated Use GeneralDistributionAgreementV1 instead
  * @author Superfluid
  * @dev Please read IInstantDistributionAgreementV1 for implementation notes.
  * @dev For more technical notes, please visit protocol-monorepo wiki area.

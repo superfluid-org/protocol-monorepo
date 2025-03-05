@@ -5,7 +5,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     foundry = {
-      url = "github:shazow/foundry.nix/monthly";
+      url = "github:shazow/foundry.nix/stable";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -55,6 +55,7 @@
       # test utilities
       lcov
       actionlint
+      git
     ];
 
     # solidity dev inputs
@@ -107,7 +108,7 @@
       gnuplot
       # yellowpaper pipeline tooling
       ghcPkgs.lhs2tex
-      python39Packages.pygments
+      python312Packages.pygments
       (texlive.combine {
         inherit (texlive)
         scheme-basic metafont

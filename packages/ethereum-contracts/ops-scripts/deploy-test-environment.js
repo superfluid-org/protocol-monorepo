@@ -57,26 +57,32 @@ module.exports = eval(`(${S.toString()})()`)(async function (
     let tokens;
 
     if (args.length >= 1) {
-        tokens = args.pop().split(",");
+        const tokenSymbols = args.pop().split(",");
+        tokens = tokenSymbols.map((symbol) => ({ symbol, decimals: 18}));
     } else {
-        tokens = ["fDAI", "fUSDC", "fTUSD", config.nativeTokenSymbol];
+        tokens = [
+            { symbol: "fDAI", decimals: 18 },
+            { symbol: "fUSDC", decimals: 6 },
+            { symbol: "fTUSD", decimals: 18 },
+            { symbol: "ETH", decimals: 18 }
+        ];
     }
-    console.log("Tokens to be deployed", tokens);
+    console.log("Super Tokens to be deployed", tokens.map((t) => t.symbol + "x"));
 
     console.log("======== Deploying superfluid framework ========");
     await deployFramework(errorHandler, options);
     console.log("==== Superfluid framework deployed  ========");
 
     for (let i = 0; i < tokens.length; ++i) {
-        if (tokens[i] !== deploySuperToken) { // ???
+        if (tokens[i].symbol !==  config.nativeTokenSymbol) {
             console.log(`======== Deploying test token ${tokens[i]} ========`);
-            await deployTestToken(errorHandler, [":", tokens[i]], options);
-            console.log(`======== Test token ${tokens[i]} deployed ========`);
+            await deployTestToken(errorHandler, [":", tokens[i].decimals, tokens[i].symbol], options);
+            console.log(`======== Test token ${tokens[i].symbol} deployed ========`);
         }
 
-        console.log(`======== Creating super token for ${tokens[i]} ========`);
-        await deploySuperToken(errorHandler, [":", tokens[i]], options);
-        console.log(`======== Super token for ${tokens[i]} deployed ========`);
+        console.log(`======== Creating super token for ${tokens[i].symbol} ========`);
+        await deploySuperToken(errorHandler, [":", tokens[i].symbol], options);
+        console.log(`======== Super token for ${tokens[i].symbol} deployed ========`);
     }
 
     if (process.env.RESOLVER_ADDRESS) {

@@ -9,6 +9,8 @@
 
 CONTRACTS_DIR=build/truffle
 
+SOURCIFY_ONLY_NETWORKS=("degenchain")
+
 TRUFFLE_NETWORK=$1
 ADDRESSES_VARS=$2
 
@@ -29,10 +31,16 @@ EXTRA_ARGS="$*"
 # shellcheck disable=SC1090
 source "$ADDRESSES_VARS"
 
+if [[ " ${SOURCIFY_ONLY_NETWORKS[*]} " == *" $TRUFFLE_NETWORK "* ]]; then
+    VERIFIERS="sourcify"
+else
+    VERIFIERS="etherscan,sourcify"
+fi
+
 FAILED_VERIFICATIONS=()
 function try_verify() {
     echo # newline for better readability
-    cmd="npx truffle run --network $TRUFFLE_NETWORK verify $* ${EXTRA_ARGS:+$EXTRA_ARGS}"
+    cmd="npx truffle run --network $TRUFFLE_NETWORK --verifiers=$VERIFIERS verify $* ${EXTRA_ARGS:+$EXTRA_ARGS}"
     echo "> $cmd"
     $cmd || FAILED_VERIFICATIONS[${#FAILED_VERIFICATIONS[@]}]="$*"
         # NOTE: append using length so that having spaces in the element is not a problem
@@ -67,8 +75,11 @@ if [ -n "$RESOLVER" ]; then
     try_verify Resolver@"${RESOLVER}"
 fi
 
-if [ -n "$DMZ_FORWARDER" ]; then
-    try_verify DMZForwarder@"${DMZ_FORWARDER}"
+if [ -n "$ERC2771_FORWARDER" ]; then
+    try_verify ERC2771Forwarder@"${ERC2771_FORWARDER}"
+fi
+if [ -n "$SIMPLE_FORWARDER" ]; then
+    try_verify SimpleForwarder@"${SIMPLE_FORWARDER}"
 fi
 
 if [ -n "$SUPERFLUID_HOST_LOGIC" ]; then
@@ -179,11 +190,9 @@ if [ -n "$SUPER_TOKEN_NATIVE_COIN" ];then
 fi
 
 # testnet tokens
-for var in $(compgen -v); do
-    if [[ $var == NON_SUPER_TOKEN_* ]]; then
-        addr=${!var}
-        try_verify TestToken@"$addr"
-    fi
+for var in "${!NON_SUPER_TOKEN_@}"; do
+    addr=${!var}
+    try_verify TestToken@"$addr"
 done
 
 # optional peripery contracts

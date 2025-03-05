@@ -4,19 +4,14 @@
 pragma solidity >= 0.8.0;
 
 import { TestToken } from "@superfluid-finance/ethereum-contracts/contracts/utils/TestToken.sol";
-import { Superfluid } from "@superfluid-finance/ethereum-contracts/contracts/superfluid/Superfluid.sol";
+import { ISuperfluid, Superfluid } from "@superfluid-finance/ethereum-contracts/contracts/superfluid/Superfluid.sol";
 import { SuperToken } from "@superfluid-finance/ethereum-contracts/contracts/superfluid/SuperToken.sol";
 import {
     ConstantFlowAgreementV1
 } from "@superfluid-finance/ethereum-contracts/contracts/agreements/ConstantFlowAgreementV1.sol";
 import {
-    InstantDistributionAgreementV1
-} from "@superfluid-finance/ethereum-contracts/contracts/agreements/InstantDistributionAgreementV1.sol";
-import {
     SuperfluidFrameworkDeployer
-} from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.sol";
-import "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
-import "@superfluid-finance/ethereum-contracts/contracts/apps/IDAv1Library.sol";
+} from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import {
     SuperTokenV1Library
 } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
@@ -25,7 +20,6 @@ import {
     IERC20,
     ISuperToken,
     IConstantFlowAgreementV1,
-    IInstantDistributionAgreementV1,
     SuperfluidTester
 } from "./SuperfluidTester.sol";
 

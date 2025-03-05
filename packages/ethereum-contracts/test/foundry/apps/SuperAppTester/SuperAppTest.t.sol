@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../../FoundrySuperfluidTester.sol";
+import "../../FoundrySuperfluidTester.t.sol";
 import { ISuperApp, ISuperfluid } from "../../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 
 import { Handler } from "./handlers/Handler.sol";

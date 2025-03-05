@@ -8,7 +8,7 @@ jobs:
   create_pr_artifact:
     name: Create PR Artifact
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:

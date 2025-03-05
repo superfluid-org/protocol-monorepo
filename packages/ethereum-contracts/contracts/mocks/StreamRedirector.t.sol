@@ -2,13 +2,12 @@
 pragma solidity ^0.8.23;
 
 import {
-    ISuperfluid, ISuperToken, SuperAppBase, ISuperApp, SuperAppDefinitions, IConstantFlowAgreementV1, ISuperAgreement
+    ISuperfluid, ISuperToken, SuperAppBase, ISuperApp, SuperAppDefinitions, ISuperAgreement
 } from "../apps/SuperAppBase.sol";
-import { CFAv1Library } from "../apps/CFAv1Library.sol";
+import { SuperTokenV1Library } from "../apps/SuperTokenV1Library.sol";
 
 contract StreamRedirector is SuperAppBase {
-    using CFAv1Library for CFAv1Library.InitData;
-    CFAv1Library.InitData public cfaV1;
+    using SuperTokenV1Library for ISuperToken;
     ISuperfluid public host;
     bytes32 public constant CFA_ID =
         keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1");
@@ -26,11 +25,6 @@ contract StreamRedirector is SuperAppBase {
         assert(address(_host) != address(0));
 
         host = _host;
-
-        cfaV1 = CFAv1Library.InitData(
-            host,
-            IConstantFlowAgreementV1(address(host.getAgreementClass(CFA_ID)))
-        );
 
         uint256 configWord = _appLevel |
             SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP |
@@ -56,10 +50,9 @@ contract StreamRedirector is SuperAppBase {
      * @param _flowRate desired flow rate
      */
     function startStreamToSelf(address _originAccount, int96 _flowRate) public {
-        cfaV1.createFlowByOperator(
+        token.createFlowFrom(
             _originAccount,
             address(this),
-            token,
             _flowRate
         );
     }
@@ -69,7 +62,7 @@ contract StreamRedirector is SuperAppBase {
      * @param _originAccount ACL permissions granter
      */
     function stopStreamToSelf(address _originAccount) public {
-        cfaV1.deleteFlowByOperator(_originAccount, address(this), token);
+        token.deleteFlowFrom(_originAccount, address(this));
     }
 
     /**
@@ -78,7 +71,7 @@ contract StreamRedirector is SuperAppBase {
      * @param _flowRate desired flow rate
      */
     function startStreamToSuperApp(address _superApp, int96 _flowRate) public {
-        cfaV1.createFlow(_superApp, token, _flowRate);
+        token.createFlow(_superApp,_flowRate);
     }
 
     /**
@@ -87,7 +80,7 @@ contract StreamRedirector is SuperAppBase {
      * @param _receiver the receiver super app
      */
     function stopStreamToSuperApp(address _sender, address _receiver) public {
-        cfaV1.deleteFlow(_sender, _receiver, token);
+        token.deleteFlow(_sender, _receiver);
     }
 
     /**
@@ -109,12 +102,10 @@ contract StreamRedirector is SuperAppBase {
         returns (bytes memory newCtx)
     {
         newCtx = _ctx;
-        int96 netFlowRate = cfaV1.cfa.getNetFlow(_superToken, address(this));
-        newCtx = cfaV1.createFlowWithCtx(
-            newCtx,
+        newCtx = _superToken.createFlowWithCtx(
             receiver,
-            _superToken,
-            netFlowRate
+            _superToken.getNetFlowRate(address(this)),
+            newCtx
         );
     }
 
@@ -131,18 +122,13 @@ contract StreamRedirector is SuperAppBase {
         }
 
         newCtx = _ctx;
-        (, int96 currentFlowRate, , ) = cfaV1.cfa.getFlow(
-            _superToken,
-            address(this),
-            receiver
-        );
+        int96 currentFlowRate = _superToken.getFlowRate(address(this), receiver);
 
         if (currentFlowRate > 0) {
-            newCtx = cfaV1.deleteFlowWithCtx(
-                newCtx,
+            newCtx = _superToken.deleteFlowWithCtx(
                 address(this),
                 receiver,
-                _superToken
+                newCtx
             );
         }
     }

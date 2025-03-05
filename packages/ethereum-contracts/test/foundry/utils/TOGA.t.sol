@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import "forge-std/Test.sol";
-import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { TOGA } from "../../../contracts/utils/TOGA.sol";
 import { IERC1820Registry } from "@openzeppelin/contracts/interfaces/IERC1820Registry.sol";

@@ -8,9 +8,9 @@ import { IERC20, ISuperToken, SuperToken, IConstantOutflowNFT, IConstantInflowNF
     from "../../../contracts/superfluid/SuperToken.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
 import { PoolMemberNFT, IPoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
-import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.sol";
+import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol";
 
 contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     constructor() FoundrySuperfluidTester(0) { }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -eu
+set -o pipefail
 
 # Usage:
 # tasks/deploy-macro-forwarder.sh <network>
@@ -23,7 +24,7 @@ source .env
 set -x
 
 network=$1
-expectedContractAddr="0xfD01285b9435bc45C243E5e7F978E288B2912de6"
+expectedContractAddr="0xFD0268E33111565dE546af2675351A4b1587F89F"
 deployerPk=$MACROFWD_DEPLOYER_PK
 
 tmpfile="/tmp/$(basename "$0").addr"
@@ -35,13 +36,18 @@ rm "$tmpfile"
 
 echo "deployed to $contractAddr"
 if [[ $contractAddr != "$expectedContractAddr" ]]; then
-    echo "oh no!"
-    exit
+    echo "contract address not as expected!"
+    if [ -z "$SKIP_ADDRESS_CHECK" ]; then
+        exit
+    fi
 fi
 
 # verify (give it a few seconds to pick up the code)
 sleep 5
+# allow to fail
+set +e
 npx truffle run --network "$network" verify MacroForwarder@"$contractAddr"
+set -e
 
 # set resolver
 ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : MacroForwarder "$contractAddr"

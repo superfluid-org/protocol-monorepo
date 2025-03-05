@@ -49,16 +49,10 @@ Deployment script will deploy all contracts and verify them on Etherscan.
 npx hardhat deploy --network <network>
 ```
 
-
 #### Deployed Contracts
 
-#### Testnets
-|          | FlowScheduler                                                                                                                        | VestingScheduler                                                                                                                     |
-|----------|--------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| OP Sepolia   | [0x73B1Ce21d03ad389C2A291B1d1dc4DAFE7B5Dc68](https://sepolia-optimism.etherscan.io/address/0x73B1Ce21d03ad389C2A291B1d1dc4DAFE7B5Dc68) | [0x27444c0235a4D921F3106475faeba0B5e7ABDD7a](https://sepolia-optimism.etherscan.io/address/0x27444c0235a4D921F3106475faeba0B5e7ABDD7a) |
+Contract addresses can be found in https://explorer.superfluid.finance/protocol, with the data source being `networks.json` in the metadata package.
+All current production deployments are based on the codebase found in version 1.2.0 of the scheduler package.
 
-#### Mainnets
-|         | FlowScheduler                                                                                                                 | VestingScheduler                                                                                                              |
-|---------|-------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
-| Polygon | [0x47D34512492D95A3531A628e5B85e32fAFaC1b42](https://polygonscan.com/address/0x47D34512492D95A3531A628e5B85e32fAFaC1b42#code) | [0xF9B3b4c23d08ebcBb8A70F5C7471E3Edd3ddF210](https://polygonscan.com/address/0xF9B3b4c23d08ebcBb8A70F5C7471E3Edd3ddF210#code) |
-| BSC     | [0x1D65c6d3AD39d454Ea8F682c49aE7744706eA96d](https://bscscan.com/address/0x1D65c6d3AD39d454Ea8F682c49aE7744706eA96d#code)     | [0x4f268bfB109439D7c23A903c237cdBEbd7E987a1](https://bscscan.com/address/0x4f268bfB109439D7c23A903c237cdBEbd7E987a1#code)     |
+In package version 1.3.0 VestingScheduler (v1) was removed, as it's not gonna be used for new production deployments.
+VestingSchedulerV2 and FlowScheduler were modified to use the SuperTokenV1Library instead of the deprecated CFAv1Library.

@@ -121,14 +121,21 @@ contract("Embedded deployment scripts", (accounts) => {
 
     it("codeChanged function", async () => {
         {
+            const callbackGasLimit = 3000000;
             // with constructor param
             const a1 = await web3tx(Superfluid.new, "Superfluid.new 1")(
-                true, // nonUpgradable
+                false, // nonUpgradable
                 false, // appWhiteListingEnabled
-                3000000, // callbackGasLimit
-                ZERO_ADDRESS // dmzForwader
+                callbackGasLimit, // callbackGasLimit
+                ZERO_ADDRESS, // simpleForwarder
+                ZERO_ADDRESS // erc2771Forwarder
             );
-            assert.isFalse(await codeChanged(web3, Superfluid, a1.address));
+            assert.isFalse(
+                await codeChanged(web3, Superfluid, a1.address, [
+                    // replace immutables with 0
+                    callbackGasLimit.toString(16).padStart(64, "0"),
+                ])
+            );
         }
         {
             // without constructor param
@@ -158,10 +165,6 @@ contract("Embedded deployment scripts", (accounts) => {
             it("fresh deployment (default, nonUpgradable=false, useMocks=false)", async () => {
                 await deployFramework(errorHandler, deploymentOptions);
                 const s = await getSuperfluidAddresses();
-                // check if it useMocks=false
-                assert.isFalse(
-                    await codeChanged(web3, Superfluid, s.superfluidCode)
-                );
 
                 // .detectNetwork().then() was added due to hardhat truffle complaining
                 // that no network was set

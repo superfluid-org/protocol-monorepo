@@ -1,5 +1,5 @@
 import { JsonFragment } from "@ethersproject/abi";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 
 import Host from "./Host";
 import Operation, { BatchOperationType } from "./Operation";
@@ -15,6 +15,7 @@ export interface OperationStruct {
     readonly operationType: number;
     readonly target: string;
     readonly data: string;
+    readonly value?: ethers.BigNumber;
 }
 
 export const batchOperationTypeStringToTypeMap = new Map<
@@ -30,6 +31,8 @@ export const batchOperationTypeStringToTypeMap = new Map<
     ["SUPERTOKEN_DOWNGRADE", 102],
     ["SUPERFLUID_CALL_AGREEMENT", 201],
     ["CALL_APP_ACTION", 202],
+    ["SIMPLE_FORWARD_CALL", 301],
+    ["ERC2771_FORWARD_CALL", 302],
 ]);
 
 /**
@@ -89,10 +92,25 @@ export default class BatchCall {
         const operationStructArray = await Promise.all(
             this.getOperationStructArrayPromises
         );
-        const tx =
-            this.host.contract.populateTransaction.batchCall(
-                operationStructArray
-            );
+
+        const values = operationStructArray
+            .filter((x) => x.value?.gt(BigNumber.from(0)))
+            .map((x) => x.value);
+
+        if (values.length > 1) {
+            throw new SFError({
+                type: "BATCH_CALL_ERROR",
+                message:
+                    "There are multiple values in the batch call. The value can only be forwarded to one receiving operation.",
+            });
+        }
+
+        const tx = this.host.contract.populateTransaction.batchCall(
+            operationStructArray,
+            {
+                value: values?.length > 0 ? values[0] : undefined,
+            }
+        );
         return new Operation(tx, "UNSUPPORTED");
     }
 
