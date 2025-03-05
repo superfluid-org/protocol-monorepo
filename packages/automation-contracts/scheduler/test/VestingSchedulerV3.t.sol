@@ -8,6 +8,7 @@ import {
     BatchOperation,
     ISuperApp
 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
+import {IVestingSchedulerV2} from "./../contracts/interface/IVestingSchedulerV2.sol";
 import {IVestingSchedulerV3} from "./../contracts/interface/IVestingSchedulerV3.sol";
 import {VestingSchedulerV3} from "./../contracts/VestingSchedulerV3.sol";
 import {FoundrySuperfluidTester} from
@@ -214,15 +215,13 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         uint32 cliffAndFlowDate = cliffDate == 0 ? startDate : cliffDate;
 
-        expectedSchedule = IVestingSchedulerV3.VestingSchedule({
+        expectedSchedule = IVestingSchedulerV2.VestingSchedule({
             cliffAndFlowDate: cliffAndFlowDate,
             endDate: endDate,
             claimValidityDate: 0,
             flowRate: flowRate,
             cliffAmount: cliffAmount,
-            remainderAmount: 0,
-            alreadyVestedAmount: 0,
-            lastUpdated: 0
+            remainderAmount: 0
         });
     }
 
@@ -256,15 +255,13 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         uint96 remainderAmount = SafeCast.toUint96(totalAmount - SafeCast.toUint256(flowRate) * totalDuration);
 
-        expectedSchedule = IVestingSchedulerV3.VestingSchedule({
+        expectedSchedule = IVestingSchedulerV2.VestingSchedule({
             cliffAndFlowDate: cliffAndFlowDate,
             endDate: endDate,
             flowRate: flowRate,
             cliffAmount: cliffAmount,
             remainderAmount: remainderAmount,
-            claimValidityDate: claimPeriod == 0 ? 0 : startDate + claimPeriod,
-            alreadyVestedAmount: 0,
-            lastUpdated: 0
+            claimValidityDate: claimPeriod == 0 ? 0 : startDate + claimPeriod
         });
     }
 
@@ -314,7 +311,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
     function testCannotCreateVestingScheduleWithWrongData() public {
         vm.startPrank(alice);
         // revert with superToken = 0
-        vm.expectRevert(IVestingSchedulerV3.ZeroAddress.selector);
+        vm.expectRevert(IVestingSchedulerV2.ZeroAddress.selector);
         vestingScheduler.createVestingSchedule(
             ISuperToken(address(0)),
             bob,
@@ -328,67 +325,67 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with receivers = sender
-        vm.expectRevert(IVestingSchedulerV3.AccountInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.AccountInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, alice, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
         );
 
         // revert with receivers = address(0)
-        vm.expectRevert(IVestingSchedulerV3.AccountInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.AccountInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, address(0), START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
         );
 
         // revert with flowRate = 0
-        vm.expectRevert(IVestingSchedulerV3.FlowRateInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.FlowRateInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, START_DATE, CLIFF_DATE, 0, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
         );
 
         // revert with cliffDate = 0 but cliffAmount != 0
-        vm.expectRevert(IVestingSchedulerV3.CliffInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.CliffInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, 0, 0, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
         );
 
         // revert with startDate < block.timestamp && cliffDate = 0
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, uint32(block.timestamp - 1), 0, FLOW_RATE, 0, END_DATE, 0, EMPTY_CTX
         );
 
         // revert with endDate = 0
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, 0, 0, EMPTY_CTX
         );
 
         // revert with cliffAndFlowDate < block.timestamp
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, 0, uint32(block.timestamp) - 1, FLOW_RATE, 0, END_DATE, 0, EMPTY_CTX
         );
 
         // revert with cliffAndFlowDate >= endDate
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, CLIFF_DATE, 0, EMPTY_CTX
         );
 
         // revert with cliffAndFlowDate + startDateValidFor >= endDate - endDateValidBefore
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, CLIFF_DATE, 0, EMPTY_CTX
         );
 
         // revert with startDate > cliffDate
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, CLIFF_DATE + 1, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, 0, EMPTY_CTX
         );
 
         // revert with vesting duration < 7 days
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, CLIFF_DATE + 2 days, 0, EMPTY_CTX
         );
@@ -396,7 +393,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
     function testCannotCreateVestingScheduleIfDataExist() public {
         _createVestingScheduleWithDefaultData(alice, bob);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleAlreadyExists.selector);
+        vm.expectRevert(IVestingSchedulerV2.ScheduleAlreadyExists.selector);
         _createVestingScheduleWithDefaultData(alice, bob);
     }
 
@@ -437,20 +434,20 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(beforeCliffAndFlowDate);
 
         // Schedule update is not allowed if : "the cliff and flow date is in the future"
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE + 1 hours, EMPTY_CTX);
 
         uint256 afterCliffAndFlowDate = CLIFF_DATE + 30 minutes;
         vm.warp(afterCliffAndFlowDate);
 
         // Schedule update is not allowed if : "the new end date is in the past"
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
             superToken, bob, uint32(afterCliffAndFlowDate - 1), EMPTY_CTX
         );
 
         // Schedule update is not allowed if : "the new end date is in right now (block.timestamp)"
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
             superToken, bob, uint32(afterCliffAndFlowDate), EMPTY_CTX
         );
@@ -459,7 +456,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(afterEndDate);
 
         // Schedule update is not allowed if : "the current end date has passed"
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
             superToken, bob, uint32(afterEndDate + 1 hours), EMPTY_CTX
         );
@@ -484,7 +481,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(beforeCliffAndFlowDate);
 
         // Schedule update is not allowed if : "the cliff and flow date is in the future"
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
 
         uint256 afterCliffAndFlowDate = CLIFF_DATE + 30 minutes;
@@ -492,14 +489,14 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Amount is invalid if it is less than the already vested amount
         uint256 invalidNewAmount = CLIFF_TRANSFER_AMOUNT;
-        vm.expectRevert(IVestingSchedulerV3.InvalidUpdate.selector);
+        vm.expectRevert(IVestingSchedulerV3.InvalidNewTotalAmount.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, invalidNewAmount, EMPTY_CTX);
 
         uint256 afterEndDate = END_DATE + 1 hours;
         vm.warp(afterEndDate);
 
         // Schedule update is not allowed if : "the current end date has passed"
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
 
         vm.stopPrank();
@@ -507,11 +504,11 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
     function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
         vm.startPrank(alice);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+        vm.expectRevert(IVestingSchedulerV2.ScheduleDoesNotExist.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE, EMPTY_CTX);
 
         newAmount = bound(newAmount, 1, type(uint256).max);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+        vm.expectRevert(IVestingSchedulerV2.ScheduleDoesNotExist.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
         vm.stopPrank();
     }
@@ -527,7 +524,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
     function testCannotDeleteVestingScheduleIfDataDontExist() public {
         vm.startPrank(alice);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleDoesNotExist.selector);
+        vm.expectRevert(IVestingSchedulerV2.ScheduleDoesNotExist.selector);
         vestingScheduler.deleteVestingSchedule(superToken, bob, EMPTY_CTX);
     }
 
@@ -566,7 +563,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         assertEq(aliceInitialBalance - aliceFinalBalance, aliceShouldStream, "(sender) wrong final balance");
         assertEq(bobFinalBalance, bobInitialBalance + aliceShouldStream, "(receiver) wrong final balance");
 
-        vm.expectRevert(IVestingSchedulerV3.AlreadyExecuted.selector);
+        vm.expectRevert(IVestingSchedulerV2.AlreadyExecuted.selector);
         success = vestingScheduler.executeEndVesting(superToken, alice, bob);
     }
 
@@ -922,7 +919,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.prank(alice);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
         vm.startPrank(admin);
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.executeEndVesting(superToken, alice, bob);
     }
 
@@ -932,7 +929,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.prank(alice);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
         vm.startPrank(admin);
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
     }
 
@@ -1059,7 +1056,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
 
-        vm.expectRevert(IVestingSchedulerV3.FlowRateInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.FlowRateInvalid.selector);
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -1072,7 +1069,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with cliff and start in history.");
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -1111,7 +1108,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with start date in history.");
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -1307,7 +1304,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Intermediary `mapCreateVestingScheduleParams` test
         assertAreScheduleCreationParamsEqual(
-            IVestingSchedulerV3.ScheduleCreationParams(
+            IVestingSchedulerV2.ScheduleCreationParams(
                 superToken,
                 alice,
                 bob,
@@ -1564,7 +1561,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Intermediary `mapCreateVestingScheduleParams` test
         assertAreScheduleCreationParamsEqual(
-            IVestingSchedulerV3.ScheduleCreationParams(
+            IVestingSchedulerV2.ScheduleCreationParams(
                 superToken,
                 alice,
                 bob,
@@ -1603,7 +1600,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.stopPrank();
 
         // Assert
-        IVestingSchedulerV3.VestingSchedule memory actualSchedule =
+        IVestingSchedulerV2.VestingSchedule memory actualSchedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
         assertEq(
             actualSchedule.cliffAndFlowDate,
@@ -1876,7 +1873,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
     function test_createClaimableVestingSchedule_wrongData() public {
         vm.startPrank(alice);
         // revert with superToken = 0
-        vm.expectRevert(IVestingSchedulerV3.ZeroAddress.selector);
+        vm.expectRevert(IVestingSchedulerV2.ZeroAddress.selector);
         vestingScheduler.createVestingSchedule(
             ISuperToken(address(0)),
             bob,
@@ -1890,7 +1887,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with receivers = sender
-        vm.expectRevert(IVestingSchedulerV3.AccountInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.AccountInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken,
             alice,
@@ -1904,7 +1901,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with receivers = address(0)
-        vm.expectRevert(IVestingSchedulerV3.AccountInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.AccountInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken,
             address(0),
@@ -1918,37 +1915,37 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with flowRate = 0
-        vm.expectRevert(IVestingSchedulerV3.FlowRateInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.FlowRateInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, START_DATE, CLIFF_DATE, 0, CLIFF_TRANSFER_AMOUNT, END_DATE, CLAIM_VALIDITY_DATE, EMPTY_CTX
         );
 
         // revert with cliffDate = 0 but cliffAmount != 0
-        vm.expectRevert(IVestingSchedulerV3.CliffInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.CliffInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, 0, 0, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, END_DATE, CLAIM_VALIDITY_DATE, EMPTY_CTX
         );
 
         // revert with startDate < block.timestamp && cliffDate = 0
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, uint32(block.timestamp - 1), 0, FLOW_RATE, 0, END_DATE, CLAIM_VALIDITY_DATE, EMPTY_CTX
         );
 
         // revert with endDate = 0
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, START_DATE, CLIFF_DATE, FLOW_RATE, CLIFF_TRANSFER_AMOUNT, 0, CLAIM_VALIDITY_DATE, EMPTY_CTX
         );
 
         // revert with cliffAndFlowDate < block.timestamp
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken, bob, 0, uint32(block.timestamp) - 1, FLOW_RATE, 0, END_DATE, CLAIM_VALIDITY_DATE, EMPTY_CTX
         );
 
         // revert with cliffAndFlowDate >= endDate
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken,
             bob,
@@ -1962,7 +1959,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with cliffAndFlowDate + startDateValidFor >= endDate - endDateValidBefore
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken,
             bob,
@@ -1976,7 +1973,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with startDate > cliffDate
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken,
             bob,
@@ -1990,7 +1987,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with vesting duration < 7 days
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken,
             bob,
@@ -2004,7 +2001,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         // revert with invalid claim validity date (before schedule/cliff start)
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingSchedule(
             superToken,
             bob,
@@ -2033,7 +2030,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
         vm.stopPrank();
 
-        vm.expectRevert(IVestingSchedulerV3.ScheduleAlreadyExists.selector);
+        vm.expectRevert(IVestingSchedulerV2.ScheduleAlreadyExists.selector);
 
         vm.startPrank(alice);
         vestingScheduler.createVestingSchedule(
@@ -2217,7 +2214,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
         superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
 
-        vm.expectRevert(IVestingSchedulerV3.FlowRateInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.FlowRateInvalid.selector);
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -2230,7 +2227,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with cliff and start in history.");
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -2269,7 +2266,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with start date in history.");
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -2464,7 +2461,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         uint256 initialTimestamp = block.timestamp + 10 days + 1800;
         vm.warp(initialTimestamp);
         vm.prank(_claimer);
-        vm.expectRevert(IVestingSchedulerV3.CannotClaimScheduleOnBehalf.selector);
+        vm.expectRevert(IVestingSchedulerV2.CannotClaimScheduleOnBehalf.selector);
         bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         assertEq(success, false);
     }
@@ -2478,7 +2475,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(startTimestamp - 1);
 
         vm.prank(bob);
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         assertEq(success, false);
     }
@@ -2491,7 +2488,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         vm.warp(CLAIM_VALIDITY_DATE + 1);
         vm.prank(bob);
-        vm.expectRevert(IVestingSchedulerV3.TimeWindowInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
         bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         assertEq(success, false);
     }
@@ -2506,7 +2503,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.startPrank(bob);
         bool success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         assertEq(success, true);
-        vm.expectRevert(IVestingSchedulerV3.AlreadyExecuted.selector);
+        vm.expectRevert(IVestingSchedulerV2.AlreadyExecuted.selector);
         success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         assertEq(success, false);
         vm.stopPrank();
@@ -2597,7 +2594,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
     function test_executeEndVesting_scheduleNotClaimed() public {
         _createClaimableVestingScheduleWithDefaultData(alice, bob);
-        vm.expectRevert(IVestingSchedulerV3.ScheduleNotClaimed.selector);
+        vm.expectRevert(IVestingSchedulerV2.ScheduleNotClaimed.selector);
         vestingScheduler.executeEndVesting(superToken, alice, bob);
     }
 
@@ -2698,7 +2695,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
     }
 
     function test_getSender_throws_when_invalid_host() public {
-        vm.expectRevert(IVestingSchedulerV3.HostInvalid.selector);
+        vm.expectRevert(IVestingSchedulerV2.HostInvalid.selector);
 
         vm.startPrank(alice);
         vestingScheduler.createVestingSchedule(
@@ -2782,7 +2779,11 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Verify the flow rate has been updated
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
         uint256 remainingMonths = 4;
-        uint256 remainingAmount = secondUpdateAmount - schedule.alreadyVestedAmount;
+
+        (uint256 alreadyVestedAmount,) =
+            vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
+
+        uint256 remainingAmount = secondUpdateAmount - alreadyVestedAmount;
         int96 expectedFlowRate =
             SafeCast.toInt96(SafeCast.toInt256(remainingAmount / (schedule.endDate - block.timestamp)));
         assertEq(schedule.flowRate, expectedFlowRate, "Flow rate should be updated for 300 USDC/month");
@@ -2796,9 +2797,11 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Verify the flow rate has been updated again
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
 
+        (alreadyVestedAmount,) = vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
+
         // Calculate new flow rate for remaining 3 months
         remainingMonths = 3;
-        remainingAmount = 1100 ether - schedule.alreadyVestedAmount;
+        remainingAmount = 1100 ether - alreadyVestedAmount;
         expectedFlowRate = SafeCast.toInt96(SafeCast.toInt256(remainingAmount / (schedule.endDate - block.timestamp)));
         assertEq(schedule.flowRate, expectedFlowRate, "Flow rate should be updated for 200 USDC/month");
 
@@ -2889,11 +2892,12 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Get the updated schedule
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
 
+        (uint256 alreadyVestedAmount,) =
+            vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
+
         // Calculate expected flow rate after update
         int96 expectedFlowRate = SafeCast.toInt96(
-            SafeCast.toInt256(
-                (updatedTotalAmount - schedule.alreadyVestedAmount) / (schedule.endDate - block.timestamp)
-            )
+            SafeCast.toInt256((updatedTotalAmount - alreadyVestedAmount) / (schedule.endDate - block.timestamp))
         );
 
         // Verify the flow rate has been updated correctly
@@ -2943,10 +2947,12 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Warp to third month (90 days total)
         vm.warp(startDate + 90 days);
 
+        (alreadyVestedAmount,) = vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
+
         // Calculate expected amount after third month
         // First two months + third month at reduced rate
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
-        uint256 thirdMonthAmount = (1100 ether - schedule.alreadyVestedAmount) / 3; // ~200 USDC/month
+        uint256 thirdMonthAmount = (1100 ether - alreadyVestedAmount) / 3; // ~200 USDC/month
 
         // Verify Bob's balance after third month
         assertApproxEqAbs(
@@ -3049,5 +3055,13 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
         assertEq(schedule.endDate, newEndDate);
+    }
+
+    function _helperGetScheduleId(address superToken, address sender, address receiver)
+        private
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encodePacked(superToken, sender, receiver));
     }
 }
