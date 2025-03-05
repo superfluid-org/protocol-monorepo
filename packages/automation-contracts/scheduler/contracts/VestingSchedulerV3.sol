@@ -19,6 +19,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
 
     ISuperfluid public immutable HOST;
     mapping(bytes32 => VestingSchedule) public vestingSchedules; // id = keccak(supertoken, sender, receiver)
+    mapping(bytes32 => ScheduleAccounting) public accountings;
 
     uint32 public constant MIN_VESTING_DURATION = 7 days;
     uint32 public constant START_DATE_VALID_AFTER = 3 days;
@@ -30,6 +31,12 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         address receiver;
         bytes32 id;
         VestingSchedule schedule;
+        ScheduleAccounting accounting;
+    }
+
+    struct ScheduleAccounting {
+        uint256 alreadyVestedAmount;
+        uint256 lastUpdated;
     }
 
     constructor(ISuperfluid host) {
@@ -265,9 +272,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             flowRate: params.flowRate,
             cliffAmount: params.cliffAmount,
             remainderAmount: params.remainderAmount,
-            claimValidityDate: params.claimValidityDate,
-            alreadyVestedAmount: 0,
-            lastUpdated: 0
+            claimValidityDate: params.claimValidityDate
         });
 
         emit VestingScheduleCreated(
@@ -340,29 +345,28 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
     }
 
     function _settle(ScheduleAggregate memory agg) internal returns (uint256 alreadyVestedAmount) {
-        VestingSchedule memory schedule = agg.schedule;
-
         // Ensure that the cliff and flow date has passed
-        assert(block.timestamp >= schedule.cliffAndFlowDate);
+        assert(block.timestamp >= agg.schedule.cliffAndFlowDate);
 
         // Delete the cliff amount and account for it in the already vested amount
         delete vestingSchedules[agg.id].cliffAmount;
 
         // Update the timestamp of the last schedule update
-        vestingSchedules[agg.id].lastUpdated = block.timestamp;
+        accountings[agg.id].lastUpdated = block.timestamp;
 
-        if (block.timestamp > schedule.endDate) {
+        if (block.timestamp > agg.schedule.endDate) {
             // If the schedule end date has passed, settle the total amount vested
-            vestingSchedules[agg.id].alreadyVestedAmount = _getTotalVestedAmount(schedule);
+            accountings[agg.id].alreadyVestedAmount = _getTotalVestedAmount(agg.schedule, agg.accounting);
         } else {
             // If the schedule end date has not passed, accrue the amount already vested
-            uint256 actualLastUpdate = schedule.lastUpdated == 0 ? schedule.cliffAndFlowDate : schedule.lastUpdated;
+            uint256 actualLastUpdate =
+                agg.accounting.lastUpdated == 0 ? agg.schedule.cliffAndFlowDate : agg.accounting.lastUpdated;
 
             // Accrue the amount already vested
-            vestingSchedules[agg.id].alreadyVestedAmount +=
-                ((block.timestamp - actualLastUpdate) * uint96(schedule.flowRate)) + schedule.cliffAmount;
+            accountings[agg.id].alreadyVestedAmount +=
+                ((block.timestamp - actualLastUpdate) * uint96(agg.schedule.flowRate)) + agg.schedule.cliffAmount;
         }
-        alreadyVestedAmount = vestingSchedules[agg.id].alreadyVestedAmount;
+        alreadyVestedAmount = accountings[agg.id].alreadyVestedAmount;
     }
 
     function _updateFlowRateAndRemainderAmount(
@@ -408,7 +412,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         uint256 alreadyVestedAmount = _settle(agg);
 
         // Ensure that the new total amount is larger than the amount already vested
-        if (newTotalAmount <= alreadyVestedAmount) revert InvalidUpdate();
+        if (newTotalAmount <= alreadyVestedAmount) revert InvalidNewTotalAmount();
 
         uint256 amountLeftToVest = newTotalAmount - alreadyVestedAmount;
         uint256 timeLeftToVest = schedule.endDate - block.timestamp;
@@ -437,7 +441,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             receiver,
             schedule.flowRate,
             vestingSchedules[agg.id].flowRate,
-            _getTotalVestedAmount(schedule),
+            _getTotalVestedAmount(schedule, agg.accounting),
             newTotalAmount,
             vestingSchedules[agg.id].remainderAmount
         );
@@ -472,7 +476,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         // Update the schedule end date
         vestingSchedules[agg.id].endDate = endDate;
 
-        uint256 amountLeftToVest = _getTotalVestedAmount(schedule) - _settle(agg);
+        uint256 amountLeftToVest = _getTotalVestedAmount(schedule, agg.accounting) - _settle(agg);
         uint256 timeLeftToVest = endDate - block.timestamp;
 
         // Update the vesting flow rate and remainder amount
@@ -505,6 +509,37 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         );
     }
 
+    /// @dev IVestingScheduler.updateVestingSchedule implementation.
+    function updateVestingSchedule(ISuperToken superToken, address receiver, uint32 endDate, bytes memory ctx)
+        external
+        returns (bytes memory newCtx)
+    {
+        newCtx = ctx;
+        address sender = _getSender(ctx);
+        ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
+        VestingSchedule memory schedule = agg.schedule;
+
+        if (endDate <= block.timestamp) revert TimeWindowInvalid();
+
+        // Note: Claimable schedules that have not been claimed cannot be updated
+
+        // Only allow an update if 1. vesting exists 2. executeCliffAndFlow() has been called
+        if (schedule.cliffAndFlowDate != 0 || schedule.endDate == 0) revert ScheduleNotFlowing();
+
+        vestingSchedules[agg.id].endDate = endDate;
+        // Note: Nullify the remainder amount when complexity of updates is introduced.
+        vestingSchedules[agg.id].remainderAmount = 0;
+
+        emit VestingScheduleUpdated(
+            superToken,
+            sender,
+            receiver,
+            schedule.endDate,
+            endDate,
+            0 // remainderAmount
+        );
+    }
+
     /// @dev IVestingScheduler.deleteVestingSchedule implementation.
     function deleteVestingSchedule(ISuperToken superToken, address receiver, bytes memory ctx)
         external
@@ -516,7 +551,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         VestingSchedule memory schedule = agg.schedule;
 
         if (schedule.endDate != 0) {
-            delete vestingSchedules[agg.id];
+            _deleteVestingSchedule(agg.id);
             emit VestingScheduleDeleted(superToken, sender, receiver);
         } else {
             revert ScheduleDoesNotExist();
@@ -623,10 +658,11 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
 
     function _executeVestingAsSingleTransfer(ScheduleAggregate memory agg) private returns (bool success) {
         VestingSchedule memory schedule = agg.schedule;
+        ScheduleAccounting memory accounting = agg.accounting;
 
-        delete vestingSchedules[agg.id];
+        _deleteVestingSchedule(agg.id);
 
-        uint256 totalVestedAmount = _getTotalVestedAmount(schedule);
+        uint256 totalVestedAmount = _getTotalVestedAmount(schedule, accounting);
 
         // Note: Super Tokens revert, not return false, i.e. we expect always true here.
         assert(agg.superToken.transferFrom(agg.sender, agg.receiver, totalVestedAmount));
@@ -653,14 +689,18 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         return true;
     }
 
-    function _getTotalVestedAmount(VestingSchedule memory schedule) private pure returns (uint256 totalVestedAmount) {
-        uint256 actualLastUpdate = schedule.lastUpdated == 0 ? schedule.cliffAndFlowDate : schedule.lastUpdated;
+    function _getTotalVestedAmount(VestingSchedule memory schedule, ScheduleAccounting memory accounting)
+        private
+        pure
+        returns (uint256 totalVestedAmount)
+    {
+        uint256 actualLastUpdate = accounting.lastUpdated == 0 ? schedule.cliffAndFlowDate : accounting.lastUpdated;
 
         uint256 currentFlowDuration = schedule.endDate - actualLastUpdate;
         uint256 currentFlowAmount = currentFlowDuration * SafeCast.toUint256(schedule.flowRate);
 
         totalVestedAmount =
-            schedule.alreadyVestedAmount + schedule.cliffAmount + schedule.remainderAmount + currentFlowAmount;
+            accounting.alreadyVestedAmount + schedule.cliffAmount + schedule.remainderAmount + currentFlowAmount;
     }
 
     /// @dev IVestingScheduler.executeEndVesting implementation.
@@ -670,14 +710,15 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
     {
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
         VestingSchedule memory schedule = agg.schedule;
+        ScheduleAccounting memory accounting = agg.accounting;
 
         _validateBeforeEndVesting(schedule, /* disableClaimCheck: */ false);
 
         uint256 alreadyVestedAmount = _settle(agg);
-        uint256 totalVestedAmount = _getTotalVestedAmount(schedule);
+        uint256 totalVestedAmount = _getTotalVestedAmount(schedule, accounting);
 
         // Invalidate configuration straight away -- avoid any chance of re-execution or re-entry.
-        delete vestingSchedules[agg.id];
+        _deleteVestingSchedule(agg.id);
 
         // If vesting is not running, we can't do anything, just emit failing event.
         if (_isFlowOngoing(superToken, sender, receiver)) {
@@ -745,7 +786,8 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             sender: sender,
             receiver: receiver,
             id: id,
-            schedule: vestingSchedules[id]
+            schedule: vestingSchedules[id],
+            accounting: accountings[id]
         });
     }
 
@@ -757,8 +799,11 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         return startDate;
     }
 
-    /// @dev IVestingScheduler.getMaximumNeededTokenAllowance implementation.
-    function getMaximumNeededTokenAllowance(VestingSchedule memory schedule) external pure override returns (uint256) {
+    function _getMaximumNeededTokenAllowance(VestingSchedule memory schedule, ScheduleAccounting memory accounting)
+        internal
+        pure
+        returns (uint256)
+    {
         uint256 maxFlowDelayCompensationAmount =
             schedule.cliffAndFlowDate == 0 ? 0 : START_DATE_VALID_AFTER * SafeCast.toUint256(schedule.flowRate);
         uint256 maxEarlyEndCompensationAmount =
@@ -768,12 +813,27 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             return schedule.cliffAmount + schedule.remainderAmount + maxFlowDelayCompensationAmount
                 + maxEarlyEndCompensationAmount;
         } else if (schedule.claimValidityDate >= _gteDateToExecuteEndVesting(schedule)) {
-            return _getTotalVestedAmount(schedule);
+            return _getTotalVestedAmount(schedule, accounting);
         } else {
             return schedule.cliffAmount + schedule.remainderAmount
                 + (schedule.claimValidityDate - schedule.cliffAndFlowDate) * SafeCast.toUint256(schedule.flowRate)
                 + maxEarlyEndCompensationAmount;
         }
+    }
+
+    /// @dev IVestingScheduler.getMaximumNeededTokenAllowance implementation
+    function getMaximumNeededTokenAllowance(VestingSchedule memory schedule) external pure returns (uint256) {
+        return _getMaximumNeededTokenAllowance(schedule, ScheduleAccounting({alreadyVestedAmount: 0, lastUpdated: 0}));
+    }
+
+    function getMaximumNeededTokenAllowance(ISuperToken superToken, address sender, address receiver)
+        external
+        view
+        returns (uint256)
+    {
+        ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
+
+        return _getMaximumNeededTokenAllowance(agg.schedule, agg.accounting);
     }
 
     /// @dev get sender of transaction from Superfluid Context or transaction itself.
@@ -795,6 +855,11 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
 
     function _getId(address superToken, address sender, address receiver) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(superToken, sender, receiver));
+    }
+
+    function _deleteVestingSchedule(bytes32 id) internal {
+        delete vestingSchedules[id];
+        delete accountings[id];
     }
 
     /// @dev IRelayRecipient.isTrustedForwarder implementation
