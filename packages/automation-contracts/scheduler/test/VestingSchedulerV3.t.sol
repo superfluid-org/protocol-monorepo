@@ -14,7 +14,6 @@ import {VestingSchedulerV3} from "./../contracts/VestingSchedulerV3.sol";
 import {FoundrySuperfluidTester} from
     "@superfluid-finance/ethereum-contracts/test/foundry/FoundrySuperfluidTester.t.sol";
 import {SuperTokenV1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "forge-std/console.sol";
 
@@ -511,6 +510,29 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.expectRevert(IVestingSchedulerV2.ScheduleDoesNotExist.selector);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
         vm.stopPrank();
+    }
+
+    function testUpdateVestingSchedule() public {
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
+        vm.expectEmit(true, true, true, true);
+        emit VestingScheduleCreated(
+            superToken, alice, bob, START_DATE, CLIFF_DATE, FLOW_RATE, END_DATE, CLIFF_TRANSFER_AMOUNT, 0, 0
+        );
+        _createVestingScheduleWithDefaultData(alice, bob);
+        vm.prank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+        vm.startPrank(admin);
+        uint256 initialTimestamp = block.timestamp + 10 days + 1800;
+        vm.warp(initialTimestamp);
+        vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        vm.stopPrank();
+        vm.startPrank(alice);
+        vestingScheduler.updateVestingSchedule(superToken, bob, END_DATE + 1000, EMPTY_CTX);
+        //assert storage data
+        IVestingSchedulerV2.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+        assertTrue(schedule.cliffAndFlowDate == 0, "schedule.cliffAndFlowDate");
+        assertTrue(schedule.endDate == END_DATE + 1000, "schedule.endDate");
     }
 
     function testDeleteVestingSchedule() public {
