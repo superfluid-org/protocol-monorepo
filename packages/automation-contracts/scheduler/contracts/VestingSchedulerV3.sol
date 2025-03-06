@@ -369,19 +369,36 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         alreadyVestedAmount = accountings[agg.id].alreadyVestedAmount;
     }
 
-    function _updateFlowRateAndRemainderAmount(
-        ScheduleAggregate memory agg,
-        uint256 amountLeftToVest,
-        uint256 timeLeftToVest
-    ) internal {
-        // Calculate the new flow rate and remainder amount
-        int96 newFlowRate = SafeCast.toInt96(SafeCast.toInt256(amountLeftToVest) / SafeCast.toInt256(timeLeftToVest));
-        uint96 newRemainderAmount =
-            SafeCast.toUint96(amountLeftToVest - (SafeCast.toUint256(newFlowRate) * timeLeftToVest));
+    function _calculateFlowRate(uint256 amountLeftToVest, uint256 timeLeftToVest)
+        internal
+        pure
+        returns (int96 flowRate)
+    {
+        // Calculate the new flow rate
+        flowRate = SafeCast.toInt96(SafeCast.toInt256(amountLeftToVest) / SafeCast.toInt256(timeLeftToVest));
+    }
 
-        // Update the flow rate and remainder amount
-        vestingSchedules[agg.id].flowRate = newFlowRate;
-        vestingSchedules[agg.id].remainderAmount = newRemainderAmount;
+    function _calculateRemainderAmount(uint256 amountLeftToVest, uint256 timeLeftToVest, int96 flowRate)
+        internal
+        pure
+        returns (uint96 remainderAmount)
+    {
+        // Calculate the remainder amount
+        remainderAmount = SafeCast.toUint96(amountLeftToVest - (SafeCast.toUint256(flowRate) * timeLeftToVest));
+    }
+
+    function _updateVestingFlowRate(
+        ISuperToken superToken,
+        address sender,
+        address receiver,
+        int96 newFlowRate,
+        bytes memory ctx
+    ) internal returns (bytes memory newCtx) {
+        if (ctx.length != 0) {
+            newCtx = superToken.flowFromWithCtx(sender, receiver, newFlowRate, ctx);
+        } else {
+            superToken.flowFrom(sender, receiver, newFlowRate);
+        }
     }
 
     /// @dev IVestingScheduler.updateVestingScheduleFlowRateFromAmount implementation.
@@ -394,17 +411,16 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         newCtx = ctx;
         address sender = _getSender(ctx);
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
-        VestingSchedule memory schedule = agg.schedule;
 
         // Ensure vesting exists
-        if (schedule.endDate == 0) revert ScheduleDoesNotExist();
+        if (agg.schedule.endDate == 0) revert ScheduleDoesNotExist();
 
         /*
         Schedule update is not allowed if :
             - the schedule end date has passed
             - the cliff and flow date is in the future
         */
-        if (schedule.endDate <= block.timestamp || block.timestamp < schedule.cliffAndFlowDate) {
+        if (agg.schedule.endDate <= block.timestamp || block.timestamp < agg.schedule.cliffAndFlowDate) {
             revert TimeWindowInvalid();
         }
 
@@ -415,23 +431,28 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         if (newTotalAmount <= alreadyVestedAmount) revert InvalidNewTotalAmount();
 
         uint256 amountLeftToVest = newTotalAmount - alreadyVestedAmount;
-        uint256 timeLeftToVest = schedule.endDate - block.timestamp;
+        uint256 timeLeftToVest = agg.schedule.endDate - block.timestamp;
+
+        int96 newFlowRate = _calculateFlowRate(amountLeftToVest, timeLeftToVest);
 
         // Update the vesting flow rate and remainder amount
-        _updateFlowRateAndRemainderAmount(agg, amountLeftToVest, timeLeftToVest);
+        vestingSchedules[agg.id].flowRate = newFlowRate;
+        vestingSchedules[agg.id].remainderAmount =
+            _calculateRemainderAmount(amountLeftToVest, timeLeftToVest, newFlowRate);
 
         // If the schedule is started, update the existing flow rate to the new calculated flow rate
-        if (schedule.cliffAndFlowDate == 0) {
-            if (newCtx.length != 0) {
-                newCtx = superToken.flowFromWithCtx(sender, receiver, vestingSchedules[agg.id].flowRate, newCtx);
-            } else {
-                superToken.flowFrom(sender, receiver, vestingSchedules[agg.id].flowRate);
-            }
+        if (agg.schedule.cliffAndFlowDate == 0) {
+            newCtx = _updateVestingFlowRate(superToken, sender, receiver, newFlowRate, newCtx);
         }
 
         // Emit VestingSchedulerV2 event for backward compatibility
         emit VestingScheduleUpdated(
-            superToken, sender, receiver, schedule.endDate, schedule.endDate, vestingSchedules[agg.id].remainderAmount
+            superToken,
+            sender,
+            receiver,
+            agg.schedule.endDate,
+            agg.schedule.endDate,
+            vestingSchedules[agg.id].remainderAmount
         );
 
         // Emit VestingSchedulerV3 event for additional data
@@ -439,9 +460,9 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             superToken,
             sender,
             receiver,
-            schedule.flowRate,
-            vestingSchedules[agg.id].flowRate,
-            _getTotalVestedAmount(schedule, agg.accounting),
+            agg.schedule.flowRate,
+            newFlowRate,
+            _getTotalVestedAmount(agg.schedule, agg.accounting),
             newTotalAmount,
             vestingSchedules[agg.id].remainderAmount
         );
@@ -457,10 +478,9 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         newCtx = ctx;
         address sender = _getSender(ctx);
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
-        VestingSchedule memory schedule = agg.schedule;
 
         // Ensure vesting exists
-        if (schedule.endDate == 0) revert ScheduleDoesNotExist();
+        if (agg.schedule.endDate == 0) revert ScheduleDoesNotExist();
 
         /*
         Schedule update is not allowed if :
@@ -469,31 +489,31 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             - the cliff and flow date is in the future
         */
         if (
-            schedule.endDate <= block.timestamp || endDate <= block.timestamp
-                || block.timestamp < schedule.cliffAndFlowDate
+            agg.schedule.endDate <= block.timestamp || endDate <= block.timestamp
+                || block.timestamp < agg.schedule.cliffAndFlowDate
         ) revert TimeWindowInvalid();
 
         // Update the schedule end date
         vestingSchedules[agg.id].endDate = endDate;
 
-        uint256 amountLeftToVest = _getTotalVestedAmount(schedule, agg.accounting) - _settle(agg);
+        uint256 amountLeftToVest = _getTotalVestedAmount(agg.schedule, agg.accounting) - _settle(agg);
         uint256 timeLeftToVest = endDate - block.timestamp;
 
+        int96 newFlowRate = _calculateFlowRate(amountLeftToVest, timeLeftToVest);
+
         // Update the vesting flow rate and remainder amount
-        _updateFlowRateAndRemainderAmount(agg, amountLeftToVest, timeLeftToVest);
+        vestingSchedules[agg.id].flowRate = newFlowRate;
+        vestingSchedules[agg.id].remainderAmount =
+            _calculateRemainderAmount(amountLeftToVest, timeLeftToVest, newFlowRate);
 
         // If the schedule is started, update the existing flow rate to the new calculated flow rate
-        if (schedule.cliffAndFlowDate == 0) {
-            if (newCtx.length != 0) {
-                newCtx = superToken.flowFromWithCtx(sender, receiver, vestingSchedules[agg.id].flowRate, newCtx);
-            } else {
-                superToken.flowFrom(sender, receiver, vestingSchedules[agg.id].flowRate);
-            }
+        if (agg.schedule.cliffAndFlowDate == 0) {
+            newCtx = _updateVestingFlowRate(superToken, sender, receiver, newFlowRate, newCtx);
         }
 
         // Emit VestingSchedulerV2 event for backward compatibility
         emit VestingScheduleUpdated(
-            superToken, sender, receiver, schedule.endDate, endDate, vestingSchedules[agg.id].remainderAmount
+            superToken, sender, receiver, agg.schedule.endDate, endDate, vestingSchedules[agg.id].remainderAmount
         );
 
         // Emit VestingSchedulerV3 event for additional data
@@ -501,10 +521,10 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             superToken,
             sender,
             receiver,
-            schedule.endDate,
+            agg.schedule.endDate,
             endDate,
-            schedule.flowRate,
-            vestingSchedules[agg.id].flowRate,
+            agg.schedule.flowRate,
+            newFlowRate,
             vestingSchedules[agg.id].remainderAmount
         );
     }
@@ -519,7 +539,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
         VestingSchedule memory schedule = agg.schedule;
 
-        if (endDate <= block.timestamp) revert TimeWindowInvalid();
+        if (endDate < block.timestamp) revert TimeWindowInvalid();
 
         // Note: Claimable schedules that have not been claimed cannot be updated
 
@@ -527,18 +547,20 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         if (schedule.cliffAndFlowDate != 0 || schedule.endDate == 0) revert ScheduleNotFlowing();
 
         vestingSchedules[agg.id].endDate = endDate;
-        // Note: Nullify the remainder amount when complexity of updates is introduced.
-        vestingSchedules[agg.id].remainderAmount = 0;
 
-        emit VestingScheduleUpdated(
-            superToken,
-            sender,
-            receiver,
-            schedule.endDate,
-            endDate,
-            0 // remainderAmount
-        );
+        uint256 amountLeftToVest = _getTotalVestedAmount(vestingSchedules[agg.id], agg.accounting) - _settle(agg);
+        uint256 timeLeftToVest = endDate - block.timestamp;
+
+        emit DEBUG(amountLeftToVest, timeLeftToVest, schedule.flowRate);
+
+        uint96 newRemainderAmount = _calculateRemainderAmount(amountLeftToVest, timeLeftToVest, schedule.flowRate);
+        // Update the vesting remainder amount
+        vestingSchedules[agg.id].remainderAmount = newRemainderAmount;
+
+        emit VestingScheduleUpdated(superToken, sender, receiver, schedule.endDate, endDate, newRemainderAmount);
     }
+
+    event DEBUG(uint256 amountLeftToVest, uint256 timeLeftToVest, int96 flowRate);
 
     /// @dev IVestingScheduler.deleteVestingSchedule implementation.
     function deleteVestingSchedule(ISuperToken superToken, address receiver, bytes memory ctx)
