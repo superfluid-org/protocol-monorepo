@@ -1505,7 +1505,6 @@ export function updateAggregateEntitiesTransferData(
     tokenStatistic.save();
 }
 
-
 export function particleRTB(
     perUnitSettledValue: BigInt,
     perUnitFlowRate: BigInt,

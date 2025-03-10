@@ -242,6 +242,7 @@ export function handleFlowDistributionUpdated(
     // @note that we are duplicating update of updatedAtTimestamp/BlockNumber here
     // in the two functions
     pool = updatePoolParticleAndTotalAmountFlowedAndDistributed(event, pool);
+    const previousTotalAmountDistributed = pool.totalAmountDistributedUntilUpdatedAt;
 
     pool.flowRate = event.params.newTotalDistributionFlowRate;
     pool.perUnitFlowRate = divideOrZero(pool.flowRate, pool.totalUnits);
@@ -260,9 +261,17 @@ export function handleFlowDistributionUpdated(
         event.params.newDistributorToPoolFlowRate.equals(BIG_INT_ZERO);
 
     // Update Token Statistics
+    const tokenStatistic = getOrInitTokenStatistic(
+        event.params.token,
+        event.block
+    );
+    if (previousTotalAmountDistributed.equals(BIG_INT_ZERO) && pool.totalAmountDistributedUntilUpdatedAt.gt(BIG_INT_ZERO)) {
+        tokenStatistic.totalNumberOfActivePools = tokenStatistic.totalNumberOfActivePools + 1;
+    }
+    tokenStatistic.save();
+
     const eventName = "FlowDistributionUpdated";
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
     updateTokenStatisticStreamData(
         event.params.token,
         event.params.newDistributorToPoolFlowRate,
@@ -330,6 +339,7 @@ export function handleInstantDistributionUpdated(
 
     // Update Pool
     let pool = getOrInitPool(event, event.params.pool.toHex());
+    const previousTotalAmountDistributed = pool.totalAmountDistributedUntilUpdatedAt;
 
     // @note that we are duplicating update of updatedAtTimestamp/BlockNumber here
     // in the two functions
@@ -338,9 +348,7 @@ export function handleInstantDistributionUpdated(
     // @note a speculations on what needs to be done
     const perUnitSettledValueDelta = divideOrZero(event.params.actualAmount, pool.totalUnits);
     pool.perUnitSettledValue = pool.perUnitSettledValue.plus(perUnitSettledValueDelta);
-
-    const previousTotalAmountDistributed =
-        pool.totalAmountDistributedUntilUpdatedAt;
+        
     pool.totalAmountInstantlyDistributedUntilUpdatedAt =
         pool.totalAmountInstantlyDistributedUntilUpdatedAt.plus(
             event.params.actualAmount
@@ -356,12 +364,9 @@ export function handleInstantDistributionUpdated(
         event.params.token,
         event.block
     );
-
-    if (previousTotalAmountDistributed.equals(BIG_INT_ZERO)) {
-        tokenStatistic.totalNumberOfActivePools =
-            tokenStatistic.totalNumberOfActivePools + 1;
+    if (previousTotalAmountDistributed.equals(BIG_INT_ZERO) && pool.totalAmountDistributedUntilUpdatedAt.gt(BIG_INT_ZERO)) {
+        tokenStatistic.totalNumberOfActivePools = tokenStatistic.totalNumberOfActivePools + 1;
     }
-
     tokenStatistic.totalAmountDistributedUntilUpdatedAt =
         tokenStatistic.totalAmountDistributedUntilUpdatedAt.plus(
             event.params.actualAmount
