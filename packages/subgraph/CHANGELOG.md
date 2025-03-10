@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - Fix `adjustmentFlowRate` on Pool
+- Improve `poolTotalAmountReceivedUntilUpdatedAt` accuracy on PoolMember
 - Fix `poolTotalAmountDistributedUntilUpdatedAt` on PoolMember
 - Fix `totalNumberOfActivePools` on TokenStatistics
 - Fix `totalSubscriptionsWithUnits` on TokenStatistics
