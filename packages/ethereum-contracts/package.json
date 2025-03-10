@@ -6,6 +6,7 @@
         "@decentral.ee/web3-helpers": "0.5.3",
         "@nomiclabs/hardhat-ethers": "2.2.3",
         "@openzeppelin/contracts": "4.9.6",
+        "@openzeppelin/contracts-v5": "npm:@openzeppelin/contracts@5.2.0",
         "@truffle/contract": "4.6.31",
         "ethereumjs-tx": "2.1.2",
         "ethereumjs-util": "7.1.5",
