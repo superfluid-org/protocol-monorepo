@@ -235,15 +235,20 @@ export function handleFlowDistributionUpdated(
     poolDistributor.flowRate = event.params.newDistributorToPoolFlowRate;
     poolDistributor.save();
 
+    
     // Update Pool
     let pool = getOrInitPool(event, event.params.pool.toHex());
 
     // @note that we are duplicating update of updatedAtTimestamp/BlockNumber here
     // in the two functions
     pool = updatePoolParticleAndTotalAmountFlowedAndDistributed(event, pool);
-    pool.perUnitFlowRate = divideOrZero(event.params.newDistributorToPoolFlowRate, pool.totalUnits);
+
     pool.flowRate = event.params.newTotalDistributionFlowRate;
-    pool.adjustmentFlowRate = event.params.adjustmentFlowRate;
+    pool.perUnitFlowRate = divideOrZero(pool.flowRate, pool.totalUnits);
+
+    const newEffectivePoolFlowRate = pool.perUnitFlowRate.times(pool.totalUnits);
+    pool.adjustmentFlowRate = pool.flowRate.minus(newEffectivePoolFlowRate);
+
     pool.save();
 
     const flowRateDelta = event.params.newDistributorToPoolFlowRate.minus(
@@ -329,8 +334,11 @@ export function handleInstantDistributionUpdated(
     // @note that we are duplicating update of updatedAtTimestamp/BlockNumber here
     // in the two functions
     pool = updatePoolParticleAndTotalAmountFlowedAndDistributed(event, pool);
+
     // @note a speculations on what needs to be done
-    pool.perUnitSettledValue = pool.perUnitSettledValue.plus(divideOrZero(event.params.actualAmount, pool.totalUnits));
+    const perUnitSettledValueDelta = divideOrZero(event.params.actualAmount, pool.totalUnits);
+    pool.perUnitSettledValue = pool.perUnitSettledValue.plus(perUnitSettledValueDelta);
+
     const previousTotalAmountDistributed =
         pool.totalAmountDistributedUntilUpdatedAt;
     pool.totalAmountInstantlyDistributedUntilUpdatedAt =

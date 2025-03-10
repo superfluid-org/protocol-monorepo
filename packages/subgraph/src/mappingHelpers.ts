@@ -1524,7 +1524,7 @@ export function monetaryUnitPoolMemberRTB(pool: Pool, poolMember: PoolMember, cu
     );
     const poolMemberPerUnitRTB = particleRTB(
         poolMember.syncedPerUnitSettledValue,
-        poolMember.syncedPerUnitFlowRate,
+        BigInt.fromI32(0),
         currentTimestamp,
         poolMember.updatedAtTimestamp
     );
@@ -1552,19 +1552,6 @@ export function settlePoolParticle(pool: Pool, block: ethereum.Block): Pool {
     pool.updatedAtBlockNumber = block.number;
 
     return pool;
-}
-
-export function settlePoolMemberParticle(poolMember: PoolMember, block: ethereum.Block): PoolMember {
-    poolMember.syncedPerUnitSettledValue = particleRTB(
-        poolMember.syncedPerUnitSettledValue,
-        poolMember.syncedPerUnitFlowRate,
-        block.timestamp,
-        poolMember.updatedAtTimestamp
-    );
-    poolMember.updatedAtTimestamp = block.timestamp;
-    poolMember.updatedAtBlockNumber = block.number;
-
-    return poolMember;
 }
 
 export function syncPoolMemberParticle(pool: Pool, poolMember: PoolMember): PoolMember {
