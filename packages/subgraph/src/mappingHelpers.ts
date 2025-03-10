@@ -587,6 +587,7 @@ export function getOrInitPoolDistributor(
 
     return poolDistributor;
 }
+
 export function updatePoolDistributorTotalAmountFlowedAndDistributed(
     event: ethereum.Event,
     poolDistributor: PoolDistributor
@@ -1565,5 +1566,6 @@ export function syncPoolMemberParticle(pool: Pool, poolMember: PoolMember): Pool
 
 export function settlePDPoolMemberMU(pool: Pool, poolMember: PoolMember, block: ethereum.Block): void {
     poolMember.totalAmountReceivedUntilUpdatedAt = monetaryUnitPoolMemberRTB(pool, poolMember, block.timestamp);
+    poolMember.poolTotalAmountDistributedUntilUpdatedAt = pool.totalAmountDistributedUntilUpdatedAt;
     poolMember = syncPoolMemberParticle(pool, poolMember);
 }
