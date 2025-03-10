@@ -97,7 +97,7 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
         updateAggregateDistributionAgreementData(
             event.params.member,
             event.params.token,
-            true, // has units
+            false, // does not have previous units
             poolMember.isConnected,
             true, // only place we increment subWithUnits
             false, // not deleting
@@ -123,7 +123,7 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
         updateAggregateDistributionAgreementData(
             event.params.member,
             event.params.token,
-            false, // has units
+            true, // has previous units
             poolMember.isConnected,
             false, // don't increment memberWithUnits
             false, // not disconnecting membership
