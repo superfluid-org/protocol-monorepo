@@ -7,8 +7,8 @@ import { IVestingSchedulerV2 } from "./../contracts/interface/IVestingSchedulerV
 import { VestingSchedulerV2 } from "./../contracts/VestingSchedulerV2.sol";
 import { FoundrySuperfluidTester } from "@superfluid-finance/ethereum-contracts/test/foundry/FoundrySuperfluidTester.t.sol";
 import { SuperTokenV1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
-import { SafeMath } from "@openzeppelin/contracts-v4/utils/math/SafeMath.sol";
-import { SafeCast } from "@openzeppelin/contracts-v4/utils/math/SafeCast.sol";
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "forge-std/console.sol";
 
 /// @title VestingSchedulerTests
