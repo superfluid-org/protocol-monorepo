@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 // solhint-disable not-rely-on-time
 
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import { Initializable } from "@openzeppelin/contracts-v4/proxy/utils/Initializable.sol";
 import {
     Time, Value, FlowRate, Unit,
     BasicParticle,

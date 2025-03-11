@@ -3,8 +3,8 @@ pragma solidity ^0.8.23;
 
 // solhint-disable not-rely-on-time
 
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { EnumerableSet } from "@openzeppelin/contracts-v4/utils/structs/EnumerableSet.sol";
+import { Clones } from "@openzeppelin/contracts-v4/proxy/Clones.sol";
 import { FlowId, ISuperfluidToken } from "./ISuperfluidToken.sol";
 import {
     Time, Value, FlowRate,
