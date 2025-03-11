@@ -7,7 +7,7 @@ import {
     IConstantFlowAgreementV1
 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IERC20Mod } from "./interfaces/IERC20Mod.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts-v4/access/Ownable.sol";
 import { IManager } from "./interfaces/IManager.sol";
 import { IStrategy } from "./interfaces/IStrategy.sol";
 
