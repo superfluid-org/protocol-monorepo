@@ -20,9 +20,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IERC777Recipient } from "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
 import { IERC777Sender } from "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-
-import { ECDSA } from "@openzeppelin/contracts-v5/utils/cryptography/ECDSA.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts-v5/utils/cryptography/MessageHashUtils.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // placeholder types needed as an intermediate step before complete removal of FlowNFTs
 // solhint-disable-next-line no-empty-blocks
@@ -259,7 +257,18 @@ contract SuperToken is
             )
         );
 
-        bytes32 hash = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR(), structHash);
+        bytes32 domainSeparator = DOMAIN_SEPARATOR();
+        // Get the keccak256 digest of the EIP-712 typed data (ERC-191 version `0x01`).
+        // solhint-disable-next-line max-line-length
+        // Snippet taken from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.2.0/contracts/utils/cryptography/MessageHashUtils.sol
+        bytes32 hash;
+        assembly ("memory-safe") {
+            let ptr := mload(0x40)
+            mstore(ptr, hex"19_01")
+            mstore(add(ptr, 0x02), domainSeparator)
+            mstore(add(ptr, 0x22), structHash)
+            hash := keccak256(ptr, 0x42)
+        }
 
         address signer = ECDSA.recover(hash, v, r, s);
         if (signer != owner) revert SUPER_TOKEN_PERMIT_INVALID_SIGNER(signer, owner);
