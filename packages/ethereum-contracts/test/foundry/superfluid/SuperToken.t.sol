@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import { Test } from "forge-std/Test.sol";
-import { console } from "forge-std/console.sol";
 import { UUPSProxy } from "../../../contracts/upgradability/UUPSProxy.sol";
 import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.sol";
 import { IERC20, ISuperToken, SuperToken, IConstantOutflowNFT, IConstantInflowNFT }
