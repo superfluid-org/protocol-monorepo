@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import { BeaconProxy } from "@openzeppelin/contracts-v4/proxy/beacon/BeaconProxy.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
 import { SuperfluidPool } from "./SuperfluidPool.sol";
 import { PoolConfig, PoolERC20Metadata } from "../../interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";

@@ -16,8 +16,8 @@ import {
 } from "./Definitions.sol";
 /// Super token related interfaces:
 /// Note: CustomSuperTokenBase is not included for people building CustomSuperToken.
-import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC777 } from "@openzeppelin/contracts/token/ERC777/IERC777.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts-v4/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC777 } from "@openzeppelin/contracts-v4/token/ERC777/IERC777.sol";
 import { ISuperfluidToken } from "./ISuperfluidToken.sol";
 import { ISuperToken } from "./ISuperToken.sol";
 import { ISuperTokenFactory } from "./ISuperTokenFactory.sol";

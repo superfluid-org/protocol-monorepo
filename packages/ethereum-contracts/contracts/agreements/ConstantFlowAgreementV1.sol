@@ -13,7 +13,7 @@ import {
     SuperfluidGovernanceConfigs
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { AgreementBase } from "./AgreementBase.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin/contracts-v4/utils/math/SafeCast.sol";
 import { AgreementLibrary } from "./AgreementLibrary.sol";
 import { SolvencyHelperLibrary } from "../libs/SolvencyHelperLibrary.sol";
 

@@ -7,7 +7,7 @@ import {
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidGovernanceBase } from "../gov/SuperfluidGovernanceBase.sol";
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts-v4/access/Ownable.sol";
 
 
 /**

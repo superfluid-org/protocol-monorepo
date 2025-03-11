@@ -12,7 +12,7 @@ import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library
 import { SuperAppMock } from "../../../contracts/mocks/SuperAppMocks.t.sol";
 import { SimpleForwarder } from "../../../contracts/utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../../../contracts/utils/ERC2771Forwarder.sol";
-import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
+import { Ownable } from '@openzeppelin/contracts-v4/access/Ownable.sol';
 import { BaseRelayRecipient } from "../../../contracts/libs/BaseRelayRecipient.sol";
 
 // A mock for an arbitrary external contract

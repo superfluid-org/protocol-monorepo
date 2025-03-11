@@ -5,8 +5,8 @@ import "forge-std/Test.sol";
 import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { TOGA } from "../../../contracts/utils/TOGA.sol";
-import { IERC1820Registry } from "@openzeppelin/contracts/interfaces/IERC1820Registry.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC1820Registry } from "@openzeppelin/contracts-v4/interfaces/IERC1820Registry.sol";
+import { IERC20 } from "@openzeppelin/contracts-v4/token/ERC20/IERC20.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 
 /**

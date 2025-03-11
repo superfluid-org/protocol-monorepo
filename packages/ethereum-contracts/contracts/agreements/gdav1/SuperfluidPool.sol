@@ -4,8 +4,8 @@ pragma solidity ^0.8.23;
 
 // Notes: We use these interfaces in natspec documentation below, grep @inheritdoc
 // solhint-disable-next-line no-unused-import
-import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts-v4/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeCast } from "@openzeppelin/contracts-v4/utils/math/SafeCast.sol";
 import {
     BasicParticle,
     SemanticMoney,

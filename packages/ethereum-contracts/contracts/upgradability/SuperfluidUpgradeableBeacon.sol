@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {
     UpgradeableBeacon
-} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+} from "@openzeppelin/contracts-v4/proxy/beacon/UpgradeableBeacon.sol";
 import { BeaconProxiable } from "./BeaconProxiable.sol";
 
 contract SuperfluidUpgradeableBeacon is UpgradeableBeacon {

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { UUPSUtils } from "./UUPSUtils.sol";
-import { Proxy } from "@openzeppelin/contracts/proxy/Proxy.sol";
+import { Proxy } from "@openzeppelin/contracts-v4/proxy/Proxy.sol";
 
 
 /**

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin/contracts-v4/utils/math/SafeCast.sol";
 
 import {
     ISuperfluid, ISuperToken, IConstantFlowAgreementV1
 } from "../interfaces/superfluid/ISuperfluid.sol";
 
-import { IERC1820Registry } from "@openzeppelin/contracts/utils/introspection/IERC1820Registry.sol";
-import { IERC777Recipient } from "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
+import { IERC1820Registry } from "@openzeppelin/contracts-v4/utils/introspection/IERC1820Registry.sol";
+import { IERC777Recipient } from "@openzeppelin/contracts-v4/token/ERC777/IERC777Recipient.sol";
 
 /**
  * @title TOGA: Transparent Ongoing Auction

@@ -2,8 +2,8 @@
 pragma solidity >= 0.8.11;
 
 import { ISuperfluidToken } from "./ISuperfluidToken.sol";
-import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC777 } from "@openzeppelin/contracts/token/ERC777/IERC777.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts-v4/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC777 } from "@openzeppelin/contracts-v4/token/ERC777/IERC777.sol";
 import { IPoolAdminNFT } from "../agreements/gdav1/IPoolAdminNFT.sol";
 import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
 

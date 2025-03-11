@@ -14,12 +14,12 @@ import {
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IERC777Recipient } from "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
-import { IERC777Sender } from "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { SafeERC20 } from "@openzeppelin/contracts-v4/token/ERC20/utils/SafeERC20.sol";
+import { SafeMath } from "@openzeppelin/contracts-v4/utils/math/SafeMath.sol";
+import { SafeCast } from "@openzeppelin/contracts-v4/utils/math/SafeCast.sol";
+import { IERC777Recipient } from "@openzeppelin/contracts-v4/token/ERC777/IERC777Recipient.sol";
+import { IERC777Sender } from "@openzeppelin/contracts-v4/token/ERC777/IERC777Sender.sol";
+import { Address } from "@openzeppelin/contracts-v4/utils/Address.sol";
 
 // placeholder types needed as an intermediate step before complete removal of FlowNFTs
 // solhint-disable-next-line no-empty-blocks

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { IERC721Metadata } from "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
+import { IERC721Metadata } from "@openzeppelin/contracts-v4/interfaces/IERC721Metadata.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { PoolAdminNFTMock, PoolMemberNFTMock } from "./PoolNFTMock.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";

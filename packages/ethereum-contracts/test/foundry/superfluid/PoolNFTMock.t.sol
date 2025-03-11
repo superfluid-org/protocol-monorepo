@@ -2,7 +2,7 @@
 // solhint-disable reason-string
 pragma solidity ^0.8.23;
 
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { Strings } from "@openzeppelin/contracts-v4/utils/Strings.sol";
 
 import {
     IGeneralDistributionAgreementV1, ISuperfluid

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { EnumerableSet } from "@openzeppelin/contracts-v4/utils/structs/EnumerableSet.sol";
+import { SafeCast } from "@openzeppelin/contracts-v4/utils/math/SafeCast.sol";
 import "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
 import "../../FoundrySuperfluidTester.t.sol";
 import {
