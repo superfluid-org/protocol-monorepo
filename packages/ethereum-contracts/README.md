@@ -36,16 +36,16 @@ Once you have set up your project, cd into its base directory and add the npm pa
 
 ##### foundry
 
-**Prerequisites:**
+Prerequisites:
 - [forge](https://book.getfoundry.sh/getting-started/installation)
 
-**Install dependencies:**
+Install dependencies:
 ```sh
 forge install superfluid-protocol-monorepo=superfluid-finance/protocol-monorepo@dev --no-commit
 forge install openzeppelin-contracts-v4=https://github.com/OpenZeppelin/openzeppelin-contracts@release-v4.9 --no-commit
 ```
 
-**Set up remappings:**
+Set up remappings:
 ```sh
 echo -e "@superfluid-finance/=lib/superfluid-protocol-monorepo/packages/\n@openzeppelin/contracts-v4/=lib/openzeppelin-contracts-v4/contracts/" >> remappings.txt
 ```
@@ -59,13 +59,13 @@ If you want to use **openzeppelin v5** in your project's contracts, you can use 
 
 ##### hardhat
 
-**Prerequisites:**
+Prerequisites:
 - [node.js v18+](https://nodejs.org/en/download). The project recommends v22, and is tested with versions 18,20,22.
 - [yarn](https://classic.yarnpkg.com/en/docs/install) or any other node package manager of your choice.
 
-**Install dependencies:**
+Install dependencies:
 ```sh
-$ yarn add @superfluid-finance/ethereum-contracts
+yarn add @superfluid-finance/ethereum-contracts
 ```
 
 If you want to use **openzeppelin v4** in your project's contracts, we recommend using the package installed as a nested dependency of this package, using the import path `@openzeppelin/contracts-v4/`.
