@@ -28,40 +28,58 @@
 
 ## Usage
 
-If you're building a dapp using existing protocol or Super Token contracts, then you should use [`@superfluid-finance/sdk-core`](/packages/sdk-core). [Here](https://docs.superfluid.finance/superfluid/networks/networks) you can find a list of networks where the Superfluid protocol is already deployed.
-
-If you're building a smart contract that uses Superfluid protocol, or even your own [SuperApp](https://docs.superfluid.finance/), then great! This is definitely the place to be.
+[Here](https://explorer.superfluid.org/protocol) you can find a list of networks where the Superfluid protocol is already deployed.
 
 ### Installation
 
-Prerequisites:
-- [node.js v18+](https://nodejs.org/en/download). The project recommends 22, and is tested with node 18,20,22.
-- [yarn](https://classic.yarnpkg.com/en/docs/install)
-- [forge](https://book.getfoundry.sh/getting-started/installation)
-
 Once you have set up your project, cd into its base directory and add the npm package:
 
+##### foundry
+
+**Prerequisites:**
+- [forge](https://book.getfoundry.sh/getting-started/installation)
+
+**Install dependencies:**
+```sh
+forge install superfluid-protocol-monorepo=superfluid-finance/protocol-monorepo@dev --no-commit
+forge install openzeppelin-contracts-v4=https://github.com/OpenZeppelin/openzeppelin-contracts@release-v4.9 --no-commit
+```
+
+**Set up remappings:**
+```sh
+echo -e "@superfluid-finance/=lib/superfluid-protocol-monorepo/packages/\n@openzeppelin/contracts-v4/=lib/openzeppelin-contracts-v4/contracts/" >> remappings.txt
+```
+
+If you want to use **openzeppelin v4** in your project's contracts, you should either:
+- use the custom import path `@openzeppelin/contracts-v4` in your contracts
+or
+- add a remapping for the default import path: `@openzeppelin/contracts/=lib/openzeppelin-contracts-v4/contracts/`
+
+If you want to use **openzeppelin v5** in your project's contracts, you can use it alongside the v4 needed by Superfluid.
+
 ##### hardhat
+
+**Prerequisites:**
+- [node.js v18+](https://nodejs.org/en/download). The project recommends v22, and is tested with versions 18,20,22.
+- [yarn](https://classic.yarnpkg.com/en/docs/install) or any other node package manager of your choice.
+
+**Install dependencies:**
 ```sh
 $ yarn add @superfluid-finance/ethereum-contracts
 ```
 
-##### foundry
+If you want to use **openzeppelin v4** in your project's contracts, we recommend using the package installed as a nested dependency of this package, using the import path `@openzeppelin/contracts-v4/`.
 
-```sh
-$ forge install superfluid-protocol-monorepo=superfluid-finance/protocol-monorepo@dev
-$ # or using ethereum-contracts@v1.6.0
-$ forge install superfluid-protocol-monorepo=superfluid-finance/protocol-monorepo@$(git ls-remote https://github.com/superfluid-finance/protocol-monorepo.git ethereum-contracts@v1.6.0 | awk '{print $1}')
-```
+If you want to use **openzeppelin v5** in your project's contracts, you need to add the dependency yourself and can use it at the default import path `@openzeppelin/contracts/`.
 
 ### Smart Contract
 
 You can then import Superfluid interfaces or contracts into your contracts like this:
 
 ```js
-import { IConstantFlowAgreementV1 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
+import { IConstantFlowAgreementV1 } from "@superfluid-finance/ethereum-contracts/contracts/interfaces/superfluid/ISuperfluid.sol";
 ```
-The paths in the npm package are the same as in this repository.
+(Most interfaces belonging to the Superfluid protocol can be imported from `ISuperfluid.sol`)
 
 ### Writing Tests
 

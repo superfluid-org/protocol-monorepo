@@ -7,32 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Breaking
 
-The npm dependency @openzeppelin/contracts is now mapped to the local path `@openzeppelin/contracts-v4`.
+The npm dependency @openzeppelin/contracts is now mapped to the path `@openzeppelin/contracts-v4`.
 This frees up the default path `@openzeppelin/contracts` for v5 which most new Solidity projects use.
 
-In order to use this package in a **foundry project (new or existing) with dependencies installed as git submodules**, this steps are recommended:
-
-1. Add openzeppelin-contracts v4 as a submodule:
+In an existing foundry project, you will need to add this remapping:
 ```
-git submodule add -b release-v4.9 https://github.com/OpenZeppelin/openzeppelin-contracts lib/openzeppelin-contracts-v4
-```
-Note the explicit local path with v4 postfix.
-
-2. Add this mapping to `foundry.toml` or `remappings.txt` (depending on where they are located in your project):
-```
-"@openzeppelin/contracts-v4/=lib/openzeppelin-contracts-v4/contracts/"
+@openzeppelin/contracts-v4/=lib/openzeppelin-contracts-v4/contracts/
 ```
 
-That way, projects can use the import path `@openzeppelin/contracts` for openzeppelin v5. This is the default when using npm for installing the openzeppelin dependency.
+In an existing hardhat project, just update the package.
+In this case, if you are using openzeppelin v4 in your own contracts too, you may want to also change the import paths to `@openzeppelin/contracts-v4/`.
 
-**Note:**  
-foundry by default auto-detects mappings based on the contents of the lib directory and nested foundry configuration files.
-Because of this, it may automatically add a mapping `openzeppelin/=lib/openzeppelin-contracts-v4/contracts/` .
-In case you're using the import path `openzeppelin/...` in your project, that may not be what you want.
-In this case you can either change the import path to something else, or you can disable mapping auto-detection with `auto_detect_remappings = false` (see [docs](https://book.getfoundry.sh/reference/config/solidity-compiler#auto_detect_remappings)). If you disable it, you may need to explicitly add some mappings, e.g. for forge-std.
-
-In order to use this package in a **project with dependencies managed by npm packages**, you don't need to do anything.
-Except: if you relied on the openzeppelin-contracts v4 dependency installed by this package, you now need to either also adjust the import path, or explicity add the dependency with the default path to your project.
+For more details, consult the updated `README.md` (section _Installation_).^
 
 ## [v1.12.1]
 
