@@ -52,6 +52,10 @@ contract SuperToken is
     // EIP-712 permit typehash
     bytes32 constant private _PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 constant private _EIP712_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
+    string constant private _EIP712_VERSION = "1";
 
     // solhint-disable-next-line var-name-mixedcase
     IConstantOutflowNFT immutable public CONSTANT_OUTFLOW_NFT;
@@ -188,14 +192,14 @@ contract SuperToken is
         UUPSProxiable._updateCodeAddress(newAddress);
     }
 
-    function changeAdmin(address newAdmin) external override onlyAdmin {
+    function changeAdmin(address newAdmin) external virtual override onlyAdmin {
         address oldAdmin = _getAdmin();
         _setAdmin(newAdmin);
 
         emit AdminChanged(oldAdmin, newAdmin);
     }
 
-    function getAdmin() external view override returns (address) {
+    function getAdmin() external view virtual override returns (address) {
         return _getAdmin();
     }
 
@@ -243,7 +247,7 @@ contract SuperToken is
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public override {
+    ) public virtual override {
         if (block.timestamp > deadline) revert SUPER_TOKEN_PERMIT_EXPIRED_SIGNATURE(deadline);
 
         bytes32 structHash = keccak256(
@@ -278,14 +282,13 @@ contract SuperToken is
 
     /// @dev EIP-712 Domain Separator
     // solhint-disable func-name-mixedcase
-    function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
+    function DOMAIN_SEPARATOR() public view virtual override returns (bytes32) {
         // TODO: can be optimized: provide immutable parts from constants
         return keccak256(
             abi.encode(
-                // TYPE_HASH
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"), 
-                keccak256("SuperToken"), // name
-                keccak256("1"), // version
+                _EIP712_DOMAIN_TYPEHASH,
+                keccak256(bytes(_name)),
+                keccak256(bytes(_EIP712_VERSION)),
                 block.chainid,
                 address(this)
             )
@@ -293,8 +296,37 @@ contract SuperToken is
     }
 
     /// @dev EIP-2612 Nonces
-    function nonces(address owner) public view virtual returns (uint256) {
+    function nonces(address owner) public view virtual override returns (uint256) {
         return _nonces[owner];
+    }
+
+    /// @dev EIP-5267: Retrieval of EIP-712 domain
+    function eip712Domain()
+        public
+        view
+        virtual
+        override
+        returns
+        (
+            bytes1 fields,
+            /* commented out to avoid warning of name clash with name() */
+            string memory /*name*/,
+            string memory version,
+            uint256 chainId,
+            address verifyingContract,
+            bytes32 salt,
+            uint256[] memory extensions
+        )
+    {
+        return (
+            hex"0f", // 01111 - field "salt" not present
+            _name,
+            _EIP712_VERSION,
+            block.chainid,
+            address(this), // verifyingContract
+            bytes32(0), // salt
+            new uint256[](0) // extensions
+        );
     }
 
     /**************************************************************************

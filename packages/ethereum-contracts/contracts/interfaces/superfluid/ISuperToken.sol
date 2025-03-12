@@ -4,6 +4,7 @@ pragma solidity >= 0.8.11;
 import { ISuperfluidToken } from "./ISuperfluidToken.sol";
 import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { IERC5267 } from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import { IERC777 } from "@openzeppelin/contracts/token/ERC777/IERC777.sol";
 import { IPoolAdminNFT } from "../agreements/gdav1/IPoolAdminNFT.sol";
 import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
@@ -12,7 +13,7 @@ import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
  * @title Super token (Superfluid Token + ERC20 + ERC777) interface
  * @author Superfluid
  */
-interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit {
+interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit, IERC5267 {
 
     /**************************************************************************
      * Errors
