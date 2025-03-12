@@ -34,7 +34,7 @@
 
 Once you have set up your project, cd into its base directory and add the npm package:
 
-##### foundry
+#### foundry
 
 Prerequisites:
 - [forge](https://book.getfoundry.sh/getting-started/installation)
@@ -57,7 +57,7 @@ or
 
 If you want to use **openzeppelin v5** in your project's contracts, you can use it alongside the v4 needed by Superfluid.
 
-##### hardhat
+#### hardhat
 
 Prerequisites:
 - [node.js v18+](https://nodejs.org/en/download). The project recommends v22, and is tested with versions 18,20,22.
