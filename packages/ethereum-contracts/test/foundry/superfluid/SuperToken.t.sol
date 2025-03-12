@@ -24,7 +24,7 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     }
 
     function testToUnderlyingAmountWithUpgrade(uint8 decimals, uint256 amount) public {
-        vm.assume(amount < type(uint64).max);
+        amount = bound(amount, 0, type(uint64).max);
         // We assume that most underlying tokens will not have more than 32 decimals
         vm.assume(decimals <= 32);
         (TestToken localToken, ISuperToken localSuperToken) =
@@ -42,10 +42,10 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     function testToUnderlyingAmountWithDowngrade(uint8 decimals, uint256 upgradeAmount, uint256 downgradeAmount)
         public
     {
-        vm.assume(upgradeAmount < type(uint64).max);
+        upgradeAmount = bound(upgradeAmount, 0, type(uint64).max);
         // We assume that most underlying tokens will not have more than 32 decimals
         vm.assume(decimals <= 32);
-        vm.assume(downgradeAmount < upgradeAmount);
+        downgradeAmount = bound(downgradeAmount, 0, upgradeAmount);
         (TestToken localToken, ISuperToken localSuperToken) =
             sfDeployer.deployWrapperSuperToken("FTT", "FTT", decimals, type(uint256).max, address(0));
         (uint256 underlyingAmount, uint256 adjustedAmount) = localSuperToken.toUnderlyingAmount(upgradeAmount);
@@ -190,6 +190,10 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
         amount = bound(amount, 1, type(uint96).max);
         signerPrivKey = bound(signerPrivKey, 1, type(uint128).max);
         address permitSigner = vm.addr(signerPrivKey);
+        // zero address is not a valid signer
+        vm.assume(permitSigner != address(0));
+        // SuperToken doesn't allow approval to zero address
+        vm.assume(spender != address(0));
 
         (ISuperToken localSuperToken) = sfDeployer.deployPureSuperToken("Super MR", "MRx", amount * 2);
         localSuperToken.transfer(permitSigner, amount * 2);
