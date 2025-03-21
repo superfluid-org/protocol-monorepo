@@ -102,7 +102,6 @@ contract SuperToken is
     // function in its respective mock contract to ensure that it doesn't break anything or lead to unexpected
     // behaviors/layout when upgrading
 
-    //uint256 internal _reserve22;
     uint256 internal _reserve23;
     uint256 private _reserve24;
     uint256 private _reserve25;
@@ -283,7 +282,7 @@ contract SuperToken is
     /// @dev EIP-712 Domain Separator
     // solhint-disable func-name-mixedcase
     function DOMAIN_SEPARATOR() public view virtual override returns (bytes32) {
-        // TODO: can be optimized: provide immutable parts from constants
+        // Here we could squeeze out some gas by using pre-computed hashes
         return keccak256(
             abi.encode(
                 _EIP712_DOMAIN_TYPEHASH,

@@ -15,7 +15,6 @@ remappings = [
     '@superfluid-finance/ethereum-contracts/contracts/=packages/ethereum-contracts/contracts/',
     '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
     '@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/',
-    '@openzeppelin/contracts-v5/=node_modules/@openzeppelin/contracts-v5/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/']
 out = 'packages/ethereum-contracts/build/foundry/default'
