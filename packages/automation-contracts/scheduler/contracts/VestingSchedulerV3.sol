@@ -551,16 +551,12 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         uint256 amountLeftToVest = _getTotalVestedAmount(vestingSchedules[agg.id], agg.accounting) - _settle(agg);
         uint256 timeLeftToVest = endDate - block.timestamp;
 
-        emit DEBUG(amountLeftToVest, timeLeftToVest, schedule.flowRate);
-
         uint96 newRemainderAmount = _calculateRemainderAmount(amountLeftToVest, timeLeftToVest, schedule.flowRate);
         // Update the vesting remainder amount
         vestingSchedules[agg.id].remainderAmount = newRemainderAmount;
 
         emit VestingScheduleUpdated(superToken, sender, receiver, schedule.endDate, endDate, newRemainderAmount);
     }
-
-    event DEBUG(uint256 amountLeftToVest, uint256 timeLeftToVest, int96 flowRate);
 
     /// @dev IVestingScheduler.deleteVestingSchedule implementation.
     function deleteVestingSchedule(ISuperToken superToken, address receiver, bytes memory ctx)
