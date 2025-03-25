@@ -319,9 +319,9 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         } else {
             // Non-Linear Cliff (user defined cliff amount)
             int96 flowRate =
-                SafeCast.toInt96(SafeCast.toInt256(totalAmount - cliffAmount / totalDuration - cliffPeriod));
+                SafeCast.toInt96(SafeCast.toInt256((totalAmount - cliffAmount) / (totalDuration - cliffPeriod)));
             uint96 remainderAmount = SafeCast.toUint96(
-                totalAmount - cliffAmount - (SafeCast.toUint256(flowRate) * totalDuration - cliffPeriod)
+                (totalAmount - cliffAmount) - (SafeCast.toUint256(flowRate) * (totalDuration - cliffPeriod))
             );
 
             params = ScheduleCreationParams({
