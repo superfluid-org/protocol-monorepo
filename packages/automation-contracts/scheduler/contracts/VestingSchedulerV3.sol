@@ -191,6 +191,68 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         );
     }
 
+    /// FIXME : add in the interface V3
+    /// @dev IVestingScheduler.createVestingScheduleFromAmountAndDuration implementation.
+    function createVestingScheduleFromAmountAndDuration(
+        ISuperToken superToken,
+        address receiver,
+        uint256 totalAmount,
+        uint32 totalDuration,
+        uint32 startDate,
+        uint32 cliffPeriod,
+        uint32 claimPeriod,
+        uint256 cliffAmount,
+        bytes memory ctx
+    ) external returns (bytes memory newCtx) {
+        newCtx = ctx;
+        address sender = _getSender(ctx);
+
+        if (cliffPeriod != 0 && cliffAmount == 0) revert CliffInvalid();
+
+        _validateAndCreateVestingSchedule(
+            mapCreateVestingScheduleParams(
+                superToken,
+                sender,
+                receiver,
+                totalAmount,
+                totalDuration,
+                _normalizeStartDate(startDate),
+                cliffPeriod,
+                claimPeriod,
+                cliffAmount
+            )
+        );
+    }
+
+    /// @dev IVestingScheduler.createVestingScheduleFromAmountAndDuration implementation.
+    /// FIXME : add in the interface V3
+    function createVestingScheduleFromAmountAndDuration(
+        ISuperToken superToken,
+        address receiver,
+        uint256 totalAmount,
+        uint32 totalDuration,
+        uint32 startDate,
+        uint32 cliffPeriod,
+        uint32 claimPeriod,
+        uint256 cliffAmount
+    ) external {
+        if (cliffPeriod != 0 && cliffAmount == 0) revert CliffInvalid();
+
+        _validateAndCreateVestingSchedule(
+            mapCreateVestingScheduleParams(
+                superToken,
+                _msgSender(),
+                receiver,
+                totalAmount,
+                totalDuration,
+                _normalizeStartDate(startDate),
+                cliffPeriod,
+                claimPeriod,
+                cliffAmount
+            )
+        );
+    }
+
     /// @dev IVestingScheduler.mapCreateVestingScheduleParams implementation.
     function mapCreateVestingScheduleParams(
         ISuperToken superToken,
@@ -202,27 +264,68 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         uint32 cliffPeriod,
         uint32 claimPeriod
     ) public pure override returns (ScheduleCreationParams memory params) {
+        return mapCreateVestingScheduleParams(
+            superToken, sender, receiver, totalAmount, totalDuration, startDate, cliffPeriod, claimPeriod, 0
+        );
+    }
+
+    /// @dev IVestingScheduler.mapCreateVestingScheduleParams implementation.
+    function mapCreateVestingScheduleParams(
+        ISuperToken superToken,
+        address sender,
+        address receiver,
+        uint256 totalAmount,
+        uint32 totalDuration,
+        uint32 startDate,
+        uint32 cliffPeriod,
+        uint32 claimPeriod,
+        uint256 cliffAmount
+    ) public pure override returns (ScheduleCreationParams memory params) {
         uint32 claimValidityDate = claimPeriod != 0 ? startDate + claimPeriod : 0;
-
         uint32 endDate = startDate + totalDuration;
-        int96 flowRate = SafeCast.toInt96(SafeCast.toInt256(totalAmount / totalDuration));
-        uint96 remainderAmount = SafeCast.toUint96(totalAmount - (SafeCast.toUint256(flowRate) * totalDuration));
 
-        if (cliffPeriod == 0) {
-            params = ScheduleCreationParams({
-                superToken: superToken,
-                sender: sender,
-                receiver: receiver,
-                startDate: startDate,
-                claimValidityDate: claimValidityDate,
-                cliffDate: 0,
-                flowRate: flowRate,
-                cliffAmount: 0,
-                endDate: endDate,
-                remainderAmount: remainderAmount
-            });
+        if (cliffAmount == 0) {
+            int96 flowRate = SafeCast.toInt96(SafeCast.toInt256(totalAmount / totalDuration));
+            uint96 remainderAmount = SafeCast.toUint96(totalAmount - (SafeCast.toUint256(flowRate) * totalDuration));
+
+            if (cliffPeriod == 0) {
+                // No Cliff
+                params = ScheduleCreationParams({
+                    superToken: superToken,
+                    sender: sender,
+                    receiver: receiver,
+                    startDate: startDate,
+                    claimValidityDate: claimValidityDate,
+                    cliffDate: 0,
+                    flowRate: flowRate,
+                    cliffAmount: 0,
+                    endDate: endDate,
+                    remainderAmount: remainderAmount
+                });
+            } else {
+                // Linear Default Cliff (calculated based on the overall vesting flow rate)
+                cliffAmount = SafeMath.mul(cliffPeriod, SafeCast.toUint256(flowRate));
+                params = ScheduleCreationParams({
+                    superToken: superToken,
+                    sender: sender,
+                    receiver: receiver,
+                    startDate: startDate,
+                    claimValidityDate: claimValidityDate,
+                    cliffDate: startDate + cliffPeriod,
+                    flowRate: flowRate,
+                    cliffAmount: cliffAmount,
+                    endDate: endDate,
+                    remainderAmount: remainderAmount
+                });
+            }
         } else {
-            uint256 cliffAmount = SafeMath.mul(cliffPeriod, SafeCast.toUint256(flowRate));
+            // Non-Linear Cliff (user defined cliff amount)
+            int96 flowRate =
+                SafeCast.toInt96(SafeCast.toInt256(totalAmount - cliffAmount / totalDuration - cliffPeriod));
+            uint96 remainderAmount = SafeCast.toUint96(
+                totalAmount - cliffAmount - (SafeCast.toUint256(flowRate) * totalDuration - cliffPeriod)
+            );
+
             params = ScheduleCreationParams({
                 superToken: superToken,
                 sender: sender,

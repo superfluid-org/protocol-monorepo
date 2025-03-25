@@ -53,6 +53,59 @@ interface IVestingSchedulerV3 is IVestingSchedulerV2 {
     );
 
     /**
+     * @dev See IVestingSchedulerV2.createVestingScheduleFromAmountAndDuration overload for more details.
+     */
+    function createVestingScheduleFromAmountAndDuration(
+        ISuperToken superToken,
+        address receiver,
+        uint256 totalAmount,
+        uint32 totalDuration,
+        uint32 startDate,
+        uint32 cliffPeriod,
+        uint32 claimPeriod,
+        uint256 cliffAmount,
+        bytes memory ctx
+    ) external returns (bytes memory newCtx);
+
+    /**
+     * @dev See IVestingSchedulerV2.createVestingScheduleFromAmountAndDuration overload for more details.
+     */
+    function createVestingScheduleFromAmountAndDuration(
+        ISuperToken superToken,
+        address receiver,
+        uint256 totalAmount,
+        uint32 totalDuration,
+        uint32 startDate,
+        uint32 cliffPeriod,
+        uint32 claimPeriod,
+        uint256 cliffAmount
+    ) external;
+
+    /**
+     * @dev Returns all relevant information related to a new vesting schedule creation
+     * @dev based on the amounts and durations.
+     * @param superToken SuperToken to be vested
+     * @param receiver Vesting receiver
+     * @param totalAmount The total amount to be vested
+     * @param totalDuration The total duration of the vestingß
+     * @param startDate Timestamp when the vesting should start
+     * @param cliffPeriod The cliff period of the vesting
+     * @param claimPeriod The claim availability period
+     * @param cliffAmount The cliff amount of the vesting
+     */
+    function mapCreateVestingScheduleParams(
+        ISuperToken superToken,
+        address sender,
+        address receiver,
+        uint256 totalAmount,
+        uint32 totalDuration,
+        uint32 startDate,
+        uint32 cliffPeriod,
+        uint32 claimPeriod,
+        uint256 cliffAmount
+    ) external pure returns (ScheduleCreationParams memory params);
+
+    /**
      * @dev Updates a vesting schedule flow rate based on a new total amount to be vested
      * @param superToken SuperToken to be vested
      * @param receiver Vesting receiver
