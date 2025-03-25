@@ -191,7 +191,6 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
         );
     }
 
-    /// FIXME : add in the interface V3
     /// @dev IVestingScheduler.createVestingScheduleFromAmountAndDuration implementation.
     function createVestingScheduleFromAmountAndDuration(
         ISuperToken superToken,
@@ -225,7 +224,6 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
     }
 
     /// @dev IVestingScheduler.createVestingScheduleFromAmountAndDuration implementation.
-    /// FIXME : add in the interface V3
     function createVestingScheduleFromAmountAndDuration(
         ISuperToken superToken,
         address receiver,
