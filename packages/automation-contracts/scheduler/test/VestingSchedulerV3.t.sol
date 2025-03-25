@@ -1231,6 +1231,52 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.stopPrank();
     }
 
+    function test_createVestingScheduleFromAmountAndDuration_nonLinearCliff(uint8 randomizer) public {
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
+
+        vm.startPrank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+        vm.stopPrank();
+
+        uint32 startDate = uint32(block.timestamp);
+        uint256 totalVestedAmount = 200_000_000; // a value perfectly divisible
+        uint256 cliffAmount = 150_000_000; // Cliff account of 75% of the total amount
+        uint32 vestingDuration = 1 weeks + 1 days;
+        uint32 cliffPeriod = 1 days;
+
+        int96 expectedFlowRate =
+            SafeCast.toInt96(SafeCast.toInt256((totalVestedAmount - cliffAmount) / (vestingDuration - cliffPeriod)));
+        uint96 expectedRemainderAmount = SafeCast.toUint96(
+            (totalVestedAmount - cliffAmount) - (SafeCast.toUint256(expectedFlowRate) * (vestingDuration - cliffPeriod))
+        );
+        vm.expectEmit();
+        emit VestingScheduleCreated(
+            superToken,
+            alice,
+            bob,
+            startDate,
+            startDate + cliffPeriod, // expected cliff date
+            expectedFlowRate,
+            startDate + vestingDuration, // expected end date
+            cliffAmount,
+            0,
+            expectedRemainderAmount
+        );
+
+        vm.startPrank(alice);
+        bool useCtx = randomizer % 2 == 0;
+        if (useCtx) {
+            vestingScheduler.createVestingScheduleFromAmountAndDuration(
+                superToken, bob, totalVestedAmount, vestingDuration, startDate, cliffPeriod, 0, cliffAmount, EMPTY_CTX
+            );
+        } else {
+            vestingScheduler.createVestingScheduleFromAmountAndDuration(
+                superToken, bob, totalVestedAmount, vestingDuration, startDate, cliffPeriod, 0, cliffAmount
+            );
+        }
+        vm.stopPrank();
+    }
+
     struct BigTestData {
         uint256 beforeSenderBalance;
         uint256 beforeReceiverBalance;
