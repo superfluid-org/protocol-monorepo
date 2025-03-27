@@ -200,9 +200,11 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         console.log("**** !ATTN! DEPLOYING NEW SUPERFLUID LOADER ****");
     }
 
-    await deployERC1820((err) => {
-        if (err) throw err;
-    }, options);
+    if (!process.env.WITHOUT_ERC1820) {
+        await deployERC1820((err) => {
+            if (err) throw err;
+        }, options);
+    }
 
     const contracts = [
         "Ownable",

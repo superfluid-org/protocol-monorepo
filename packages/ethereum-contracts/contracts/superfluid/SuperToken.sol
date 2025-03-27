@@ -348,7 +348,10 @@ contract SuperToken is
         _setAdmin(admin);
 
         // register interfaces
-        ERC777Helper.register(address(this));
+
+        // Disabled in order to be deployable when ERC-1820 is not available.
+        // TODO: properly remove ERC-777
+        //ERC777Helper.register(address(this));
 
         // help tools like explorers detect the token contract
         emit Transfer(address(0), address(0), 0);
