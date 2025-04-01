@@ -133,4 +133,16 @@ interface IVestingSchedulerV3 is IVestingSchedulerV2 {
         uint32 endDate,
         bytes memory ctx
     ) external returns (bytes memory newCtx);
+
+    /**
+     * @dev Returns the total amount of vested tokens for a given vesting schedule
+     * @param superToken The superToken being vested
+     * @param sender The vesting sender
+     * @param receiver The vesting receiver
+     * @return totalVestedAmount The total amount of vested tokens
+     */
+    function getTotalVestedAmount(ISuperToken superToken, address sender, address receiver)
+        external
+        view
+        returns (uint256 totalVestedAmount);
 }

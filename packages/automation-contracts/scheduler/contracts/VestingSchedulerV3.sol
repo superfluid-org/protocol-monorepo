@@ -822,6 +822,19 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, SuperAppBase, IRelayRecipien
             accounting.alreadyVestedAmount + schedule.cliffAmount + schedule.remainderAmount + currentFlowAmount;
     }
 
+    /// @inheritdoc IVestingSchedulerV3
+    function getTotalVestedAmount(ISuperToken superToken, address sender, address receiver)
+        external
+        view
+        returns (uint256 totalVestedAmount)
+    {
+        ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
+        VestingSchedule memory schedule = agg.schedule;
+        ScheduleAccounting memory accounting = agg.accounting;
+
+        return _getTotalVestedAmount(schedule, accounting);
+    }
+
     /// @dev IVestingScheduler.executeEndVesting implementation.
     function executeEndVesting(ISuperToken superToken, address sender, address receiver)
         external

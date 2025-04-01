@@ -2957,6 +2957,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, updatedTotalAmount, EMPTY_CTX);
 
+        assertEq(vestingScheduler.getTotalVestedAmount(superToken, alice, bob), updatedTotalAmount);
+
         // Get the updated schedule
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
 
@@ -3012,6 +3014,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1100 ether, EMPTY_CTX);
 
+        assertEq(vestingScheduler.getTotalVestedAmount(superToken, alice, bob), 1100 ether);
+
         // Warp to third month (90 days total)
         vm.warp(startDate + 90 days);
 
@@ -3033,6 +3037,8 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Update schedule one last time to 1500 USDC
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1500 ether, EMPTY_CTX);
+
+        assertEq(vestingScheduler.getTotalVestedAmount(superToken, alice, bob), 1500 ether);
 
         // Warp to 24 hours before end date and execute end vesting
         vm.warp(schedule.endDate - 24 hours);
