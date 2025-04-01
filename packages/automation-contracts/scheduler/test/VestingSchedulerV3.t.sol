@@ -396,6 +396,37 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         _createVestingScheduleWithDefaultData(alice, bob);
     }
 
+    function testUdateVestingScheduleFlowRateFromAmountAndEndDate() public {
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
+        vm.expectEmit(true, true, true, true);
+        emit VestingScheduleCreated(
+            superToken, alice, bob, START_DATE, CLIFF_DATE, FLOW_RATE, END_DATE, CLIFF_TRANSFER_AMOUNT, 0, 0
+        );
+        _createVestingScheduleWithDefaultData(alice, bob);
+        vm.prank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+        vm.startPrank(admin);
+        uint256 initialTimestamp = block.timestamp + 10 days + 1800;
+        vm.warp(initialTimestamp);
+        vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        vm.stopPrank();
+        vm.startPrank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmountAndEndDate(
+            superToken, bob, CLIFF_TRANSFER_AMOUNT * 2, uint32(END_DATE + 1000)
+        );
+
+        IVestingSchedulerV3.VestingSchedule memory schedule =
+            vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
+
+        int96 expectedFlowRate = SafeCast.toInt96(
+            SafeCast.toInt256((CLIFF_TRANSFER_AMOUNT * 2 - CLIFF_TRANSFER_AMOUNT) / (END_DATE + 1000 - block.timestamp))
+        );
+        //assert storage data
+        assertTrue(schedule.cliffAndFlowDate == 0, "schedule.cliffAndFlowDate");
+        assertApproxEqAbs(schedule.flowRate, expectedFlowRate, 1e10, "schedule.flowRate");
+        assertTrue(schedule.endDate == END_DATE + 1000, "schedule.endDate");
+    }
+
     function testUpdateVestingScheduleFlowRateFromEndDate() public {
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
         vm.expectEmit(true, true, true, true);
