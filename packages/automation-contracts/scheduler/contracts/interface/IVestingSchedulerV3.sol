@@ -106,18 +106,27 @@ interface IVestingSchedulerV3 is IVestingSchedulerV2 {
     ) external pure returns (ScheduleCreationParams memory params);
 
     /**
+     * @dev Updates a vesting schedule flow rate based on a new total amount to be vested and a new end date
+     * @param superToken SuperToken to be vested
+     * @param receiver Vesting receiver
+     * @param newTotalAmount The new total amount to be vested
+     * @param newEndDate The new end date
+     */
+    function updateVestingScheduleFlowRateFromAmountAndEndDate(
+        ISuperToken superToken,
+        address receiver,
+        uint256 newTotalAmount,
+        uint32 newEndDate
+    ) external;
+
+    /**
      * @dev Updates a vesting schedule flow rate based on a new total amount to be vested
      * @param superToken SuperToken to be vested
      * @param receiver Vesting receiver
      * @param newTotalAmount The new total amount to be vested
-     * @param ctx Superfluid context used when batching operations. (or bytes(0) if not SF batching)
      */
-    function updateVestingScheduleFlowRateFromAmount(
-        ISuperToken superToken,
-        address receiver,
-        uint256 newTotalAmount,
-        bytes memory ctx
-    ) external returns (bytes memory newCtx);
+    function updateVestingScheduleFlowRateFromAmount(ISuperToken superToken, address receiver, uint256 newTotalAmount)
+        external;
 
     /**
      * @dev Updates the end date for a vesting schedule which already reached the cliff
@@ -125,14 +134,9 @@ interface IVestingSchedulerV3 is IVestingSchedulerV2 {
      * @param superToken SuperToken to be vested
      * @param receiver Vesting receiver
      * @param endDate The timestamp when the stream should stop
-     * @param ctx Superfluid context used when batching operations. (or bytes(0) if not SF batching)
      */
-    function updateVestingScheduleFlowRateFromEndDate(
-        ISuperToken superToken,
-        address receiver,
-        uint32 endDate,
-        bytes memory ctx
-    ) external returns (bytes memory newCtx);
+    function updateVestingScheduleFlowRateFromEndDate(ISuperToken superToken, address receiver, uint32 endDate)
+        external;
 
     /**
      * @dev Returns the total amount of vested tokens for a given vesting schedule

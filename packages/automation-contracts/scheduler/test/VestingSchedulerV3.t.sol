@@ -411,7 +411,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         vm.stopPrank();
         vm.startPrank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, uint32(END_DATE + 1000), EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, uint32(END_DATE + 1000));
         //assert storage data
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -434,31 +434,25 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Schedule update is not allowed if : "the cliff and flow date is in the future"
         vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE + 1 hours, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE + 1 hours);
 
         uint256 afterCliffAndFlowDate = CLIFF_DATE + 30 minutes;
         vm.warp(afterCliffAndFlowDate);
 
         // Schedule update is not allowed if : "the new end date is in the past"
         vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
-            superToken, bob, uint32(afterCliffAndFlowDate - 1), EMPTY_CTX
-        );
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, uint32(afterCliffAndFlowDate - 1));
 
         // Schedule update is not allowed if : "the new end date is in right now (block.timestamp)"
         vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
-            superToken, bob, uint32(afterCliffAndFlowDate), EMPTY_CTX
-        );
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, uint32(afterCliffAndFlowDate));
 
         uint256 afterEndDate = END_DATE + 1 hours;
         vm.warp(afterEndDate);
 
         // Schedule update is not allowed if : "the current end date has passed"
         vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(
-            superToken, bob, uint32(afterEndDate + 1 hours), EMPTY_CTX
-        );
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, uint32(afterEndDate + 1 hours));
 
         vm.stopPrank();
     }
@@ -481,7 +475,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Schedule update is not allowed if : "the cliff and flow date is in the future"
         vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount);
 
         uint256 afterCliffAndFlowDate = CLIFF_DATE + 30 minutes;
         vm.warp(afterCliffAndFlowDate);
@@ -489,14 +483,14 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Amount is invalid if it is less than the already vested amount
         uint256 invalidNewAmount = CLIFF_TRANSFER_AMOUNT;
         vm.expectRevert(IVestingSchedulerV3.InvalidNewTotalAmount.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, invalidNewAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, invalidNewAmount);
 
         uint256 afterEndDate = END_DATE + 1 hours;
         vm.warp(afterEndDate);
 
         // Schedule update is not allowed if : "the current end date has passed"
         vm.expectRevert(IVestingSchedulerV2.TimeWindowInvalid.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount);
 
         vm.stopPrank();
     }
@@ -504,11 +498,11 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
     function testCannotUpdateVestingScheduleIfDataDontExist(uint256 newAmount) public {
         vm.startPrank(alice);
         vm.expectRevert(IVestingSchedulerV2.ScheduleDoesNotExist.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE);
 
         newAmount = bound(newAmount, 1, type(uint256).max);
         vm.expectRevert(IVestingSchedulerV2.ScheduleDoesNotExist.selector);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newAmount);
         vm.stopPrank();
     }
 
@@ -527,7 +521,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
         vm.stopPrank();
         vm.startPrank(alice);
-        vestingScheduler.updateVestingSchedule(superToken, bob, END_DATE + 1000, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, END_DATE + 1000);
         //assert storage data
         IVestingSchedulerV2.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -660,7 +654,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, NEW_END_DATE, expectedRemainder);
 
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE);
 
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -724,7 +718,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, NEW_END_DATE, expectedRemainder);
 
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE);
 
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -789,7 +783,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, END_DATE, expectedRemainder);
 
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount);
 
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -866,7 +860,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, END_DATE, expectedRemainder);
 
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount);
 
         IVestingSchedulerV3.VestingSchedule memory schedule =
             vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -2842,7 +2836,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         uint256 secondUpdateAmount = 1400 ether;
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, secondUpdateAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, secondUpdateAmount);
 
         // Verify the flow rate has been updated
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -2860,7 +2854,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(startDate + 3 * 30 days);
 
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1100 ether, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1100 ether);
 
         // Verify the flow rate has been updated again
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
@@ -2877,7 +2871,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(startDate + 4 * 30 days);
 
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1500 ether, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1500 ether);
 
         // Warp to 24 hours before end date and execute end vesting
         vm.warp(schedule.endDate - 24 hours);
@@ -2955,7 +2949,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         uint256 updatedTotalAmount = 1400 ether;
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, updatedTotalAmount, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, updatedTotalAmount);
 
         assertEq(vestingScheduler.getTotalVestedAmount(superToken, alice, bob), updatedTotalAmount);
 
@@ -3012,7 +3006,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Update schedule again to 1100 USDC
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1100 ether, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1100 ether);
 
         assertEq(vestingScheduler.getTotalVestedAmount(superToken, alice, bob), 1100 ether);
 
@@ -3036,7 +3030,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
 
         // Update schedule one last time to 1500 USDC
         vm.prank(alice);
-        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1500 ether, EMPTY_CTX);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, 1500 ether);
 
         assertEq(vestingScheduler.getTotalVestedAmount(superToken, alice, bob), 1500 ether);
 
@@ -3083,9 +3077,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_APP_ACTION,
             target: address(vestingScheduler),
-            data: abi.encodeCall(
-                vestingScheduler.updateVestingScheduleFlowRateFromEndDate, (superToken, bob, newEndDate, EMPTY_CTX)
-            )
+            data: abi.encodeCall(vestingScheduler.updateVestingSchedule, (superToken, bob, newEndDate, EMPTY_CTX))
         });
 
         // Act
@@ -3115,9 +3107,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_ERC2771_FORWARD_CALL,
             target: address(vestingScheduler),
-            data: abi.encodeCall(
-                vestingScheduler.updateVestingScheduleFlowRateFromEndDate, (superToken, bob, newEndDate, EMPTY_CTX)
-            )
+            data: abi.encodeCall(vestingScheduler.updateVestingScheduleFlowRateFromEndDate, (superToken, bob, newEndDate))
         });
 
         // Act
