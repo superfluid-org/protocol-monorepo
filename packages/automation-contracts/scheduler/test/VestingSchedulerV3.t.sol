@@ -2927,6 +2927,164 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         testAssertScheduleDoesNotExist(address(superToken), alice, bob);
     }
 
+    struct VestingTestState {
+        uint256 initialAmount;
+        uint256 secondAmount;
+        uint256 thirdAmount;
+        uint256 finalAmount;
+        uint32 totalDuration;
+        uint32 durationExtension1;
+        uint32 durationExtension2;
+        uint32 startDate;
+        uint32 firstNewEndDate;
+        uint32 secondNewEndDate;
+        uint32 finalEndDate;
+        uint256 aliceInitialBalance;
+        uint256 aliceFinalBalance;
+        uint256 bobInitialBalance;
+        uint256 bobFinalBalance;
+        uint256 retrievedTotalAmount;
+        bool success;
+    }
+
+    function testFuzz_UpdateVestingSchedule_WithAmountAndEndDate(
+        uint256 initialAmount,
+        uint256 secondAmount,
+        uint256 thirdAmount, 
+        uint256 finalAmount,
+        uint32 totalDuration,
+        uint32 durationExtension1,
+        uint32 durationExtension2,
+        uint8 randomizer
+    ) public {
+        VestingTestState memory state;
+        
+        // Bound inputs to reasonable values
+        state.initialAmount = bound(initialAmount, 500 ether, 2000 ether);
+        
+        state.secondAmount = bound(secondAmount, state.initialAmount - 10 ether, state.initialAmount + 10 ether);
+        state.thirdAmount = bound(thirdAmount, state.secondAmount - 10 ether, state.secondAmount + 10 ether);
+        state.finalAmount = bound(finalAmount, state.thirdAmount - 10 ether, state.thirdAmount + 10 ether);
+        
+        // Ensure reasonable durations
+        state.totalDuration = uint32(bound(totalDuration, vestingScheduler.MIN_VESTING_DURATION() + 7 days, 180 days));
+        state.durationExtension1 = uint32(bound(durationExtension1, 1 days, 3 days));
+        state.durationExtension2 = uint32(bound(durationExtension2, 1 days, 3 days));
+        
+        // Capture initial balances
+        state.aliceInitialBalance = superToken.balanceOf(alice);
+        state.bobInitialBalance = superToken.balanceOf(bob);
+        
+        // Setup
+        _setACL_AUTHORIZE_FULL_CONTROL(alice, type(int96).max);
+        
+        vm.startPrank(alice);
+        superToken.increaseAllowance(address(vestingScheduler), type(uint256).max);
+        
+        // Create initial vesting schedule
+        state.startDate = uint32(block.timestamp);
+        vestingScheduler.createVestingScheduleFromAmountAndDuration(
+            superToken,
+            bob,
+            state.initialAmount,
+            state.totalDuration,
+            state.startDate,
+            0, // No cliff period
+            0  // No claim period
+        );
+        vm.stopPrank();
+        
+        // Verify initial total amount
+        state.retrievedTotalAmount = vestingScheduler.getTotalVestedAmount(superToken, alice, bob);
+        assertEq(state.retrievedTotalAmount, state.initialAmount, "Initial total amount should match");
+        
+        // Execute cliff and flow to start vesting
+        vm.warp(state.startDate);
+        vm.prank(alice);
+        state.success = vestingScheduler.executeCliffAndFlow(superToken, alice, bob);
+        assertTrue(state.success, "executeCliffAndFlow should succeed");
+        
+        console.log("First update - 25% into vesting");
+        vm.warp(state.startDate + state.totalDuration/4);
+        
+        console.log("Update to secondAmount and extend duration");
+        state.firstNewEndDate = state.startDate + state.totalDuration + state.durationExtension1;
+        
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmountAndEndDate(
+            superToken, 
+            bob, 
+            state.secondAmount, 
+            state.firstNewEndDate
+        );
+        
+        // Verify updated total amount
+        state.retrievedTotalAmount = vestingScheduler.getTotalVestedAmount(superToken, alice, bob);
+        assertEq(state.retrievedTotalAmount, state.secondAmount, "Total amount after first update should match secondAmount");
+        
+        console.log("Warp to 50% of original duration");
+        vm.warp(state.startDate + state.totalDuration / 2);
+        
+        // Second update
+        state.secondNewEndDate = state.firstNewEndDate - state.durationExtension2;
+        
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmountAndEndDate(
+            superToken, 
+            bob, 
+            state.thirdAmount, 
+            state.secondNewEndDate
+        );
+        
+        // Verify updated total amount
+        state.retrievedTotalAmount = vestingScheduler.getTotalVestedAmount(superToken, alice, bob);
+        assertEq(state.retrievedTotalAmount, state.thirdAmount, "Total amount after second update should match thirdAmount");
+        
+        console.log("Warp to 75% of original duration");
+        vm.warp(state.startDate + (state.totalDuration * 3)/4);
+        
+        console.log("Final update");
+        state.finalEndDate = state.secondNewEndDate - 1 days;
+        
+        vm.prank(alice);
+        vestingScheduler.updateVestingScheduleFlowRateFromAmountAndEndDate(
+            superToken, 
+            bob, 
+            state.finalAmount, 
+            state.finalEndDate
+        );
+        
+        // Verify updated total amount
+        state.retrievedTotalAmount = vestingScheduler.getTotalVestedAmount(superToken, alice, bob);
+        assertEq(state.retrievedTotalAmount, state.finalAmount, "Total amount after final update should match finalAmount");
+        
+        // Warp to 12 hours before end and execute end vesting
+        vm.warp(state.finalEndDate - 12 hours);
+        
+        vm.prank(alice);
+        state.success = vestingScheduler.executeEndVesting(superToken, alice, bob);
+        assertTrue(state.success, "executeEndVesting should succeed");
+        
+        // Verify final balances
+        state.aliceFinalBalance = superToken.balanceOf(alice);
+        state.bobFinalBalance = superToken.balanceOf(bob);
+        
+        assertEq(
+            state.aliceInitialBalance - state.aliceFinalBalance, 
+            state.finalAmount, 
+            "Alice should have transferred exactly finalAmount"
+        );
+        
+        assertEq(
+            state.bobFinalBalance - state.bobInitialBalance, 
+            state.finalAmount, 
+            "Bob should have received exactly finalAmount"
+        );
+        
+        // Verify schedule no longer exists
+        testAssertScheduleDoesNotExist(address(superToken), alice, bob);
+    }
+
     function test_use_2771_forward_call() public {
         vm.startPrank(alice);
         vestingScheduler.createVestingSchedule(
