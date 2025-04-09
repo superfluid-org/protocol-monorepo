@@ -341,41 +341,15 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         vestingSchedules[agg.id].remainderAmount =
             _calculateRemainderAmount(amountLeftToVest, timeLeftToVest, update.newFlowRate);
 
-        // Emit VestingSchedulerV2 event for backward compatibility
         emit VestingScheduleUpdated(
             agg.superToken, 
             agg.sender, 
             agg.receiver, 
-            agg.schedule.endDate, // maybe remove this
             update.newEndDate, 
-            vestingSchedules[agg.id].remainderAmount
-            // flow rate
-            // total amount
-            // settled amount
-        );
-
-        // Emit VestingSchedulerV3 event for additional data
-        emit VestingScheduleEndDateUpdated(
-            agg.superToken,
-            agg.sender,
-            agg.receiver,
-            agg.schedule.endDate,
-            update.newEndDate,
-            agg.schedule.flowRate,
+            vestingSchedules[agg.id].remainderAmount,
             update.newFlowRate,
-            vestingSchedules[agg.id].remainderAmount
-        );
-
-        // Emit VestingSchedulerV3 event for additional data
-        emit VestingScheduleTotalAmountUpdated(
-            agg.superToken,
-            agg.sender,
-            agg.receiver,
-            agg.schedule.flowRate,
-            update.newFlowRate,
-            _getTotalVestedAmount(agg.schedule, agg.accounting),
             update.newTotalAmount,
-            vestingSchedules[agg.id].remainderAmount
+            alreadyVestedAmount
         );
     }
 

@@ -39,9 +39,11 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         ISuperToken indexed superToken,
         address indexed sender,
         address indexed receiver,
-        uint32 oldEndDate,
         uint32 endDate,
-        uint96 remainderAmount
+        uint96 remainderAmount,
+        int96 flowRate,
+        uint256 totalAmount,
+        uint256 alreadyVestedAmount
     );
 
     event VestingScheduleDeleted(ISuperToken indexed superToken, address indexed sender, address indexed receiver);
@@ -664,7 +666,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             SafeCast.toUint96((totalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, NEW_END_DATE, expectedRemainder);
+        emit VestingScheduleUpdated(superToken, alice, bob, NEW_END_DATE, expectedRemainder, newFlowRate, totalAmount, alreadyVestedAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE);
@@ -728,7 +730,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             SafeCast.toUint96((totalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, NEW_END_DATE, expectedRemainder);
+        emit VestingScheduleUpdated(superToken, alice, bob, NEW_END_DATE, expectedRemainder, newFlowRate, totalAmount, alreadyVestedAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE);
@@ -793,7 +795,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             SafeCast.toUint96((newTotalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, END_DATE, expectedRemainder);
+        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, expectedRemainder, newFlowRate, newTotalAmount, alreadyVestedAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount);
@@ -870,7 +872,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
             SafeCast.toUint96((newTotalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, END_DATE, expectedRemainder);
+        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, expectedRemainder, newFlowRate, newTotalAmount, alreadyVestedAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount);

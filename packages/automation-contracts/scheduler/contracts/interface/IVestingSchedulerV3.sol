@@ -129,65 +129,25 @@ interface IVestingSchedulerV3 {
     );
 
     /**
-     * @dev Event emitted when a vesting schedule's total amount is updated
-     * @param superToken The superToken being vested
-     * @param sender The vesting sender
-     * @param receiver The vesting receiver
-     * @param previousFlowRate The flow rate before the update
-     * @param newFlowRate The flow rate after the update
-     * @param previousTotalAmount The total amount to be vested before the update
-     * @param newTotalAmount The total amount to be vested after the update
-     * @param remainderAmount The remainder amount that cannot be streamed
-     */
-    event VestingScheduleTotalAmountUpdated(
-        ISuperToken indexed superToken,
-        address indexed sender,
-        address indexed receiver,
-        int96 previousFlowRate,
-        int96 newFlowRate,
-        uint256 previousTotalAmount,
-        uint256 newTotalAmount,
-        uint96 remainderAmount
-    );
-
-    /**
-     * @dev Event emitted when a vesting schedule's end date is updated
-     * @param superToken The superToken being vested
-     * @param sender The vesting sender
-     * @param receiver The vesting receiver
-     * @param oldEndDate The end date before the update
-     * @param endDate The end date after the update
-     * @param previousFlowRate The flow rate before the update
-     * @param newFlowRate The flow rate after the update
-     * @param remainderAmount The remainder amount that cannot be streamed
-     */
-    event VestingScheduleEndDateUpdated(
-        ISuperToken indexed superToken,
-        address indexed sender,
-        address indexed receiver,
-        uint32 oldEndDate,
-        uint32 endDate,
-        int96 previousFlowRate,
-        int96 newFlowRate,
-        uint96 remainderAmount
-    );
-
-    /**
      * @dev Event emitted on update of a vesting schedule
      * @param superToken The superToken to be vested
-     * @param sender Vesting sender
-     * @param receiver Vesting receiver
-     * @param oldEndDate Old timestamp when the stream should stop
+     * @param sender Vesting sender - the account that created and funds the vesting schedule
+     * @param receiver Vesting receiver - the account that receives the vested tokens
      * @param endDate New timestamp when the stream should stop
-     * @param remainderAmount The remainder amount that cannot be streamed
+     * @param remainderAmount The remainder amount that cannot be streamed due to flow rate precision
+     * @param flowRate The new flow rate for the updated vesting schedule
+     * @param totalAmount The total amount to be vested over the entire schedule
+     * @param alreadyVestedAmount The amount that has already been vested up to the update
      */
     event VestingScheduleUpdated(
         ISuperToken indexed superToken,
         address indexed sender,
         address indexed receiver,
-        uint32 oldEndDate,
         uint32 endDate,
-        uint96 remainderAmount
+        uint96 remainderAmount,
+        int96 flowRate,
+        uint256 totalAmount,
+        uint256 alreadyVestedAmount
     );
 
     /**
