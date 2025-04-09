@@ -47,12 +47,12 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
 
     /**
      * @notice Struct containing accounting details for a schedule
-     * @param alreadyVestedAmount The amount already vested
-     * @param lastUpdated The timestamp of the last update
+     * @param settledAmount The amount already vested/settled
+     * @param settledDate The timestamp of the last settling
      */
     struct ScheduleAccounting {
-        uint256 alreadyVestedAmount;
-        uint256 lastUpdated;
+        uint256 settledAmount;
+        uint256 settledDate;
     }
 
     //      ____                          __        __    __        _____ __        __
@@ -312,18 +312,18 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         vestingSchedules[agg.id].endDate = update.newEndDate;
 
         // Settle the amount already vested
-        uint256 alreadyVestedAmount = _settle(agg);
+        uint256 settledAmount = _settle(agg);
         uint256 timeLeftToVest = update.newEndDate - block.timestamp;
         
         if (update.newTotalAmount == 0 && update.newFlowRate != 0) {
-            update.newTotalAmount = alreadyVestedAmount + (SafeCast.toUint256(update.newFlowRate) * timeLeftToVest);
+            update.newTotalAmount = settledAmount + (SafeCast.toUint256(update.newFlowRate) * timeLeftToVest);
         }
 
         // Ensure that the new total amount is larger than the amount already vested
-        if (update.newTotalAmount < alreadyVestedAmount)
+        if (update.newTotalAmount < settledAmount)
             revert InvalidNewTotalAmount();
 
-        uint256 amountLeftToVest = update.newTotalAmount - alreadyVestedAmount;
+        uint256 amountLeftToVest = update.newTotalAmount - settledAmount;
 
         if (update.newFlowRate == 0) {
             update.newFlowRate = _calculateFlowRate(amountLeftToVest, timeLeftToVest);
@@ -349,7 +349,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
             vestingSchedules[agg.id].remainderAmount,
             update.newFlowRate,
             update.newTotalAmount,
-            alreadyVestedAmount
+            settledAmount
         );
     }
 
@@ -402,7 +402,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
 
         _validateBeforeEndVesting(schedule, /* disableClaimCheck: */ false);
 
-        uint256 alreadyVestedAmount = _settle(agg);
+        uint256 settledAmount = _settle(agg);
         uint256 totalVestedAmount = _getTotalVestedAmount(schedule, accounting);
 
         // Invalidate configuration straight away -- avoid any chance of re-execution or re-entry.
@@ -415,7 +415,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
 
             // Note: we consider the compensation as failed if the stream is still ongoing after the end date.
             bool didCompensationFail = schedule.endDate < block.timestamp;
-            uint256 earlyEndCompensation = totalVestedAmount - alreadyVestedAmount;
+            uint256 earlyEndCompensation = totalVestedAmount - settledAmount;
 
             if (earlyEndCompensation != 0) {
                 // Note: Super Tokens revert, not return false, i.e. we expect always true here.
@@ -555,7 +555,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         returns (uint256 maxNeededAllowance)
     {
         maxNeededAllowance =
-            _getMaximumNeededTokenAllowance(schedule, ScheduleAccounting({alreadyVestedAmount: 0, lastUpdated: 0}));
+            _getMaximumNeededTokenAllowance(schedule, ScheduleAccounting({settledAmount: 0, settledDate: 0}));
     }
 
     /// @inheritdoc IVestingSchedulerV3
@@ -659,7 +659,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         assert(_executeCliffAndFlow(agg));
     }
 
-    function _settle(ScheduleAggregate memory agg) private returns (uint256 alreadyVestedAmount) {
+    function _settle(ScheduleAggregate memory agg) private returns (uint256 settledAmount) {
         // Ensure that the cliff and flow date has passed
         assert(block.timestamp >= agg.schedule.cliffAndFlowDate);
 
@@ -667,21 +667,21 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         delete vestingSchedules[agg.id].cliffAmount;
 
         // Update the timestamp of the last schedule update
-        accountings[agg.id].lastUpdated = block.timestamp;
+        accountings[agg.id].settledDate = block.timestamp;
 
         if (block.timestamp > agg.schedule.endDate) {
             // If the schedule end date has passed, settle the total amount vested
-            accountings[agg.id].alreadyVestedAmount = _getTotalVestedAmount(agg.schedule, agg.accounting);
+            accountings[agg.id].settledAmount = _getTotalVestedAmount(agg.schedule, agg.accounting);
         } else {
             // If the schedule end date has not passed, accrue the amount already vested
-            uint256 actualLastUpdate =
-                agg.accounting.lastUpdated == 0 ? agg.schedule.cliffAndFlowDate : agg.accounting.lastUpdated;
+            uint256 settledDate =
+                agg.accounting.settledDate == 0 ? agg.schedule.cliffAndFlowDate : agg.accounting.settledDate;
 
             // Accrue the amount already vested
-            accountings[agg.id].alreadyVestedAmount +=
-                ((block.timestamp - actualLastUpdate) * uint96(agg.schedule.flowRate)) + agg.schedule.cliffAmount;
+            accountings[agg.id].settledAmount +=
+                ((block.timestamp - settledDate) * uint96(agg.schedule.flowRate)) + agg.schedule.cliffAmount;
         }
-        alreadyVestedAmount = accountings[agg.id].alreadyVestedAmount;
+        settledAmount = accountings[agg.id].settledAmount;
     }
 
     function _calculateFlowRate(uint256 amountLeftToVest, uint256 timeLeftToVest)
@@ -756,15 +756,15 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         VestingSchedule memory schedule = agg.schedule;
 
         // Settle the amount already vested
-        uint256 alreadyVestedAmount = _settle(agg);
+        uint256 settledAmount = _settle(agg);
 
         // Invalidate configuration straight away -- avoid any chance of re-execution or re-entry.
         delete vestingSchedules[agg.id].cliffAndFlowDate;
 
         // Transfer the amount already vested (includes the cliff, if any)
-        if (alreadyVestedAmount != 0) {
+        if (settledAmount != 0) {
             // Note: Super Tokens revert, not return false, i.e. we expect always true here.
-            assert(agg.superToken.transferFrom(agg.sender, agg.receiver, alreadyVestedAmount));
+            assert(agg.superToken.transferFrom(agg.sender, agg.receiver, settledAmount));
         }
 
         // Create a flow according to the vesting schedule configuration.
@@ -777,7 +777,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
             schedule.cliffAndFlowDate,
             schedule.flowRate,
             schedule.cliffAmount,
-            alreadyVestedAmount - schedule.cliffAmount
+            settledAmount - schedule.cliffAmount
         );
 
         success = true;
@@ -820,13 +820,13 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         pure
         returns (uint256 totalVestedAmount)
     {
-        uint256 actualLastUpdate = accounting.lastUpdated == 0 ? schedule.cliffAndFlowDate : accounting.lastUpdated;
+        uint256 actualLastUpdate = accounting.settledDate == 0 ? schedule.cliffAndFlowDate : accounting.settledDate;
 
         uint256 currentFlowDuration = schedule.endDate - actualLastUpdate;
         uint256 currentFlowAmount = currentFlowDuration * SafeCast.toUint256(schedule.flowRate);
 
         totalVestedAmount =
-            accounting.alreadyVestedAmount + schedule.cliffAmount + schedule.remainderAmount + currentFlowAmount;
+            accounting.settledAmount + schedule.cliffAmount + schedule.remainderAmount + currentFlowAmount;
     }
 
     function _validateBeforeEndVesting(VestingSchedule memory schedule, bool disableClaimCheck) private view {

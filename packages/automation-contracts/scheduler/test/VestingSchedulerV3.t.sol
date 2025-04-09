@@ -43,7 +43,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         uint96 remainderAmount,
         int96 flowRate,
         uint256 totalAmount,
-        uint256 alreadyVestedAmount
+        uint256 settledAmount
     );
 
     event VestingScheduleDeleted(ISuperToken indexed superToken, address indexed sender, address indexed receiver);
@@ -658,15 +658,15 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(block.timestamp + 2 days);
 
         uint256 timeLeftToVest = NEW_END_DATE - block.timestamp;
-        uint256 alreadyVestedAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+        uint256 settledAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
         int96 newFlowRate =
-            SafeCast.toInt96(SafeCast.toInt256(totalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest));
+            SafeCast.toInt96(SafeCast.toInt256(totalAmount - settledAmount) / SafeCast.toInt256(timeLeftToVest));
 
         uint96 expectedRemainder =
-            SafeCast.toUint96((totalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
+            SafeCast.toUint96((totalAmount - settledAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, NEW_END_DATE, expectedRemainder, newFlowRate, totalAmount, alreadyVestedAmount);
+        emit VestingScheduleUpdated(superToken, alice, bob, NEW_END_DATE, expectedRemainder, newFlowRate, totalAmount, settledAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE);
@@ -722,15 +722,15 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(block.timestamp + 2 days);
 
         uint256 timeLeftToVest = NEW_END_DATE - block.timestamp;
-        uint256 alreadyVestedAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+        uint256 settledAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
         int96 newFlowRate =
-            SafeCast.toInt96(SafeCast.toInt256(totalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest));
+            SafeCast.toInt96(SafeCast.toInt256(totalAmount - settledAmount) / SafeCast.toInt256(timeLeftToVest));
 
         uint96 expectedRemainder =
-            SafeCast.toUint96((totalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
+            SafeCast.toUint96((totalAmount - settledAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, NEW_END_DATE, expectedRemainder, newFlowRate, totalAmount, alreadyVestedAmount);
+        emit VestingScheduleUpdated(superToken, alice, bob, NEW_END_DATE, expectedRemainder, newFlowRate, totalAmount, settledAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromEndDate(superToken, bob, NEW_END_DATE);
@@ -786,16 +786,16 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(block.timestamp + 2 days);
 
         uint256 timeLeftToVest = END_DATE - block.timestamp;
-        uint256 alreadyVestedAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+        uint256 settledAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
         int96 newFlowRate = SafeCast.toInt96(
-            SafeCast.toInt256(newTotalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest)
+            SafeCast.toInt256(newTotalAmount - settledAmount) / SafeCast.toInt256(timeLeftToVest)
         );
 
         uint96 expectedRemainder =
-            SafeCast.toUint96((newTotalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
+            SafeCast.toUint96((newTotalAmount - settledAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, expectedRemainder, newFlowRate, newTotalAmount, alreadyVestedAmount);
+        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, expectedRemainder, newFlowRate, newTotalAmount, settledAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount);
@@ -816,7 +816,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         assertTrue(success, "executeCloseVesting should return true");
 
         uint256 expectedTotalAmountTransferred =
-            alreadyVestedAmount + (timeLeftToVest * uint96(newFlowRate)) + schedule.remainderAmount;
+            settledAmount + (timeLeftToVest * uint96(newFlowRate)) + schedule.remainderAmount;
 
         assertEq(
             aliceInitialBalance - superToken.balanceOf(alice),
@@ -862,17 +862,17 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         vm.warp(block.timestamp + 2 days);
         uint256 timeLeftToVest = END_DATE - block.timestamp;
 
-        uint256 alreadyVestedAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
+        uint256 settledAmount = (block.timestamp - CLIFF_DATE) * uint96(FLOW_RATE) + CLIFF_TRANSFER_AMOUNT;
 
         int96 newFlowRate = SafeCast.toInt96(
-            SafeCast.toInt256(newTotalAmount - alreadyVestedAmount) / SafeCast.toInt256(timeLeftToVest)
+            SafeCast.toInt256(newTotalAmount - settledAmount) / SafeCast.toInt256(timeLeftToVest)
         );
 
         uint96 expectedRemainder =
-            SafeCast.toUint96((newTotalAmount - alreadyVestedAmount) - (uint96(newFlowRate) * timeLeftToVest));
+            SafeCast.toUint96((newTotalAmount - settledAmount) - (uint96(newFlowRate) * timeLeftToVest));
 
         vm.expectEmit(true, true, true, true);
-        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, expectedRemainder, newFlowRate, newTotalAmount, alreadyVestedAmount);
+        emit VestingScheduleUpdated(superToken, alice, bob, END_DATE, expectedRemainder, newFlowRate, newTotalAmount, settledAmount);
 
         vm.prank(alice);
         vestingScheduler.updateVestingScheduleFlowRateFromAmount(superToken, bob, newTotalAmount);
@@ -893,7 +893,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         assertTrue(success, "executeCloseVesting should return true");
 
         uint256 expectedTotalAmountTransferred =
-            alreadyVestedAmount + (timeLeftToVest * uint96(newFlowRate)) + schedule.remainderAmount;
+            settledAmount + (timeLeftToVest * uint96(newFlowRate)) + schedule.remainderAmount;
 
         assertEq(
             aliceInitialBalance - superToken.balanceOf(alice),
@@ -2713,10 +2713,10 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
         uint256 remainingMonths = 4;
 
-        (uint256 alreadyVestedAmount,) =
+        (uint256 settledAmount,) =
             vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
 
-        uint256 remainingAmount = secondUpdateAmount - alreadyVestedAmount;
+        uint256 remainingAmount = secondUpdateAmount - settledAmount;
         int96 expectedFlowRate =
             SafeCast.toInt96(SafeCast.toInt256(remainingAmount / (schedule.endDate - block.timestamp)));
         assertEq(schedule.flowRate, expectedFlowRate, "Flow rate should be updated for 300 USDC/month");
@@ -2730,11 +2730,11 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Verify the flow rate has been updated again
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
 
-        (alreadyVestedAmount,) = vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
+        (settledAmount,) = vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
 
         // Calculate new flow rate for remaining 3 months
         remainingMonths = 3;
-        remainingAmount = 1100 ether - alreadyVestedAmount;
+        remainingAmount = 1100 ether - settledAmount;
         expectedFlowRate = SafeCast.toInt96(SafeCast.toInt256(remainingAmount / (schedule.endDate - block.timestamp)));
         assertEq(schedule.flowRate, expectedFlowRate, "Flow rate should be updated for 200 USDC/month");
 
@@ -2826,12 +2826,12 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Get the updated schedule
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
 
-        (uint256 alreadyVestedAmount,) =
+        (uint256 settledAmount,) =
             vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
 
         // Calculate expected flow rate after update
         int96 expectedFlowRate = SafeCast.toInt96(
-            SafeCast.toInt256((updatedTotalAmount - alreadyVestedAmount) / (schedule.endDate - block.timestamp))
+            SafeCast.toInt256((updatedTotalAmount - settledAmount) / (schedule.endDate - block.timestamp))
         );
 
         // Verify the flow rate has been updated correctly
@@ -2883,12 +2883,12 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         // Warp to third month (90 days total)
         vm.warp(startDate + 90 days);
 
-        (alreadyVestedAmount,) = vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
+        (settledAmount,) = vestingScheduler.accountings(_helperGetScheduleId(address(superToken), alice, bob));
 
         // Calculate expected amount after third month
         // First two months + third month at reduced rate
         schedule = vestingScheduler.getVestingSchedule(address(superToken), alice, bob);
-        uint256 thirdMonthAmount = (1100 ether - alreadyVestedAmount) / 3; // ~200 USDC/month
+        uint256 thirdMonthAmount = (1100 ether - settledAmount) / 3; // ~200 USDC/month
 
         // Verify Bob's balance after third month
         assertApproxEqAbs(

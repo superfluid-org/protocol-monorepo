@@ -137,7 +137,7 @@ interface IVestingSchedulerV3 {
      * @param remainderAmount The remainder amount that cannot be streamed due to flow rate precision
      * @param flowRate The new flow rate for the updated vesting schedule
      * @param totalAmount The total amount to be vested over the entire schedule
-     * @param alreadyVestedAmount The amount that has already been vested up to the update
+     * @param settledAmount The amount that has already been vested up to the update
      */
     event VestingScheduleUpdated(
         ISuperToken indexed superToken,
@@ -147,7 +147,7 @@ interface IVestingSchedulerV3 {
         uint96 remainderAmount,
         int96 flowRate,
         uint256 totalAmount,
-        uint256 alreadyVestedAmount
+        uint256 settledAmount
     );
 
     /**
