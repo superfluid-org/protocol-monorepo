@@ -141,6 +141,7 @@ dataSources:
                 calls:
                   balanceOfSender: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.sender)
                   balanceOfReceiver: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.receiver)
+                  deposit: IConstantFlowAgreementV1[event.address].getFlow(event.params.token, event.params.sender, event.params.receiver)
               - event: FlowUpdatedExtension(indexed address,uint256)
                 handler: handleFlowUpdatedExtension
                 receipt: true
@@ -199,7 +200,6 @@ dataSources:
           - event: IndexUpdated(indexed address,indexed address,indexed uint32,uint128,uint128,uint128,uint128,bytes)
             handler: handleIndexUpdated
             receipt: true
-            # TODO
           - event: IndexSubscribed(indexed address,indexed address,indexed uint32,address,bytes)
             handler: handleIndexSubscribed
             receipt: true
