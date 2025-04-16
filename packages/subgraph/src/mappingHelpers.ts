@@ -513,7 +513,7 @@ export function updatePoolParticleAndTotalAmountFlowedAndDistributed(
         pool.totalAmountDistributedUntilUpdatedAt.plus(
             amountFlowedSinceLastUpdate
         );
-    
+
     settlePoolParticle(pool, event.block);
 
     pool.save();
@@ -626,7 +626,7 @@ export function getOrInitAccountTokenSnapshot(
     const atsId = getAccountTokenSnapshotID(accountAddress, tokenAddress);
     let accountTokenSnapshot = AccountTokenSnapshot.load(atsId);
 
-if (accountTokenSnapshot == null) {
+    if (accountTokenSnapshot == null) {
         accountTokenSnapshot = new AccountTokenSnapshot(atsId);
         accountTokenSnapshot.createdAtTimestamp = block.timestamp;
         accountTokenSnapshot.createdAtBlockNumber = block.number;
@@ -859,7 +859,7 @@ export function _createTokenStatisticLogEntity(
     tokenStatisticLog.totalSupply = tokenStatistic.totalSupply;
     tokenStatisticLog.token = tokenStatistic.token;
     tokenStatisticLog.totalNumberOfAccounts = tokenStatistic.totalNumberOfAccounts;
-    tokenStatisticLog.totalNumberOfHolders  = tokenStatistic.totalNumberOfHolders;
+    tokenStatisticLog.totalNumberOfHolders = tokenStatistic.totalNumberOfHolders;
     tokenStatisticLog.tokenStatistic = tokenStatistic.id;
     tokenStatisticLog.save();
 }
@@ -876,9 +876,11 @@ export function updateAccountUpdatedAt(
     block: ethereum.Block
 ): void {
     const account = getOrInitAccount(accountAddress, block);
-    account.updatedAtTimestamp = block.timestamp;
-    account.updatedAtBlockNumber = block.number;
-    account.save();
+    if (account.updatedAtTimestamp != block.timestamp) {
+        account.updatedAtTimestamp = block.timestamp;
+        account.updatedAtBlockNumber = block.number;
+        account.save();
+    }
 }
 
 /**************************************************************************
@@ -906,14 +908,14 @@ export function updateAggregateDistributionAgreementData(
             ? -1
             : // we only increment if the subscription does not exist and we are incrementing
             isIncrementingSubWithUnits && !subscriptionWithUnitsExists
-            ? 1
-            : 0;
+                ? 1
+                : 0;
 
     const totalApprovedSubscriptionsDelta = isApproving
         ? 1
         : isRevokingSubscription && subscriptionApproved
-        ? -1
-        : 0;
+            ? -1
+            : 0;
 
     // update ATS Subscription data
     const accountTokenSnapshot = getOrInitAccountTokenSnapshot(
@@ -981,66 +983,69 @@ function updateATSBalanceAndUpdatedAt(
     block: ethereum.Block,
     balanceDelta: BigInt | null
 ): AccountTokenSnapshot {
+    
     const superTokenContract = SuperToken.bind(
         Address.fromString(accountTokenSnapshot.token)
     );
-
+    
     // If the balance has been updated from RPC in this block then no need to update it again.
     // The RPC call gets the final balance from that block.
-    if (accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber !== block.number) {
+    if (accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber !== null && accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber!.equals(block.number)
+    ) {
+        return accountTokenSnapshot as AccountTokenSnapshot;
+    }
 
-        // "Unpredictable" would mean an account receiving GDA distributions, IDA distributions or GDA adjustment flow.
-        // The reason they are "unpredictable" is that it would be unscalable to perfectly keep track of them with subgraph.
-        // What makes it unscalable is that the distribution events happen on the side of the distributor, not the receiver.
-        // We can't iterate all the receivers when a distribution is made.
-        const isAccountWithOnlyVeryPredictableBalanceSources = 
-            !accountTokenSnapshot.isLiquidationEstimateOptimistic // Covers GDA and IDA
-            && accountTokenSnapshot.activeGDAOutgoingStreamCount === 0
-            && accountTokenSnapshot.totalInflowRate === BIG_INT_ZERO
-            && accountTokenSnapshot.totalOutflowRate === BIG_INT_ZERO;
+    // "Unpredictable" would mean an account receiving GDA distributions, IDA distributions or GDA adjustment flow.
+    // The reason they are "unpredictable" is that it would be unscalable to perfectly keep track of them with subgraph.
+    // What makes it unscalable is that the distribution events happen on the side of the distributor, not the receiver.
+    // We can't iterate all the receivers when a distribution is made.
+    const isAccountWithOnlyVeryPredictableBalanceSources =
+        !accountTokenSnapshot.isLiquidationEstimateOptimistic // Covers GDA and IDA
+        && accountTokenSnapshot.activeGDAOutgoingStreamCount === 0
+        && accountTokenSnapshot.totalInflowRate === BIG_INT_ZERO
+        && accountTokenSnapshot.totalOutflowRate === BIG_INT_ZERO;
 
-        // If the balance has been updated in this block without an RPC, it's better to be safe than sorry and just get the final accurate state from the RPC.
-        const hasBalanceBeenUpdatedInThisBlock = accountTokenSnapshot.updatedAtBlockNumber === block.number;
+    // If the balance has been updated in this block without an RPC, it's better to be safe than sorry and just get the final accurate state from the RPC.
+    const hasBalanceBeenUpdatedInThisBlock = accountTokenSnapshot.updatedAtBlockNumber === block.number;
 
-        if (balanceDelta !== null && isAccountWithOnlyVeryPredictableBalanceSources && !hasBalanceBeenUpdatedInThisBlock) {
-            accountTokenSnapshot.balanceUntilUpdatedAt = accountTokenSnapshot.balanceUntilUpdatedAt.plus(balanceDelta);
+    if (balanceDelta !== null && isAccountWithOnlyVeryPredictableBalanceSources && !hasBalanceBeenUpdatedInThisBlock) {
+        accountTokenSnapshot.balanceUntilUpdatedAt = accountTokenSnapshot.balanceUntilUpdatedAt.plus(balanceDelta);
+    } else {
+        // if the account has any subscriptions with units we assume that
+        // the balance data requires a RPC call for balance because we did not
+        // have claim events there and we do not count distributions
+        // for subscribers
+        const newBalanceResult = superTokenContract.try_realtimeBalanceOfNow(
+            Address.fromString(accountTokenSnapshot.account)
+        );
+
+        const balanceBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+        let balanceFromRpc = balanceBeforeUpdate;
+        if (!newBalanceResult.reverted) {
+            balanceFromRpc = newBalanceResult.value.value0;
+            accountTokenSnapshot.balanceUntilUpdatedAt = balanceFromRpc;
+            accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber = block.number;
         } else {
-            // if the account has any subscriptions with units we assume that
-            // the balance data requires a RPC call for balance because we did not
-            // have claim events there and we do not count distributions
-            // for subscribers
-            const newBalanceResult = superTokenContract.try_realtimeBalanceOfNow(
-                Address.fromString(accountTokenSnapshot.account)
-            );
+            log.warning("Fetching balance from RPC failed.", []);
+        }
 
-            const balanceBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
-            let balanceFromRpc = balanceBeforeUpdate;
-            if (!newBalanceResult.reverted) {
-                balanceFromRpc = newBalanceResult.value.value0;
-                accountTokenSnapshot.balanceUntilUpdatedAt = balanceFromRpc;
-                accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber = block.number;
-            } else {
-                log.warning("Fetching balance from RPC failed.", []);
-            }
-            
-            if (balanceDelta && !accountTokenSnapshot.isLiquidationEstimateOptimistic) {
-                const balanceFromDelta = balanceBeforeUpdate.plus(balanceDelta);
-                if (!balanceFromRpc.equals(balanceFromDelta)) {
-                    log.debug(
-                        "Balance would have been different if we used balance delta over an RPC call. Block: {}, Timestamp: {}, Account: {}, Token: {}, Balance from RPC: {}, Balance from delta: {}, Balance delta: {}, Outgoing stream count: {}, Incoming stream count: {}", 
-                        [
-                            block.number.toString(), 
-                            block.timestamp.toString(),
-                            accountTokenSnapshot.account.toString(),
-                            accountTokenSnapshot.token.toString(),
-                            balanceFromRpc.toString(),
-                            balanceFromDelta.toString(),
-                            balanceDelta.toString(),
-                            accountTokenSnapshot.activeOutgoingStreamCount.toString(),
-                            accountTokenSnapshot.activeIncomingStreamCount.toString()
-                        ]
-                    );
-                }
+        if (balanceDelta && !accountTokenSnapshot.isLiquidationEstimateOptimistic) {
+            const balanceFromDelta = balanceBeforeUpdate.plus(balanceDelta);
+            if (!balanceFromRpc.equals(balanceFromDelta)) {
+                log.debug(
+                    "Balance would have been different if we used balance delta over an RPC call. Block: {}, Timestamp: {}, Account: {}, Token: {}, Balance from RPC: {}, Balance from delta: {}, Balance delta: {}, Outgoing stream count: {}, Incoming stream count: {}",
+                    [
+                        block.number.toString(),
+                        block.timestamp.toString(),
+                        accountTokenSnapshot.account.toString(),
+                        accountTokenSnapshot.token.toString(),
+                        balanceFromRpc.toString(),
+                        balanceFromDelta.toString(),
+                        balanceDelta.toString(),
+                        accountTokenSnapshot.activeOutgoingStreamCount.toString(),
+                        accountTokenSnapshot.activeIncomingStreamCount.toString()
+                    ]
+                );
             }
         }
     }
@@ -1468,7 +1473,7 @@ export function updateReceiverATSStreamData(
     receiverATS.totalCFANumberOfActiveStreams =
         receiverATS.totalCFANumberOfActiveStreams +
         totalNumberOfActiveStreamsDelta;
-        totalNumberOfClosedStreamsDelta;
+    totalNumberOfClosedStreamsDelta;
 
     receiverATS.totalCFANumberOfClosedStreams =
         receiverATS.totalCFANumberOfClosedStreams +
