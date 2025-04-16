@@ -980,18 +980,18 @@ export function updateAggregateDistributionAgreementData(
  */
 function updateATSBalanceAndUpdatedAt(
     accountTokenSnapshot: AccountTokenSnapshot,
-    block: ethereum.Block,
+    event: ethereum.Event,
     balanceDelta: BigInt | null
 ): AccountTokenSnapshot {
-    
+    const block = event.block;
+
     const superTokenContract = SuperToken.bind(
         Address.fromString(accountTokenSnapshot.token)
     );
-    
+
     // If the balance has been updated from RPC in this block then no need to update it again.
     // The RPC call gets the final balance from that block.
-    if (accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber !== null && accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber!.equals(block.number)
-    ) {
+    if (accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber !== null && accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber!.equals(block.number)) {
         return accountTokenSnapshot as AccountTokenSnapshot;
     }
 
@@ -1029,7 +1029,8 @@ function updateATSBalanceAndUpdatedAt(
             log.warning("Fetching balance from RPC failed.", []);
         }
 
-        if (balanceDelta && !accountTokenSnapshot.isLiquidationEstimateOptimistic) {
+        const enableLogging = false; // Enable if you want...
+        if (enableLogging && balanceDelta !== null && !accountTokenSnapshot.isLiquidationEstimateOptimistic) {
             const balanceFromDelta = balanceBeforeUpdate.plus(balanceDelta);
             if (!balanceFromRpc.equals(balanceFromDelta)) {
                 log.debug(
@@ -1048,6 +1049,7 @@ function updateATSBalanceAndUpdatedAt(
                 );
             }
         }
+
     }
 
     accountTokenSnapshot.updatedAtTimestamp = block.timestamp;
@@ -1074,9 +1076,15 @@ function updateATSBalanceAndUpdatedAt(
 export function updateATSStreamedAndBalanceUntilUpdatedAt(
     accountAddress: Address,
     tokenAddress: Address,
-    block: ethereum.Block,
-    balanceDelta: BigInt | null
+    event: ethereum.Event,
+    balanceDelta: BigInt | null,
+    eventName: string
 ): void {
+    const block = event.block;
+
+    // update the updatedAt property of the account that just made an update
+    updateAccountUpdatedAt(accountAddress, block);
+
     let accountTokenSnapshot = getOrInitAccountTokenSnapshot(
         accountAddress,
         tokenAddress,
@@ -1084,6 +1092,22 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
     );
 
     const balanceUntilUpdatedAtBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+
+    // update the balance via external call if account has any subscription with more than 0 units
+    // or uses the balance delta (which includes amount streamed) and saves the entity
+    // we always add the amount streamed in this function
+    accountTokenSnapshot = updateATSBalanceAndUpdatedAt(
+        accountTokenSnapshot,
+        event,
+        balanceDelta
+    );
+
+    const balanceUntilUpdatedAtAfterUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+
+    if (accountTokenSnapshot.updatedAtBlockNumber === block.number && balanceUntilUpdatedAtAfterUpdate.equals(balanceUntilUpdatedAtBeforeUpdate)) {
+        // ATS has already been updated in the block and no new balance change discovered. It's safe to return early.
+        return;
+    }
 
     //////////////// CFA + GDA streamed amounts ////////////////
     const totalAmountStreamedSinceLastUpdatedAt =
@@ -1123,17 +1147,6 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
             totalAmountStreamedOutSinceLastUpdatedAt
         );
 
-    // update the balance via external call if account has any subscription with more than 0 units
-    // or uses the balance delta (which includes amount streamed) and saves the entity
-    // we always add the amount streamed in this function
-    accountTokenSnapshot = updateATSBalanceAndUpdatedAt(
-        accountTokenSnapshot,
-        block,
-        balanceDelta
-            ? balanceDelta.plus(totalAmountStreamedSinceLastUpdatedAt)
-            : balanceDelta
-    );
-
     //////////////// CFA streamed amounts ////////////////
     const totalCFAAmountStreamedSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
@@ -1162,8 +1175,6 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
 
     accountTokenSnapshot.save();
 
-    const balanceUntilUpdatedAtAfterUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
-
     if (
         balanceUntilUpdatedAtBeforeUpdate.equals(BIG_INT_ZERO) &&
         balanceUntilUpdatedAtAfterUpdate.gt(BIG_INT_ZERO)
@@ -1186,9 +1197,12 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
         tokenStatistic.save();
     }
 
-
-    // update the updatedAt property of the account that just made an update
-    updateAccountUpdatedAt(accountAddress, block);
+    _createAccountTokenSnapshotLogEntity(
+        event,
+        accountAddress,
+        tokenAddress,
+        eventName
+    );
 }
 
 /**
@@ -1200,8 +1214,11 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
  */
 export function updateTokenStatsStreamedUntilUpdatedAt(
     tokenAddress: Address,
-    block: ethereum.Block
+    event: ethereum.Event,
+    eventName: string
 ): void {
+    const block = event.block;
+
     const tokenStats = getOrInitTokenStatistic(tokenAddress, block);
 
     //// CFA + GDA streamed amounts ////
@@ -1228,9 +1245,16 @@ export function updateTokenStatsStreamedUntilUpdatedAt(
             cfaAmountStreamedSinceLastUpdatedAt
         );
 
+    if (tokenStats.updatedAtBlockNumber === block.number && amountStreamedSinceLastUpdatedAt.equals(BigInt.fromI32(0))) {
+        // TS has already been updated in the block and no new balance change discovered. It's safe to return early.
+        return;
+    }
+
     tokenStats.updatedAtTimestamp = block.timestamp;
     tokenStats.updatedAtBlockNumber = block.number;
     tokenStats.save();
+
+    _createTokenStatisticLogEntity(event, event.address, eventName);
 }
 
 export function updateTokenStatisticStreamData(

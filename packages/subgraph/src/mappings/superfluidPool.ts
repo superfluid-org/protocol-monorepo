@@ -5,7 +5,6 @@ import {
 } from "../../generated/GeneralDistributionAgreementV1/ISuperfluidPool";
 import { DistributionClaimedEvent, MemberUnitsUpdatedEvent } from "../../generated/schema";
 import {
-    _createAccountTokenSnapshotLogEntity,
     _createTokenStatisticLogEntity,
     getOrInitPool,
     getOrInitOrUpdatePoolMember,
@@ -39,12 +38,10 @@ export function handleDistributionClaimed(event: DistributionClaimed): void {
 
     // Update Token Statistics
     const eventName = "DistributionClaimed";
-    updateTokenStatsStreamedUntilUpdatedAt(token, event.block);
-    _createTokenStatisticLogEntity(event, token, eventName);
+    updateTokenStatsStreamedUntilUpdatedAt(token, event, eventName);
 
     // Update ATS
-    updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, token, event.block, event.params.claimedAmount);
-    _createAccountTokenSnapshotLogEntity(event, event.params.member, token, eventName);
+    updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, token, event, event.params.claimedAmount, eventName);
 
     // Create Event Entity
     _createDistributionClaimedEntity(event, poolMember.id);
@@ -142,11 +139,9 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
 
     // Other entity updates
     const eventName = "MemberUnitsUpdated";
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, event.params.token, event.block, BigInt.fromI32(0));
-    _createAccountTokenSnapshotLogEntity(event, event.params.member, event.params.token, eventName);
+    updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, event.params.token, event, BigInt.fromI32(0), eventName);
 }
 
 function _createDistributionClaimedEntity(event: DistributionClaimed, poolMemberId: string): DistributionClaimedEvent {

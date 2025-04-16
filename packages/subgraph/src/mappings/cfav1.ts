@@ -24,8 +24,6 @@ import {
     createEventID,
 } from "../utils";
 import {
-    _createAccountTokenSnapshotLogEntity,
-    _createTokenStatisticLogEntity,
     getOrInitFlowOperator,
     getOrInitStream,
     getOrInitStreamRevision,
@@ -128,19 +126,21 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         stream.id,
         newDeposit
     );
-
+    
     // update streamed and balance until updated at for sender and receiver
     updateATSStreamedAndBalanceUntilUpdatedAt(
         senderAddress,
         tokenAddress,
-        event.block,
-        depositDelta
+        event,
+        depositDelta,
+        "FlowUpdated"
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         receiverAddress,
         tokenAddress,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        "FlowUpdated"
     );
 
     // update stream counter data for sender and receiver ATS
@@ -166,7 +166,7 @@ export function handleFlowUpdated(event: FlowUpdated): void {
     );
 
     // update token stats streamed until updated at
-    updateTokenStatsStreamedUntilUpdatedAt(tokenAddress, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(tokenAddress, event, "FlowUpdated");
 
     // update token stats stream counter data
     updateTokenStatisticStreamData(
@@ -179,21 +179,6 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         true,
         event.block
     );
-
-    // create ATS and token statistic log entities
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        senderAddress,
-        tokenAddress,
-        "FlowUpdated"
-    );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        receiverAddress,
-        tokenAddress,
-        "FlowUpdated"
-    );
-    _createTokenStatisticLogEntity(event, tokenAddress, "FlowUpdated");
 }
 
 // NOTE: This handler is run right after handleStreamUpdated as the FlowUpdatedExtension

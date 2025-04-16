@@ -15,8 +15,6 @@ import {
 } from "../../generated/schema";
 import { SuperfluidPool as SuperfluidPoolTemplate } from "../../generated/templates";
 import {
-    _createAccountTokenSnapshotLogEntity,
-    _createTokenStatisticLogEntity,
     getOrInitPool,
     getOrInitPoolDistributor,
     getOrInitOrUpdatePoolMember,
@@ -30,6 +28,7 @@ import {
     updateTokenStatisticStreamData,
     updateTokenStatsStreamedUntilUpdatedAt,
     getOrInitAccountTokenSnapshot,
+    _createTokenStatisticLogEntity,
 } from "../mappingHelpers";
 import {
     BIG_INT_ZERO,
@@ -53,7 +52,7 @@ export function handlePoolCreated(event: PoolCreated): void {
     // template data source events.
     SuperfluidPoolTemplate.create(event.params.pool);
 
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     const tokenStatistic = getOrInitTokenStatistic(
         event.params.token,
@@ -65,8 +64,9 @@ export function handlePoolCreated(event: PoolCreated): void {
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.admin,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        eventName
     );
 
     const accountTokenSnapshot = getOrInitAccountTokenSnapshot(
@@ -77,14 +77,6 @@ export function handlePoolCreated(event: PoolCreated): void {
     accountTokenSnapshot.adminOfPoolCount = accountTokenSnapshot.adminOfPoolCount + 1;
     accountTokenSnapshot.save();
 
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.admin,
-        event.params.token,
-        eventName
-    );
-
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
     // Create Event Entity
     _createPoolCreatedEntity(event);
 }
@@ -137,15 +129,18 @@ export function handlePoolConnectionUpdated(
             }
         }
     }
+
+    const eventName = "PoolConnectionUpdated";
     
     // Update Token Stats Streamed Until Updated At
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
     // Update ATS Balance and Streamed Until Updated At
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.account,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        eventName
     );
 
     pool.save();
@@ -172,17 +167,6 @@ export function handlePoolConnectionUpdated(
 
     // Create Event Entity
     _createPoolConnectionUpdatedEntity(event, poolMember.id);
-
-    // Create ATS and Token Statistic Log Entities
-    const eventName = "PoolConnectionUpdated";
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.account,
-        event.params.token,
-        eventName
-    );
-
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 }
 
 export function handleBufferAdjusted(event: BufferAdjusted): void {
@@ -271,7 +255,7 @@ export function handleFlowDistributionUpdated(
     tokenStatistic.save();
 
     const eventName = "FlowDistributionUpdated";
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
     updateTokenStatisticStreamData(
         event.params.token,
         event.params.newDistributorToPoolFlowRate,
@@ -282,18 +266,12 @@ export function handleFlowDistributionUpdated(
         false,
         event.block
     );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.distributor,
         event.params.token,
-        event.block,
-        null
-    );
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.distributor,
-        event.params.token,
+        null,
         eventName
     );
 
@@ -374,21 +352,14 @@ export function handleInstantDistributionUpdated(
     tokenStatistic.save();
 
     const eventName = "InstantDistributionUpdated";
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     // Update ATS
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.distributor,
         event.params.token,
-        event.block,
-        null
-    );
-
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.distributor,
-        event.params.token,
+        null,
         eventName
     );
 
