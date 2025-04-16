@@ -364,16 +364,16 @@ templates:
           handler: handleAgreementLiquidatedBy
           receipt: true
           calls:
-            balanceOfLiquidator: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.liquidatorAccount)
-            balanceOfPenalty: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.penaltyAccount)
-            balanceOfBond: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.bondAccount)
+            balanceOfLiquidator: ISuperToken[event.address].realtimeBalanceOfNow(event.params.liquidatorAccount)
+            balanceOfPenalty: ISuperToken[event.address].realtimeBalanceOfNow(event.params.penaltyAccount)
+            balanceOfBond: ISuperToken[event.address].realtimeBalanceOfNow(event.params.bondAccount)
         - event: AgreementLiquidatedV2(indexed address,bytes32,indexed address,indexed address,address,uint256,int256,bytes)
           handler: handleAgreementLiquidatedV2
           receipt: true
           calls:
-            balanceOfLiquidator: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.liquidatorAccount)
-            balanceOfTarget: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.targetAccount)
-            balanceOfRewardReceiver: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.rewardAmountReceiver)
+            balanceOfLiquidator: ISuperToken[event.address].realtimeBalanceOfNow(event.params.liquidatorAccount)
+            balanceOfTarget: ISuperToken[event.address].realtimeBalanceOfNow(event.params.targetAccount)
+            balanceOfRewardReceiver: ISuperToken[event.address].realtimeBalanceOfNow(event.params.rewardAmountReceiver)
         - event: Burned(indexed address,indexed address,uint256,bytes,bytes)
           handler: handleBurned
           receipt: true
