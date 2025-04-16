@@ -1002,16 +1002,15 @@ function updateATSBalanceAndUpdatedAt(
         // If the balance has been updated in this block without an RPC, it's better to be safe than sorry and just get the final accurate state from the RPC.
         const hasBalanceBeenUpdatedInThisBlock = accountTokenSnapshot.updatedAtBlockNumber === block.number;
 
-        if (balanceDelta && isAccountWithOnlyVeryPredictableBalanceSources && !hasBalanceBeenUpdatedInThisBlock) {
+        if (balanceDelta !== null && isAccountWithOnlyVeryPredictableBalanceSources && !hasBalanceBeenUpdatedInThisBlock) {
             accountTokenSnapshot.balanceUntilUpdatedAt = accountTokenSnapshot.balanceUntilUpdatedAt.plus(balanceDelta);
         } else {
             // if the account has any subscriptions with units we assume that
             // the balance data requires a RPC call for balance because we did not
             // have claim events there and we do not count distributions
             // for subscribers
-            const newBalanceResult = superTokenContract.try_realtimeBalanceOf(
-                Address.fromString(accountTokenSnapshot.account),
-                block.timestamp
+            const newBalanceResult = superTokenContract.try_realtimeBalanceOfNow(
+                Address.fromString(accountTokenSnapshot.account)
             );
 
             const balanceBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
