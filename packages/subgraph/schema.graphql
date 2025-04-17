@@ -1385,6 +1385,9 @@ type MintedEvent implements Event @entity(immutable: true) {
     operatorData: Bytes!
 }
 
+"""
+WARNING: This event has been deprecated. It is not indexed anymore. It's kept in schema to avoid breakage in the schema.
+"""
 type SentEvent implements Event @entity(immutable: true) {
     id: ID!
     transactionHash: Bytes!

@@ -380,9 +380,10 @@ templates:
         - event: Minted(indexed address,indexed address,uint256,bytes,bytes)
           handler: handleMinted
           receipt: true
-        - event: Sent(indexed address,indexed address,indexed address,uint256,bytes,bytes)
-          handler: handleSent
-          receipt: true
+        # Not indexing Sent event anymore. Use Transfer instead.
+        # - event: Sent(indexed address,indexed address,indexed address,uint256,bytes,bytes)
+        #   handler: handleSent
+        #   receipt: true
         - event: TokenUpgraded(indexed address,uint256)
           handler: handleTokenUpgraded
           receipt: true

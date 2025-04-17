@@ -1082,9 +1082,6 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
 ): void {
     const block = event.block;
 
-    // update the updatedAt property of the account that just made an update
-    updateAccountUpdatedAt(accountAddress, block);
-
     let accountTokenSnapshot = getOrInitAccountTokenSnapshot(
         accountAddress,
         tokenAddress,
@@ -1104,7 +1101,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
 
     const balanceUntilUpdatedAtAfterUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
 
-    if (accountTokenSnapshot.updatedAtBlockNumber === block.number && balanceUntilUpdatedAtAfterUpdate.equals(balanceUntilUpdatedAtBeforeUpdate)) {
+    if (accountTokenSnapshot.updatedAtBlockNumber === block.number && balanceUntilUpdatedAtBeforeUpdate.equals(balanceUntilUpdatedAtAfterUpdate)) {
         // ATS has already been updated in the block and no new balance change discovered. It's safe to return early.
         return;
     }
@@ -1196,6 +1193,9 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
         }
         tokenStatistic.save();
     }
+
+    // update the updatedAt property of the account that just made an update
+    updateAccountUpdatedAt(accountAddress, block);
 
     _createAccountTokenSnapshotLogEntity(
         event,
