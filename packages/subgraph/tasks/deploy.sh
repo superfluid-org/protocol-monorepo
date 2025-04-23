@@ -83,10 +83,10 @@ deploy_to_graph() {
     local graphNetwork="${legacyNetworkNames[$network]:-$network}"
     local subgraphName="protocol-$DEPLOYMENT_ENV-$graphNetwork"
 
-    echo "********* Deploying $network subgraph $subgraphName to The Graph (hosted service). **********"
+    echo "********* Deploying $network subgraph $subgraphName to The Graph Network. **********"
 
-    if ! $GRAPH_CLI deploy --studio "$subgraphName" --deploy-key "$THE_GRAPH_ACCESS_TOKEN" --version-label "$VERSION_LABEL"; then
-        echo "Error: Deployment to The Graph (hosted service) failed for $network"
+    if ! $GRAPH_CLI deploy "$subgraphName" --deploy-key "$THE_GRAPH_ACCESS_TOKEN" --version-label "$VERSION_LABEL"; then
+        echo "Error: Deployment to The Graph Network failed for $network"
         exit 1
     fi
 }
