@@ -20,6 +20,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IERC777Recipient } from "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
 import { IERC777Sender } from "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // placeholder types needed as an intermediate step before complete removal of FlowNFTs
 // solhint-disable-next-line no-empty-blocks
@@ -37,7 +38,6 @@ contract SuperToken is
     SuperfluidToken,
     ISuperToken
 {
-
     using SafeMath for uint256;
     using SafeCast for uint256;
     using Address for address;
@@ -48,6 +48,14 @@ contract SuperToken is
     bytes32 constant private _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
 
     uint8 constant private _STANDARD_DECIMALS = 18;
+
+    // EIP-712 permit typehash
+    bytes32 constant private _PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 constant private _EIP712_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
+    string constant private _EIP712_VERSION = "1";
 
     // solhint-disable-next-line var-name-mixedcase
     IConstantOutflowNFT immutable public CONSTANT_OUTFLOW_NFT;
@@ -84,6 +92,9 @@ contract SuperToken is
     /// @dev ERC777 operators support data
     ERC777Helper.Operators internal _operators;
 
+    /// @dev ERC20 Nonces for EIP-2612 (permit)
+    mapping(address account => uint256) internal _nonces;
+
     // NOTE: for future compatibility, these are reserved solidity slots
     // The sub-class of SuperToken solidity slot will start after _reserve22
 
@@ -91,8 +102,7 @@ contract SuperToken is
     // function in its respective mock contract to ensure that it doesn't break anything or lead to unexpected
     // behaviors/layout when upgrading
 
-    uint256 internal _reserve22;
-    uint256 private _reserve23;
+    uint256 internal _reserve23;
     uint256 private _reserve24;
     uint256 private _reserve25;
     uint256 private _reserve26;
@@ -181,14 +191,14 @@ contract SuperToken is
         UUPSProxiable._updateCodeAddress(newAddress);
     }
 
-    function changeAdmin(address newAdmin) external override onlyAdmin {
+    function changeAdmin(address newAdmin) external virtual override onlyAdmin {
         address oldAdmin = _getAdmin();
         _setAdmin(newAdmin);
 
         emit AdminChanged(oldAdmin, newAdmin);
     }
 
-    function getAdmin() external view override returns (address) {
+    function getAdmin() external view virtual override returns (address) {
         return _getAdmin();
     }
 
@@ -221,6 +231,101 @@ contract SuperToken is
 
     function decimals() external pure virtual override returns (uint8) {
         return _STANDARD_DECIMALS;
+    }
+
+    /**************************************************************************
+     * ERC20 Permit (EIP-2612)
+     *************************************************************************/
+
+    /// @dev EIP-2612 Permit
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public virtual override {
+        if (block.timestamp > deadline) revert SUPER_TOKEN_PERMIT_EXPIRED_SIGNATURE(deadline);
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                _PERMIT_TYPEHASH,
+                owner,
+                spender,
+                value,
+                _nonces[owner]++,
+                deadline
+            )
+        );
+
+        bytes32 domainSeparator = DOMAIN_SEPARATOR();
+        // Get the keccak256 digest of the EIP-712 typed data (ERC-191 version `0x01`).
+        // solhint-disable-next-line max-line-length
+        // Snippet taken from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.2.0/contracts/utils/cryptography/MessageHashUtils.sol
+        bytes32 hash;
+        assembly ("memory-safe") {
+            let ptr := mload(0x40)
+            mstore(ptr, hex"19_01")
+            mstore(add(ptr, 0x02), domainSeparator)
+            mstore(add(ptr, 0x22), structHash)
+            hash := keccak256(ptr, 0x42)
+        }
+
+        address signer = ECDSA.recover(hash, v, r, s);
+        if (signer != owner) revert SUPER_TOKEN_PERMIT_INVALID_SIGNER(signer, owner);
+
+        _approve(owner, spender, value);
+    }
+
+    /// @dev EIP-712 Domain Separator
+    // solhint-disable func-name-mixedcase
+    function DOMAIN_SEPARATOR() public view virtual override returns (bytes32) {
+        // Here we could squeeze out some gas by using pre-computed hashes
+        return keccak256(
+            abi.encode(
+                _EIP712_DOMAIN_TYPEHASH,
+                keccak256(bytes(_name)),
+                keccak256(bytes(_EIP712_VERSION)),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
+
+    /// @dev EIP-2612 Nonces
+    function nonces(address owner) public view virtual override returns (uint256) {
+        return _nonces[owner];
+    }
+
+    /// @dev EIP-5267: Retrieval of EIP-712 domain
+    function eip712Domain()
+        public
+        view
+        virtual
+        override
+        returns
+        (
+            bytes1 fields,
+            /* commented out to avoid warning of name clash with name() */
+            string memory /*name*/,
+            string memory version,
+            uint256 chainId,
+            address verifyingContract,
+            bytes32 salt,
+            uint256[] memory extensions
+        )
+    {
+        return (
+            hex"0f", // 01111 - field "salt" not present
+            _name,
+            _EIP712_VERSION,
+            block.chainid,
+            address(this), // verifyingContract
+            bytes32(0), // salt
+            new uint256[](0) // extensions
+        );
     }
 
     /**************************************************************************
@@ -905,5 +1010,4 @@ contract SuperToken is
         if (msg.sender != admin) revert SUPER_TOKEN_ONLY_ADMIN();
         _;
     }
-
 }
