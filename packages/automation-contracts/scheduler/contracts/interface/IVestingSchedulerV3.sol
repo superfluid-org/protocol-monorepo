@@ -404,6 +404,16 @@ interface IVestingSchedulerV3 {
     function updateVestingScheduleFlowRateFromEndDate(ISuperToken superToken, address receiver, uint32 endDate)
         external;
 
+    /**
+     * @dev Updates vesting schedule to the current block and executes end (if not claimable) immediately,
+     * @dev and/or executes cliff and flow (if not claimable and cliff and flow not yet executed).
+     * @notice When ending, the remaining amount will be transferred to the receiver
+     * @param superToken SuperToken to be vested
+     * @param receiver Vesting receiver
+     */
+    function endVestingScheduleNow(ISuperToken superToken, address receiver)
+        external;
+
     //   _    ___                 ______                 __  _
     //  | |  / (_)__ _      __   / ____/_  ______  _____/ /_(_)___  ____  _____
     //  | | / / / _ \ | /| / /  / /_  / / / / __ \/ ___/ __/ / __ \/ __ \/ ___/

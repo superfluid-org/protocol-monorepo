@@ -248,8 +248,8 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
     }
 
     function updateVestingScheduleFlowRateFromAmount(
-        ISuperToken superToken, 
-        address receiver, 
+        ISuperToken superToken,
+        address receiver,
         uint256 newTotalAmount
     ) external {
         address sender = _msgSender();
@@ -303,9 +303,10 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
             - the cliff and flow date is in the future
         */
         if (
-            agg.schedule.endDate <= block.timestamp || 
-            update.newEndDate <= block.timestamp ||
-            block.timestamp < agg.schedule.cliffAndFlowDate
+            agg.schedule.endDate < block.timestamp ||
+            update.newEndDate < block.timestamp ||
+            block.timestamp < agg.schedule.cliffAndFlowDate ||
+            (agg.schedule.claimValidityDate != 0 && block.timestamp > agg.schedule.claimValidityDate)
         )
             revert TimeWindowInvalid();
 
@@ -314,7 +315,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         // Settle the amount already vested
         uint256 settledAmount = _settle(agg);
         uint256 timeLeftToVest = update.newEndDate - block.timestamp;
-        
+
         if (update.newTotalAmount == 0 && update.newFlowRate != 0) {
             update.newTotalAmount = settledAmount + (SafeCast.toUint256(update.newFlowRate) * timeLeftToVest);
         }
@@ -342,10 +343,10 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
             _calculateRemainderAmount(amountLeftToVest, timeLeftToVest, update.newFlowRate);
 
         emit VestingScheduleUpdated(
-            agg.superToken, 
-            agg.sender, 
-            agg.receiver, 
-            update.newEndDate, 
+            agg.superToken,
+            agg.sender,
+            agg.receiver,
+            update.newEndDate,
             vestingSchedules[agg.id].remainderAmount,
             update.newFlowRate,
             update.newTotalAmount,
@@ -370,7 +371,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
 
     /// @inheritdoc IVestingSchedulerV3
     function executeCliffAndFlow(ISuperToken superToken, address sender, address receiver)
-        external
+        public
         returns (bool success)
     {
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
@@ -393,7 +394,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
 
     /// @inheritdoc IVestingSchedulerV3
     function executeEndVesting(ISuperToken superToken, address sender, address receiver)
-        external
+        public
         returns (bool success)
     {
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
@@ -430,6 +431,30 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
         }
 
         success = true;
+    }
+
+    function endVestingScheduleNow(ISuperToken superToken, address receiver) external {
+        address sender = _msgSender();
+        ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
+
+        // Execute cliff and flow if not yet executed.
+        // The flow will end up streaming 0 as it will be deleted immediately.
+        if (agg.schedule.claimValidityDate == 0) {
+            if (agg.schedule.cliffAndFlowDate != 0) {
+                assert(executeCliffAndFlow(superToken, sender, receiver));
+            }
+        }
+
+        _updateVestingSchedule(agg, UpdateVestingScheduleParams({
+            newEndDate: uint32(block.timestamp),
+            newTotalAmount: 0, // Note: 0 means it will be re-calculated.
+            newFlowRate: agg.schedule.flowRate
+        }));
+
+        // Execute end vesting if not claimable.
+        if (agg.schedule.claimValidityDate == 0) {
+	        assert(executeEndVesting(superToken, sender, receiver));
+        }
     }
 
     //   _    ___                 ______                 __  _
