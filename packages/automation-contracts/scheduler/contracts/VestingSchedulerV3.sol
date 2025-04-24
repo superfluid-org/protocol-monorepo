@@ -19,6 +19,23 @@ import {IVestingSchedulerV3} from "./interface/IVestingSchedulerV3.sol";
 
 using SuperTokenV1Library for ISuperToken;
 
+/**
+ * @title Superfluid Vesting Scheduler (V3)
+ * @author Superfluid
+ * @notice Use precise time and amount based vesting schedules using Super Tokens and real-time continuous streaming.
+ * Optional features include:
+ * - Vesting cliffs
+ * - Receiver claiming
+ * - Updating schedules (increasing/decreasing vested amount, increasing/decreasing duration)
+ * @dev All token amounts are in wei; flow rates are wei per second; 
+ * timestamps are Unix‐epoch seconds; durations/periods are in seconds.
+ * The contract uses ERC-20 allowance and Superfluid ACL flow operator permissions
+ * to automate the vesting on behalf of the sender.
+ * The contract is designed to be used with an off-chain automation to execute the vesting start and end.
+ * The start and end executions are permisionless.
+ * Execution delays are handled with token transfer compensations, but watch out for complete expiries!
+ * @custom:metadata The official addresses and subgraphs can be found from @superfluid-finance/metadata package.
+ */
 contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
     //      ____        __        __
     //     / __ \____ _/ /_____ _/ /___  ______  ___  _____
@@ -432,7 +449,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
 
         success = true;
     }
-    
+
     /// @inheritdoc IVestingSchedulerV3
     function endVestingScheduleNow(ISuperToken superToken, address receiver) external {
         address sender = _msgSender();
