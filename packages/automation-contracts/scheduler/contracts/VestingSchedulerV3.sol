@@ -432,7 +432,8 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
 
         success = true;
     }
-
+    
+    /// @inheritdoc IVestingSchedulerV3
     function endVestingScheduleNow(ISuperToken superToken, address receiver) external {
         address sender = _msgSender();
         ScheduleAggregate memory agg = _getVestingScheduleAggregate(superToken, sender, receiver);
