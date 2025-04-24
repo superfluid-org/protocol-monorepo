@@ -109,6 +109,7 @@ module.exports =
             "flowScheduler": "0x73B1Ce21d03ad389C2A291B1d1dc4DAFE7B5Dc68",
             "vestingScheduler": "0x27444c0235a4D921F3106475faeba0B5e7ABDD7a",
             "vestingSchedulerV2": "0x3aa62b96f44D0f8892BeBBC819DE8e02E9DE69A8",
+            "vestingSchedulerV3": "0x4F4BC2ca9A7CA26AfcFabc6A2A381c104927D72C",
             "autowrap": {
                 "manager": "0xe567b32C10B0dB72d9490eB1B9A409C5ADed192C",
                 "wrapStrategy": "0xf232f1fd34CE12e24F4391865c2D6E374D2C34d9"
@@ -359,6 +360,7 @@ module.exports =
             "flowScheduler": "0x55c8fc400833eEa791087cF343Ff2409A39DeBcC",
             "vestingScheduler": "0x65377d4dfE9c01639A41952B5083D58964782892",
             "vestingSchedulerV2": "0xe567b32C10B0dB72d9490eB1B9A409C5ADed192C",
+            "vestingSchedulerV3": "0x5aB84e4B3a5F418c95B77DbdecFAF18D0Fd3b3E4",
             "autowrap": {
                 "manager": "0x1fA76f2Cd0C3fe6c399A80111408d9C42C0CAC23",
                 "wrapStrategy": "0x0Cf060a501c0040e9CCC708eFE94079F501c6Bb4"
