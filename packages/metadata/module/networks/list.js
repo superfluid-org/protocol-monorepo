@@ -606,6 +606,7 @@ export default
             "batchLiquidator": "0x42B709822F18595443c308c1BE5E63CbFEf06481",
             "flowScheduler": "0xAA0cD305eD020137E302CeCede7b18c0A05aCCDA",
             "vestingScheduler": "0x39D5cBBa9adEBc25085a3918d36D5325546C001B",
+            "vestingSchedulerV3": "0xbeEDf563D41dcb3e1b7e0B0f7a86685Fd73Ce84C",
             "autowrap": {
                 "manager": "0x30aE282CF477E2eF28B14d0125aCEAd57Fe1d7a1",
                 "wrapStrategy": "0x1D65c6d3AD39d454Ea8F682c49aE7744706eA96d"

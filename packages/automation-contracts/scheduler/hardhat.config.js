@@ -61,7 +61,7 @@ module.exports = {
                     : [],
         },
         optimism: {
-            url: "https://mainnet.optimism.io",
+            url: process.env.OPTIMISM_URL || "https://mainnet.optimism.io",
             accounts:
                 process.env.PRIVATE_KEY !== undefined
                     ? [process.env.PRIVATE_KEY]
