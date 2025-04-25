@@ -40,7 +40,8 @@
         "typechain": "^8.3.2",
         "typedoc": "^0.26.6",
         "typescript": "^5.5.4",
-        "web3": "^1.10.4"
+        "web3": "^1.10.4",
+        "graphql": "^16.9.0"
     },
     "license": "MIT",
     "npmClient": "yarn",
