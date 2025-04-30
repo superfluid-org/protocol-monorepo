@@ -1,11 +1,13 @@
 {-# LANGUAGE DerivingStrategies     #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Money.Theory.SemanticMoney where
 
 import           Data.Default (Default (..))
 import           Data.Kind    (Type)
+import           Data.List
 
 
 -- | Type system trite: types used in semantic money
@@ -238,3 +240,97 @@ instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt, f 
       (r', er') = if u' == 0 then (0, r `mt_fr_mul_u` u) else r `mt_fr_mul_u_qr_u` (u, u')
       b' = fst . flow1 r' $ b
       a' = fst . flow1 (er' + flowRate a) $ a
+
+-- Represents a single snapshot of change
+data MoneyEvent mt = MoneyEvent
+  { eventTime      :: MT_TIME mt
+  , eventValueDelta     :: MT_VALUE mt  -- Discrete value change
+  , eventFlowDelta :: MT_FLOWRATE mt  -- Rate change
+  , eventIndicator     :: Int          -- For conflict resolution
+  }
+
+-- Representation of an accuont
+data AccountState mt = AccountState
+  { asTime       :: MT_TIME mt
+  , asValue      :: MT_VALUE mt
+  , asFlowRate   :: MT_FLOWRATE mt
+  }
+
+-- Make the types be Eq compatible
+instance ( MonetaryTypes mt
+         , Eq (MT_TIME mt)
+         , Eq (MT_VALUE mt)
+         , Eq (MT_FLOWRATE mt)
+         ) => Eq (MoneyEvent mt) where
+  a == b = eventTime a == eventTime b
+        && eventValueDelta a == eventValueDelta b
+        && eventFlowDelta a == eventFlowDelta b
+        && eventIndicator a == eventIndicator b
+
+  (/=) a b = not (a == b)
+
+instance ( MonetaryTypes mt
+         , Eq (MT_TIME mt)
+         , Eq (MT_VALUE mt)
+         , Eq (MT_FLOWRATE mt)
+         ) => Eq (AccountState mt) where
+  a == b = asTime a == asTime b
+        && asValue a == asValue b
+        && asFlowRate a == asFlowRate b
+
+  (/=) a b = not (a == b)
+
+-- Takes two AccountState and provides their delta as a MoneyEvent
+deltaEvents :: MonetaryTypes mt
+               => AccountState mt  -- Previous state
+               -> AccountState mt  -- Current state
+               -> Maybe (MoneyEvent mt)
+deltaEvents prev current
+  | asTime prev >= asTime current = Nothing
+  | otherwise = Just $ MoneyEvent
+      { eventTime = asTime current
+      ,  eventValueDelta = asValue current - (asValue prev + valueGrowth)
+      , eventFlowDelta = asFlowRate current - asFlowRate prev
+      , eventIndicator = 0
+      }
+  where
+    deltaT = asTime current - asTime prev
+    valueGrowth = asFlowRate prev `mt_fr_mul_t` fromIntegral deltaT
+
+-- Ensure that the snapshots are conflict-free
+ensureSnapshots :: (MonetaryTypes mt, Ord (MT_TIME mt))
+                 => [MoneyEvent mt]
+                 -> Either String [MoneyEvent mt]
+ensureSnapshots snaps = do
+  let sorted = sortOn eventTime snaps
+  validated <- validateTimeline sorted
+  pure $ settleSnapshots validated
+
+-- These two functions below are not required as of now, but they are
+-- useful for any real usage of MoneyEvents, since the logic is to
+-- have an ordering and operate on the snapshots
+
+-- Ensure that the set of snapshots is strictly ordered by timeline
+validateTimeline :: (MonetaryTypes mt, Ord (MT_TIME mt))
+                 => [MoneyEvent mt]
+                 -> Either String [MoneyEvent mt]
+validateTimeline [] = Right []
+validateTimeline [x] = Right [x]
+validateTimeline (x:y:xs)
+  | eventTime x > eventTime y = Left "Snapshots out of temporal order"
+  | eventTime x == eventTime y && eventIndicator x >= eventIndicator y =
+      Left "Conflicting snapshots: same timestamp with non-decreasing nonce"
+  | otherwise = (x:) <$> validateTimeline (y:xs)
+
+-- Merge and settle changes of snapshots that are in the same timeline
+settleSnapshots :: MonetaryTypes mt => [MoneyEvent mt] -> [MoneyEvent mt]
+settleSnapshots = map mergeGroup . groupBy sameTime
+  where
+    sameTime a b = eventTime a == eventTime b
+    mergeGroup [] = error "Empty group"
+    mergeGroup grp@(x:_) = MoneyEvent
+      { eventTime = eventTime x
+      , eventValueDelta = sum (map eventValueDelta grp)
+      , eventFlowDelta = sum (map eventFlowDelta grp)
+      , eventIndicator = maximum (map eventIndicator grp)
+      }
