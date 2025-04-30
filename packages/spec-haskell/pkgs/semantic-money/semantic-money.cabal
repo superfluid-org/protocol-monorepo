@@ -27,6 +27,7 @@ library
     -- other-extensions:
     build-depends:
         base >=4.16.0.0 && <5,
+        containers,
         data-default
 
 test-suite semantic-money-test-suite
@@ -40,6 +41,7 @@ test-suite semantic-money-test-suite
     main-is:          Main.hs
     build-depends:
         base >=4.16.0.0 && <5,
+        containers,
         QuickCheck >=2.13,
         hspec >=2.0,
         HUnit >=1.6.0.0,

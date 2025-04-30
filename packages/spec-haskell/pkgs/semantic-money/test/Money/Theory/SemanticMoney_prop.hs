@@ -3,11 +3,13 @@
 {-# OPTIONS_GHC -Wno-missing-signatures #-}
 
 module Money.Theory.SemanticMoney_prop (tests) where
-
+--
 import           Data.Default
 import           Test.Hspec
 import           Test.QuickCheck
-
+-- containers
+import qualified Data.IntMap                    as IntMap
+--
 import           Money.Theory.SemanticMoney
 import           Money.Theory.TestMonetaryTypes
 
@@ -176,9 +178,19 @@ flow2_tests = describe "flow2 tests" $ do
     it "uidx:uidx shiftFlow2b" $ property uu_shiftFlow2b
     it "uidx:pdidx shiftFlow2b" $ property updp_shiftFlow2b
 
+process_one_transfer_event :: Bool
+process_one_transfer_event = (s IntMap.! 0) 0 == -100 && (s IntMap.! 1) 0 == 100
+  where s = naiveSystemSnapshot . processEvents $
+            ([ Transfer 0 {- t -} 0 1 100
+             ] :: [MoneyEvent' TestMonetaryTypes Int])
+
+navive_event_processing = describe "naive event processing" $ do
+  it "simple demonstrative case" process_one_transfer_event
+
 tests = describe "Semantic money properties" $ do
     mu_laws
     mp_monoid_laws
     one2one_tests
     one2n_pd_tests
     flow2_tests
+    navive_event_processing

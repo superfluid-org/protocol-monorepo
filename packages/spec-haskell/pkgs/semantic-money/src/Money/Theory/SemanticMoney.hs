@@ -1,13 +1,12 @@
 {-# LANGUAGE DerivingStrategies     #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-{-# LANGUAGE UndecidableInstances #-}
-
 module Money.Theory.SemanticMoney where
-
 import           Data.Default (Default (..))
 import           Data.Kind    (Type)
 import           Data.List
+-- containers
+import qualified Data.IntMap  as IntMap
 
 
 -- | Type system trite: types used in semantic money
@@ -19,6 +18,9 @@ class ( Integral (MT_TIME  mt)
       , Integral (MT_VALUE mt)
       , Integral (MT_UNIT  mt)
       , Integral (MT_FLOWRATE mt)
+      , Eq (MT_TIME mt)
+      , Eq (MT_VALUE mt)
+      , Eq (MT_FLOWRATE mt)
       ) => MonetaryTypes mt where
     mt_v_mul_t :: MT_VALUE mt -> MT_TIME mt -> MT_VALUE mt
     mt_v_mul_t v t = v * (fromInteger . toInteger) t
@@ -241,39 +243,81 @@ instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt, f 
       b' = fst . flow1 r' $ b
       a' = fst . flow1 (er' + flowRate a) $ a
 
+
+
+
+
+
+
+
+
+data MoneyEvent' mt acci {- account index -} -- pdpi {- proportional distribution pool member index -}
+  = Transfer       (MT_TIME mt) acci acci (MT_VALUE mt)    -- ^ One-to-one transfer of value.
+  | UpdateFlow     (MT_TIME mt) acci acci (MT_FLOWRATE mt) -- ^ One-to-one flow of value.
+--  | Distribute     (MT_TIME mt) acci pdpi (MT_VALUE mt)    -- ^ One-to-many distribution of value.
+--  | DistributeFlow (MT_TIME mt) acci pdpi (MT_FLOWRATE mt) -- ^ One-to-many flow distribution of value.
+
+data NaiveSystem mt = MkNaiveSystem
+  -- ^ accounts indexed by Int
+  (IntMap.IntMap (BasicParticle mt))
+  -- ^ pools indexed by Int
+  (IntMap.IntMap (PDPoolIndex mt (BasicParticle mt)))
+
+processEvents :: forall mt t v.
+  (MonetaryTypes mt, MT_TIME mt ~ t, MT_VALUE mt ~ v) =>
+  [MoneyEvent' mt Int {- account index -}] ->
+  NaiveSystem mt
+processEvents = go (MkNaiveSystem IntMap.empty IntMap.empty)
+  where go s [] = s
+        go (MkNaiveSystem accs pools) (Transfer t fromIx toIx amount:xs) = go s' xs
+          where
+            sender = IntMap.findWithDefault mempty fromIx accs
+            receiver = IntMap.findWithDefault mempty fromIx accs
+            (sender', receiver') = shift2 amount t (sender, receiver)
+            accs' = IntMap.insert fromIx sender'
+                    $ IntMap.insert toIx receiver'
+                    $ accs
+            s' = MkNaiveSystem accs' pools
+        go (MkNaiveSystem accs pools) (UpdateFlow t fromIx toIx rate:xs) = go s' xs
+          where
+            sender = IntMap.findWithDefault mempty fromIx accs
+            receiver = IntMap.findWithDefault mempty fromIx accs
+            (sender', receiver') = flow2 rate t (sender, receiver)
+            accs' = IntMap.insert fromIx sender'
+                    $ IntMap.insert toIx receiver'
+                    $ accs
+            s' = MkNaiveSystem accs' pools
+
+naiveSystemSnapshot :: forall mt t v.
+  (MonetaryTypes mt, MT_TIME mt ~ t, MT_VALUE mt ~ v) =>
+  NaiveSystem mt -> IntMap.IntMap (t -> v)
+naiveSystemSnapshot (MkNaiveSystem accs _) = rtb <$> accs
+
 -- Represents a single snapshot of change
 data MoneyEvent mt = MoneyEvent
-  { eventTime      :: MT_TIME mt
-  , eventValueDelta     :: MT_VALUE mt  -- Discrete value change
-  , eventFlowDelta :: MT_FLOWRATE mt  -- Rate change
-  , eventIndicator     :: Int          -- For conflict resolution
+  { eventTime       :: MT_TIME mt
+  , eventValueDelta :: MT_VALUE mt     -- Discrete value change
+  , eventFlowDelta  :: MT_FLOWRATE mt  -- Rate change
+  , eventIndicator  :: Int             -- For conflict resolution
   }
 
 -- Representation of an accuont
 data AccountState mt = AccountState
-  { asTime       :: MT_TIME mt
-  , asValue      :: MT_VALUE mt
-  , asFlowRate   :: MT_FLOWRATE mt
+  { asTime     :: MT_TIME mt
+  , asValue    :: MT_VALUE mt
+  , asFlowRate :: MT_FLOWRATE mt
   }
 
 -- Make the types be Eq compatible
-instance ( MonetaryTypes mt
-         , Eq (MT_TIME mt)
-         , Eq (MT_VALUE mt)
-         , Eq (MT_FLOWRATE mt)
-         ) => Eq (MoneyEvent mt) where
-  a == b = eventTime a == eventTime b
-        && eventValueDelta a == eventValueDelta b
-        && eventFlowDelta a == eventFlowDelta b
-        && eventIndicator a == eventIndicator b
+-- instance MonetaryTypes mt => Eq (MoneyEvent mt) where
+--   a == b = eventTime a == eventTime b
+--         && eventValueDelta a == eventValueDelta b
+--         && eventFlowDelta a == eventFlowDelta b
+--         && eventIndicator a == eventIndicator b
 
-  (/=) a b = not (a == b)
+--   (/=) a b = not (a == b)
 
-instance ( MonetaryTypes mt
-         , Eq (MT_TIME mt)
-         , Eq (MT_VALUE mt)
-         , Eq (MT_FLOWRATE mt)
-         ) => Eq (AccountState mt) where
+instance MonetaryTypes mt => Eq (AccountState mt) where
   a == b = asTime a == asTime b
         && asValue a == asValue b
         && asFlowRate a == asFlowRate b
@@ -289,7 +333,7 @@ deltaEvents prev current
   | asTime prev >= asTime current = Nothing
   | otherwise = Just $ MoneyEvent
       { eventTime = asTime current
-      ,  eventValueDelta = asValue current - (asValue prev + valueGrowth)
+      , eventValueDelta = asValue current - (asValue prev + valueGrowth)
       , eventFlowDelta = asFlowRate current - asFlowRate prev
       , eventIndicator = 0
       }
