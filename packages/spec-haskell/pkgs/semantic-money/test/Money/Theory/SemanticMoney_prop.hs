@@ -180,7 +180,7 @@ flow2_tests = describe "flow2 tests" $ do
 
 process_one_transfer_event :: Bool
 process_one_transfer_event = (s IntMap.! 0) 0 == -100 && (s IntMap.! 1) 0 == 100
-  where s = naiveSystemSnapshot . processEvents $
+  where s = naiveSystemSnapshot . naiveProcessEvents $
             ([ Transfer 0 {- t -} 0 1 100
              ] :: [MoneyEvent' TestMonetaryTypes Int])
 
