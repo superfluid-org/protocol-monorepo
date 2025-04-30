@@ -22,10 +22,15 @@ newtype TestMUnit = TestMUnit Integer deriving (Enum, Eq, Ord, Num, Real, Integr
 instance Arbitrary TestMUnit where
     arbitrary = TestMUnit <$> arbitrary
 
+newtype TestMFlowRate = TestMFlowRate Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
+instance Arbitrary TestMFlowRate where
+    arbitrary = TestMFlowRate <$> arbitrary
+
 data TestMonetaryTypes
 instance MonetaryTypes TestMonetaryTypes where
     type MT_TIME  TestMonetaryTypes = TestTime
     type MT_VALUE TestMonetaryTypes = TestMValue
+    type MT_FLOWRATE TestMonetaryTypes = TestMFlowRate
     type MT_UNIT  TestMonetaryTypes = TestMUnit
 deriving instance Show (BasicParticle TestMonetaryTypes)
 
