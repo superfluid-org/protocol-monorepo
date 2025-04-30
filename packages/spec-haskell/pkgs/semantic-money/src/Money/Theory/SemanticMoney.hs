@@ -257,17 +257,22 @@ data MoneyEvent' mt acci {- account index -} -- pdpi {- proportional distributio
 --  | Distribute     (MT_TIME mt) acci pdpi (MT_VALUE mt)    -- ^ One-to-many distribution of value.
 --  | DistributeFlow (MT_TIME mt) acci pdpi (MT_FLOWRATE mt) -- ^ One-to-many flow distribution of value.
 
+--
+-- Naive System and Its Event Processing
+--
+
 data NaiveSystem mt = MkNaiveSystem
   -- ^ accounts indexed by Int
   (IntMap.IntMap (BasicParticle mt))
   -- ^ pools indexed by Int
   (IntMap.IntMap (PDPoolIndex mt (BasicParticle mt)))
 
-processEvents :: forall mt t v.
+stepProcessEvents :: forall mt t v.
   (MonetaryTypes mt, MT_TIME mt ~ t, MT_VALUE mt ~ v) =>
+  NaiveSystem mt ->
   [MoneyEvent' mt Int {- account index -}] ->
   NaiveSystem mt
-processEvents = go (MkNaiveSystem IntMap.empty IntMap.empty)
+stepProcessEvents = go
   where go s [] = s
         go (MkNaiveSystem accs pools) (Transfer t fromIx toIx amount:xs) = go s' xs
           where
@@ -288,10 +293,34 @@ processEvents = go (MkNaiveSystem IntMap.empty IntMap.empty)
                     $ accs
             s' = MkNaiveSystem accs' pools
 
+naiveProcessEvents :: forall mt t v.
+  (MonetaryTypes mt, MT_TIME mt ~ t, MT_VALUE mt ~ v) =>
+  [MoneyEvent' mt Int {- account index -}] ->
+  NaiveSystem mt
+naiveProcessEvents = stepProcessEvents (MkNaiveSystem IntMap.empty IntMap.empty)
+
 naiveSystemSnapshot :: forall mt t v.
   (MonetaryTypes mt, MT_TIME mt ~ t, MT_VALUE mt ~ v) =>
-  NaiveSystem mt -> IntMap.IntMap (t -> v)
+  NaiveSystem mt ->
+  IntMap.IntMap (t -> v)
 naiveSystemSnapshot (MkNaiveSystem accs _) = rtb <$> accs
+
+-- --
+-- -- Snapshot-Based System and Its Event Processing
+-- --
+
+-- data SystemSnapshot mt
+
+-- data SnapshotBasedSystem mt
+
+-- sbsProcessEvents:: forall mt t v.
+--   (MonetaryTypes mt, MT_TIME mt ~ t, MT_VALUE mt ~ v) =>
+--   [MoneyEvent' mt Int {- account index -}] ->
+--   SnapshotBasedSystem mt ->
+--   SnapshotBasedSystem mt
+-- xProcessEvents = undefined
+
+
 
 -- Represents a single snapshot of change
 data MoneyEvent mt = MoneyEvent
