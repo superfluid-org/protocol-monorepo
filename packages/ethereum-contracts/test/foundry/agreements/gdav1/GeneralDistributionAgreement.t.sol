@@ -446,6 +446,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.assume(distributionFlowRate < minDepositFlowRate);
         vm.assume(distributionFlowRate > 0);
         vm.assume(member != address(pool));
+        vm.assume(member != address(freePool)); // yes, this also happened
         vm.assume(member != address(0));
 
         _addAccount(member);
