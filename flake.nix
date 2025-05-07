@@ -201,6 +201,7 @@
             ciInputs
             ++ commonDevInputs
             ++ ethDevInputs
+            ++ defaultNodeDevInputs
             ++ [
               slither-analyzer
               echidna
