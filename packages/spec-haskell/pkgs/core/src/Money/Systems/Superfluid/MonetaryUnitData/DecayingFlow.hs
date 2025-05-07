@@ -38,7 +38,7 @@ instance MonetaryUnitLenses amuLs sft => Semigroup (MonetaryUnitData amuLs sft) 
     --           { t_s = t_s', αVal = α', εVal = ε' } = b
     MkMonetaryUnitData a <> MkMonetaryUnitData b =
         let c = a & set  settledAt     (b^.settledAt)
-                  & over αVal          (\α -> α * exp (-λ * t_Δ) - ε')
+                  & over αVal          (\α -> α * exp (-(λ * t_Δ)) - ε')
                   & over εVal          (+ ε')
         in MkMonetaryUnitData c
         where ε'  = b^.εVal
@@ -52,7 +52,7 @@ instance MonetaryUnitLenses amuLs sft => MonetaryUnitDataClass (MonetaryUnitData
     --   rtb(aad, t) = α * e ^ (-λ * (t - t_s)) + ε
     --       where { t_s = t_s, αVal = α, εVal = ε } = aad
     balanceProvided (MkMonetaryUnitData a) t =
-        let b = ceiling $ α * exp (-λ * t_Δ) + ε
+        let b = ceiling $ α * exp ((-λ) * t_Δ) + ε
         in  typedValuesToRTB [ (mkAnyTypedValue . MkUntappedValue) b ]
         where t_s   = a^.settledAt
               α     = a^.αVal
