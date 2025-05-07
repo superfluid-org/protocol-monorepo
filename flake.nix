@@ -81,9 +81,9 @@
           nodejs.pkgs.yarn
           nodejs.pkgs.nodemon
         ];
-        node18DevInputs = nodeDevInputsWith pkgs.nodejs_18;
         node20DevInputs = nodeDevInputsWith pkgs.nodejs_20;
         node22DevInputs = nodeDevInputsWith pkgs.nodejs_22;
+        node24DevInputs = nodeDevInputsWith pkgs.nodejs_24;
         defaultNodeDevInputs = node22DevInputs;
 
         # CI inputs
@@ -188,9 +188,9 @@
         };
 
         devShells.ci-default = mkShellForNodeCI defaultNodeDevInputs;
-        devShells.ci-node18 = mkShellForNodeCI node18DevInputs;
         devShells.ci-node20 = mkShellForNodeCI node20DevInputs;
         devShells.ci-node22 = mkShellForNodeCI node22DevInputs;
+        devShells.ci-node24 = mkShellForNodeCI node24DevInputs;
 
         devShells.ci-spec-ghc92 = mkShellForSpecCI ghcVer92;
         devShells.ci-spec-ghc94 = mkShellForSpecCI ghcVer94;
