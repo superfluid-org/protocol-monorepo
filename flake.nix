@@ -98,7 +98,6 @@
         # additional tooling for whitehat hackers
         whitehatInputs = with pkgs; [
           slither-analyzer
-          (import ./nix/echidna.nix pkgs)
         ];
 
         # spec developing specification
