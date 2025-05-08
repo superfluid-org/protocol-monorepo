@@ -2399,7 +2399,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
     }
 
     function test_executeCliffAndFlow_claimableScheduleWithCliffAmount_cannotClaimOnBehalf(address _claimer) public {
-        vm.assume(isTrustedForwarder(_claimer) == false);
+        vm.assume(vestingScheduler.isTrustedForwarder(_claimer) == false);
         vm.assume(_claimer != address(0) && _claimer != alice && _claimer != bob);
         _setACL_AUTHORIZE_FULL_CONTROL(alice, FLOW_RATE);
         _createClaimableVestingScheduleWithDefaultData(alice, bob);
