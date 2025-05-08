@@ -761,34 +761,9 @@ export const mapGetAllEventsQueryEvents = (
                     timestamp: Number(x.timestamp),
                     logIndex: Number(x.logIndex),
                 });
-            case "ApprovalForAllEvent":
-                return typeGuard<events.ApprovalForAllEvent>({
-                    name: "ApprovalForAllEvent",
-                    id: x.id,
-                    blockNumber: Number(x.blockNumber),
-                    transactionHash: x.transactionHash,
-                    gasPrice: x.gasPrice,
-                    order: Number(x.order),
-                    timestamp: Number(x.timestamp),
-                    logIndex: Number(x.logIndex),
-                });
-            case "MetadataUpdateEvent":
-                return typeGuard<events.MetadataUpdateEvent>({
-                    name: "MetadataUpdateEvent",
-                    id: x.id,
-                    blockNumber: Number(x.blockNumber),
-                    transactionHash: x.transactionHash,
-                    gasPrice: x.gasPrice,
-                    order: Number(x.order),
-                    timestamp: Number(x.timestamp),
-                    logIndex: Number(x.logIndex),
-                });
             default:
                 // eslint-disable-next-line no-case-declarations
                 const eventBase = x as events.EventBase;
-                console.warn(
-                    `An unknown event [${eventBase.name}] was detected which couldn't be properly mapped. Please update to the latest version of @superfluid-finance/sdk-core.`
-                );
                 return typeGuard<events.UnknownEvent>({
                     // force casted as empty string for the type system
                     name: eventBase.name as "",

@@ -52,7 +52,10 @@ export * from "./subgraph/entities/streamPeriod/streamPeriod";
 export * from "./subgraph/entities/token/token";
 export * from "./subgraph/entities/tokenStatistic/tokenStatistic";
 export * from "./subgraph/entities/tokenStatisticLog/tokenStatisticLog";
-export * from "./subgraph/entities/flowOperator/flowOperators";
+export * from "./subgraph/entities/flowOperator/flowOperator";
+export * from "./subgraph/entities/pool/pool";
+export * from "./subgraph/entities/poolMember/poolMember";
+export * from "./subgraph/entities/poolDistributor/poolDistributor";
 
 export * from "./subgraph/events/events";
 export * from "./subgraph/events/flowUpdatedEvent";

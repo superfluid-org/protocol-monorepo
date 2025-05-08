@@ -20,51 +20,10 @@ Get started using the Subgraphs with an introduction and query examples:
 
 https://docs.superfluid.finance/superfluid/docs/subgraph
 
-# 👨‍🚀 Hosted Subgraphs
-
-All subgraphs are available via The Graph's hosted service:
-
-**V1 Endpoints**
-| Network | URL |
-| --- | --- |
-| Matic | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-matic |
-| Gnosis | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-xdai |
-| Optimism Mainnet | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-optimism-mainnet |
-| Arbitrum One | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-arbitrum-one |
-| Avalanche C-Chain | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-avalanche-c |
-| BNB Chain | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-bsc-mainnet |
-| Goerli | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-goerli |
-| Mumbai | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-mumbai |
-| Optimism Goerli | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-optimism-goerli |
-| Arbitrum Goerli | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-arbitrum-goerli |
-| Avalanche Fuji | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-v1-avalanche-fuji |
-
-**Development Endpoints**
-| Network | URL |
-| --- | --- |
-| Matic | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-matic |
-| Gnosis | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-xdai |
-| Optimism Mainnet | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-optimism-mainnet |
-| Arbitrum One | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-arbitrum-one |
-| Avalanche C-Chain | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-avalanche-c |
-| BNB Chain | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-bsc-mainnet |
-| Mumbai | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-mumbai |
-| Goerli| https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-goerli |
-| Optimism Goerli | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-optimism-goerli |
-| Arbitrum Goerli | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-arbitrum-goerli |
-| Avalanche Fuji | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-dev-avalanche-fuji |
-
-**Feature Endpoints**
-| Network | URL |
-| --- | --- |
-| Matic | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-feature-matic |
-| Goerli | https://thegraph.com/explorer/subgraph/superfluid-finance/protocol-feature-goerli |
-
-\*Note: Development endpoints will include features that are still in progress. Documentation will not reflect new features yet to be released in V1
-
 # 🤓 Local development
 
-🛑 **STOP - Do not pass Go** 🛑 You probably don't need this repo. If you need data for Superfluid on Optimism, Arbitrum-One, Avalanche-C, Gnosis, Polygon (Matic), or testnet, we already deployed them for you! Head over to the **Docs** to get started.
+🛑 **STOP - Do not pass Go** 🛑 You probably don't need this repo. If you need data for a supported Superfluid deployment, we already deployed them for you!
+Head over to the **Docs** to get started.
 
 In this section we will cover the following:
 
@@ -79,7 +38,7 @@ If you get stuck, see The Graph [docs](https://thegraph.com/docs/quick-start#loc
 First install these dependencies:
 
 -   [docker](https://docs.docker.com/install/)
--   [docker-compose](https://docs.docker.com/compose/install/)
+-   [docker compose](https://docs.docker.com/compose/install/)
 
 Now install the necessary node packages with the following commands:
 
@@ -97,7 +56,7 @@ npx hardhat node --hostname 0.0.0.0
 
 ### Setting up a local Subgraph node instance
 
-Run `docker-compose up` in `packages/subgraph`. There is a `docker-compose.yml` file which sets up a local graph node container.
+Run `docker compose up` in `packages/subgraph`. There is a `docker-compose.yml` file which sets up a local graph node container.
 
 You should see logs start coming in on the same terminal window once everything is set up:
 
@@ -121,7 +80,7 @@ Open another terminal window and navigate to `packages/ethereum-contracts` and r
 yarn build
 ```
 
-Now go to to `packages/ethereum-contracts` and run the following command to deploy contracts:
+Now go to `packages/ethereum-contracts` and run the following command to deploy contracts:
 
 ```bash
 npx hardhat run dev-scripts/run-deploy-contracts-and-token.js
@@ -283,7 +242,7 @@ The tests look something like this:
 
 - you create a mock event with the desired parameters for a specific entity
 - you pass this event to its complementary event handler
-- you assert that the values on the created entity in the graph store have been created 
+- you assert that the values on the created entity in the graph store have been created
 
 #### Integration Tests
 The integration tests have been scaled down drastically and are no longer responsible for validating the mapping logic as this is handled in the unit tests. This solely serves to ensure that transactions executed against a local blockchain connected to a local subgraph instance will index events and create entities which can be retrieved by querying the exposed API endpoint from the local subgraph. At its core, we are testing the full lifecycle from transaction => event => indexed event => entity => entity is queryable. In addition, we still need these tests to ensure that new changes made to our schema won't break the SDK's query feature.

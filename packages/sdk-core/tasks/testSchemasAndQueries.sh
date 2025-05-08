@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 
-JQ="npx --package=node-jq -- jq"
-
 # make sure that if any step fails, the script fails
 set -xe
 
 if [ "$SUBGRAPH_RELEASE_TAG" == "feature" ];then
-    # we only support matic and goerli feature endpoints
-    # however, we don't want to be blocked by matic for feature
-    NETWORKS=("goerli")
+    NETWORKS=("matic")
 fi
 
 if [ "$SUBGRAPH_RELEASE_TAG" == "dev" ] || [ "$SUBGRAPH_RELEASE_TAG" == "v1" ];then
     # shellcheck disable=SC2207
-    NETWORKS=( $($JQ -r .[] ../subgraph/hosted-service-networks.json) )
+    NETWORKS=( $(jq -r .[] ../subgraph/hosted-service-networks.json) )
 fi
 
 function testSchemaAndQueries() {
@@ -27,18 +23,7 @@ function testSchemaAndQueries() {
 
 # for sdk-core releases: test deployed subgraphs
 for i in "${NETWORKS[@]}";do
-    # name mapping for subgraphs created before introducing canonical names
-    declare -A LEGACY_NETWORK_NAMES=(
-        ["xdai-mainnet"]="xdai"
-        ["polygon-mainnet"]="matic"
-        ["eth-goerli"]="goerli"
-        ["polygon-mumbai"]="mumbai"
-    )
-
-    GRAPH_NETWORK="${LEGACY_NETWORK_NAMES[$i]:-$i}"
-
-    SUBGRAPH_ENDPOINT=https://api.thegraph.com/subgraphs/name/superfluid-finance/protocol-$SUBGRAPH_RELEASE_TAG-$GRAPH_NETWORK
+    SUBGRAPH_ENDPOINT="https://subgraph-endpoints.superfluid.dev/$i/protocol-v1"
 
     testSchemaAndQueries
-
 done

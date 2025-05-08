@@ -1,20 +1,19 @@
 {
     "name": "autowrap",
-    "version": "0.0.1",
     "description": "Open contracts that allow upgrading underlying token to supertokens based on running stream",
+    "version": "0.3.0",
+    "devDependencies": {
+        "@openzeppelin/contracts": "^4.9.6",
+        "@superfluid-finance/ethereum-contracts": "^1.12.1",
+        "@superfluid-finance/metadata": "^1.6.0"
+    },
     "license": "MIT",
     "scripts": {
         "test": "forge test",
         "build": "forge build",
+        "deploy": "npx hardhat deploy --network",
         "lint": "run-s lint:*",
         "lint:sol": "solhint -w 0 contracts/*.sol contracts/*/*.sol && echo '✔  Your .sol files look good.'",
-        "pre-commit": "if [ ! -z \"$(git status -s .)\" ];then run-s pre-commit:*;else true;fi",
-        "pre-commit:lint": "yarn lint",
         "check-updates": "ncu --target minor"
-    },
-    "devDependencies": {
-        "@superfluid-finance/metadata": "^1.1.27",
-        "@openzeppelin/contracts": "4.9.6",
-        "@superfluid-finance/ethereum-contracts": "1.9.0"
     }
 }

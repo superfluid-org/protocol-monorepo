@@ -14,77 +14,127 @@ on:
         type: boolean
 
 jobs:
+  # When this scrip is written, it is the only way to preparing conditional matrix:
+  # Ref: https://stackoverflow.com/questions/65384420/how-do-i-make-a-github-action-matrix-element-conditional
+  matrix-prep:
+    name: Preparing Conditional Strategy Matrix
+
+    runs-on: ubuntu-22.04
+
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - name: Set matrix variable
+        id: set-matrix
+        run: |
+          if [ "${{ inputs.run-coverage-tests }}" == "true" ];then
+            echo "matrix={\"node-version\": [24]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix={\"node-version\": [20, 22, 24]}" >> "$GITHUB_OUTPUT"
+          fi
+
   test-sdk-core:
     name: Test SDK-Core
 
-    runs-on: ubuntu-latest
+    needs: [matrix-prep]
+
+    runs-on: ubuntu-22.04
+
+    strategy:
+      matrix: ${{ fromJson(needs.matrix-prep.outputs.matrix) }}
+      fail-fast: false
 
     env:
+      DEV_SHELL_NAME: ci-node${{ matrix.node-version }}
       ethereum-contracts-working-directory: ./packages/ethereum-contracts
       subgraph-working-directory: ./packages/subgraph
       sdk-core-working-directory: ./packages/sdk-core
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#${{ env.DEV_SHELL_NAME }} -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: cachix/install-nix-action@v19
+      - uses: actions/checkout@v4
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: recursive
 
-      - name: "Install dependencies"
-        run: yarn install --frozen-lockfile
-
-      - name: "Build contracts"
+      - name: Set cache key prefix
+        id: set-cache-key-prefix
         run: |
-          yarn lint
+          if [ "${{ inputs.run-coverage-tests }}" == false ]; then
+            v=sdk-core-${{ env.DEV_SHELL_NAME }}-test-
+          else
+            v=sdk-core-${{ env.DEV_SHELL_NAME }}-coverage-
+          fi
+          echo "cache_key_prefix=$v" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Setup workflow base
+        id: base
+        uses: ./.github/actions/setup-workflow-base
+        with:
+          package-name: sdk-core
+          cache-key-prefix: ${{ steps.set-cache-key-prefix.outputs.cache_key_prefix }}
+          dev-shell-name: ${{ env.DEV_SHELL_NAME }}
+
+      - name: Install dependencies
+        if: steps.base.outputs.cache-hit != 'true'
+        run: |
+          yarn install --frozen-lockfile
+          npx tsc --version
+          npx hardhat --version
+
+      - name: Build contracts
+        if: steps.base.outputs.cache-hit != 'true'
+        run: |
           yarn build
         working-directory: ${{ env.ethereum-contracts-working-directory }}
 
-      - name: "Start hardhat node"
-        run: |
-          ./tasks/startHardhatNode.sh start
-        working-directory: ${{ env.sdk-core-working-directory }}
-
-      - name: "Build SDK-Core"
+      - name: Build SDK Core
+        if: steps.base.outputs.cache-hit != 'true'
         # build sdk-core because of auto linking to dependency
         run: |
           yarn lint
           yarn build
         working-directory: ${{ env.sdk-core-working-directory }}
 
-      - name: "Deploy Framework and Tokens"
+      - name: Start hardhat node
+        if: steps.base.outputs.cache-hit != 'true'
+        run: ./tasks/startHardhatNode.sh start
+        working-directory: ${{ env.sdk-core-working-directory }}
+
+      - name: Deploy framework and tokens
+        if: steps.base.outputs.cache-hit != 'true'
         run: npx hardhat run dev-scripts/run-deploy-contracts-and-token.js --network localhost
         working-directory: ${{ env.ethereum-contracts-working-directory }}
 
-      - name: "Prepare files for local testing"
+      - name: Prepare files for local testing
+        if: steps.base.outputs.cache-hit != 'true'
         run: yarn prepare-local
         working-directory: ${{ env.subgraph-working-directory }}
 
-      - name: "Run setup-graph-node"
+      - name: Setup graph node
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
-          chmod +x ./tasks/setup-graph-node.sh
-          ./tasks/setup-graph-node.sh
+          ./tasks/setup-graph-node.sh &
+          # wait for it to warm up
+          sleep 15
         working-directory: ${{ env.subgraph-working-directory }}
 
-      - name: "Docker compose"
-        run: docker-compose up &
-        working-directory: ${{ env.subgraph-working-directory }}
-
-      - name: "Build and deploy local subgraph"
+      - name: Build and deploy local subgraph
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
           yarn build-and-deploy-local
-          # artificial slow down to give the subgraph time to sync
-          sleep 30
+          # wait for it to sync
+          sleep 15
         working-directory: ${{ env.subgraph-working-directory }}
 
-      - name: "Run test suite"
-        if: inputs.run-coverage-tests == false
+      - name: Run test suite
+        if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == false
         run: |
-          yarn generate-graphql-schema:${{ inputs.subgraph-release }}
+          yarn get-graphql-schema:${{ inputs.subgraph-release }}
           ./tasks/setupTestEnvironment.sh
           npx hardhat test --network localhost
         working-directory: ${{ env.sdk-core-working-directory }}
@@ -92,8 +142,8 @@ jobs:
           SUBGRAPH_RELEASE_TAG: ${{ inputs.subgraph-release }}
           SUBGRAPH_ENDPOINT: ${{ inputs.subgraph-endpoint }}
 
-      - name: "Run coverage test"
-        if: inputs.run-coverage-tests == true
+      - name: Run coverage test
+        if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == true
         run: |
           yarn workspace @superfluid-finance/sdk-core test-coverage
         working-directory: ${{ env.sdk-core-working-directory }}
@@ -101,9 +151,9 @@ jobs:
           SUBGRAPH_RELEASE_TAG: ${{ inputs.subgraph-release }}
           SUBGRAPH_ENDPOINT: ${{ inputs.subgraph-endpoint }}
 
-      - name: "Create coverage artifact"
+      - name: Create coverage artifact
         if: inputs.run-coverage-tests == true
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sdk-core-coverage
           path: |

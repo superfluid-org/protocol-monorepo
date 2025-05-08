@@ -7,32 +7,35 @@ jobs:
   test-spec-haskell:
     name: Test HotFuzz - Linux
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
         shell: nix develop .#ci-hot-fuzz -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
+      - name: Setup workflow base
+        id: base
+        uses: ./.github/actions/setup-workflow-base
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          package-name: hot-fuzz
+          cache-key-prefix: hot-fuzz-
+          dev-shell-name: ci-hot-fuzz
 
-      - name: Initialize devShell
+      - name: Install dependencies
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
-          set -xe
+          yarn install
+          solc --version
+          forge --version
           slither --version
           echidna --version
 
-      - name: Run Yarn Install
-        run: |
-          yarn install
-
       - name: Run tests
-        run: |
-          cd packages/hot-fuzz
-          ./hot-fuzz contracts/superfluid-tests/SuperHotFuzz.yaml
+        if: steps.base.outputs.cache-hit != 'true'
+        run: ./hot-fuzz contracts/superfluid-tests/SuperHotFuzz.yaml
+        working-directory: packages/hot-fuzz
         env:
-          ECHIDNA_TEST_LIMIT: 10000
+          ECHIDNA_TEST_LIMIT: 20000

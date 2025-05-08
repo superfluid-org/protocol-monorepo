@@ -21,6 +21,9 @@ type _Block_ {
 
   """Integer representation of the timestamp stored in blocks for the chain"""
   timestamp: Int
+
+  """The hash of the parent block"""
+  parentHash: Bytes
 }
 
 """The type for the top-level _meta field"""
@@ -173,6 +176,8 @@ type AccountTokenSnapshot {
   
   """
   id: ID!
+  createdAtTimestamp: BigInt!
+  createdAtBlockNumber: BigInt!
   updatedAtTimestamp: BigInt!
   updatedAtBlockNumber: BigInt!
 
@@ -228,22 +233,11 @@ type AccountTokenSnapshot {
   activeGDAOutgoingStreamCount: Int!
 
   """
-  The count of active incoming streams to this account for all agreements.
+  The count of active incoming streams to this account for the CFA.
+  GDA incoming streams are *NOT* counted here.
   
   """
   activeIncomingStreamCount: Int!
-
-  """
-  The count of active incoming streams to this account for the CFA.
-  
-  """
-  activeCFAIncomingStreamCount: Int!
-
-  """
-  The count of active incoming streams to this account for the GDA.
-  
-  """
-  activeGDAIncomingStreamCount: Int!
 
   """
   The count of closed streams by `account`, both incoming and outgoing for all agreements.
@@ -282,22 +276,11 @@ type AccountTokenSnapshot {
   inactiveGDAOutgoingStreamCount: Int!
 
   """
-  The count of closed incoming streams by `account` for all agreements.
+  The count of closed incoming streams by `account` for the CFA.
+  Close incoming GDA streams are *NOT* counted here.
   
   """
   inactiveIncomingStreamCount: Int!
-
-  """
-  The count of closed incoming streams by `account` for the CFA.
-  
-  """
-  inactiveCFAIncomingStreamCount: Int!
-
-  """
-  The count of closed incoming streams by `account` for the GDA.
-  
-  """
-  inactiveGDAIncomingStreamCount: Int!
 
   """
   The current (as of updatedAt) number of subscriptions with units allocated to them tied to this `account`.
@@ -350,6 +333,7 @@ type AccountTokenSnapshot {
   """
   The total net flow rate of the `account` as of `updatedAtTimestamp`/`updatedAtBlock` for all flow agreements.
   This can be obtained by: `totalInflowRate - totalOutflowRate`.
+  NOTE: this property will NOT be 100% accurate all the time for receivers of GDA flows.
   
   """
   totalNetFlowRate: BigInt!
@@ -361,28 +345,11 @@ type AccountTokenSnapshot {
   totalCFANetFlowRate: BigInt!
 
   """
-  The total net flow rate of the `account` as of `updatedAtTimestamp`/`updatedAtBlock` for the GDA.
-  
-  """
-  totalGDANetFlowRate: BigInt!
-
-  """
-  The total inflow rate (receive flowRate per second) of the `account` for all flow agreements.
+  The total inflow rate (receive flowRate per second) of the `account` for the CFA.
+  GDA inflow rate is *NOT* included here.
   
   """
   totalInflowRate: BigInt!
-
-  """
-  The total inflow rate (receive flowRate per second) of the `account` for the CFA.
-  
-  """
-  totalCFAInflowRate: BigInt!
-
-  """
-  The total inflow rate (receive flowRate per second) of the `account` for the GDA.
-  
-  """
-  totalGDAInflowRate: BigInt!
 
   """
   The total outflow rate (send flowrate per second) of the `account` for all flow agreements.
@@ -403,23 +370,10 @@ type AccountTokenSnapshot {
   totalGDAOutflowRate: BigInt!
 
   """
-  The total amount of `token` streamed into this `account` until the
-  `updatedAtTimestamp`/`updatedAtBlock` for all flow agreements.
-  
-  """
-  totalAmountStreamedInUntilUpdatedAt: BigInt!
-
-  """
   The total amount of `token` streamed into this `account` until the `updatedAtTimestamp`/`updatedAtBlock` for the CFA.
   
   """
-  totalCFAAmountStreamedInUntilUpdatedAt: BigInt!
-
-  """
-  The total amount of `token` streamed into this `account` until the `updatedAtTimestamp`/`updatedAtBlock` for the GDA.
-  
-  """
-  totalGDAAmountStreamedInUntilUpdatedAt: BigInt!
+  totalAmountStreamedInUntilUpdatedAt: BigInt!
 
   """
   The total amount of `token` streamed from this `account` until the
@@ -435,12 +389,6 @@ type AccountTokenSnapshot {
   totalCFAAmountStreamedOutUntilUpdatedAt: BigInt!
 
   """
-  The total amount of `token` streamed from this `account` until the `updatedAtTimestamp`/`updatedAtBlock` for the GDA.
-  
-  """
-  totalGDAAmountStreamedOutUntilUpdatedAt: BigInt!
-
-  """
   The total amount of `token` streamed through this `account` until the
   `updatedAtTimestamp`/`updatedAtBlock` for all flow agreements.
   
@@ -452,12 +400,6 @@ type AccountTokenSnapshot {
   
   """
   totalCFAAmountStreamedUntilUpdatedAt: BigInt!
-
-  """
-  The total amount of `token` streamed through this `account` until the `updatedAtTimestamp`/`updatedAtBlock` for the GDA.
-  
-  """
-  totalGDAAmountStreamedUntilUpdatedAt: BigInt!
 
   """
   The total amount of `token` this `account` has transferred.
@@ -479,6 +421,22 @@ input AccountTokenSnapshot_filter {
   id_lte: ID
   id_in: [ID!]
   id_not_in: [ID!]
+  createdAtTimestamp: BigInt
+  createdAtTimestamp_not: BigInt
+  createdAtTimestamp_gt: BigInt
+  createdAtTimestamp_lt: BigInt
+  createdAtTimestamp_gte: BigInt
+  createdAtTimestamp_lte: BigInt
+  createdAtTimestamp_in: [BigInt!]
+  createdAtTimestamp_not_in: [BigInt!]
+  createdAtBlockNumber: BigInt
+  createdAtBlockNumber_not: BigInt
+  createdAtBlockNumber_gt: BigInt
+  createdAtBlockNumber_lt: BigInt
+  createdAtBlockNumber_gte: BigInt
+  createdAtBlockNumber_lte: BigInt
+  createdAtBlockNumber_in: [BigInt!]
+  createdAtBlockNumber_not_in: [BigInt!]
   updatedAtTimestamp: BigInt
   updatedAtTimestamp_not: BigInt
   updatedAtTimestamp_gt: BigInt
@@ -563,22 +521,6 @@ input AccountTokenSnapshot_filter {
   activeIncomingStreamCount_lte: Int
   activeIncomingStreamCount_in: [Int!]
   activeIncomingStreamCount_not_in: [Int!]
-  activeCFAIncomingStreamCount: Int
-  activeCFAIncomingStreamCount_not: Int
-  activeCFAIncomingStreamCount_gt: Int
-  activeCFAIncomingStreamCount_lt: Int
-  activeCFAIncomingStreamCount_gte: Int
-  activeCFAIncomingStreamCount_lte: Int
-  activeCFAIncomingStreamCount_in: [Int!]
-  activeCFAIncomingStreamCount_not_in: [Int!]
-  activeGDAIncomingStreamCount: Int
-  activeGDAIncomingStreamCount_not: Int
-  activeGDAIncomingStreamCount_gt: Int
-  activeGDAIncomingStreamCount_lt: Int
-  activeGDAIncomingStreamCount_gte: Int
-  activeGDAIncomingStreamCount_lte: Int
-  activeGDAIncomingStreamCount_in: [Int!]
-  activeGDAIncomingStreamCount_not_in: [Int!]
   totalNumberOfClosedStreams: Int
   totalNumberOfClosedStreams_not: Int
   totalNumberOfClosedStreams_gt: Int
@@ -635,22 +577,6 @@ input AccountTokenSnapshot_filter {
   inactiveIncomingStreamCount_lte: Int
   inactiveIncomingStreamCount_in: [Int!]
   inactiveIncomingStreamCount_not_in: [Int!]
-  inactiveCFAIncomingStreamCount: Int
-  inactiveCFAIncomingStreamCount_not: Int
-  inactiveCFAIncomingStreamCount_gt: Int
-  inactiveCFAIncomingStreamCount_lt: Int
-  inactiveCFAIncomingStreamCount_gte: Int
-  inactiveCFAIncomingStreamCount_lte: Int
-  inactiveCFAIncomingStreamCount_in: [Int!]
-  inactiveCFAIncomingStreamCount_not_in: [Int!]
-  inactiveGDAIncomingStreamCount: Int
-  inactiveGDAIncomingStreamCount_not: Int
-  inactiveGDAIncomingStreamCount_gt: Int
-  inactiveGDAIncomingStreamCount_lt: Int
-  inactiveGDAIncomingStreamCount_gte: Int
-  inactiveGDAIncomingStreamCount_lte: Int
-  inactiveGDAIncomingStreamCount_in: [Int!]
-  inactiveGDAIncomingStreamCount_not_in: [Int!]
   totalSubscriptionsWithUnits: Int
   totalSubscriptionsWithUnits_not: Int
   totalSubscriptionsWithUnits_gt: Int
@@ -731,14 +657,6 @@ input AccountTokenSnapshot_filter {
   totalCFANetFlowRate_lte: BigInt
   totalCFANetFlowRate_in: [BigInt!]
   totalCFANetFlowRate_not_in: [BigInt!]
-  totalGDANetFlowRate: BigInt
-  totalGDANetFlowRate_not: BigInt
-  totalGDANetFlowRate_gt: BigInt
-  totalGDANetFlowRate_lt: BigInt
-  totalGDANetFlowRate_gte: BigInt
-  totalGDANetFlowRate_lte: BigInt
-  totalGDANetFlowRate_in: [BigInt!]
-  totalGDANetFlowRate_not_in: [BigInt!]
   totalInflowRate: BigInt
   totalInflowRate_not: BigInt
   totalInflowRate_gt: BigInt
@@ -747,22 +665,6 @@ input AccountTokenSnapshot_filter {
   totalInflowRate_lte: BigInt
   totalInflowRate_in: [BigInt!]
   totalInflowRate_not_in: [BigInt!]
-  totalCFAInflowRate: BigInt
-  totalCFAInflowRate_not: BigInt
-  totalCFAInflowRate_gt: BigInt
-  totalCFAInflowRate_lt: BigInt
-  totalCFAInflowRate_gte: BigInt
-  totalCFAInflowRate_lte: BigInt
-  totalCFAInflowRate_in: [BigInt!]
-  totalCFAInflowRate_not_in: [BigInt!]
-  totalGDAInflowRate: BigInt
-  totalGDAInflowRate_not: BigInt
-  totalGDAInflowRate_gt: BigInt
-  totalGDAInflowRate_lt: BigInt
-  totalGDAInflowRate_gte: BigInt
-  totalGDAInflowRate_lte: BigInt
-  totalGDAInflowRate_in: [BigInt!]
-  totalGDAInflowRate_not_in: [BigInt!]
   totalOutflowRate: BigInt
   totalOutflowRate_not: BigInt
   totalOutflowRate_gt: BigInt
@@ -795,22 +697,6 @@ input AccountTokenSnapshot_filter {
   totalAmountStreamedInUntilUpdatedAt_lte: BigInt
   totalAmountStreamedInUntilUpdatedAt_in: [BigInt!]
   totalAmountStreamedInUntilUpdatedAt_not_in: [BigInt!]
-  totalCFAAmountStreamedInUntilUpdatedAt: BigInt
-  totalCFAAmountStreamedInUntilUpdatedAt_not: BigInt
-  totalCFAAmountStreamedInUntilUpdatedAt_gt: BigInt
-  totalCFAAmountStreamedInUntilUpdatedAt_lt: BigInt
-  totalCFAAmountStreamedInUntilUpdatedAt_gte: BigInt
-  totalCFAAmountStreamedInUntilUpdatedAt_lte: BigInt
-  totalCFAAmountStreamedInUntilUpdatedAt_in: [BigInt!]
-  totalCFAAmountStreamedInUntilUpdatedAt_not_in: [BigInt!]
-  totalGDAAmountStreamedInUntilUpdatedAt: BigInt
-  totalGDAAmountStreamedInUntilUpdatedAt_not: BigInt
-  totalGDAAmountStreamedInUntilUpdatedAt_gt: BigInt
-  totalGDAAmountStreamedInUntilUpdatedAt_lt: BigInt
-  totalGDAAmountStreamedInUntilUpdatedAt_gte: BigInt
-  totalGDAAmountStreamedInUntilUpdatedAt_lte: BigInt
-  totalGDAAmountStreamedInUntilUpdatedAt_in: [BigInt!]
-  totalGDAAmountStreamedInUntilUpdatedAt_not_in: [BigInt!]
   totalAmountStreamedOutUntilUpdatedAt: BigInt
   totalAmountStreamedOutUntilUpdatedAt_not: BigInt
   totalAmountStreamedOutUntilUpdatedAt_gt: BigInt
@@ -827,14 +713,6 @@ input AccountTokenSnapshot_filter {
   totalCFAAmountStreamedOutUntilUpdatedAt_lte: BigInt
   totalCFAAmountStreamedOutUntilUpdatedAt_in: [BigInt!]
   totalCFAAmountStreamedOutUntilUpdatedAt_not_in: [BigInt!]
-  totalGDAAmountStreamedOutUntilUpdatedAt: BigInt
-  totalGDAAmountStreamedOutUntilUpdatedAt_not: BigInt
-  totalGDAAmountStreamedOutUntilUpdatedAt_gt: BigInt
-  totalGDAAmountStreamedOutUntilUpdatedAt_lt: BigInt
-  totalGDAAmountStreamedOutUntilUpdatedAt_gte: BigInt
-  totalGDAAmountStreamedOutUntilUpdatedAt_lte: BigInt
-  totalGDAAmountStreamedOutUntilUpdatedAt_in: [BigInt!]
-  totalGDAAmountStreamedOutUntilUpdatedAt_not_in: [BigInt!]
   totalAmountStreamedUntilUpdatedAt: BigInt
   totalAmountStreamedUntilUpdatedAt_not: BigInt
   totalAmountStreamedUntilUpdatedAt_gt: BigInt
@@ -851,14 +729,6 @@ input AccountTokenSnapshot_filter {
   totalCFAAmountStreamedUntilUpdatedAt_lte: BigInt
   totalCFAAmountStreamedUntilUpdatedAt_in: [BigInt!]
   totalCFAAmountStreamedUntilUpdatedAt_not_in: [BigInt!]
-  totalGDAAmountStreamedUntilUpdatedAt: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_not: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_gt: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_lt: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_gte: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_lte: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_in: [BigInt!]
-  totalGDAAmountStreamedUntilUpdatedAt_not_in: [BigInt!]
   totalAmountTransferredUntilUpdatedAt: BigInt
   totalAmountTransferredUntilUpdatedAt_not: BigInt
   totalAmountTransferredUntilUpdatedAt_gt: BigInt
@@ -920,6 +790,8 @@ input AccountTokenSnapshot_filter {
 
 enum AccountTokenSnapshot_orderBy {
   id
+  createdAtTimestamp
+  createdAtBlockNumber
   updatedAtTimestamp
   updatedAtBlockNumber
   isLiquidationEstimateOptimistic
@@ -931,8 +803,6 @@ enum AccountTokenSnapshot_orderBy {
   activeCFAOutgoingStreamCount
   activeGDAOutgoingStreamCount
   activeIncomingStreamCount
-  activeCFAIncomingStreamCount
-  activeGDAIncomingStreamCount
   totalNumberOfClosedStreams
   totalCFANumberOfClosedStreams
   totalGDANumberOfClosedStreams
@@ -940,8 +810,6 @@ enum AccountTokenSnapshot_orderBy {
   inactiveCFAOutgoingStreamCount
   inactiveGDAOutgoingStreamCount
   inactiveIncomingStreamCount
-  inactiveCFAIncomingStreamCount
-  inactiveGDAIncomingStreamCount
   totalSubscriptionsWithUnits
   totalApprovedSubscriptions
   totalMembershipsWithUnits
@@ -952,22 +820,15 @@ enum AccountTokenSnapshot_orderBy {
   totalGDADeposit
   totalNetFlowRate
   totalCFANetFlowRate
-  totalGDANetFlowRate
   totalInflowRate
-  totalCFAInflowRate
-  totalGDAInflowRate
   totalOutflowRate
   totalCFAOutflowRate
   totalGDAOutflowRate
   totalAmountStreamedInUntilUpdatedAt
-  totalCFAAmountStreamedInUntilUpdatedAt
-  totalGDAAmountStreamedInUntilUpdatedAt
   totalAmountStreamedOutUntilUpdatedAt
   totalCFAAmountStreamedOutUntilUpdatedAt
-  totalGDAAmountStreamedOutUntilUpdatedAt
   totalAmountStreamedUntilUpdatedAt
   totalCFAAmountStreamedUntilUpdatedAt
-  totalGDAAmountStreamedUntilUpdatedAt
   totalAmountTransferredUntilUpdatedAt
   account
   account__id
@@ -1053,18 +914,6 @@ type AccountTokenSnapshotLog {
   activeIncomingStreamCount: Int!
 
   """
-  The count of active incoming streams to this account for the CFA.
-  
-  """
-  activeCFAIncomingStreamCount: Int!
-
-  """
-  The count of active incoming streams to this account for the GDA.
-  
-  """
-  activeGDAIncomingStreamCount: Int!
-
-  """
   The current (as of timestamp) count of closed streams for all agreements.
   
   """
@@ -1101,22 +950,11 @@ type AccountTokenSnapshotLog {
   inactiveGDAOutgoingStreamCount: Int!
 
   """
-  The count of closed incoming streams by `account` for all agreements.
+  The count of closed incoming streams by `account` for the CFA.
+  Close incoming GDA streams are *NOT* counted here.
   
   """
   inactiveIncomingStreamCount: Int!
-
-  """
-  The count of closed incoming streams by `account` for the CFA.
-  
-  """
-  inactiveCFAIncomingStreamCount: Int!
-
-  """
-  The count of closed incoming streams by `account` for the GDA.
-  
-  """
-  inactiveGDAIncomingStreamCount: Int!
 
   """
   The current (as of timestamp) number of subscriptions with units allocated to them tied to this `account`.
@@ -1175,35 +1013,15 @@ type AccountTokenSnapshotLog {
 
   """
   The total (as of timestamp) net flow rate of the `account` as of `timestamp`/`block` for the CFA.
-  This can be obtained by: `totalCFAInflowRate - totalCFAOutflowRate`
   
   """
   totalCFANetFlowRate: BigInt!
-
-  """
-  The total (as of timestamp) net flow rate of the `account` as of `timestamp`/`block` for the GDA.
-  This can be obtained by: `totalGDAInflowRate - totalGDAOutflowRate`
-  
-  """
-  totalGDANetFlowRate: BigInt!
 
   """
   The total (as of timestamp) inflow rate (receive flowRate per second) of the `account`.
   
   """
   totalInflowRate: BigInt!
-
-  """
-  The total (as of timestamp) inflow rate (receive flowRate per second) of the `account` for the CFA.
-  
-  """
-  totalCFAInflowRate: BigInt!
-
-  """
-  The total (as of timestamp) inflow rate (receive flowRate per second) of the `account` for the GDA.
-  
-  """
-  totalGDAInflowRate: BigInt!
 
   """
   The total (as of timestamp) outflow rate (send flowrate per second) of the `account`.
@@ -1230,18 +1048,6 @@ type AccountTokenSnapshotLog {
   totalAmountStreamedIn: BigInt!
 
   """
-  The total (as of timestamp) amount of `token` streamed into this `account` until the `timestamp`/`block` for the CFA.
-  
-  """
-  totalCFAAmountStreamedIn: BigInt!
-
-  """
-  The total (as of timestamp) amount of `token` streamed into this `account` until the `timestamp`/`block` for the GDA.
-  
-  """
-  totalGDAAmountStreamedIn: BigInt!
-
-  """
   The total (as of timestamp) amount of `token` streamed from this `account` until the `timestamp`/`block`.
   
   """
@@ -1252,12 +1058,6 @@ type AccountTokenSnapshotLog {
   
   """
   totalCFAAmountStreamedOut: BigInt!
-
-  """
-  The total (as of timestamp) amount of `token` streamed from this `account` until the `timestamp`/`block` for the GDA.
-  
-  """
-  totalGDAAmountStreamedOut: BigInt!
 
   """
   The total (as of timestamp) net amount of `token` streamed through this `account` until the `timestamp`/`block`.
@@ -1271,13 +1071,6 @@ type AccountTokenSnapshotLog {
   
   """
   totalCFAAmountStreamed: BigInt!
-
-  """
-  The total (as of timestamp) net amount of `token` streamed through this
-  `account` until the `timestamp`/`block` for the GDA.
-  
-  """
-  totalGDAAmountStreamed: BigInt!
 
   """
   The total (as of timestamp) amount of `token` this `account` has transferred out until the `timestamp`/`block`.
@@ -1424,22 +1217,6 @@ input AccountTokenSnapshotLog_filter {
   activeIncomingStreamCount_lte: Int
   activeIncomingStreamCount_in: [Int!]
   activeIncomingStreamCount_not_in: [Int!]
-  activeCFAIncomingStreamCount: Int
-  activeCFAIncomingStreamCount_not: Int
-  activeCFAIncomingStreamCount_gt: Int
-  activeCFAIncomingStreamCount_lt: Int
-  activeCFAIncomingStreamCount_gte: Int
-  activeCFAIncomingStreamCount_lte: Int
-  activeCFAIncomingStreamCount_in: [Int!]
-  activeCFAIncomingStreamCount_not_in: [Int!]
-  activeGDAIncomingStreamCount: Int
-  activeGDAIncomingStreamCount_not: Int
-  activeGDAIncomingStreamCount_gt: Int
-  activeGDAIncomingStreamCount_lt: Int
-  activeGDAIncomingStreamCount_gte: Int
-  activeGDAIncomingStreamCount_lte: Int
-  activeGDAIncomingStreamCount_in: [Int!]
-  activeGDAIncomingStreamCount_not_in: [Int!]
   totalNumberOfClosedStreams: Int
   totalNumberOfClosedStreams_not: Int
   totalNumberOfClosedStreams_gt: Int
@@ -1496,22 +1273,6 @@ input AccountTokenSnapshotLog_filter {
   inactiveIncomingStreamCount_lte: Int
   inactiveIncomingStreamCount_in: [Int!]
   inactiveIncomingStreamCount_not_in: [Int!]
-  inactiveCFAIncomingStreamCount: Int
-  inactiveCFAIncomingStreamCount_not: Int
-  inactiveCFAIncomingStreamCount_gt: Int
-  inactiveCFAIncomingStreamCount_lt: Int
-  inactiveCFAIncomingStreamCount_gte: Int
-  inactiveCFAIncomingStreamCount_lte: Int
-  inactiveCFAIncomingStreamCount_in: [Int!]
-  inactiveCFAIncomingStreamCount_not_in: [Int!]
-  inactiveGDAIncomingStreamCount: Int
-  inactiveGDAIncomingStreamCount_not: Int
-  inactiveGDAIncomingStreamCount_gt: Int
-  inactiveGDAIncomingStreamCount_lt: Int
-  inactiveGDAIncomingStreamCount_gte: Int
-  inactiveGDAIncomingStreamCount_lte: Int
-  inactiveGDAIncomingStreamCount_in: [Int!]
-  inactiveGDAIncomingStreamCount_not_in: [Int!]
   totalSubscriptionsWithUnits: Int
   totalSubscriptionsWithUnits_not: Int
   totalSubscriptionsWithUnits_gt: Int
@@ -1592,14 +1353,6 @@ input AccountTokenSnapshotLog_filter {
   totalCFANetFlowRate_lte: BigInt
   totalCFANetFlowRate_in: [BigInt!]
   totalCFANetFlowRate_not_in: [BigInt!]
-  totalGDANetFlowRate: BigInt
-  totalGDANetFlowRate_not: BigInt
-  totalGDANetFlowRate_gt: BigInt
-  totalGDANetFlowRate_lt: BigInt
-  totalGDANetFlowRate_gte: BigInt
-  totalGDANetFlowRate_lte: BigInt
-  totalGDANetFlowRate_in: [BigInt!]
-  totalGDANetFlowRate_not_in: [BigInt!]
   totalInflowRate: BigInt
   totalInflowRate_not: BigInt
   totalInflowRate_gt: BigInt
@@ -1608,22 +1361,6 @@ input AccountTokenSnapshotLog_filter {
   totalInflowRate_lte: BigInt
   totalInflowRate_in: [BigInt!]
   totalInflowRate_not_in: [BigInt!]
-  totalCFAInflowRate: BigInt
-  totalCFAInflowRate_not: BigInt
-  totalCFAInflowRate_gt: BigInt
-  totalCFAInflowRate_lt: BigInt
-  totalCFAInflowRate_gte: BigInt
-  totalCFAInflowRate_lte: BigInt
-  totalCFAInflowRate_in: [BigInt!]
-  totalCFAInflowRate_not_in: [BigInt!]
-  totalGDAInflowRate: BigInt
-  totalGDAInflowRate_not: BigInt
-  totalGDAInflowRate_gt: BigInt
-  totalGDAInflowRate_lt: BigInt
-  totalGDAInflowRate_gte: BigInt
-  totalGDAInflowRate_lte: BigInt
-  totalGDAInflowRate_in: [BigInt!]
-  totalGDAInflowRate_not_in: [BigInt!]
   totalOutflowRate: BigInt
   totalOutflowRate_not: BigInt
   totalOutflowRate_gt: BigInt
@@ -1656,22 +1393,6 @@ input AccountTokenSnapshotLog_filter {
   totalAmountStreamedIn_lte: BigInt
   totalAmountStreamedIn_in: [BigInt!]
   totalAmountStreamedIn_not_in: [BigInt!]
-  totalCFAAmountStreamedIn: BigInt
-  totalCFAAmountStreamedIn_not: BigInt
-  totalCFAAmountStreamedIn_gt: BigInt
-  totalCFAAmountStreamedIn_lt: BigInt
-  totalCFAAmountStreamedIn_gte: BigInt
-  totalCFAAmountStreamedIn_lte: BigInt
-  totalCFAAmountStreamedIn_in: [BigInt!]
-  totalCFAAmountStreamedIn_not_in: [BigInt!]
-  totalGDAAmountStreamedIn: BigInt
-  totalGDAAmountStreamedIn_not: BigInt
-  totalGDAAmountStreamedIn_gt: BigInt
-  totalGDAAmountStreamedIn_lt: BigInt
-  totalGDAAmountStreamedIn_gte: BigInt
-  totalGDAAmountStreamedIn_lte: BigInt
-  totalGDAAmountStreamedIn_in: [BigInt!]
-  totalGDAAmountStreamedIn_not_in: [BigInt!]
   totalAmountStreamedOut: BigInt
   totalAmountStreamedOut_not: BigInt
   totalAmountStreamedOut_gt: BigInt
@@ -1688,14 +1409,6 @@ input AccountTokenSnapshotLog_filter {
   totalCFAAmountStreamedOut_lte: BigInt
   totalCFAAmountStreamedOut_in: [BigInt!]
   totalCFAAmountStreamedOut_not_in: [BigInt!]
-  totalGDAAmountStreamedOut: BigInt
-  totalGDAAmountStreamedOut_not: BigInt
-  totalGDAAmountStreamedOut_gt: BigInt
-  totalGDAAmountStreamedOut_lt: BigInt
-  totalGDAAmountStreamedOut_gte: BigInt
-  totalGDAAmountStreamedOut_lte: BigInt
-  totalGDAAmountStreamedOut_in: [BigInt!]
-  totalGDAAmountStreamedOut_not_in: [BigInt!]
   totalAmountStreamed: BigInt
   totalAmountStreamed_not: BigInt
   totalAmountStreamed_gt: BigInt
@@ -1712,14 +1425,6 @@ input AccountTokenSnapshotLog_filter {
   totalCFAAmountStreamed_lte: BigInt
   totalCFAAmountStreamed_in: [BigInt!]
   totalCFAAmountStreamed_not_in: [BigInt!]
-  totalGDAAmountStreamed: BigInt
-  totalGDAAmountStreamed_not: BigInt
-  totalGDAAmountStreamed_gt: BigInt
-  totalGDAAmountStreamed_lt: BigInt
-  totalGDAAmountStreamed_gte: BigInt
-  totalGDAAmountStreamed_lte: BigInt
-  totalGDAAmountStreamed_in: [BigInt!]
-  totalGDAAmountStreamed_not_in: [BigInt!]
   totalAmountTransferred: BigInt
   totalAmountTransferred_not: BigInt
   totalAmountTransferred_gt: BigInt
@@ -1814,8 +1519,6 @@ enum AccountTokenSnapshotLog_orderBy {
   activeCFAOutgoingStreamCount
   activeGDAOutgoingStreamCount
   activeIncomingStreamCount
-  activeCFAIncomingStreamCount
-  activeGDAIncomingStreamCount
   totalNumberOfClosedStreams
   totalCFANumberOfClosedStreams
   totalGDANumberOfClosedStreams
@@ -1823,8 +1526,6 @@ enum AccountTokenSnapshotLog_orderBy {
   inactiveCFAOutgoingStreamCount
   inactiveGDAOutgoingStreamCount
   inactiveIncomingStreamCount
-  inactiveCFAIncomingStreamCount
-  inactiveGDAIncomingStreamCount
   totalSubscriptionsWithUnits
   totalApprovedSubscriptions
   totalMembershipsWithUnits
@@ -1835,22 +1536,15 @@ enum AccountTokenSnapshotLog_orderBy {
   totalGDADeposit
   totalNetFlowRate
   totalCFANetFlowRate
-  totalGDANetFlowRate
   totalInflowRate
-  totalCFAInflowRate
-  totalGDAInflowRate
   totalOutflowRate
   totalCFAOutflowRate
   totalGDAOutflowRate
   totalAmountStreamedIn
-  totalCFAAmountStreamedIn
-  totalGDAAmountStreamedIn
   totalAmountStreamedOut
   totalCFAAmountStreamedOut
-  totalGDAAmountStreamedOut
   totalAmountStreamed
   totalCFAAmountStreamed
-  totalGDAAmountStreamed
   totalAmountTransferred
   account
   account__id
@@ -1872,6 +1566,8 @@ enum AccountTokenSnapshotLog_orderBy {
   token__underlyingAddress
   accountTokenSnapshot
   accountTokenSnapshot__id
+  accountTokenSnapshot__createdAtTimestamp
+  accountTokenSnapshot__createdAtBlockNumber
   accountTokenSnapshot__updatedAtTimestamp
   accountTokenSnapshot__updatedAtBlockNumber
   accountTokenSnapshot__isLiquidationEstimateOptimistic
@@ -1883,8 +1579,6 @@ enum AccountTokenSnapshotLog_orderBy {
   accountTokenSnapshot__activeCFAOutgoingStreamCount
   accountTokenSnapshot__activeGDAOutgoingStreamCount
   accountTokenSnapshot__activeIncomingStreamCount
-  accountTokenSnapshot__activeCFAIncomingStreamCount
-  accountTokenSnapshot__activeGDAIncomingStreamCount
   accountTokenSnapshot__totalNumberOfClosedStreams
   accountTokenSnapshot__totalCFANumberOfClosedStreams
   accountTokenSnapshot__totalGDANumberOfClosedStreams
@@ -1892,8 +1586,6 @@ enum AccountTokenSnapshotLog_orderBy {
   accountTokenSnapshot__inactiveCFAOutgoingStreamCount
   accountTokenSnapshot__inactiveGDAOutgoingStreamCount
   accountTokenSnapshot__inactiveIncomingStreamCount
-  accountTokenSnapshot__inactiveCFAIncomingStreamCount
-  accountTokenSnapshot__inactiveGDAIncomingStreamCount
   accountTokenSnapshot__totalSubscriptionsWithUnits
   accountTokenSnapshot__totalApprovedSubscriptions
   accountTokenSnapshot__totalMembershipsWithUnits
@@ -1904,23 +1596,21 @@ enum AccountTokenSnapshotLog_orderBy {
   accountTokenSnapshot__totalGDADeposit
   accountTokenSnapshot__totalNetFlowRate
   accountTokenSnapshot__totalCFANetFlowRate
-  accountTokenSnapshot__totalGDANetFlowRate
   accountTokenSnapshot__totalInflowRate
-  accountTokenSnapshot__totalCFAInflowRate
-  accountTokenSnapshot__totalGDAInflowRate
   accountTokenSnapshot__totalOutflowRate
   accountTokenSnapshot__totalCFAOutflowRate
   accountTokenSnapshot__totalGDAOutflowRate
   accountTokenSnapshot__totalAmountStreamedInUntilUpdatedAt
-  accountTokenSnapshot__totalCFAAmountStreamedInUntilUpdatedAt
-  accountTokenSnapshot__totalGDAAmountStreamedInUntilUpdatedAt
   accountTokenSnapshot__totalAmountStreamedOutUntilUpdatedAt
   accountTokenSnapshot__totalCFAAmountStreamedOutUntilUpdatedAt
-  accountTokenSnapshot__totalGDAAmountStreamedOutUntilUpdatedAt
   accountTokenSnapshot__totalAmountStreamedUntilUpdatedAt
   accountTokenSnapshot__totalCFAAmountStreamedUntilUpdatedAt
-  accountTokenSnapshot__totalGDAAmountStreamedUntilUpdatedAt
   accountTokenSnapshot__totalAmountTransferredUntilUpdatedAt
+}
+
+enum Aggregation_interval {
+  hour
+  day
 }
 
 type AgreementClassRegisteredEvent implements Event {
@@ -1932,7 +1622,8 @@ type AgreementClassRegisteredEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `code`
   
   """
   addresses: [Bytes!]!
@@ -2087,7 +1778,8 @@ type AgreementClassUpdatedEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `code`
   
   """
   addresses: [Bytes!]!
@@ -2800,7 +2492,8 @@ type AppRegisteredEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `app`
   
   """
   addresses: [Bytes!]!
@@ -2943,27 +2636,35 @@ type ApprovalEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `token` (superToken)
+  addresses[1] = `owner`
+  addresses[2] = `to`
   
   """
   addresses: [Bytes!]!
   blockNumber: BigInt!
   logIndex: BigInt!
   order: BigInt!
+
+  """
+  The address that will be granting allowance to transfer ERC20.
+  
+  """
   owner: Account!
 
   """
-  The address that will be granted allowance to transfer the NFT.
+  The address that will be granted allowance to transfer ERC20.
   
   """
   to: Account!
 
   """
-  The id of the NFT that will be granted allowance to transfer.
-  The id is: uint256(keccak256(abi.encode(block.chainid, superToken, sender, receiver)))
+  If `amount` is non-zero, this event was emitted for the approval of an ERC20.
+  Tne amount of ERC20 tokens that will be granted allowance to transfer.
   
   """
-  tokenId: BigInt!
+  amount: BigInt!
 }
 
 input ApprovalEvent_filter {
@@ -3101,14 +2802,14 @@ input ApprovalEvent_filter {
   to_not_ends_with: String
   to_not_ends_with_nocase: String
   to_: Account_filter
-  tokenId: BigInt
-  tokenId_not: BigInt
-  tokenId_gt: BigInt
-  tokenId_lt: BigInt
-  tokenId_gte: BigInt
-  tokenId_lte: BigInt
-  tokenId_in: [BigInt!]
-  tokenId_not_in: [BigInt!]
+  amount: BigInt
+  amount_not: BigInt
+  amount_gt: BigInt
+  amount_lt: BigInt
+  amount_gte: BigInt
+  amount_lte: BigInt
+  amount_in: [BigInt!]
+  amount_not_in: [BigInt!]
 
   """Filter for the block changed event."""
   _change_block: BlockChangedFilter
@@ -3141,212 +2842,7 @@ enum ApprovalEvent_orderBy {
   to__updatedAtTimestamp
   to__updatedAtBlockNumber
   to__isSuperApp
-  tokenId
-}
-
-type ApprovalForAllEvent implements Event {
-  id: ID!
-  transactionHash: Bytes!
-  gasPrice: BigInt!
-  gasUsed: BigInt!
-  timestamp: BigInt!
-  name: String!
-
-  """
-  Empty addresses array.
-  
-  """
-  addresses: [Bytes!]!
-  blockNumber: BigInt!
-  logIndex: BigInt!
-  order: BigInt!
-  owner: Account!
-
-  """
-  The address that will be granted operator permissions for the all of the owner's tokens.
-  
-  """
-  operator: Account!
-
-  """
-  Whether the operator is enabled or disabled for `owner`.
-  
-  """
-  approved: Boolean!
-}
-
-input ApprovalForAllEvent_filter {
-  id: ID
-  id_not: ID
-  id_gt: ID
-  id_lt: ID
-  id_gte: ID
-  id_lte: ID
-  id_in: [ID!]
-  id_not_in: [ID!]
-  transactionHash: Bytes
-  transactionHash_not: Bytes
-  transactionHash_gt: Bytes
-  transactionHash_lt: Bytes
-  transactionHash_gte: Bytes
-  transactionHash_lte: Bytes
-  transactionHash_in: [Bytes!]
-  transactionHash_not_in: [Bytes!]
-  transactionHash_contains: Bytes
-  transactionHash_not_contains: Bytes
-  gasPrice: BigInt
-  gasPrice_not: BigInt
-  gasPrice_gt: BigInt
-  gasPrice_lt: BigInt
-  gasPrice_gte: BigInt
-  gasPrice_lte: BigInt
-  gasPrice_in: [BigInt!]
-  gasPrice_not_in: [BigInt!]
-  gasUsed: BigInt
-  gasUsed_not: BigInt
-  gasUsed_gt: BigInt
-  gasUsed_lt: BigInt
-  gasUsed_gte: BigInt
-  gasUsed_lte: BigInt
-  gasUsed_in: [BigInt!]
-  gasUsed_not_in: [BigInt!]
-  timestamp: BigInt
-  timestamp_not: BigInt
-  timestamp_gt: BigInt
-  timestamp_lt: BigInt
-  timestamp_gte: BigInt
-  timestamp_lte: BigInt
-  timestamp_in: [BigInt!]
-  timestamp_not_in: [BigInt!]
-  name: String
-  name_not: String
-  name_gt: String
-  name_lt: String
-  name_gte: String
-  name_lte: String
-  name_in: [String!]
-  name_not_in: [String!]
-  name_contains: String
-  name_contains_nocase: String
-  name_not_contains: String
-  name_not_contains_nocase: String
-  name_starts_with: String
-  name_starts_with_nocase: String
-  name_not_starts_with: String
-  name_not_starts_with_nocase: String
-  name_ends_with: String
-  name_ends_with_nocase: String
-  name_not_ends_with: String
-  name_not_ends_with_nocase: String
-  addresses: [Bytes!]
-  addresses_not: [Bytes!]
-  addresses_contains: [Bytes!]
-  addresses_contains_nocase: [Bytes!]
-  addresses_not_contains: [Bytes!]
-  addresses_not_contains_nocase: [Bytes!]
-  blockNumber: BigInt
-  blockNumber_not: BigInt
-  blockNumber_gt: BigInt
-  blockNumber_lt: BigInt
-  blockNumber_gte: BigInt
-  blockNumber_lte: BigInt
-  blockNumber_in: [BigInt!]
-  blockNumber_not_in: [BigInt!]
-  logIndex: BigInt
-  logIndex_not: BigInt
-  logIndex_gt: BigInt
-  logIndex_lt: BigInt
-  logIndex_gte: BigInt
-  logIndex_lte: BigInt
-  logIndex_in: [BigInt!]
-  logIndex_not_in: [BigInt!]
-  order: BigInt
-  order_not: BigInt
-  order_gt: BigInt
-  order_lt: BigInt
-  order_gte: BigInt
-  order_lte: BigInt
-  order_in: [BigInt!]
-  order_not_in: [BigInt!]
-  owner: String
-  owner_not: String
-  owner_gt: String
-  owner_lt: String
-  owner_gte: String
-  owner_lte: String
-  owner_in: [String!]
-  owner_not_in: [String!]
-  owner_contains: String
-  owner_contains_nocase: String
-  owner_not_contains: String
-  owner_not_contains_nocase: String
-  owner_starts_with: String
-  owner_starts_with_nocase: String
-  owner_not_starts_with: String
-  owner_not_starts_with_nocase: String
-  owner_ends_with: String
-  owner_ends_with_nocase: String
-  owner_not_ends_with: String
-  owner_not_ends_with_nocase: String
-  owner_: Account_filter
-  operator: String
-  operator_not: String
-  operator_gt: String
-  operator_lt: String
-  operator_gte: String
-  operator_lte: String
-  operator_in: [String!]
-  operator_not_in: [String!]
-  operator_contains: String
-  operator_contains_nocase: String
-  operator_not_contains: String
-  operator_not_contains_nocase: String
-  operator_starts_with: String
-  operator_starts_with_nocase: String
-  operator_not_starts_with: String
-  operator_not_starts_with_nocase: String
-  operator_ends_with: String
-  operator_ends_with_nocase: String
-  operator_not_ends_with: String
-  operator_not_ends_with_nocase: String
-  operator_: Account_filter
-  approved: Boolean
-  approved_not: Boolean
-  approved_in: [Boolean!]
-  approved_not_in: [Boolean!]
-
-  """Filter for the block changed event."""
-  _change_block: BlockChangedFilter
-  and: [ApprovalForAllEvent_filter]
-  or: [ApprovalForAllEvent_filter]
-}
-
-enum ApprovalForAllEvent_orderBy {
-  id
-  transactionHash
-  gasPrice
-  gasUsed
-  timestamp
-  name
-  addresses
-  blockNumber
-  logIndex
-  order
-  owner
-  owner__id
-  owner__createdAtTimestamp
-  owner__createdAtBlockNumber
-  owner__updatedAtTimestamp
-  owner__updatedAtBlockNumber
-  owner__isSuperApp
-  operator
-  operator__id
-  operator__createdAtTimestamp
-  operator__createdAtBlockNumber
-  operator__updatedAtTimestamp
-  operator__updatedAtBlockNumber
-  operator__isSuperApp
-  approved
+  amount
 }
 
 scalar BigDecimal
@@ -3758,6 +3254,9 @@ enum BufferAdjustedEvent_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -3997,7 +3496,10 @@ type CFAv1LiquidationPeriodChangedEvent implements Event {
   governanceAddress: Bytes!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `governanceAddress`
+  addresses[1] = `host`
+  addresses[2] = `superToken`
   
   """
   addresses: [Bytes!]!
@@ -4185,7 +3687,10 @@ type ConfigChangedEvent implements Event {
   governanceAddress: Bytes!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `governanceAddress`
+  addresses[1] = `host`
+  addresses[2] = `superToken`
   
   """
   addresses: [Bytes!]!
@@ -4734,6 +4239,9 @@ enum DistributionClaimedEvent_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -4751,6 +4259,8 @@ enum DistributionClaimedEvent_orderBy {
   poolMember__totalAmountClaimed
   poolMember__poolTotalAmountDistributedUntilUpdatedAt
   poolMember__totalAmountReceivedUntilUpdatedAt
+  poolMember__syncedPerUnitSettledValue
+  poolMember__syncedPerUnitFlowRate
 }
 
 """
@@ -5386,6 +4896,9 @@ enum FlowDistributionUpdatedEvent_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -5644,6 +5157,8 @@ enum FlowOperator_orderBy {
   token__underlyingAddress
   accountTokenSnapshot
   accountTokenSnapshot__id
+  accountTokenSnapshot__createdAtTimestamp
+  accountTokenSnapshot__createdAtBlockNumber
   accountTokenSnapshot__updatedAtTimestamp
   accountTokenSnapshot__updatedAtBlockNumber
   accountTokenSnapshot__isLiquidationEstimateOptimistic
@@ -5655,8 +5170,6 @@ enum FlowOperator_orderBy {
   accountTokenSnapshot__activeCFAOutgoingStreamCount
   accountTokenSnapshot__activeGDAOutgoingStreamCount
   accountTokenSnapshot__activeIncomingStreamCount
-  accountTokenSnapshot__activeCFAIncomingStreamCount
-  accountTokenSnapshot__activeGDAIncomingStreamCount
   accountTokenSnapshot__totalNumberOfClosedStreams
   accountTokenSnapshot__totalCFANumberOfClosedStreams
   accountTokenSnapshot__totalGDANumberOfClosedStreams
@@ -5664,8 +5177,6 @@ enum FlowOperator_orderBy {
   accountTokenSnapshot__inactiveCFAOutgoingStreamCount
   accountTokenSnapshot__inactiveGDAOutgoingStreamCount
   accountTokenSnapshot__inactiveIncomingStreamCount
-  accountTokenSnapshot__inactiveCFAIncomingStreamCount
-  accountTokenSnapshot__inactiveGDAIncomingStreamCount
   accountTokenSnapshot__totalSubscriptionsWithUnits
   accountTokenSnapshot__totalApprovedSubscriptions
   accountTokenSnapshot__totalMembershipsWithUnits
@@ -5676,22 +5187,15 @@ enum FlowOperator_orderBy {
   accountTokenSnapshot__totalGDADeposit
   accountTokenSnapshot__totalNetFlowRate
   accountTokenSnapshot__totalCFANetFlowRate
-  accountTokenSnapshot__totalGDANetFlowRate
   accountTokenSnapshot__totalInflowRate
-  accountTokenSnapshot__totalCFAInflowRate
-  accountTokenSnapshot__totalGDAInflowRate
   accountTokenSnapshot__totalOutflowRate
   accountTokenSnapshot__totalCFAOutflowRate
   accountTokenSnapshot__totalGDAOutflowRate
   accountTokenSnapshot__totalAmountStreamedInUntilUpdatedAt
-  accountTokenSnapshot__totalCFAAmountStreamedInUntilUpdatedAt
-  accountTokenSnapshot__totalGDAAmountStreamedInUntilUpdatedAt
   accountTokenSnapshot__totalAmountStreamedOutUntilUpdatedAt
   accountTokenSnapshot__totalCFAAmountStreamedOutUntilUpdatedAt
-  accountTokenSnapshot__totalGDAAmountStreamedOutUntilUpdatedAt
   accountTokenSnapshot__totalAmountStreamedUntilUpdatedAt
   accountTokenSnapshot__totalCFAAmountStreamedUntilUpdatedAt
-  accountTokenSnapshot__totalGDAAmountStreamedUntilUpdatedAt
   accountTokenSnapshot__totalAmountTransferredUntilUpdatedAt
   flowOperatorUpdatedEvents
 }
@@ -6301,7 +5805,9 @@ type GovernanceReplacedEvent implements Event {
   order: BigInt!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `oldGovernance`
+  addresses[1] = `newGovernance`
   
   """
   addresses: [Bytes!]!
@@ -8695,6 +8201,9 @@ enum InstantDistributionUpdatedEvent_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -8729,7 +8238,8 @@ type JailEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `app`
   
   """
   addresses: [Bytes!]!
@@ -9103,6 +8613,9 @@ enum MemberUnitsUpdatedEvent_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -9120,153 +8633,8 @@ enum MemberUnitsUpdatedEvent_orderBy {
   poolMember__totalAmountClaimed
   poolMember__poolTotalAmountDistributedUntilUpdatedAt
   poolMember__totalAmountReceivedUntilUpdatedAt
-}
-
-type MetadataUpdateEvent implements Event {
-  id: ID!
-  transactionHash: Bytes!
-  gasPrice: BigInt!
-  gasUsed: BigInt!
-  timestamp: BigInt!
-  name: String!
-
-  """
-  Empty addresses array.
-  
-  """
-  addresses: [Bytes!]!
-  blockNumber: BigInt!
-  logIndex: BigInt!
-  order: BigInt!
-
-  """
-  The id of the NFT that will be granted allowance to transfer.
-  The id is: uint256(keccak256(abi.encode(block.chainid, superToken, sender, receiver)))
-  
-  """
-  tokenId: BigInt!
-}
-
-input MetadataUpdateEvent_filter {
-  id: ID
-  id_not: ID
-  id_gt: ID
-  id_lt: ID
-  id_gte: ID
-  id_lte: ID
-  id_in: [ID!]
-  id_not_in: [ID!]
-  transactionHash: Bytes
-  transactionHash_not: Bytes
-  transactionHash_gt: Bytes
-  transactionHash_lt: Bytes
-  transactionHash_gte: Bytes
-  transactionHash_lte: Bytes
-  transactionHash_in: [Bytes!]
-  transactionHash_not_in: [Bytes!]
-  transactionHash_contains: Bytes
-  transactionHash_not_contains: Bytes
-  gasPrice: BigInt
-  gasPrice_not: BigInt
-  gasPrice_gt: BigInt
-  gasPrice_lt: BigInt
-  gasPrice_gte: BigInt
-  gasPrice_lte: BigInt
-  gasPrice_in: [BigInt!]
-  gasPrice_not_in: [BigInt!]
-  gasUsed: BigInt
-  gasUsed_not: BigInt
-  gasUsed_gt: BigInt
-  gasUsed_lt: BigInt
-  gasUsed_gte: BigInt
-  gasUsed_lte: BigInt
-  gasUsed_in: [BigInt!]
-  gasUsed_not_in: [BigInt!]
-  timestamp: BigInt
-  timestamp_not: BigInt
-  timestamp_gt: BigInt
-  timestamp_lt: BigInt
-  timestamp_gte: BigInt
-  timestamp_lte: BigInt
-  timestamp_in: [BigInt!]
-  timestamp_not_in: [BigInt!]
-  name: String
-  name_not: String
-  name_gt: String
-  name_lt: String
-  name_gte: String
-  name_lte: String
-  name_in: [String!]
-  name_not_in: [String!]
-  name_contains: String
-  name_contains_nocase: String
-  name_not_contains: String
-  name_not_contains_nocase: String
-  name_starts_with: String
-  name_starts_with_nocase: String
-  name_not_starts_with: String
-  name_not_starts_with_nocase: String
-  name_ends_with: String
-  name_ends_with_nocase: String
-  name_not_ends_with: String
-  name_not_ends_with_nocase: String
-  addresses: [Bytes!]
-  addresses_not: [Bytes!]
-  addresses_contains: [Bytes!]
-  addresses_contains_nocase: [Bytes!]
-  addresses_not_contains: [Bytes!]
-  addresses_not_contains_nocase: [Bytes!]
-  blockNumber: BigInt
-  blockNumber_not: BigInt
-  blockNumber_gt: BigInt
-  blockNumber_lt: BigInt
-  blockNumber_gte: BigInt
-  blockNumber_lte: BigInt
-  blockNumber_in: [BigInt!]
-  blockNumber_not_in: [BigInt!]
-  logIndex: BigInt
-  logIndex_not: BigInt
-  logIndex_gt: BigInt
-  logIndex_lt: BigInt
-  logIndex_gte: BigInt
-  logIndex_lte: BigInt
-  logIndex_in: [BigInt!]
-  logIndex_not_in: [BigInt!]
-  order: BigInt
-  order_not: BigInt
-  order_gt: BigInt
-  order_lt: BigInt
-  order_gte: BigInt
-  order_lte: BigInt
-  order_in: [BigInt!]
-  order_not_in: [BigInt!]
-  tokenId: BigInt
-  tokenId_not: BigInt
-  tokenId_gt: BigInt
-  tokenId_lt: BigInt
-  tokenId_gte: BigInt
-  tokenId_lte: BigInt
-  tokenId_in: [BigInt!]
-  tokenId_not_in: [BigInt!]
-
-  """Filter for the block changed event."""
-  _change_block: BlockChangedFilter
-  and: [MetadataUpdateEvent_filter]
-  or: [MetadataUpdateEvent_filter]
-}
-
-enum MetadataUpdateEvent_orderBy {
-  id
-  transactionHash
-  gasPrice
-  gasUsed
-  timestamp
-  name
-  addresses
-  blockNumber
-  logIndex
-  order
-  tokenId
+  poolMember__syncedPerUnitSettledValue
+  poolMember__syncedPerUnitFlowRate
 }
 
 type MintedEvent implements Event {
@@ -9692,6 +9060,9 @@ type Pool {
   totalAmountInstantlyDistributedUntilUpdatedAt: BigInt!
   totalAmountFlowedDistributedUntilUpdatedAt: BigInt!
   totalAmountDistributedUntilUpdatedAt: BigInt!
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt: BigInt!
+  perUnitSettledValue: BigInt!
+  perUnitFlowRate: BigInt!
 
   """
   A member is any account which has more than 0 units in the pool.
@@ -9815,6 +9186,30 @@ input Pool_filter {
   totalAmountDistributedUntilUpdatedAt_lte: BigInt
   totalAmountDistributedUntilUpdatedAt_in: [BigInt!]
   totalAmountDistributedUntilUpdatedAt_not_in: [BigInt!]
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt: BigInt
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt_not: BigInt
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt_gt: BigInt
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt_lt: BigInt
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt_gte: BigInt
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt_lte: BigInt
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt_in: [BigInt!]
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt_not_in: [BigInt!]
+  perUnitSettledValue: BigInt
+  perUnitSettledValue_not: BigInt
+  perUnitSettledValue_gt: BigInt
+  perUnitSettledValue_lt: BigInt
+  perUnitSettledValue_gte: BigInt
+  perUnitSettledValue_lte: BigInt
+  perUnitSettledValue_in: [BigInt!]
+  perUnitSettledValue_not_in: [BigInt!]
+  perUnitFlowRate: BigInt
+  perUnitFlowRate_not: BigInt
+  perUnitFlowRate_gt: BigInt
+  perUnitFlowRate_lt: BigInt
+  perUnitFlowRate_gte: BigInt
+  perUnitFlowRate_lte: BigInt
+  perUnitFlowRate_in: [BigInt!]
+  perUnitFlowRate_not_in: [BigInt!]
   totalMembers: Int
   totalMembers_not: Int
   totalMembers_gt: Int
@@ -9933,6 +9328,9 @@ enum Pool_orderBy {
   totalAmountInstantlyDistributedUntilUpdatedAt
   totalAmountFlowedDistributedUntilUpdatedAt
   totalAmountDistributedUntilUpdatedAt
+  totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  perUnitSettledValue
+  perUnitFlowRate
   totalMembers
   totalConnectedMembers
   totalDisconnectedMembers
@@ -10198,6 +9596,9 @@ enum PoolConnectionUpdatedEvent_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -10215,6 +9616,8 @@ enum PoolConnectionUpdatedEvent_orderBy {
   poolMember__totalAmountClaimed
   poolMember__poolTotalAmountDistributedUntilUpdatedAt
   poolMember__totalAmountReceivedUntilUpdatedAt
+  poolMember__syncedPerUnitSettledValue
+  poolMember__syncedPerUnitFlowRate
 }
 
 type PoolCreatedEvent implements Event {
@@ -10420,6 +9823,9 @@ enum PoolCreatedEvent_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -10613,6 +10019,9 @@ enum PoolDistributor_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -10639,6 +10048,8 @@ type PoolMember {
   totalAmountClaimed: BigInt!
   poolTotalAmountDistributedUntilUpdatedAt: BigInt!
   totalAmountReceivedUntilUpdatedAt: BigInt!
+  syncedPerUnitSettledValue: BigInt!
+  syncedPerUnitFlowRate: BigInt!
   account: Account!
   pool: Pool!
   poolConnectionUpdatedEvents(skip: Int = 0, first: Int = 100, orderBy: PoolConnectionUpdatedEvent_orderBy, orderDirection: OrderDirection, where: PoolConnectionUpdatedEvent_filter): [PoolConnectionUpdatedEvent!]!
@@ -10723,6 +10134,22 @@ input PoolMember_filter {
   totalAmountReceivedUntilUpdatedAt_lte: BigInt
   totalAmountReceivedUntilUpdatedAt_in: [BigInt!]
   totalAmountReceivedUntilUpdatedAt_not_in: [BigInt!]
+  syncedPerUnitSettledValue: BigInt
+  syncedPerUnitSettledValue_not: BigInt
+  syncedPerUnitSettledValue_gt: BigInt
+  syncedPerUnitSettledValue_lt: BigInt
+  syncedPerUnitSettledValue_gte: BigInt
+  syncedPerUnitSettledValue_lte: BigInt
+  syncedPerUnitSettledValue_in: [BigInt!]
+  syncedPerUnitSettledValue_not_in: [BigInt!]
+  syncedPerUnitFlowRate: BigInt
+  syncedPerUnitFlowRate_not: BigInt
+  syncedPerUnitFlowRate_gt: BigInt
+  syncedPerUnitFlowRate_lt: BigInt
+  syncedPerUnitFlowRate_gte: BigInt
+  syncedPerUnitFlowRate_lte: BigInt
+  syncedPerUnitFlowRate_in: [BigInt!]
+  syncedPerUnitFlowRate_not_in: [BigInt!]
   account: String
   account_not: String
   account_gt: String
@@ -10786,6 +10213,8 @@ enum PoolMember_orderBy {
   totalAmountClaimed
   poolTotalAmountDistributedUntilUpdatedAt
   totalAmountReceivedUntilUpdatedAt
+  syncedPerUnitSettledValue
+  syncedPerUnitFlowRate
   account
   account__id
   account__createdAtTimestamp
@@ -10805,6 +10234,9 @@ enum PoolMember_orderBy {
   pool__totalAmountInstantlyDistributedUntilUpdatedAt
   pool__totalAmountFlowedDistributedUntilUpdatedAt
   pool__totalAmountDistributedUntilUpdatedAt
+  pool__totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+  pool__perUnitSettledValue
+  pool__perUnitFlowRate
   pool__totalMembers
   pool__totalConnectedMembers
   pool__totalDisconnectedMembers
@@ -10831,7 +10263,10 @@ type PPPConfigurationChangedEvent implements Event {
   governanceAddress: Bytes!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `governanceAddress`
+  addresses[1] = `host`
+  addresses[2] = `superToken`
   
   """
   addresses: [Bytes!]!
@@ -12815,86 +12250,6 @@ type Query {
     """
     subgraphError: _SubgraphErrorPolicy_! = deny
   ): [ApprovalEvent!]!
-  approvalForAllEvent(
-    id: ID!
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): ApprovalForAllEvent
-  approvalForAllEvents(
-    skip: Int = 0
-    first: Int = 100
-    orderBy: ApprovalForAllEvent_orderBy
-    orderDirection: OrderDirection
-    where: ApprovalForAllEvent_filter
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): [ApprovalForAllEvent!]!
-  metadataUpdateEvent(
-    id: ID!
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): MetadataUpdateEvent
-  metadataUpdateEvents(
-    skip: Int = 0
-    first: Int = 100
-    orderBy: MetadataUpdateEvent_orderBy
-    orderDirection: OrderDirection
-    where: MetadataUpdateEvent_filter
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): [MetadataUpdateEvent!]!
   customSuperTokenCreatedEvent(
     id: ID!
 
@@ -14010,7 +13365,11 @@ type RewardAddressChangedEvent implements Event {
   governanceAddress: Bytes!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `governanceAddress`
+  addresses[1] = `host`
+  addresses[2] = `superToken`
+  addresses[3] = `rewardAddress`
   
   """
   addresses: [Bytes!]!
@@ -14194,7 +13553,9 @@ type RoleAdminChangedEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `previousAdminRole`
+  addresses[1] = `newAdminRole`
   
   """
   addresses: [Bytes!]!
@@ -14361,7 +13722,9 @@ type RoleGrantedEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `account`
+  addresses[1] = `sender`
   
   """
   addresses: [Bytes!]!
@@ -14528,7 +13891,9 @@ type RoleRevokedEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `account`
+  addresses[1] = `sender`
   
   """
   addresses: [Bytes!]!
@@ -15115,6 +14480,12 @@ type SFMeta {
   
   """
   branch: String!
+
+  """
+  The subgraph package.json semver version of the current deployment.
+  
+  """
+  packageVersion: String!
 }
 
 input SFMeta_filter {
@@ -15182,6 +14553,26 @@ input SFMeta_filter {
   branch_ends_with_nocase: String
   branch_not_ends_with: String
   branch_not_ends_with_nocase: String
+  packageVersion: String
+  packageVersion_not: String
+  packageVersion_gt: String
+  packageVersion_lt: String
+  packageVersion_gte: String
+  packageVersion_lte: String
+  packageVersion_in: [String!]
+  packageVersion_not_in: [String!]
+  packageVersion_contains: String
+  packageVersion_contains_nocase: String
+  packageVersion_not_contains: String
+  packageVersion_not_contains_nocase: String
+  packageVersion_starts_with: String
+  packageVersion_starts_with_nocase: String
+  packageVersion_not_starts_with: String
+  packageVersion_not_starts_with_nocase: String
+  packageVersion_ends_with: String
+  packageVersion_ends_with_nocase: String
+  packageVersion_not_ends_with: String
+  packageVersion_not_ends_with_nocase: String
 
   """Filter for the block changed event."""
   _change_block: BlockChangedFilter
@@ -15195,6 +14586,7 @@ enum SFMeta_orderBy {
   blockNumber
   configuration
   branch
+  packageVersion
 }
 
 """
@@ -17631,86 +17023,6 @@ type Subscription {
     """
     subgraphError: _SubgraphErrorPolicy_! = deny
   ): [ApprovalEvent!]!
-  approvalForAllEvent(
-    id: ID!
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): ApprovalForAllEvent
-  approvalForAllEvents(
-    skip: Int = 0
-    first: Int = 100
-    orderBy: ApprovalForAllEvent_orderBy
-    orderDirection: OrderDirection
-    where: ApprovalForAllEvent_filter
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): [ApprovalForAllEvent!]!
-  metadataUpdateEvent(
-    id: ID!
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): MetadataUpdateEvent
-  metadataUpdateEvents(
-    skip: Int = 0
-    first: Int = 100
-    orderBy: MetadataUpdateEvent_orderBy
-    orderDirection: OrderDirection
-    where: MetadataUpdateEvent_filter
-
-    """
-    The block at which the query should be executed. Can either be a `{ hash:
-    Bytes }` value containing a block hash, a `{ number: Int }` containing the
-    block number, or a `{ number_gte: Int }` containing the minimum block
-    number. In the case of `number_gte`, the query will be executed on the
-    latest block only if the subgraph has progressed to or past the minimum
-    block number. Defaults to the latest block when omitted.
-    """
-    block: Block_height
-
-    """
-    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
-    """
-    subgraphError: _SubgraphErrorPolicy_! = deny
-  ): [MetadataUpdateEvent!]!
   customSuperTokenCreatedEvent(
     id: ID!
 
@@ -19847,7 +19159,8 @@ type SuperTokenFactoryUpdatedEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `newFactory`
   
   """
   addresses: [Bytes!]!
@@ -19990,7 +19303,8 @@ type SuperTokenLogicCreatedEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `tokenLogic`
   
   """
   addresses: [Bytes!]!
@@ -20133,7 +19447,9 @@ type SuperTokenLogicUpdatedEvent implements Event {
   name: String!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `token`
+  addresses[1] = `code`
   
   """
   addresses: [Bytes!]!
@@ -20294,7 +19610,10 @@ type SuperTokenMinimumDepositChangedEvent implements Event {
   governanceAddress: Bytes!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `governanceAddress`
+  addresses[1] = `host`
+  addresses[2] = `superToken`
   
   """
   addresses: [Bytes!]!
@@ -20468,6 +19787,12 @@ enum SuperTokenMinimumDepositChangedEvent_orderBy {
 }
 
 """
+A string representation of microseconds UNIX timestamp (16 digits)
+
+"""
+scalar Timestamp
+
+"""
 Token: A higher order entity created for super tokens (and underlying tokens)
 that are "valid" (tokens that have Superfluid's host contract address set as the host).
 
@@ -20508,6 +19833,11 @@ type Token {
   
   """
   underlyingToken: Token
+
+  """
+  If `governanceConfig.id` is the zero address, the token uses the default governance config.
+  
+  """
   governanceConfig: TokenGovernanceConfig
 }
 
@@ -21211,12 +20541,6 @@ type TokenStatistic {
   totalCFAAmountStreamedUntilUpdatedAt: BigInt!
 
   """
-  The all-time total amount streamed (outflows) until the `updatedAtTimestamp`/`updatedAtBlock` for the GDA.
-  
-  """
-  totalGDAAmountStreamedUntilUpdatedAt: BigInt!
-
-  """
   The all-time total amount transferred until the `updatedAtTimestamp`/`updatedAtBlock`.
   
   """
@@ -21450,14 +20774,6 @@ input TokenStatistic_filter {
   totalCFAAmountStreamedUntilUpdatedAt_lte: BigInt
   totalCFAAmountStreamedUntilUpdatedAt_in: [BigInt!]
   totalCFAAmountStreamedUntilUpdatedAt_not_in: [BigInt!]
-  totalGDAAmountStreamedUntilUpdatedAt: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_not: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_gt: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_lt: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_gte: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_lte: BigInt
-  totalGDAAmountStreamedUntilUpdatedAt_in: [BigInt!]
-  totalGDAAmountStreamedUntilUpdatedAt_not_in: [BigInt!]
   totalAmountTransferredUntilUpdatedAt: BigInt
   totalAmountTransferredUntilUpdatedAt_not: BigInt
   totalAmountTransferredUntilUpdatedAt_gt: BigInt
@@ -21553,7 +20869,6 @@ enum TokenStatistic_orderBy {
   totalGDAOutflowRate
   totalAmountStreamedUntilUpdatedAt
   totalCFAAmountStreamedUntilUpdatedAt
-  totalGDAAmountStreamedUntilUpdatedAt
   totalAmountTransferredUntilUpdatedAt
   totalAmountDistributedUntilUpdatedAt
   totalSupply
@@ -21717,12 +21032,6 @@ type TokenStatisticLog {
   
   """
   totalCFAAmountStreamed: BigInt!
-
-  """
-  The all-time total amount of `token` streamed (outflows) until the `timestamp`/`block` for the GDA.
-  
-  """
-  totalGDAAmountStreamed: BigInt!
 
   """
   The all-time total amount of `token` transferred until the `timestamp`/`block`.
@@ -22004,14 +21313,6 @@ input TokenStatisticLog_filter {
   totalCFAAmountStreamed_lte: BigInt
   totalCFAAmountStreamed_in: [BigInt!]
   totalCFAAmountStreamed_not_in: [BigInt!]
-  totalGDAAmountStreamed: BigInt
-  totalGDAAmountStreamed_not: BigInt
-  totalGDAAmountStreamed_gt: BigInt
-  totalGDAAmountStreamed_lt: BigInt
-  totalGDAAmountStreamed_gte: BigInt
-  totalGDAAmountStreamed_lte: BigInt
-  totalGDAAmountStreamed_in: [BigInt!]
-  totalGDAAmountStreamed_not_in: [BigInt!]
   totalAmountTransferred: BigInt
   totalAmountTransferred_not: BigInt
   totalAmountTransferred_gt: BigInt
@@ -22131,7 +21432,6 @@ enum TokenStatisticLog_orderBy {
   totalGDAOutflowRate
   totalAmountStreamed
   totalCFAAmountStreamed
-  totalGDAAmountStreamed
   totalAmountTransferred
   totalAmountDistributed
   totalSupply
@@ -22174,7 +21474,6 @@ enum TokenStatisticLog_orderBy {
   tokenStatistic__totalGDAOutflowRate
   tokenStatistic__totalAmountStreamedUntilUpdatedAt
   tokenStatistic__totalCFAAmountStreamedUntilUpdatedAt
-  tokenStatistic__totalGDAAmountStreamedUntilUpdatedAt
   tokenStatistic__totalAmountTransferredUntilUpdatedAt
   tokenStatistic__totalAmountDistributedUntilUpdatedAt
   tokenStatistic__totalSupply
@@ -22376,7 +21675,7 @@ type TransferEvent implements Event {
 
   """
   Contains the addresses that were impacted by this event:
-  addresses[0] = `token` (superToken if `isNFTTransfer` is false, otherwise the ConstantOutflowNFT or ConstantInflowNFT)
+  addresses[0] = `token`
   addresses[1] = `from`
   addresses[2] = `to`
   
@@ -22387,18 +21686,7 @@ type TransferEvent implements Event {
   order: BigInt!
   from: Account!
   to: Account!
-  isNFTTransfer: Boolean!
-
-  """
-  If `isNFTTransfer` is true, value is the `tokenId` of the NFT transferred.
-  
-  """
   value: BigInt!
-
-  """
-  If `isNFTTransfer` is true, value is the NFT address, else it is the SuperToken address.
-  
-  """
   token: Bytes!
 }
 
@@ -22537,10 +21825,6 @@ input TransferEvent_filter {
   to_not_ends_with: String
   to_not_ends_with_nocase: String
   to_: Account_filter
-  isNFTTransfer: Boolean
-  isNFTTransfer_not: Boolean
-  isNFTTransfer_in: [Boolean!]
-  isNFTTransfer_not_in: [Boolean!]
   value: BigInt
   value_not: BigInt
   value_gt: BigInt
@@ -22591,7 +21875,6 @@ enum TransferEvent_orderBy {
   to__updatedAtTimestamp
   to__updatedAtBlockNumber
   to__isSuperApp
-  isNFTTransfer
   value
   token
 }
@@ -22611,7 +21894,11 @@ type TrustedForwarderChangedEvent implements Event {
   governanceAddress: Bytes!
 
   """
-  Empty addresses array.
+  Contains the addresses that were impacted by this event:
+  addresses[0] = `governanceAddress`
+  addresses[1] = `host`
+  addresses[2] = `superToken`
+  addresses[3] = `forwarder`
   
   """
   addresses: [Bytes!]!

@@ -9,7 +9,7 @@
         "max-states-count": "off",
         "no-inline-assembly": "off",
         "mark-callable-contracts": "off",
-        "custom-errors": "off",
+        "gas-custom-errors": "off",
         "one-contract-per-file": "off",
         "max-line-length": ["error", 120],
         "func-param-name-mixedcase": "error",

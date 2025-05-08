@@ -35,7 +35,7 @@ If you're building a smart contract that uses Superfluid protocol, or even your 
 ### Installation
 
 Prerequisites:
-- [node.js v16+](https://nodejs.org/en/download)
+- [node.js v18+](https://nodejs.org/en/download). The project recommends 22, and is tested with node 18,20,22.
 - [yarn](https://classic.yarnpkg.com/en/docs/install)
 - [forge](https://book.getfoundry.sh/getting-started/installation)
 
@@ -138,7 +138,7 @@ function testRevertIfDecreaseFlowRateAllowanceAndACLCreateFlow() {
 
 #### Internal Helper Functions
 
-See [`FoundrySuperfluidTester.sol`](test/foundry/FoundrySuperfluidTester.sol) for examples of commonly used internal helper functions.
+See [`FoundrySuperfluidTester.t.sol`](test/foundry/FoundrySuperfluidTester.t.sol) for examples of commonly used internal helper functions.
 If you are writing a test that requires a helper function, the helper function is prefixed with `_` and uses camelCase to indicate that it is an internal helper function. For example:
 
 ```solidity
@@ -199,7 +199,7 @@ In foundry, you can use the `SuperfluidFrameworkDeployer` to deploy the Superflu
 import "forge-std/Test.sol";
 
 import { ERC1820RegistryCompiled } from "@superfluid-finance/ethereum-contracts/contracts/libs/ERC1820RegistryCompiled.sol";
-import { SuperfluidFrameworkDeployer } from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.sol";
+import { SuperfluidFrameworkDeployer } from "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import { TestToken } from "@superfluid-finance/ethereum-contracts/contracts/utils/TestToken.sol";
 import { SuperToken } from "@superfluid-finance/ethereum-contracts/contracts/superfluid/SuperToken.sol";
 
@@ -218,7 +218,7 @@ contract SomeTest is Test {
     }
 }
 ```
-See [SuperfluidFrameworkDeployer.sol](contracts/utils/SuperfluidFrameworkDeployer.sol) for more details.
+See [SuperfluidFrameworkDeployer.t.sol](contracts/utils/SuperfluidFrameworkDeployer.t.sol) for more details.
 
 You can also deploy to a local blockchain (`hardhat` or `anvil`) via a forge script. For example, an example `Deploy.s.sol` file:
 
@@ -250,7 +250,7 @@ If you want contribute to Superfluid protocol contracts instead of just interfac
 
 ### Setup Development Environment
 
-Prerequisites: You need node.js v16+ and yarn installed.
+Prerequisites: You need node.js v18+ and yarn installed.
 
 First, check out this repository and cd into it.
 ```sh
@@ -271,7 +271,7 @@ cd packages/ethereum-contracts/
 ```
 
 Then prepare an `.env` file (see `.env.template`).
-The most important config items are RPC endpoint (`<X>_PROVIDER_URL`) and a sender account (`<X>_MNEMONIC`), _<X>_ being a network specific prefix - e.g. `GOERLI_PROVIDER_URL`.
+The most important config items are RPC endpoint (`<X>_PROVIDER_URL`) and a sender account (`<X>_MNEMONIC`), _<X>_ being a network specific prefix - e.g. `OPTIMISM_MAINNET_PROVIDER_URL`.
 If you provide an actual mnemonic, the key derived at `m/44'/60'/0'/0/0` will be used. You can instead also set private keys (hex format) for `<X>_MNEMONIC`.
 
 In order to get an overview of available config items, look for instances of `process.env` in [truffle-config.js](truffle-config.js) and in files in the [scripts](scripts) folder.

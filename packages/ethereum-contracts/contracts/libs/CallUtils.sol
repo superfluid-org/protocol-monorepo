@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 /**
  * @title Call utilities library that is absent from the OpenZeppelin

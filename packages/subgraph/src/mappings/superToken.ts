@@ -12,6 +12,7 @@ import {
 import {
     AgreementLiquidatedByEvent,
     AgreementLiquidatedV2Event,
+    ApprovalEvent,
     BurnedEvent,
     MintedEvent,
     SentEvent,
@@ -102,7 +103,7 @@ export function handleTokenUpgraded(event: TokenUpgraded): void {
         event.params.account,
         event.address,
         event.block,
-        null // will always do final RPC - override accounting done in handleTransfer
+        event.params.amount
     );
     updateTokenStatsStreamedUntilUpdatedAt(event.address, event.block);
     _createAccountTokenSnapshotLogEntity(
@@ -131,7 +132,7 @@ export function handleTokenDowngraded(event: TokenDowngraded): void {
         event.params.account,
         event.address,
         event.block,
-        null // will always do final RPC - override accounting done in handleTransfer
+        event.params.amount.times(BigInt.fromI32(-1))
     );
     updateTokenStatsStreamedUntilUpdatedAt(event.address, event.block);
     _createAccountTokenSnapshotLogEntity(
@@ -160,13 +161,13 @@ export function handleTransfer(event: Transfer): void {
         event.params.to,
         event.address,
         event.block,
-        null // manual accounting (overridden in upgrade/downgrade)
+        event.params.value
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.from,
         event.address,
         event.block,
-        null // manual accounting (overridden in upgrade/downgrade)
+        event.params.value.times(BigInt.fromI32(-1))
     );
     updateTokenStatsStreamedUntilUpdatedAt(tokenId, event.block);
 
@@ -443,7 +444,6 @@ function _createTransferEventEntity(event: Transfer): void {
         event.params.from,
         event.params.to,
     ]);
-    ev.isNFTTransfer = false;
     ev.from = event.params.from.toHex();
     ev.to = event.params.to.toHex();
     ev.value = event.params.value;
@@ -452,6 +452,15 @@ function _createTransferEventEntity(event: Transfer): void {
 }
 
 export function handleApproval(event: Approval): void {
+    const eventId = createEventID("Approval", event);
+    const ev = new ApprovalEvent(eventId);
+    initializeEventEntity(ev, event, [event.address, event.params.owner, event.params.spender]);
+    ev.owner = event.params.owner.toHex();
+    ev.to = event.params.spender.toHex();
+    ev.amount = event.params.value;
+
+    ev.save();
+
     // The entity named `FlowOperators` which currently holds all the user access and approval settings will be renamed to `AccessSettings`.
     const flowOperator = getOrInitFlowOperator(
         event.block,

@@ -19,7 +19,7 @@ jobs:
   deploy-to-testnets:
     name: Deploy to testnets
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       RELEASE_VERSION: ${{ github.event.inputs.release_version }}
@@ -28,22 +28,22 @@ jobs:
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
-  
+        shell: nix develop .#ci-default -c bash -xe {0}
+
     strategy:
       fail-fast: false
       matrix:
-          network: [eth-goerli, eth-sepolia, polygon-mumbai, optimism-goerli, arbitrum-goerli, avalanche-fuji, base-goerli, polygon-zkevm-testnet]
+          network: [eth-sepolia, optimism-sepolia, avalanche-fuji, scroll-sepolia]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # if only_network is set, skip all steps until the value matches one of the entries in matrix.network
       - name: Check only_network
         if: ${{ github.event.inputs.only_network != '' && github.event.inputs.only_network != matrix.network }}
         run: echo "DO_SKIP=1" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v27
         if: env.DO_SKIP != 1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}

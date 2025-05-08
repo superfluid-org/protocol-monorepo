@@ -4,9 +4,6 @@ set -eu
 # Usage:
 # tasks/deploy-cfa-forwarder.sh <network>
 #
-# Example:
-# tasks/deploy-cfa-forwarder.sh optimism-goerli
-#
 # The invoking account needs to be (co-)owner of the resolver and governance
 #
 # important ENV vars:

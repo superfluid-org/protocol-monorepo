@@ -2,10 +2,12 @@ import { expect } from "chai";
 import {
     AUTHORIZE_FULL_CONTROL,
     Operation,
+    TestToken,
+    TestToken__factory,
     getPerSecondFlowRateByMonth,
     toBN,
 } from "../src";
-import { ethers } from "ethers";
+import { BigNumber, Contract, ethers } from "ethers";
 import { createCallAppActionOperation } from "./2_operation.test";
 import { TestEnvironment, makeSuite } from "./TestEnvironment";
 
@@ -407,5 +409,116 @@ makeSuite("Batch Call Tests", (testEnv: TestEnvironment) => {
         expect(flowOperatorDataAfter.permissions).to.equal(
             "0"
         );
+    });
+
+
+    it("Should be able to execute SimpleForwarder batch call", async () => {
+        const contract = (new Contract(
+            testEnv.wrapperSuperToken.underlyingToken.address,
+            TestToken__factory.abi
+        ) as TestToken).connect(testEnv.alice);
+
+        const beforeBalance = await contract.balanceOf(testEnv.alice.address);
+
+        const txn1 = contract
+            .populateTransaction.mint(
+                testEnv.alice.address,
+                "100"
+            );
+        const txn2 = contract
+            .populateTransaction.mint(
+                testEnv.alice.address,
+                "200"
+            );
+
+        const operation1 = testEnv.sdkFramework.operation(
+            txn1,
+            "SIMPLE_FORWARD_CALL"
+        );
+        const operation2 = testEnv.sdkFramework.operation(
+            txn2,
+            "SIMPLE_FORWARD_CALL"
+        );
+
+        const batchCall = testEnv.sdkFramework.batchCall(
+            [
+                operation1,
+                operation2
+            ]
+        );
+
+        const txResponse = await batchCall.exec(testEnv.alice);
+        const txReceipt = await txResponse.wait();
+        expect(txReceipt.status).to.equal(1);
+
+        const afterBalance = await contract.balanceOf(testEnv.alice.address);
+
+        expect(beforeBalance.lt(afterBalance)).to.be.true;
+        expect(afterBalance.sub(BigNumber.from(300)).eq(beforeBalance)).to.be.true;
+    });
+
+    it("Should be able to move ETH value", async () => {
+        const value = BigNumber.from(Number(0.1e18).toString());
+
+        const beforeBalanceAlice = await testEnv.alice.getBalance();
+        const beforeBalanceBob = await testEnv.bob.getBalance();
+
+        expect(beforeBalanceAlice.gt(value)).to.be.true;
+
+        const operation = testEnv.sdkFramework.operation(
+            testEnv.alice.populateTransaction({
+                to: testEnv.bob.address,
+                value,
+                data: "0x"
+            }) as Promise<ethers.PopulatedTransaction>,
+            "SIMPLE_FORWARD_CALL"
+        );
+
+        const batchCall = testEnv.sdkFramework.batchCall(
+            [
+                operation
+            ]
+        );
+
+        const txn = await batchCall.exec(testEnv.alice, 2);
+
+        const txReceipt = await txn.wait();
+        expect(txReceipt.status).to.equal(1);
+
+        const afterBalanceAlice = await testEnv.alice.getBalance();
+        const afterBalanceBob = await testEnv.bob.getBalance();
+
+        expect(afterBalanceBob.sub(beforeBalanceBob)).to.equal(value);
+        expect(beforeBalanceAlice.sub(afterBalanceAlice).gte(value)).to.be.true;
+    });
+
+    it("Should throw an error when multiple Operations with ETH value", async () => {
+        const operation1 = testEnv.sdkFramework.operation(
+            testEnv.alice.populateTransaction({
+                to: testEnv.bob.address,
+                value: BigNumber.from(Number(0.1e18).toString()),
+                data: "0x"
+            }) as Promise<ethers.PopulatedTransaction>,
+            "SIMPLE_FORWARD_CALL"
+        );
+
+        const operation2 = testEnv.sdkFramework.operation(
+            testEnv.alice.populateTransaction({
+                to: testEnv.bob.address,
+                value: BigNumber.from(Number(0.2e18).toString()),
+                data: "0x"
+            }) as Promise<ethers.PopulatedTransaction>,
+            "SIMPLE_FORWARD_CALL"
+        );
+
+        const batchCall = testEnv.sdkFramework.batchCall(
+            [
+                operation1,
+                operation2
+            ]
+        );
+        
+        await expect(batchCall.exec(testEnv.alice, 2))
+            .to.be.rejectedWith("multiple values in the batch call");
     });
 });

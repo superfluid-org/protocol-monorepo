@@ -55,13 +55,11 @@ try {
 
 const ALIASES = {
     "eth-mainnet": ["mainnet"],
-    "eth-goerli": ["goerli"],
     "eth-sepolia": ["sepolia"],
 
     "xdai-mainnet": ["xdai"],
 
     "polygon-mainnet": ["matic"],
-    "polygon-mumbai": ["mumbai"],
 
     "optimism-mainnet": ["opmainnet"],
     "optimism-sepolia": ["opsepolia"],
@@ -75,29 +73,16 @@ const ALIASES = {
 
     "celo-mainnet": ["celo"],
 
-    "polygon-zkevm-testnet": ["pzkevmtest"],
-
     "base-mainnet": ["base"],
+    "base-sepolia": ["bsepolia"],
 
     "scroll-sepolia": ["scrsepolia"],
     "scroll-mainnet": ["scroll"],
 
+    "degenchain": ["degen"],
+
     // wildcard for any network
     "any": ["any"],
-
-    // currently unsupported or deprecated networks
-
-    "base-goerli": ["bgoerli"],
-
-    "optimism-goerli": ["opgoerli"],
-    "optimism-kovan": ["opkovan"],
-
-    "arbitrum-goerli": ["arbgoerli"],
-    "arbitrum-rinkeby": ["arbrinkeby"],
-
-    "bsc-chapel": ["chapel"],
-
-    "celo-alfajores": ["alfajores"],
 };
 
 const DEFAULT_NETWORK_TIMEOUT = 60000;
@@ -143,18 +128,22 @@ function createNetworkDefaultConfiguration(
     networkName,
     providerWrapper = (a) => a
 ) {
+    const providerConfig = {
+        url: providerWrapper(
+            getEnvValue(networkName, "PROVIDER_URL") ||
+            getProviderUrlByTemplate(networkName)
+        ),
+        addressIndex: 0,
+        numberOfAddresses: 10,
+        shareNonce: true,
+    };
+    providerConfig.mnemonic = getEnvValue(networkName, "MNEMONIC");
+    if (!providerConfig.mnemonic) {
+        const pkey = getEnvValue(networkName, "PRIVATE_KEY");
+        providerConfig.privateKeys = [pkey];
+    }
     return {
-        provider: () =>
-            new HDWalletProvider({
-                mnemonic: getEnvValue(networkName, "MNEMONIC"),
-                url: providerWrapper(
-                    getEnvValue(networkName, "PROVIDER_URL") ||
-                    getProviderUrlByTemplate(networkName)
-                ),
-                addressIndex: 0,
-                numberOfAddresses: 10,
-                shareNonce: true,
-            }),
+        provider: () => new HDWalletProvider(providerConfig),
         gasPrice: getEnvValue(networkName, "GAS_PRICE"),
         maxFeePerGas: getEnvValue(networkName, "MAX_FEE_PER_GAS"),
         maxPriorityFeePerGas: getEnvValue(networkName, "MAX_PRIORITY_FEE_PER_GAS"),
@@ -192,13 +181,6 @@ const E = (module.exports = {
         "eth-mainnet": {
             ...createNetworkDefaultConfiguration("eth-mainnet"),
             network_id: 1, // mainnet's id
-            maxPriorityFeePerGas: 200e6, // 0.2 gwei. The default of 2.5 gwei is overpaying
-            maxFeePerGas: 50e9,
-        },
-
-        "eth-goerli": {
-            ...createNetworkDefaultConfiguration("eth-goerli"),
-            network_id: 5,
         },
 
         "eth-sepolia": {
@@ -215,16 +197,6 @@ const E = (module.exports = {
             network_id: 137,
             maxPriorityFeePerGas: 37e9,
             maxFeePerGas: 500e9,
-        },
-
-        "polygon-mumbai": {
-            ...createNetworkDefaultConfiguration("polygon-mumbai"),
-            network_id: 80001,
-        },
-
-        "polygon-zkevm-testnet": {
-            ...createNetworkDefaultConfiguration("polygon-zkevm-testnet"),
-            network_id: 1442,
         },
 
 
@@ -246,11 +218,6 @@ const E = (module.exports = {
             maxFeePerGas: 1e9, // 1 gwei
         },
 
-        "optimism-goerli": {
-            ...createNetworkDefaultConfiguration("optimism-goerli"),
-            network_id: 420,
-        },
-
         "optimism-sepolia": {
             ...createNetworkDefaultConfiguration("optimism-sepolia"),
             network_id: 11155420,
@@ -262,11 +229,6 @@ const E = (module.exports = {
         "arbitrum-one": {
             ...createNetworkDefaultConfiguration("arbitrum-one"),
             network_id: 42161,
-        },
-
-        "arbitrum-goerli": {
-            ...createNetworkDefaultConfiguration("arbitrum-goerli"),
-            network_id: 421613,
         },
 
         //
@@ -297,10 +259,6 @@ const E = (module.exports = {
             ...createNetworkDefaultConfiguration("celo-mainnet"),
             network_id: 42220,
         },
-        "celo-alfajores": {
-            ...createNetworkDefaultConfiguration("celo-alfajores"),
-            network_id: 44787,
-        },
 
         //
         // Base: https://base.org/
@@ -311,9 +269,9 @@ const E = (module.exports = {
             maxPriorityFeePerGas: 1e6, // 0.001 gwei - even 0 may do
             maxFeePerGas: 1e9, // 1 gwei
         },
-        "base-goerli": {
-            ...createNetworkDefaultConfiguration("base-goerli"),
-            network_id: 84531,
+        "base-sepolia": {
+            ...createNetworkDefaultConfiguration("base-sepolia"),
+            network_id: 84532,
         },
 
         //
@@ -329,20 +287,21 @@ const E = (module.exports = {
         },
 
         //
+        // Degen Chain: https://www.degen.tips/
+        //
+        "degenchain": {
+            ...createNetworkDefaultConfiguration("degenchain"),
+            network_id: 666666666,
+            maxPriorityFeePerGas: 1e6, // 0.001 gwei
+            maxFeePerGas: 100e9, // 100 gwei
+        },
+
+        //
         // Wildcard
         //
         "any": {
             ...createNetworkDefaultConfiguration("any"),
             network_id: "*",
-        },
-
-        //
-        // Currently unsupported networks
-        //
-
-        "bsc-chapel": {
-            ...createNetworkDefaultConfiguration("bsc-chapel"),
-            network_id: 97,
         },
 
         /// For truffle development environment
@@ -418,7 +377,7 @@ const E = (module.exports = {
             // Fetch exact version from solc-bin (default: truffle's version)
             // If SOLC environment variable is provided, assuming it is available as "solc", use it instead.
             // Ref, this maybe possible in the future: https://github.com/trufflesuite/truffle/pull/6007
-            version: process.env.SOLC ? "native" : "0.8.23",
+            version: process.env.SOLC ? "native" : "0.8.26",
             settings: {
                 // See the solidity docs for advice about optimization and evmVersion
                 optimizer: {

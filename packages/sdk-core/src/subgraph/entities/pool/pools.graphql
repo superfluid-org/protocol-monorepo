@@ -1,0 +1,54 @@
+query getPool($id: ID!) {
+    pool(id: $id) {
+        ...PoolPart
+    }
+}
+
+query pools(
+    $first: Int = 10
+    $orderBy: Pool_orderBy = id
+    $orderDirection: OrderDirection = asc
+    $skip: Int = 0
+    $where: Pool_filter = {}
+    $block: Block_height
+) {
+    pools(
+        first: $first
+        orderBy: $orderBy
+        orderDirection: $orderDirection
+        skip: $skip
+        where: $where
+        block: $block
+    ) {
+        ...PoolPart
+    }
+}
+
+fragment PoolPart on Pool {
+    id
+    createdAtTimestamp
+    createdAtBlockNumber
+    updatedAtTimestamp
+    updatedAtBlockNumber
+    admin {
+        id
+    }
+    token {
+        id
+    }
+    totalMembers
+    totalUnits
+    totalConnectedMembers
+    totalConnectedUnits
+    totalDisconnectedMembers
+    totalDisconnectedUnits
+    totalAmountInstantlyDistributedUntilUpdatedAt
+    flowRate
+    perUnitSettledValue
+    perUnitFlowRate
+    totalBuffer
+    totalAmountFlowedDistributedUntilUpdatedAt
+    totalAmountDistributedUntilUpdatedAt
+    adjustmentFlowRate
+    totalFlowAdjustmentAmountDistributedUntilUpdatedAt
+}

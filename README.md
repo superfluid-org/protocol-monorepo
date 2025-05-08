@@ -1,4 +1,5 @@
-<h1 align="center">Welcome to superfluid protocol-monorepo 👋</h1>
+<div align="center">
+<h1>Welcome to superfluid protocol-monorepo 👋</h1>
 
 <p>
   <a href="#superfluid-finance/ethereum-contracts" target="_blank">
@@ -27,6 +28,7 @@
       <img src="https://www.codetriage.com/superfluid-finance/protocol-monorepo/badges/users.svg">
   </a>
 </p>
+</div>
 
 > Contracts and resources for the Superfluid Protocol
 
@@ -165,7 +167,7 @@ Thanks goes to these wonderful people ([🐸](https://allcontributors.org/docs/e
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
+<!-- markdownlint-disable --> 
 <table>
   <tbody>
     <tr>

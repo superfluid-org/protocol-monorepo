@@ -59,7 +59,7 @@ export function handleSuperTokenLogicCreated(
     }
     const eventId = createEventID("SuperTokenLogicCreated", event);
     const ev = new SuperTokenLogicCreatedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.tokenLogic]);
 
     ev.tokenLogic = event.params.tokenLogic;
     ev.save();

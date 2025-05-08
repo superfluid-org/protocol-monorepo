@@ -12,15 +12,10 @@ import {
     ERC721SetApprovalForAllParams,
     ERC721TokenURIParams,
     ERC721TransferFromParams,
-    NFTFlowData,
     ProviderOrSigner,
 } from "./interfaces";
-import {
-    IERC721Metadata,
-    IERC721Metadata__factory,
-    IFlowNFTBase,
-} from "./typechain-types";
-import { getSanitizedTimestamp, normalizeAddress } from "./utils";
+import { IERC721Metadata, IERC721Metadata__factory } from "./typechain-types";
+import { normalizeAddress } from "./utils";
 
 export default class ERC721MetadataToken {
     readonly address: string;
@@ -291,20 +286,5 @@ export default class ERC721MetadataToken {
             params.overrides || {}
         );
         return new Operation(txn, "UNSUPPORTED");
-    };
-
-    /**
-     * Sanitizes NFTFlowData, converting number to Date.
-     * @param params NFTFlowData
-     * @returns {NFTFlowData} sanitized NFTFlowData
-     */
-    _sanitizeNFTFlowData = (
-        params: IFlowNFTBase.FlowNFTDataStructOutput
-    ): NFTFlowData => {
-        return {
-            flowSender: params.flowSender,
-            flowStartDate: getSanitizedTimestamp(params.flowStartDate),
-            flowReceiver: params.flowReceiver,
-        };
     };
 }

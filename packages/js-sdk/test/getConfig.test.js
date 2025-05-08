@@ -6,20 +6,18 @@ describe("getConfig", () => {
         delete process.env.RESOLVER_ADDRESS;
     });
 
-    it("goerli v1", async () => {
-        // goerli
-        const goerliConfig = SuperfluidSDK.getConfig(5, "v1");
-        assert.isNotEmpty(goerliConfig.resolverAddress);
-        assert.isNotEmpty(goerliConfig.subgraphQueryEndpoint);
-        assert.isUndefined(goerliConfig.versions);
+    it("polygon v1", async () => {
+        const config = SuperfluidSDK.getConfig(137, "v1");
+        assert.isNotEmpty(config.resolverAddress);
+        assert.isNotEmpty(config.subgraphQueryEndpoint);
+        assert.isUndefined(config.versions);
     });
 
-    it("goerli test", async () => {
-        // goerli
-        const goerliConfig = SuperfluidSDK.getConfig(5, "test");
-        assert.isNotEmpty(goerliConfig.resolverAddress);
-        assert.isUndefined(goerliConfig.subgraphQueryEndpoint);
-        assert.isUndefined(goerliConfig.versions);
+    it("polygon test", async () => {
+        const config = SuperfluidSDK.getConfig(137, "test");
+        assert.isNotEmpty(config.resolverAddress);
+        assert.isUndefined(config.subgraphQueryEndpoint);
+        assert.isUndefined(config.versions);
     });
 
     it("defaultConfig", async () => {

@@ -19,7 +19,7 @@ jobs:
   deploy-to-mainnet:
     name: Deploy to mainnet
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       RELEASE_VERSION: ${{ github.event.inputs.release_version }}
@@ -28,19 +28,17 @@ jobs:
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: superfluid-finance/build-scripts
           path: build-scripts
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Build
         run: |

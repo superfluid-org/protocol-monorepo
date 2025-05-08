@@ -18,36 +18,44 @@ module.exports = {
             optimizer: {
                 enabled: true,
                 runs: 200,
-            }
-        }
+            },
+        },
     },
     networks: {
         localhost: {
             url: "http://127.0.0.1:8545/",
             chainId: 31337,
         },
-        goerli: {
-            url: process.env.GOERLI_URL || "",
-            accounts:
-                process.env.GOERLI_PRIVATE_KEY !== undefined ? [process.env.GOERLI_PRIVATE_KEY] : [],
-        },
-        mumbai: {
-            url: process.env.MUMBAI_URL || "",
-            accounts:
-                process.env.MUMBAI_PRIVATE_KEY !== undefined ? [process.env.MUMBAI_PRIVATE_KEY] : [],
-        },
         polygon: {
             url: process.env.POLYGON_URL || "",
             accounts:
-                process.env.POLYGON_PRIVATE_KEY !== undefined ? [process.env.POLYGON_PRIVATE_KEY] : [],
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
         },
         bsc: {
             url: process.env.BSC_URL || "",
             accounts:
-                process.env.BSC_PRIVATE_KEY !== undefined ? [process.env.BSC_PRIVATE_KEY] : [],
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
+        },
+        opsepolia: {
+            url: process.env.OPSEPOLIA_URL || "",
+            accounts:
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
+        },
+        "base-mainnet": {
+            url: process.env.BASE_URL || "",
+            accounts:
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
+            gasPrice: 1000000000,
         },
     },
-
     namedAccounts: {
         deployer: {
             default: 0,
@@ -55,5 +63,23 @@ module.exports = {
     },
     etherscan: {
         apiKey: process.env.ETHERSCAN_API_KEY,
+        customChains: [
+            {
+                network: "opsepolia",
+                chainId: 11155420,
+                urls: {
+                    apiURL: "https://api-sepolia-optimistic.etherscan.io/api",
+                    browserURL: "https://sepolia-optimism.etherscan.io/",
+                },
+            },
+            {
+                network: "base-mainnet",
+                chainId: 8453,
+                urls: {
+                    apiURL: "https://api.basescan.org/api",
+                    browserURL: "https://basescan.org/",
+                },
+            },
+        ],
     },
 };

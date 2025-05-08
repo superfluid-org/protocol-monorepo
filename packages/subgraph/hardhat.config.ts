@@ -21,48 +21,7 @@ const config: HardhatUserConfig = {
             },
         },
     },
-    networks: {
-        "optimism-mainnet": {
-            url: process.env.OPTIMISM_PROVIDER_URL || "",
-            chainId: 10,
-        },
-        gnosis: {
-            url: process.env.GNOSIS_PROVIDER_URL || "",
-            chainId: 100,
-        },
-        matic: {
-            url: process.env.MATIC_PROVIDER_URL || "",
-            chainId: 137,
-        },
-        "arbitrum-one": {
-            url: process.env.ARBITRUM_ONE_PROVIDER_URL || "",
-            chainId: 42161,
-        },
-        "avalanche-c": {
-            url: process.env.AVALANCHE_C_PROVIDER_URL || "",
-            chainId: 43114,
-        },
-        "bsc-mainnet": {
-            url: process.env.BSC_MAINNET_PROVIDER_URL || "",
-            chainId: 56,
-        },
-        "celo-mainnet": {
-            url: process.env.CELO_MAINNET_PROVIDER_URL || "",
-            chainId: 42220,
-        },
-        goerli: {
-            url: process.env.GOERLI_PROVIDER_URL || "",
-            chainId: 5,
-        },
-        avafuji: {
-            url: process.env.AVAFUJI_PROVIDER_URL || "",
-            chainId: 43113,
-        },
-        mumbai: {
-            url: process.env.MUMBAI_PROVIDER_URL || "",
-            chainId: 80001,
-        },
-    },
+
     mocha: {
         timeout: 500000,
     },

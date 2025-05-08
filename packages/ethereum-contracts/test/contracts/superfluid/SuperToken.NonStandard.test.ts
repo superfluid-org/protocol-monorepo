@@ -67,18 +67,14 @@ describe("SuperToken's Non Standard Functions", function () {
 
     describe("#1 upgradability", () => {
         it("#1.1 storage layout", async () => {
-            const {
-                constantOutflowNFTProxy,
-                constantInflowNFTProxy,
-                poolAdminNFTProxy,
-                poolMemberNFTProxy,
-            } = await t.deployNFTContracts();
+            const {poolAdminNFTProxy, poolMemberNFTProxy} =
+                await t.deployNFTContracts();
             const superTokenLogic =
                 await t.deployContract<SuperTokenStorageLayoutTester>(
                     "SuperTokenStorageLayoutTester",
                     superfluid.address,
-                    constantOutflowNFTProxy.address,
-                    constantInflowNFTProxy.address,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     poolAdminNFTProxy.address,
                     poolMemberNFTProxy.address
                 );
@@ -710,18 +706,14 @@ describe("SuperToken's Non Standard Functions", function () {
         });
 
         it("#3.1 Custom token storage should not overlap with super token", async () => {
-            const {
-                constantOutflowNFTProxy,
-                constantInflowNFTProxy,
-                poolAdminNFTProxy,
-                poolMemberNFTProxy,
-            } = await t.deployNFTContracts();
+            const {poolAdminNFTProxy, poolMemberNFTProxy} =
+                await t.deployNFTContracts();
             const superTokenLogic =
                 await t.deployContract<SuperTokenStorageLayoutTester>(
                     "SuperTokenStorageLayoutTester",
                     superfluid.address,
-                    constantOutflowNFTProxy.address,
-                    constantInflowNFTProxy.address,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     poolAdminNFTProxy.address,
                     poolMemberNFTProxy.address
                 );

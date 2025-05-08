@@ -91,7 +91,7 @@ library TokenEffLib {
         FlowRate flowRateDelta = flowRate - eff.getFlowRate(flowHash);
         BasicParticle memory a = eff.getUIndex(from);
         BasicParticle memory b = eff.getUIndex(to);
-        (a, b) = a.shift_flow2a(b, flowRateDelta, t);
+        (a, b) = a.shift_flow2b(b, flowRateDelta, t);
         return eff.setUIndex(from, a)
             .setUIndex(to, b)
             .setFlowInfo(eff, flowHash, from, to, flowRate);

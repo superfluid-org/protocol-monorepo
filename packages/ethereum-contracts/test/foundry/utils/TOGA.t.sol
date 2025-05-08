@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import "forge-std/Test.sol";
-import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { TOGA } from "../../../contracts/utils/TOGA.sol";
 import { IERC1820Registry } from "@openzeppelin/contracts/interfaces/IERC1820Registry.sol";
@@ -49,7 +49,7 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
      * @param account The address of the account to check.
      * @param expectedNetFlow The expected net flow.
      */
-    function _assertNetFlow(ISuperToken superToken_, address account, int96 expectedNetFlow) internal {
+    function _assertNetFlow(ISuperToken superToken_, address account, int96 expectedNetFlow) internal view {
         int96 flowRate = sf.cfa.getNetFlow(superToken_, account);
         assertEq(flowRate, expectedNetFlow, "_assertNetFlow: net flow not equal");
     }
@@ -145,7 +145,7 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
         assertEq(exitRate, newExitRate, "_helperChangeExitRate: exit rate not equal");
     }
 
-    function _boundBondValue(uint256 bond_) internal view returns (uint256 bond) {
+    function _boundBondValue(uint256 bond_) internal pure returns (uint256 bond) {
         // User only has 64 bits test super tokens
         // setting the lower bound > 1 in order to avoid
         // failures due to the exit stream not having enough min deposit
@@ -161,11 +161,11 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
     /**
      * @dev Tests the contract setup.
      */
-    function testContractSetup() public {
+    function testContractSetup() public view {
         assertEq(toga.minBondDuration(), MIN_BOND_DURATION, "minBondDuration");
     }
 
-    function testNoPICExistsInitially() public {
+    function testNoPICExistsInitially() public view {
         assertEq(
             address(0), toga.getCurrentPIC(superToken), "testNoPICExistsInitially: current PIC should be address(0)"
         );
@@ -207,7 +207,7 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
         _helperSendPICBid(bob, superToken, bobBond, 0);
     }
 
-    function testTOGARegisteredWithERC1820() public {
+    function testTOGARegisteredWithERC1820() public view {
         address implementer1 = _ERC1820_REG.getInterfaceImplementer(address(toga), keccak256("TOGAv1"));
         address implementer2 = _ERC1820_REG.getInterfaceImplementer(address(toga), keccak256("TOGAv2"));
 
@@ -260,7 +260,7 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
         toga.changeExitRate(superToken, exitRate);
     }
 
-    function testMaxExitRateForGreaterThanOrEqualToDefaultExitRate(uint256 bond) public {
+    function testMaxExitRateForGreaterThanOrEqualToDefaultExitRate(uint256 bond) public view {
         bond = _boundBondValue(bond);
 
         // the max exit rate needs to be greater or equal than default exit rate

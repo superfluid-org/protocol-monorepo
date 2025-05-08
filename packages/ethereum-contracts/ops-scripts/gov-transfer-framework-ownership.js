@@ -5,6 +5,7 @@ const {
     extractWeb3Options,
     hasCode,
     sendGovernanceAction,
+    builtTruffleContractLoader,
 } = require("./libs/common");
 
 /**
@@ -47,7 +48,13 @@ module.exports = eval(`(${S.toString()})()`)(async function (
     const sf = new SuperfluidSDK.Framework({
         ...extractWeb3Options(options),
         version: protocolReleaseVersion,
-        additionalContracts: ["AccessControl", "Ownable"],
+        additionalContracts: [
+            "AccessControl",
+            "Ownable",
+            "IMultiSigWallet",
+            "ISafe"
+        ],
+        contractLoader: builtTruffleContractLoader,
     });
     await sf.initialize();
 

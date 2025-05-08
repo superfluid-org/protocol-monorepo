@@ -3,7 +3,7 @@ import { assert, describe, test } from "matchstick-as";
 import { handleMinted } from "../../src/mappings/superToken";
 import { handleCustomSuperTokenCreated } from "../../src/mappings/superTokenFactory";
 import { ZERO_ADDRESS } from "../../src/utils";
-import { bob, alice } from "../constants";
+import { bob, alice, resolverAddress } from "../constants";
 import { stringToBytes } from "../converters";
 import {
     mockedGetHost,
@@ -12,6 +12,7 @@ import {
     mockedTokenSymbol,
     mockedTokenDecimals,
     mockedTokenTotalSupply,
+    mockedResolverGet,
 } from "../mockedFunctions";
 import { createMintedEvent } from "../superToken/superToken.helper";
 import { createCustomSuperTokenCreatedEvent } from "../superTokenFactory/superTokenFactory.helper";
@@ -30,7 +31,8 @@ describe("ALEPH Total Supply Bug", () => {
         mockedTokenName(superToken, "tokenName");
         mockedTokenSymbol(superToken, "tokenSymbol");
         mockedTokenDecimals(superToken, 18);
-        
+        mockedResolverGet(resolverAddress, "supertokens.v1.tokenSymbol", ZERO_ADDRESS.toHexString());
+
         // unused mocked function call after change in this commit (removing total supply RPC call in getOrInitSuperToken)
         mockedTokenTotalSupply(superToken, totalSupply);
 

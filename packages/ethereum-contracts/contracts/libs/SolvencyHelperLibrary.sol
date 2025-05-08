@@ -7,7 +7,7 @@ import {
     SuperfluidGovernanceConfigs
 } from "../interfaces/superfluid/ISuperfluid.sol";
 
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 library SolvencyHelperLibrary {
     function decode3PsData(ISuperfluid host, ISuperfluidToken token)

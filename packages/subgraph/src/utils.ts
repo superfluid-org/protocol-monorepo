@@ -8,12 +8,14 @@ import {
     log,
     Value,
 } from "@graphprotocol/graph-ts";
-import { ISuperToken as SuperToken } from "../generated/templates/SuperToken/ISuperToken";
 import {
     IndexSubscription,
-    Token,
     PoolMember,
+    Token,
 } from "../generated/schema";
+import { ISuperToken as SuperToken } from "../generated/templates/SuperToken/ISuperToken";
+import { Resolver } from "../generated/templates/SuperToken/Resolver";
+import { getIsLocalIntegrationTesting } from "./addresses";
 
 /**************************************************************************
  * Constants
@@ -108,8 +110,7 @@ export function initializeEventEntity(
  *************************************************************************/
 
 export function handleTokenRPCCalls(
-    token: Token,
-    resolverAddress: Address
+    token: Token
 ): Token {
     // we must handle the case when the native token hasn't been initialized
     // there is no name/symbol, but this may occur later
@@ -117,6 +118,20 @@ export function handleTokenRPCCalls(
         token = getTokenInfoAndReturn(token);
     }
     return token;
+}
+
+export function getIsTokenListed(
+    token: Token,
+    resolverAddress: Address
+): boolean {
+    const resolverContract = Resolver.bind(resolverAddress);
+    const isLocalIntegrationTesting = getIsLocalIntegrationTesting();
+    const version = isLocalIntegrationTesting ? "test" : "v1";
+    const result = resolverContract.try_get(
+        "supertokens." + version + "." + token.symbol
+    );
+    const superTokenAddress = result.reverted ? ZERO_ADDRESS : result.value;
+    return token.id == superTokenAddress.toHex();
 }
 
 export function getTokenInfoAndReturn(token: Token): Token {
@@ -132,6 +147,8 @@ export function getTokenInfoAndReturn(token: Token): Token {
     token.name = nameResult.reverted ? "" : nameResult.value;
     token.symbol = symbolResult.reverted ? "" : symbolResult.value;
     token.decimals = decimalsResult.reverted ? 0 : decimalsResult.value;
+
+    log.info("Got token info: underlying {}, name {}, symbol {}, decimals {}", [token.underlyingAddress.toHexString(), token.name, token.symbol, token.decimals.toString()]);
 
     return token;
 }
@@ -386,4 +403,13 @@ export function createLogID(
         "-" +
         event.logIndex.toString()
     );
+}
+
+export function divideOrZero(
+    numerator: BigInt,
+    denominator: BigInt
+): BigInt {
+    return denominator.equals(BIG_INT_ZERO)
+        ? BIG_INT_ZERO
+        : numerator.div(denominator);
 }

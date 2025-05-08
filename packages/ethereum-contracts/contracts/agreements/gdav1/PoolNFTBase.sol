@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 // Notes: We use reserved slots for upgradable contracts.
 // solhint-disable max-states-count

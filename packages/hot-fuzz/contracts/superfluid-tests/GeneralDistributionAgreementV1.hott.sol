@@ -37,11 +37,11 @@ abstract contract GDAHotFuzzMixin is HotFuzzBase {
         }
     }
 
-    function distributeToPool(uint8 a, uint8 b, uint128 requestedAmount) public {
+    function distribute(uint8 a, uint8 b, uint128 requestedAmount) public {
         (SuperfluidTester tester) = _getOneTester(a);
         ISuperfluidPool pool = getRandomPool(b);
 
-        tester.distributeToPool(address(tester), pool, requestedAmount);
+        tester.distribute(address(tester), pool, requestedAmount);
     }
 
     function distributeFlow(uint8 a, uint8 b, uint8 c, int96 flowRate) public {

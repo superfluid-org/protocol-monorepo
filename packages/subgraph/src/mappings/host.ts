@@ -25,7 +25,7 @@ import { SuperfluidGovernance } from "../../generated/templates";
 export function handleGovernanceReplaced(event: GovernanceReplaced): void {
     const eventId = createEventID("GovernanceReplaced", event);
     const ev = new GovernanceReplacedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.oldGov, event.params.newGov]);
     ev.oldGovernance = event.params.oldGov;
     ev.newGovernance = event.params.newGov;
     ev.save();
@@ -42,7 +42,7 @@ export function handleAgreementClassRegistered(
 ): void {
     const eventId = createEventID("AgreementClassRegistered", event);
     const ev = new AgreementClassRegisteredEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.code]);
     ev.agreementType = event.params.agreementType;
     ev.code = event.params.code;
     ev.save();
@@ -55,7 +55,7 @@ export function handleAgreementClassUpdated(
 ): void {
     const eventId = createEventID("AgreementClassUpdated", event);
     const ev = new AgreementClassUpdatedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.code]);
 
     ev.agreementType = event.params.agreementType;
     ev.code = event.params.code;
@@ -70,7 +70,7 @@ export function handleSuperTokenFactoryUpdated(
 ): void {
     const eventId = createEventID("SuperTokenFactoryUpdated", event);
     const ev = new SuperTokenFactoryUpdatedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.newFactory]);
 
     ev.newFactory = event.params.newFactory;
     ev.save();
@@ -81,7 +81,7 @@ export function handleSuperTokenLogicUpdated(
 ): void {
     const eventId = createEventID("SuperTokenLogicUpdated", event);
     const ev = new SuperTokenLogicUpdatedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.token, event.params.code]);
 
     ev.token = event.params.token;
     ev.code = event.params.code;
@@ -90,7 +90,7 @@ export function handleSuperTokenLogicUpdated(
 
 export function handleAppRegistered(event: AppRegistered): void {
     const ev = new AppRegisteredEvent(createEventID("AppRegistered", event));
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.app]);
 
     ev.app = event.params.app;
     ev.save();
@@ -98,7 +98,7 @@ export function handleAppRegistered(event: AppRegistered): void {
 
 export function handleJail(event: Jail): void {
     const ev = new JailEvent(createEventID("Jail", event));
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.params.app]);
 
     ev.app = event.params.app;
     ev.reason = event.params.reason;

@@ -10,10 +10,10 @@ assignees: 0xdavinchee
 **Describe the bug:**
 A clear and concise description of what the bug is. What is the data you are having issues with?
 
-**Subgraph endpoint:** [e.g. https://thegraph.com/hosted-service/subgraph/superfluid-finance/protocol-v1-goerli]
+**Subgraph endpoint:** [e.g. https://thegraph.com/hosted-service/subgraph/superfluid-finance/protocol-v1-polygon-mainnet]
 
 **Query:**
-e.g. 
+e.g.
 ```
 query MyQuery {
   streams(first: 10) {

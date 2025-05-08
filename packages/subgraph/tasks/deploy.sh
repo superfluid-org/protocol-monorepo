@@ -2,26 +2,12 @@
 
 set -eux
 
-JQ="jq"
-
 # shellcheck disable=SC2207
-GRAPH_CLI="npx --package=@graphprotocol/graph-cli -- graph"
-SUPPORTED_VENDORS=( "graph" "satsuma" "superfluid" )
+GRAPH_CLI="npx --package=@graphprotocol/graph-cli --yes -- graph"
+# shellcheck disable=SC2207
+GOLDSKY_CLI="npx --package=@goldskycom/cli --yes -- goldsky"
+SUPPORTED_VENDORS=( "graph" "satsuma" "superfluid" "goldsky" "airstack" )
 
-# list of supported networks by vendor
-
-# shellcheck disable=SC2034,SC2207
-GRAPH_NETWORKS=( $($JQ -r .[] ./hosted-service-networks.json) ) || exit 1
-# shellcheck disable=SC2034
-SATSUMA_NETWORKS=( "polygon-mainnet" "xdai-mainnet" "eth-mainnet" "eth-sepolia" "optimism-mainnet" "base-mainnet")
-# shellcheck disable=SC2034
-SUPERFLUID_NETWORKS=( "polygon-zkevm-testnet" "polygon-mainnet" "base-goerli" "xdai-mainnet" "base-mainnet" "optimism-mainnet" "arbitrum-one" "celo-mainnet" "bsc-mainnet" "avalanche-c" "optimism-sepolia" "scroll-sepolia" "scroll-mainnet")
-
-declare -A VENDOR_NETWORKS=(
-    ["graph"]="${GRAPH_NETWORKS[@]}"
-    ["satsuma"]="${SATSUMA_NETWORKS[@]}"
-    ["superfluid"]="${SUPERFLUID_NETWORKS[@]}"
-)
 
 VENDOR=""
 NETWORK=""
@@ -29,7 +15,7 @@ DEPLOYMENT_ENV=""
 VERSION_LABEL=""
 
 print_usage_and_exit() {
-    echo "Usage: $0 -o graph|satsuma|superfluid -n <network_name> -r <deployment_env> -v <version_label>"
+    echo "Usage: $0 -o graph|satsuma|superfluid|goldsky|airstack -n <network_name> -r <deployment_env> -v <version_label>"
     exit 1
 }
 
@@ -59,6 +45,32 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+prepare_deployment() {
+  # Read environment variables directly, with a fallback Git command for commit_hash
+  local commit_hash="${GITHUB_SHA:-$(git rev-parse HEAD)}"
+  local configuration="${CONFIGURATION:-v1}"
+
+  # Get ABI
+  echo "Getting ABI..."
+  node "./scripts/getAbi.js"
+
+  # Prepare subgraph manifest
+  echo "Preparing subgraph manifest..."
+  ./tasks/prepare-manifest.sh mock
+
+  # Generate meta.ignore.ts file
+  echo "Generating meta.ignore.ts file..."
+  COMMIT_HASH="$commit_hash" CONFIGURATION="$configuration" yarn generate-sf-meta
+
+  # Generate AssemblyScript types
+  echo "Generating AssemblyScript types..."
+  yarn codegen
+
+  # Get Hosted Service Networks from metadata
+  echo "Getting Hosted Service Networks from metadata..."
+  npx ts-node "./scripts/getHostedServiceNetworks.ts"
+}
+
 deploy_to_graph() {
     local network="$1"
 
@@ -66,20 +78,17 @@ deploy_to_graph() {
     local -A legacyNetworkNames=(
         ["xdai-mainnet"]="xdai"
         ["polygon-mainnet"]="matic"
-        ["eth-goerli"]="goerli"
-        ["polygon-mumbai"]="mumbai"
     )
 
     local graphNetwork="${legacyNetworkNames[$network]:-$network}"
-    local subgraphName="superfluid-finance/protocol-$DEPLOYMENT_ENV-$graphNetwork"
+    local subgraphName="protocol-$DEPLOYMENT_ENV-$graphNetwork"
 
     echo "********* Deploying $network subgraph $subgraphName to The Graph (hosted service). **********"
-    $GRAPH_CLI deploy \
-        --product hosted-service \
-        "$subgraphName" \
-        --node https://api.thegraph.com/deploy/ \
-        --ipfs https://api.thegraph.com/ipfs \
-        --access-token "$THE_GRAPH_ACCESS_TOKEN"
+
+    if ! $GRAPH_CLI deploy --studio "$subgraphName" --deploy-key "$THE_GRAPH_ACCESS_TOKEN" --version-label "$VERSION_LABEL"; then
+        echo "Error: Deployment to The Graph (hosted service) failed for $network"
+        exit 1
+    fi
 }
 
 deploy_to_satsuma() {
@@ -109,11 +118,53 @@ deploy_to_superfluid() {
     local subgraphName="protocol-$DEPLOYMENT_ENV"
     echo "node url: $nodeUrl, subgraph name: $subgraphName"
 
-    $GRAPH_CLI create "$subgraphName" --node "$nodeUrl"
-    $GRAPH_CLI deploy "$subgraphName" \
-        --version-label "$VERSION_LABEL" \
-        --node "$nodeUrl" \
-        --ipfs "$SUPERFLUID_IPFS_API"
+    if ! $GRAPH_CLI create "$subgraphName" --node "$nodeUrl"; then
+        echo "Error: Creation of subgraph $subgraphName on Superfluid (self hosted) failed for $network"
+        exit 1
+    fi
+    if ! $GRAPH_CLI deploy "$subgraphName" --version-label "$VERSION_LABEL" --node "$nodeUrl" --ipfs "$SUPERFLUID_IPFS_API"; then
+        echo "Error: Deployment to Superfluid (self hosted) failed for $network"
+        exit 1
+    fi
+}
+
+deploy_to_goldsky() {
+    local network="$1"
+    # TODO: use tagging?
+
+    # Get subgraph version from package.json
+    PACKAGE_JSON_PATH="package.json"
+    SUBGRAPH_VERSION=$(jq -r '.version' $PACKAGE_JSON_PATH)
+
+    local subgraphName="protocol-$DEPLOYMENT_ENV-$network/$SUBGRAPH_VERSION"
+
+     # Note: when using Graph CLI to deploy, it implicitly triggers build too, but Goldsky CLI doesn't, so we do it explicitly.
+    if ! $GRAPH_CLI build; then
+        echo "Error: Build for Goldsky failed"
+        exit 1
+    fi
+
+    echo "********* Deploying $network subgraph $subgraphName to Goldsky. **********"
+    if ! $GOLDSKY_CLI subgraph deploy "$subgraphName" --path . --token "$GOLDSKY_API_KEY"; then
+        echo "Error: Deployment to Goldsky failed for $network"
+        exit 1
+    fi
+}
+
+deploy_to_airstack() {
+    local network="$1"
+    local nodeUrl="https://subgraph.airstack.xyz/indexer/"
+    local subgraphName="protocol-$DEPLOYMENT_ENV-$network"
+
+    echo "********* Deploying $network subgraph $subgraphName to Airstack. **********"
+    if ! $GRAPH_CLI create "$subgraphName" --node "$nodeUrl" --access-token "$AIRSTACK_API_KEY"; then
+        echo "Error: Creation of subgraph $subgraphName on Airstack failed for $network"
+        exit 1
+    fi
+    if ! $GRAPH_CLI deploy --version-label "$VERSION_LABEL" --node "$nodeUrl" --deploy-key "$AIRSTACK_API_KEY" --ipfs https://ipfs.airstack.xyz/ipfs/api/v0 --headers '{"Authorization": "'"$AIRSTACK_API_KEY"'"}' "$subgraphName"; then
+        echo "Error: Deployment to Airstack failed for $network"
+        exit 1
+    fi
 }
 
 # Vendor specific function dispatcher
@@ -124,16 +175,7 @@ deploy_to() {
     local vendor="$1"
     local network="$2"
 
-    # check if network is supported by vendor
-    local -n networksRef="${vendor^^}_NETWORKS"
-    # We can safely ignore this warning, becasue the value in network won't contain whitespaces
-    # shellcheck disable=SC2199,SC2076
-    if [[ ! " ${networksRef[@]} " =~ " $network " ]]; then
-        echo "The network, $network, is currently not on the list of networks supported by $vendor."
-        exit 1
-    fi
-
-    npx ts-node ./scripts/buildNetworkConfig.ts "$network"
+    npx ts-node ./scripts/buildNetworkConfig.ts "$network" "$vendor"
 
     # prepare the manifest prior to deployment
     # this generates the subgraph.yaml and
@@ -150,6 +192,12 @@ deploy_to() {
     superfluid)
         deploy_to_superfluid "$network"
         ;;
+    goldsky)
+        deploy_to_goldsky "$network"
+        ;;
+    airstack)
+        deploy_to_airstack "$network"
+        ;;
     *)
         print_usage_and_exit
         ;;
@@ -161,17 +209,18 @@ if [ -z "$VENDOR" ] || [ -z "$NETWORK" ] || [ -z "$DEPLOYMENT_ENV" ] || [ -z "$V
     print_usage_and_exit
 fi
 
-# We can safely ignore this warning, becasue the value in vendor won't contain whitespaces
+# We can safely ignore this warning, because the value in vendor won't contain whitespaces
 # shellcheck disable=SC2199,SC2076
 if [[ ! " ${SUPPORTED_VENDORS[@]} " =~ " $VENDOR " ]]; then
     print_usage_and_exit
 fi
 
-# Handle all vs specific network
-if [ "$NETWORK" == "all" ]; then
-    for network in ${VENDOR_NETWORKS[$VENDOR]}; do
-        deploy_to "$VENDOR" "$network"
-    done
-else
-    deploy_to "$VENDOR" "$NETWORK"
+#Prepare deployment
+# Prepare deployment
+if ! prepare_deployment; then
+    echo "Error: Failed to prepare deployment"
+    exit 1
 fi
+
+# Deploy the specified network
+deploy_to "$VENDOR" "$NETWORK"

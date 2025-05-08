@@ -14,9 +14,9 @@ import {
 } from "../../../src/mappings/idav1";
 import { BIG_INT_ZERO, getIndexID, ZERO_ADDRESS } from "../../../src/utils";
 import { assertIDAEventBaseProperties, assertIDAIndexEventBaseProperties } from "../../assertionHelpers";
-import { alice, bob, DEFAULT_DECIMALS, FAKE_INITIAL_BALANCE, maticXAddress, maticXName, maticXSymbol } from "../../constants";
+import { alice, bob, DEFAULT_DECIMALS, FAKE_INITIAL_BALANCE, maticXAddress, maticXName, maticXSymbol, resolverAddress } from "../../constants";
 import { stringToBytes } from "../../converters";
-import { mockedGetAppManifest, mockedGetHost, mockedHandleSuperTokenInitRPCCalls, mockedRealtimeBalanceOf } from "../../mockedFunctions";
+import { mockedGetAppManifest, mockedGetHost, mockedHandleSuperTokenInitRPCCalls, mockedRealtimeBalanceOf, mockedResolverGet } from "../../mockedFunctions";
 import {
     createIndexCreatedEvent,
     createIndexDistributionClaimedEvent,
@@ -266,6 +266,8 @@ describe("InstantDistributionV1 Event Entity Unit Tests", () => {
             indexId,
             userData
         );
+
+        mockedResolverGet(resolverAddress, "supertokens.v1.MATICx", ZERO_ADDRESS.toHexString());
 
         mockedRealtimeBalanceOf(
             superToken,

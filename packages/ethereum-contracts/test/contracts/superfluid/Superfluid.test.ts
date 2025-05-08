@@ -112,11 +112,17 @@ describe("Superfluid Host Contract", function () {
                     await ethers.getContractFactory("SuperfluidMock");
                 const mock1 = await sfMockFactory.deploy(
                     false /* nonUpgradable */,
-                    false /* appWhiteListingEnabled */
+                    false /* appWhiteListingEnabled */,
+                    3000000 /* callbackGasLimit */,
+                    ZERO_ADDRESS /* simpleForwarder */,
+                    ZERO_ADDRESS /* erc2771Forwarder */
                 );
                 const mock2 = await sfMockFactory.deploy(
                     true /* nonUpgradable */,
-                    false /* appWhiteListingEnabled */
+                    false /* appWhiteListingEnabled */,
+                    3000000 /* callbackGasLimit */,
+                    ZERO_ADDRESS /* simpleForwarder */,
+                    ZERO_ADDRESS /* erc2771Forwarder */
                 );
                 await governance.updateContracts(
                     superfluid.address,
@@ -403,10 +409,6 @@ describe("Superfluid Host Contract", function () {
             it("#3.2 update super token factory", async () => {
                 const factory = await superfluid.getSuperTokenFactory();
                 const {
-                    constantOutflowNFTProxy,
-                    constantInflowNFTProxy,
-                    cofNFTLogicAddress,
-                    cifNFTLogicAddress,
                     poolAdminNFTProxy,
                     poolMemberNFTProxy,
                     paNFTLogicAddress,
@@ -415,8 +417,8 @@ describe("Superfluid Host Contract", function () {
                 const superTokenLogic = await t.deployContract<SuperToken>(
                     "SuperToken",
                     superfluid.address,
-                    constantOutflowNFTProxy.address,
-                    constantInflowNFTProxy.address,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     poolAdminNFTProxy.address,
                     poolMemberNFTProxy.address
                 );
@@ -425,8 +427,8 @@ describe("Superfluid Host Contract", function () {
                 const factory2Logic = await factory2LogicFactory.deploy(
                     superfluid.address,
                     superTokenLogic.address,
-                    cofNFTLogicAddress,
-                    cifNFTLogicAddress,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     paNFTLogicAddress,
                     pmNFTLogicAddress
                 );
@@ -452,10 +454,6 @@ describe("Superfluid Host Contract", function () {
             it("#3.3 update super token factory double check if new code is called", async () => {
                 const factory = await superfluid.getSuperTokenFactory();
                 const {
-                    constantOutflowNFTProxy,
-                    constantInflowNFTProxy,
-                    cofNFTLogicAddress,
-                    cifNFTLogicAddress,
                     poolAdminNFTProxy,
                     poolMemberNFTProxy,
                     paNFTLogicAddress,
@@ -464,8 +462,8 @@ describe("Superfluid Host Contract", function () {
                 const superTokenLogic = await t.deployContract<SuperToken>(
                     "SuperToken",
                     superfluid.address,
-                    constantOutflowNFTProxy.address,
-                    constantInflowNFTProxy.address,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     poolAdminNFTProxy.address,
                     poolMemberNFTProxy.address
                 );
@@ -475,8 +473,8 @@ describe("Superfluid Host Contract", function () {
                 const factory2Logic = await factory2LogicFactory.deploy(
                     superfluid.address,
                     superTokenLogic.address,
-                    cofNFTLogicAddress,
-                    cifNFTLogicAddress,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     paNFTLogicAddress,
                     pmNFTLogicAddress
                 );
@@ -662,6 +660,7 @@ describe("Superfluid Host Contract", function () {
             });
         });
 
+        // disabled due to contract size limit
         describe("#5 Context Utilities", () => {
             it("#5.1 test replacePlaceholderCtx with testCtxFuncX", async () => {
                 const testCtxFunc = async (
@@ -694,6 +693,7 @@ describe("Superfluid Host Contract", function () {
                     );
                 }
 
+                // disabled code because contract size limit hit
                 // more complicated ABI
                 await testCtxFunc(
                     "ctxFunc2",
@@ -701,8 +701,8 @@ describe("Superfluid Host Contract", function () {
                         governance.address,
                         t.contracts.ida.address,
                         ethers.utils.hexZeroPad("0x2020", 32),
-                        "0x" /* agreementData */,
-                        "0x" /* cbdata */,
+                        "0x", // agreementData
+                        "0x", // cbdata
                     ],
                     "0x" + "dead".repeat(20)
                 );
@@ -712,8 +712,8 @@ describe("Superfluid Host Contract", function () {
                         governance.address,
                         t.contracts.ida.address,
                         ethers.utils.hexZeroPad("0x2020", 32),
-                        "0xdead" /* agreementData */,
-                        "0xbeef" /* cbdata */,
+                        "0xdead", // agreementData
+                        "0xbeef", // cbdata
                     ],
                     "0x" + "faec".repeat(20)
                 );
@@ -1493,7 +1493,7 @@ describe("Superfluid Host Contract", function () {
                     let receipt = await tx.wait();
                     console.debug("Gas used", receipt.gasUsed.toString());
                     let gasLowerBound = Number(receipt.gasUsed.toString());
-                    let gasUpperBound = gasLowerBound + 300000;
+                    let gasUpperBound = Math.floor(gasLowerBound * 1.3);
                     console.debug(
                         "Current bound",
                         gasLowerBound,
@@ -2653,10 +2653,6 @@ describe("Superfluid Host Contract", function () {
                     await superfluid.getSuperTokenFactoryLogic()
                 );
                 const {
-                    constantOutflowNFTProxy,
-                    constantInflowNFTProxy,
-                    cofNFTLogicAddress,
-                    cifNFTLogicAddress,
                     poolAdminNFTProxy,
                     poolMemberNFTProxy,
                     paNFTLogicAddress,
@@ -2665,8 +2661,8 @@ describe("Superfluid Host Contract", function () {
                 const superTokenLogic = await t.deployContract<SuperToken>(
                     "SuperToken",
                     superfluid.address,
-                    constantOutflowNFTProxy.address,
-                    constantInflowNFTProxy.address,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     poolAdminNFTProxy.address,
                     poolMemberNFTProxy.address
                 );
@@ -2674,8 +2670,8 @@ describe("Superfluid Host Contract", function () {
                     "SuperTokenFactory",
                     superfluid.address,
                     superTokenLogic.address,
-                    cofNFTLogicAddress,
-                    cifNFTLogicAddress,
+                    t.constants.ZERO_ADDRESS,
+                    t.constants.ZERO_ADDRESS,
                     paNFTLogicAddress,
                     pmNFTLogicAddress
                 );
@@ -2697,7 +2693,10 @@ describe("Superfluid Host Contract", function () {
                     await ethers.getContractFactory("SuperfluidMock");
                 const mock1 = await mock1Factory.deploy(
                     false /* nonUpgradable */,
-                    false /* appWhiteListingEnabled */
+                    false /* appWhiteListingEnabled */,
+                    3000000 /* callbackGasLimit */,
+                    ZERO_ADDRESS /* simpleForwarder */,
+                    ZERO_ADDRESS /* erc2771Forwarder */
                 );
                 await expectCustomError(
                     governance.updateContracts(

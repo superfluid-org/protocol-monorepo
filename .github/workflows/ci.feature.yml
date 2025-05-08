@@ -12,11 +12,19 @@ on:
   merge_group:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: Checking what packages need to be built
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
+    defaults:
+      run:
+        shell: nix develop .#ci-minimum -c bash -xe {0}
 
     outputs:
       build_solidity_semantic_money: ${{ env.BUILD_SOLIDITY_SEMANTIC_MONEY }}
@@ -28,6 +36,17 @@ jobs:
       build_automation_contracts: ${{ env.BUILD_AUTOMATION_CONTRACTS }}
 
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@v13
+
+      - name: Initialize nix dev shell
+        run: |
+          node --version
+          yarn --version
+          shellcheck --version
+          actionlint --version
+
       - name: Show contexts
         env:
           HEAD_REF: ${{ github.head_ref }}
@@ -40,10 +59,25 @@ jobs:
           echo github.head_ref: "$HEAD_REF"
           echo github.base_ref: ${{ github.base_ref }}
 
-      - uses: actions/checkout@v3
+      - name: Run global lint
+        run: |
+          npm run lint:shellcheck
+          npm run lint:actionlint
 
-      - name: Check changeset
-        run: tasks/check-changeset.sh ${{ github.sha }} dev
+      - name: Create build set
+        run: tasks/create-build-set.sh ${{ github.sha }} dev origin
+
+  test-spec-haskell:
+    name: Test Spec Haskell (Feature Branch)
+    uses: ./.github/workflows/call.test-spec-haskell.yml
+    needs: [check]
+    if: needs.check.outputs.build_spec_haskell
+
+  test-solidity-semantic-money:
+    name: Test Solidity Semantic Money Library (Feature Branch)
+    uses: ./.github/workflows/call.test-solidity-semantic-money.yml
+    needs: [ check ]
+    if: needs.check.outputs.build_solidity_semantic_money
 
   test-ethereum-contracts:
     name: Test ethereum-contracts (Feature Branch)
@@ -54,7 +88,7 @@ jobs:
       run-coverage-tests: false
 
   coverage-ethereum-contracts:
-    name: Coverage test ethereum-contracts (Feature Branch)
+    name: Coverage Test ethereum-contracts (Feature Branch)
     uses: ./.github/workflows/call.test-ethereum-contracts.yml
     needs: [check]
     if: needs.check.outputs.build_ethereum_contracts
@@ -67,29 +101,9 @@ jobs:
     needs: [ check ]
     if: needs.check.outputs.build_hot_fuzz
 
-  test-solidity-semantic-money:
-    name: Test Solidity Semantic Money Library (Feature Branch)
-    uses: ./.github/workflows/call.test-solidity-semantic-money.yml
-    needs: [ check ]
-    if: needs.check.outputs.build_solidity_semantic_money
-
-  #test automations:
-  test-automation-contracts:
-    name: Test Automation Contracts (Feature Branch)
-    uses: ./.github/workflows/call.test-automation-contracts.yml
-    needs: [ check ]
-    if: needs.check.outputs.build_automation_contracts
-
-  # subgraph integration test
-  test-subgraph:
-    name: Test Subgraph (Feature Branch)
-    uses: ./.github/workflows/call.test-local-subgraph.yml
-    needs: [check]
-    if: needs.check.outputs.build_subgraph
-
   # sdk-core integration test + local subgraph w/ local sdk-core
   test-sdk-core:
-    name: Test SDK-Core (Feature Branch)
+    name: Test sdk-core (Feature Branch)
     uses: ./.github/workflows/call.test-sdk-core.yml
     needs: [check]
     if: needs.check.outputs.build_sdk_core
@@ -99,7 +113,7 @@ jobs:
       run-coverage-tests: false
 
   coverage-sdk-core:
-    name: Test SDK-Core (Feature Branch)
+    name: Coverage Test sdk-core (Feature Branch)
     uses: ./.github/workflows/call.test-sdk-core.yml
     needs: [check]
     if: needs.check.outputs.build_sdk_core
@@ -108,16 +122,24 @@ jobs:
       subgraph-endpoint: http://localhost:8000/subgraphs/name/superfluid-test
       run-coverage-tests: true
 
-  test-spec-haskell:
-    name: Test Spec Haskell (Feature Branch)
-    uses: ./.github/workflows/call.test-spec-haskell.yml
+  test-subgraph:
+    name: Test Subgraph (Feature Branch)
+    uses: ./.github/workflows/call.test-local-subgraph.yml
     needs: [check]
-    if: needs.check.outputs.build_spec_haskell
+    if: needs.check.outputs.build_subgraph
+
+  test-automation-contracts:
+    name: Test Automation Contracts (Feature Branch)
+    uses: ./.github/workflows/call.test-automation-contracts.yml
+    needs: [check]
+    if: needs.check.outputs.build_automation_contracts
 
   upload-coverage-reports:
     name: Upload Coverage Reports (Feature Branch)
     uses: ./.github/workflows/call.upload-coverage-reports.yml
     needs: [coverage-ethereum-contracts, coverage-sdk-core]
+    secrets:
+      codecov_token: ${{ secrets.CODECOV_TOKEN }}
 
   # Note:
   #
@@ -127,7 +149,7 @@ jobs:
   all-packages-tested:
     name: All packages tested (Feature Branch)
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     if: always()
 
@@ -147,18 +169,19 @@ jobs:
             local package_name="$1"
             local result="$2"
             if [ "$result" == "skipped" ];then
-              echo "Skipped $package_name package."
+              echo "Skipped job: $package_name."
             else
-              echo "Checking if $package_name package test passes..."
+              echo "Checking if the job \"$package_name\" passes..."
               test "$result" == "success"
               echo "Passed."
             fi
           }
           check_result spec-haskell ${{ needs.test-spec-haskell.result }}
           check_result solidity-semantic-money ${{ needs.test-solidity-semantic-money.result }}
-          check_result ethereum-contracts ${{ needs.test-ethereum-contracts.result }}
-          check_result ethereum-contracts-coverage ${{ needs.coverage-ethereum-contracts.result }}
+          check_result test-ethereum-contracts ${{ needs.test-ethereum-contracts.result }}
+          check_result coverage-ethereum-contracts ${{ needs.coverage-ethereum-contracts.result }}
           check_result hot-fuzz ${{ needs.test-hot-fuzz.result }}
-          check_result sdk-core ${{ needs.test-sdk-core.result }}
+          check_result test-sdk-core ${{ needs.test-sdk-core.result }}
+          check_result coverage-sdk-core ${{ needs.coverage-sdk-core.result }}
           check_result subgraph ${{ needs.test-subgraph.result }}
           check_result automation-contracts ${{ needs.test-automation-contracts.result }}

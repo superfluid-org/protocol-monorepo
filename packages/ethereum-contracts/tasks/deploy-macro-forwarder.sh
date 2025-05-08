@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -eu
+set -o pipefail
 
 # Usage:
 # tasks/deploy-macro-forwarder.sh <network>
-#
-# Example:
-# tasks/deploy-macro-forwarder.sh optimism-goerli
 #
 # The invoking account needs to be (co-)owner of the resolver and governance
 #
@@ -13,7 +11,7 @@ set -eu
 # RELEASE_VERSION, MACROFWD_DEPLOYER_PK
 #
 # You can use the npm package vanity-eth to get a deployer account for a given contract address:
-# Example use: npx vanityeth -i cfa1 --contract
+# Example use: npx vanityeth -i fd01 --contract
 #
 # For optimism the gas estimation doesn't work, requires setting EST_TX_COST
 # (the value auto-detected for arbitrum should work).
@@ -26,7 +24,7 @@ source .env
 set -x
 
 network=$1
-expectedContractAddr="0xFd017DBC8aCf18B06cff9322fA6cAae2243a5c95"
+expectedContractAddr="0xFD0268E33111565dE546af2675351A4b1587F89F"
 deployerPk=$MACROFWD_DEPLOYER_PK
 
 tmpfile="/tmp/$(basename "$0").addr"
@@ -38,13 +36,18 @@ rm "$tmpfile"
 
 echo "deployed to $contractAddr"
 if [[ $contractAddr != "$expectedContractAddr" ]]; then
-    echo "oh no!"
-    exit
+    echo "contract address not as expected!"
+    if [ -z "$SKIP_ADDRESS_CHECK" ]; then
+        exit
+    fi
 fi
 
 # verify (give it a few seconds to pick up the code)
 sleep 5
+# allow to fail
+set +e
 npx truffle run --network "$network" verify MacroForwarder@"$contractAddr"
+set -e
 
 # set resolver
 ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : MacroForwarder "$contractAddr"

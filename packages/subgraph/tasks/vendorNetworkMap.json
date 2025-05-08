@@ -1,0 +1,6 @@
+{
+  "superfluid": ["polygon-mainnet", "xdai-mainnet", "base-mainnet", "optimism-mainnet", "arbitrum-one", "celo-mainnet", "bsc-mainnet", "avalanche-c", "optimism-sepolia", "scroll-sepolia", "scroll-mainnet", "degenchain", "base-sepolia"],
+  "goldsky": ["polygon-mainnet", "xdai-mainnet", "eth-mainnet", "base-mainnet", "optimism-mainnet", "arbitrum-one", "bsc-mainnet", "avalanche-c", "optimism-sepolia", "scroll-sepolia", "scroll-mainnet", "eth-sepolia", "avalanche-fuji", "base-sepolia", "degenchain"],
+  "graph": ["polygon-mainnet", "eth-mainnet", "celo-mainnet"]
+}
+

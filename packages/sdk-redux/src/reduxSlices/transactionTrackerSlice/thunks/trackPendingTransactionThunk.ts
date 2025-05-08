@@ -40,7 +40,7 @@ export const trackPendingTransactionThunk = createAsyncThunk<
         const framework = await getFramework(chainId);
         const waitForOneConfirmation = wait
             ? () => wait(1)
-            : () => framework.settings.provider.waitForTransaction(transactionHash, 1, MillisecondTimes.TenMinutes);
+            : () => framework.settings.provider.waitForTransaction(transactionHash, 1, MillisecondTimes.ThreeMinutes);
 
         await waitForOneConfirmation()
             .then(async (transactionReceipt: ethers.providers.TransactionReceipt) => {

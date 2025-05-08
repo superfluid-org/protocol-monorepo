@@ -7,22 +7,22 @@ on:
 
 jobs:
   send-slack-message:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v3
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@v4
         with:
-          node-version: 18.x
-        
+          node-version: 24.x
+
 
       - name: Send slack message
         working-directory: tasks
         run: |
           npm install ethers --force
           node daily-slack-bot.js
-        env: 
+        env:
           CI_SLACK_WEBHOOK: ${{ secrets.CI_SLACK_WEBHOOK }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}

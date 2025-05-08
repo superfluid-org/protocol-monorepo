@@ -1,0 +1,23 @@
+indent: "    " # four spaces
+dependencyTypes: ["!peer", "!resolutions"] # let us take care of the peer dependency resolutions by hand
+sortAz: ["!scripts"] # we prefer to sort scripts by-hand, because sometimes it uses run-s pattern
+semverGroups:
+  # Note: rule priority is top (high) to bottom (low)
+  - label: Use looser ranges for metadata local packages
+    dependencies:
+      # Note: - Metadata updates often include new network configuration, which we do not want to force a new SDK
+      #         version in order for the client to be able to use.
+      #       - Probably this is better set in peerDependencies, instaed. However, that might be a breaking change to
+      #         the current developers of SDK.
+      - "@superfluid-finance/metadata"
+    range: "^"
+  - label: Use exact version for prod dependencies
+    dependencyTypes: ["prod"]
+    range: ""
+  - label: Use looser range by default
+    range: "^"
+versionGroups:
+  - label: Pin stack-trace to the same version, since newer version starts to use ES module
+    dependencies:
+      - "stack-trace"
+    pinVersion: "0.0.10"

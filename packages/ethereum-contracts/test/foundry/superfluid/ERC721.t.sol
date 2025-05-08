@@ -1,36 +1,23 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import { IERC721Metadata } from "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
-import { ConstantOutflowNFTMock, ConstantInflowNFTMock } from "../../../contracts/mocks/CFAv1NFTMock.sol";
-import { PoolAdminNFTMock, PoolMemberNFTMock } from "../../../contracts/mocks/PoolNFTMock.sol";
-import { ConstantOutflowNFT, IConstantOutflowNFT } from "../../../contracts/superfluid/ConstantOutflowNFT.sol";
-import { ConstantInflowNFT, IConstantInflowNFT } from "../../../contracts/superfluid/ConstantInflowNFT.sol";
+import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
+import { PoolAdminNFTMock, PoolMemberNFTMock } from "./PoolNFTMock.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
 import { PoolMemberNFT, IPoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
 import { UUPSProxy } from "../../../contracts/upgradability/UUPSProxy.sol";
 import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.sol";
-import { SuperToken, SuperTokenMock } from "../../../contracts/mocks/SuperTokenMock.sol";
+import { SuperToken, SuperTokenMock, IConstantOutflowNFT, IConstantInflowNFT } from "../../../contracts/mocks/SuperTokenMock.t.sol";
 
 contract ERC721IntegrationTest is FoundrySuperfluidTester {
     string internal constant POOL_MEMBER_NFT_NAME_TEMPLATE = "Pool Member NFT";
     string internal constant POOL_MEMBER_NFT_SYMBOL_TEMPLATE = "PMF";
     string internal constant POOL_ADMIN_NFT_NAME_TEMPLATE = "Pool Admin NFT";
     string internal constant POOL_ADMIN_NFT_SYMBOL_TEMPLATE = "PAF";
-    string internal constant OUTFLOW_NFT_NAME_TEMPLATE = "Constant Outflow NFT";
-    string internal constant OUTFLOW_NFT_SYMBOL_TEMPLATE = "COF";
-    string internal constant INFLOW_NFT_NAME_TEMPLATE = "Constant Inflow NFT";
-    string internal constant INFLOW_NFT_SYMBOL_TEMPLATE = "CIF";
 
     SuperTokenMock public superTokenMock;
-
-    ConstantOutflowNFTMock public constantOutflowNFTLogic;
-    ConstantInflowNFTMock public constantInflowNFTLogic;
-
-    ConstantOutflowNFTMock public constantOutflowNFT;
-    ConstantInflowNFTMock public constantInflowNFT;
 
     PoolMemberNFTMock public poolMemberNFTLogic;
     PoolAdminNFTMock public poolAdminNFTLogic;
@@ -50,36 +37,6 @@ contract ERC721IntegrationTest is FoundrySuperfluidTester {
 
     function setUp() public virtual override {
         super.setUp();
-
-        // Deploy Flow NFTs
-
-        // deploy outflow NFT contract
-        UUPSProxy outflowProxy = new UUPSProxy();
-
-        // deploy inflow NFT contract
-        UUPSProxy inflowProxy = new UUPSProxy();
-
-        // we deploy mock NFT contracts for the tests to access internal functions
-        constantOutflowNFTLogic =
-            new ConstantOutflowNFTMock(sf.host, sf.cfa, sf.gda, IConstantInflowNFT(address(inflowProxy)));
-        constantInflowNFTLogic =
-            new ConstantInflowNFTMock(sf.host, sf.cfa, sf.gda, IConstantOutflowNFT(address(outflowProxy)));
-
-        constantOutflowNFTLogic.castrate();
-        constantInflowNFTLogic.castrate();
-
-        // initialize proxy to point at logic
-        outflowProxy.initializeProxy(address(constantOutflowNFTLogic));
-
-        // initialize proxy to point at logic
-        inflowProxy.initializeProxy(address(constantInflowNFTLogic));
-
-        constantOutflowNFT = ConstantOutflowNFTMock(address(outflowProxy));
-        constantInflowNFT = ConstantInflowNFTMock(address(inflowProxy));
-
-        constantOutflowNFT.initialize(OUTFLOW_NFT_NAME_TEMPLATE, OUTFLOW_NFT_SYMBOL_TEMPLATE);
-
-        constantInflowNFT.initialize(INFLOW_NFT_NAME_TEMPLATE, INFLOW_NFT_SYMBOL_TEMPLATE);
 
         // Deploy Pool NFTs
 
@@ -119,8 +76,8 @@ contract ERC721IntegrationTest is FoundrySuperfluidTester {
         SuperTokenMock superTokenMockLogic = new SuperTokenMock(
             sf.host,
             0,
-            IConstantOutflowNFT(address(constantOutflowNFT)),
-            IConstantInflowNFT(address(constantInflowNFT)),
+            IConstantOutflowNFT(address(0)),
+            IConstantInflowNFT(address(0)),
             IPoolAdminNFT(address(poolAdminNFT)),
             IPoolMemberNFT(address(poolMemberNFT))
         );
@@ -201,8 +158,8 @@ contract ERC721IntegrationTest is FoundrySuperfluidTester {
         IERC721Metadata _nftContract,
         uint256 _tokenId,
         address _expectedOwner,
-        string memory _message
-    ) public {
+        string memory _message) public view
+    {
         // we use mockOwnerOf to overcome the CFA_NFT_INVALID_TOKEN_ID error
         address owner = PoolAdminNFTMock(address(_nftContract)).mockOwnerOf(_tokenId);
 
@@ -210,7 +167,7 @@ contract ERC721IntegrationTest is FoundrySuperfluidTester {
     }
 
     function _assertApprovalIsExpected(IERC721Metadata _nftContract, uint256 _tokenId, address _expectedApproved)
-        public
+        public view
     {
         address approved = _nftContract.getApproved(_tokenId);
 
@@ -222,7 +179,7 @@ contract ERC721IntegrationTest is FoundrySuperfluidTester {
         address _expectedOwner,
         address _expectedOperator,
         bool _expectedOperatorApproval
-    ) public {
+    ) public view {
         bool operatorApproval = _nftContract.isApprovedForAll(_expectedOwner, _expectedOperator);
 
         assertEq(operatorApproval, _expectedOperatorApproval);

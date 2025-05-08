@@ -9,6 +9,8 @@
 
 CONTRACTS_DIR=build/truffle
 
+SOURCIFY_ONLY_NETWORKS=("degenchain")
+
 TRUFFLE_NETWORK=$1
 ADDRESSES_VARS=$2
 
@@ -29,10 +31,16 @@ EXTRA_ARGS="$*"
 # shellcheck disable=SC1090
 source "$ADDRESSES_VARS"
 
+if [[ " ${SOURCIFY_ONLY_NETWORKS[*]} " == *" $TRUFFLE_NETWORK "* ]]; then
+    VERIFIERS="sourcify"
+else
+    VERIFIERS="etherscan,sourcify"
+fi
+
 FAILED_VERIFICATIONS=()
 function try_verify() {
     echo # newline for better readability
-    cmd="npx truffle run --network $TRUFFLE_NETWORK verify $* ${EXTRA_ARGS:+$EXTRA_ARGS}"
+    cmd="npx truffle run --network $TRUFFLE_NETWORK --verifiers=$VERIFIERS verify $* ${EXTRA_ARGS:+$EXTRA_ARGS}"
     echo "> $cmd"
     $cmd || FAILED_VERIFICATIONS[${#FAILED_VERIFICATIONS[@]}]="$*"
         # NOTE: append using length so that having spaces in the element is not a problem
@@ -67,6 +75,13 @@ if [ -n "$RESOLVER" ]; then
     try_verify Resolver@"${RESOLVER}"
 fi
 
+if [ -n "$ERC2771_FORWARDER" ]; then
+    try_verify ERC2771Forwarder@"${ERC2771_FORWARDER}"
+fi
+if [ -n "$SIMPLE_FORWARDER" ]; then
+    try_verify SimpleForwarder@"${SIMPLE_FORWARDER}"
+fi
+
 if [ -n "$SUPERFLUID_HOST_LOGIC" ]; then
     # verify the logic contract. May or may not be already set as a proxy implementation
     try_verify Superfluid@"${SUPERFLUID_HOST_LOGIC}"
@@ -96,22 +111,6 @@ if [ -n "$SUPER_TOKEN_FACTORY_LOGIC" ]; then
 fi
 if [ -n "$SUPER_TOKEN_FACTORY_PROXY" ]; then
     try_verify SuperTokenFactory@"${SUPER_TOKEN_FACTORY_PROXY}" --custom-proxy UUPSProxy
-fi
-
-if [ -n "$CONSTANT_OUTFLOW_NFT_LOGIC" ]; then
-    try_verify ConstantOutflowNFT@"${CONSTANT_OUTFLOW_NFT_LOGIC}"
-fi
-
-if [ -n "$CONSTANT_INFLOW_NFT_LOGIC" ]; then
-    try_verify ConstantInflowNFT@"${CONSTANT_INFLOW_NFT_LOGIC}"
-fi
-
-if [ -n "$CONSTANT_OUTFLOW_NFT_PROXY" ]; then
-    try_verify ConstantOutflowNFT@"${CONSTANT_OUTFLOW_NFT_PROXY}" --custom-proxy UUPSProxy
-fi
-
-if [ -n "$CONSTANT_INFLOW_NFT_PROXY" ]; then
-    try_verify ConstantInflowNFT@"${CONSTANT_INFLOW_NFT_PROXY}" --custom-proxy UUPSProxy
 fi
 
 if [ -n "$POOL_ADMIN_NFT_PROXY" ]; then
@@ -158,6 +157,10 @@ if [ -n "$SUPERFLUID_POOL_DEPLOYER_LIBRARY" ]; then
     try_verify SuperfluidPoolDeployerLibrary@"${SUPERFLUID_POOL_DEPLOYER_LIBRARY}"
 fi
 
+if [ -n "$DUMMY_BEACON_PROXY" ]; then
+    try_verify BeaconProxy@"${DUMMY_BEACON_PROXY}"
+fi
+
 # this will fail with 'Library address is not prefixed with "0x"' if a library address is not set
 link_library "GeneralDistributionAgreementV1" "SlotsBitmapLibrary" "${SLOTS_BITMAP_LIBRARY}"
 link_library "GeneralDistributionAgreementV1" "SuperfluidPoolDeployerLibrary" "${SUPERFLUID_POOL_DEPLOYER_LIBRARY}"
@@ -187,11 +190,9 @@ if [ -n "$SUPER_TOKEN_NATIVE_COIN" ];then
 fi
 
 # testnet tokens
-for var in $(compgen -v); do
-    if [[ $var == NON_SUPER_TOKEN_* ]]; then
-        addr=${!var}
-        try_verify TestToken@"$addr"
-    fi
+for var in "${!NON_SUPER_TOKEN_@}"; do
+    addr=${!var}
+    try_verify TestToken@"$addr"
 done
 
 # optional peripery contracts

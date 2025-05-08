@@ -1,3 +1,4 @@
+/cache/
 build/
 generated/
 abis/
@@ -10,3 +11,5 @@ src/addresses.ts
 **/*.latest.json
 tests/.bin
 hosted-service-networks.json
+config/*.json
+!config/mock.json

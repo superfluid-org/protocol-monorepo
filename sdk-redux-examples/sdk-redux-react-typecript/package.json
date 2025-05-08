@@ -47,8 +47,7 @@
     "start": "react-app-rewired start",
     "build": "react-app-rewired build",
     "test": "echo test",
-    "lint": "echo lint",
-    "pre-commit": "echo pre-commit"
+    "lint": "echo lint"
   },
   "eslintConfig": {
     "extends": "react-app"

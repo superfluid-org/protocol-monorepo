@@ -4,7 +4,6 @@ const path = require("path");
 const contracts = [
     "ERC20",
     "IConstantFlowAgreementV1",
-    "IFlowNFTBase",
     "ISuperTokenFactory",
     "ISuperToken",
     "ISuperfluid",

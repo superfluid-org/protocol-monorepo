@@ -12,13 +12,22 @@ on:
     inputs:
       vendor:
         required: true
-        description: "Where to deploy subgraph to; one of `superfluid`, `graph`, or `satsuma`"
-        type: string
+        description: "Where to deploy subgraph to; one of `superfluid`, `goldsky`, `graph` or `airstack`"
+        default: "superfluid"
+        type: choice
+        options:
+          - superfluid
+          - goldsky
+          - graph
       deployment_env:
         required: true
-        type: string
-        default: v1
         description: 'The subgraph deployment env: v1, dev, feature.'
+        type: choice
+        default: v1
+        options:
+          - v1
+          - dev
+          - feature
       network:
         required: true
         type: string
@@ -36,13 +45,10 @@ jobs:
       subgraph-release: ''
       subgraph-endpoint: http://localhost:8000/subgraphs/name/superfluid-test
 
-  deploy-subgraph:
+  deploy-subgraphs:
     uses: ./.github/workflows/call.deploy-subgraph.yml
-    needs: [
-            build-and-test-local-subgraph
-           , build-and-test-local-subgraph-against-previous-sdk-core-releases
-           ]
-    name: Deploy The Graph
+    needs: [build-and-test-local-subgraph, build-and-test-local-subgraph-against-previous-sdk-core-releases]
+    name: Deploy graph to ${{ github.event.inputs.vendor }} vendor
     with:
       deployment_env: ${{ github.event.inputs.deployment_env }}
       network: ${{ github.event.inputs.network }}
@@ -52,3 +58,5 @@ jobs:
       SATSUMA_DEPLOY_KEY: ${{ secrets.SATSUMA_DEPLOY_KEY }}
       SUBGRAPH_URL_TEMPLATE: ${{ secrets.SUBGRAPH_URL_TEMPLATE }}
       SUPERFLUID_IPFS_API: ${{ secrets.SUPERFLUID_IPFS_API }}
+      GOLDSKY_API_KEY: ${{ secrets.GOLDSKY_API_KEY }}
+      AIRSTACK_API_KEY: ${{ secrets.AIRSTACK_API_KEY }}

@@ -3,9 +3,73 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [WIP]
+## [v1.5.2]
+### Changed
+- New (payable) MacroForwarder for all networks
+
+## [v1.5.1]
+### Added
+- VestingSchedulerV2 address on Base
+
+## [v1.5.0]
+### Added
+- MacroForwarder addresses
+
+### Changed
+- Updated BatchLiquidator addresses
+
+## [v1.4.1]
+### Changed
+- New & updated contracts on eth-mainnet
+
+## [v1.4.0]
+### Changed
+- Removed FlowNFTs
+
+## [v1.3.0]
+### Added
+- VestingScheduler v2
+
+## [v1.2.6]
+### Changed
+- Added native token wrapper address for base-sepolia
+
+## [v1.2.5]
+### Changed
+- Use superfluid public subgraph endpoints
+
+## [v1.2.3]
+### Changed
+- Use Goldsky automation subgraphs over The Graph's hosted service ones
+
+## [v1.2.2]
+### Added
+- Added Base v1 subgraph endpoint
+
+## [v1.2.1]
+### Added
+- Added Base automation contracts
+- Added OP Sepolia automation contracts
+
+## [v1.2.0]
+### Changed
+- Removed Polygon Mumbai
+
+## [v1.1.30]
+### Added
+- Degen Chain deployment
+
+## [v1.1.29]
+### Fixed
+- Removed subgraph hosted endpoint entry for scroll-mainnet which doesn't exist
+
+## [v1.1.28]
 ### Added
 - toga and batchLiquidator for scroll-mainnet
+### Changed
+- removed eth-goerli and Görli based networks: optimism-goerli, arbitrun-goerli, base-goerli, polygon-zkevm-testnet
+### Fixed
+- Removed subgraph hosted endpoint entry for scroll-sepolia which doesn't exist
 
 ## [v1.1.27]
 ### Added

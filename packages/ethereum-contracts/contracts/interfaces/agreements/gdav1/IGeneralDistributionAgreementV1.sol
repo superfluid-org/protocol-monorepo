@@ -14,40 +14,17 @@ struct PoolConfig {
     bool distributionFromAnyAddress;
 }
 
+struct PoolERC20Metadata {
+    string name;
+    string symbol;
+    uint8 decimals;
+}
+
 /**
  * @title General Distribution Agreement interface
  * @author Superfluid
  */
 abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
-    // Structs
-    struct UniversalIndexData {
-        int96 flowRate;
-        uint32 settledAt;
-        uint256 totalBuffer;
-        bool isPool;
-        int256 settledValue;
-    }
-
-    struct FlowDistributionData {
-        uint32 lastUpdated;
-        int96 flowRate;
-        uint256 buffer; // stored as uint96
-    }
-
-    struct PoolMemberData {
-        address pool;
-        uint32 poolID; // the slot id in the pool's subs bitmap
-    }
-
-    struct StackVarsLiquidation {
-        ISuperfluidToken token;
-        int256 availableBalance;
-        address sender;
-        bytes32 distributionFlowHash;
-        int256 signedTotalGDADeposit;
-        address liquidator;
-    }
-
 
     // Custom Errors
     error GDA_DISTRIBUTE_FOR_OTHERS_NOT_ALLOWED();          // 0xf67d263e
@@ -131,6 +108,31 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
         virtual
         returns (int96);
 
+    /// @dev Gets the GDA flow data between `from` and `to` of `token`
+    /// @param token The token address
+    /// @param from The sender address
+    /// @param to The receiver address
+    /// @return lastUpdated The timestamp of when the flow was last updated
+    /// @return flowRate The flow rate
+    /// @return deposit The amount of deposit the flow
+    function getFlow(ISuperfluidToken token, address from, ISuperfluidPool to)
+        external
+        view
+        virtual
+        returns (uint256 lastUpdated, int96 flowRate, uint256 deposit);
+
+    /// @dev Gets the aggregated GDA flow info of `account` for `token`
+    /// @param token The token address
+    /// @param account The account address
+    /// @return timestamp The timestamp of when the flow was last updated for account
+    /// @return flowRate The net flow rate of token for account
+    /// @return deposit The sum of all deposits for account's flows
+    function getAccountFlowInfo(ISuperfluidToken token, address account)
+        external
+        view
+        virtual
+        returns (uint256 timestamp, int96 flowRate, uint256 deposit);
+
     /// @notice Executes an optimistic estimation of what the actual flow distribution flow rate may be.
     /// The actual flow distribution flow rate is the flow rate that will be sent from `from`.
     /// NOTE: this is only precise in an atomic transaction. DO NOT rely on this if querying off-chain.
@@ -181,6 +183,19 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
         external
         virtual
         returns (ISuperfluidPool pool);
+
+    /// @notice Creates a new pool for `token` with custom ERC20 metadata.
+    /// @param token The token address
+    /// @param admin The admin of the pool
+    /// @param poolConfig The pool configuration (see PoolConfig struct)
+    /// @param poolERC20Metadata The pool ERC20 metadata (see PoolERC20Metadata struct)
+    /// @return pool The pool address
+    function createPoolWithCustomERC20Metadata(
+        ISuperfluidToken token,
+        address admin,
+        PoolConfig memory poolConfig,
+        PoolERC20Metadata memory poolERC20Metadata
+    ) external virtual returns (ISuperfluidPool pool);
 
     function updateMemberUnits(ISuperfluidPool pool, address memberAddress, uint128 newUnits, bytes calldata ctx)
         external

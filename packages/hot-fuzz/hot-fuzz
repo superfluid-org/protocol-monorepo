@@ -43,16 +43,14 @@ cryticArgs: [
   "--compile-force-framework=${CRYTIC_COMPILE_FRAMEWORK}",
   "--foundry-out-directory=${FOUNDRY_ROOT}/${FOUNDRY_OUT:-out}",
   # "--export-dir=${PROJECT_DIR}/crytic-export", TODO unfortunately this doesn't work
-  "--compile-libraries=(CFAv1ForwarderDeployerLibrary,0xf01),(GDAv1ForwarderDeployerLibrary,0xf02),(IDAv1ForwarderDeployerLibrary,0xf03),(ProxyDeployerLibrary,0xf04),(SlotsBitmapLibrary,0xf05),(SuperfluidCFAv1DeployerLibrary,0xf06),(SuperfluidFlowNFTLogicDeployerLibrary,0xf07),(SuperfluidGDAv1DeployerLibrary,0xf08),(SuperfluidGovDeployerLibrary,0xf09),(SuperfluidHostDeployerLibrary,0xf0a),(SuperfluidIDAv1DeployerLibrary,0xf0b),(SuperfluidPeripheryDeployerLibrary,0xf0c),(SuperfluidPoolDeployerLibrary,0xf0d),(SuperfluidPoolLogicDeployerLibrary,0xf0e),(SuperfluidPoolNFTLogicDeployerLibrary,0xf0f),(SuperTokenDeployerLibrary,0xf10),(SuperTokenFactoryDeployerLibrary,0xf11),(TokenDeployerLibrary,0xf12)"
+  "--compile-libraries=(CFAv1ForwarderDeployerLibrary,0xf01),(GDAv1ForwarderDeployerLibrary,0xf02),(ProxyDeployerLibrary,0xf04),(SlotsBitmapLibrary,0xf05),(SuperfluidCFAv1DeployerLibrary,0xf06),(SuperfluidGDAv1DeployerLibrary,0xf08),(SuperfluidGovDeployerLibrary,0xf09),(SuperfluidHostDeployerLibrary,0xf0a),(SuperfluidIDAv1DeployerLibrary,0xf0b),(SuperfluidPeripheryDeployerLibrary,0xf0c),(SuperfluidPoolDeployerLibrary,0xf0d),(SuperfluidPoolLogicDeployerLibrary,0xf0e),(SuperfluidPoolNFTLogicDeployerLibrary,0xf0f),(SuperTokenDeployerLibrary,0xf10),(SuperTokenFactoryDeployerLibrary,0xf11),(TokenDeployerLibrary,0xf12)"
 ]
 deployContracts: [
 ["0xf01", "CFAv1ForwarderDeployerLibrary"],
 ["0xf02", "GDAv1ForwarderDeployerLibrary"],
-["0xf03", "IDAv1ForwarderDeployerLibrary"],
 ["0xf04", "ProxyDeployerLibrary"],
 ["0xf05", "SlotsBitmapLibrary"],
 ["0xf06", "SuperfluidCFAv1DeployerLibrary"],
-["0xf07", "SuperfluidFlowNFTLogicDeployerLibrary"],
 ["0xf08", "SuperfluidGDAv1DeployerLibrary"],
 ["0xf09", "SuperfluidGovDeployerLibrary"],
 ["0xf0a", "SuperfluidHostDeployerLibrary"],

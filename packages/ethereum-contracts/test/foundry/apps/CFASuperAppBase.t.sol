@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import "forge-std/console.sol";
-import "../FoundrySuperfluidTester.sol";
-import { CFASuperAppBase } from "../../../contracts/apps/CFASuperAppBase.sol";
-import { CFASuperAppBaseTester } from "../../../contracts/mocks/CFASuperAppBaseTester.sol";
+
+import "../FoundrySuperfluidTester.t.sol";
+
 import {
     ISuperToken,
     ISuperApp,
@@ -12,6 +12,9 @@ import {
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
+import { CFASuperAppBase } from "../../../contracts/apps/CFASuperAppBase.sol";
+
+import { CFASuperAppBaseTester } from "./CFASuperAppBaseTester.t.sol";
 
 contract CFASuperAppBaseTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for SuperToken;
@@ -90,7 +93,7 @@ contract CFASuperAppBaseTest is FoundrySuperfluidTester {
         assertTrue(isSuperApp, "SuperAppBase: is superApp incorrect");
     }
 
-    function testAllowAllSuperTokensByDefault() public {
+    function testAllowAllSuperTokensByDefault() public view {
         assertTrue(
             superApp.isAcceptedSuperToken(superToken), "SuperAppBase: unrestricted | primary SuperToken accepted"
         );

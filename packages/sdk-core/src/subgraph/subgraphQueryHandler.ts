@@ -1,4 +1,5 @@
 import { TypedDocumentNode } from "@graphql-typed-document-node/core";
+import { ethers } from "ethers";
 import _ from "lodash";
 
 import { listAllResults } from "../Query";
@@ -224,7 +225,9 @@ export abstract class SubgraphQueryHandler<
 
         const response = await this.querySubgraph(subgraphClient, {
             where: {
-                id: query.id.toLowerCase(),
+                id: ethers.utils.isAddress(query.id)
+                    ? query.id.toLowerCase()
+                    : query.id,
             },
             skip: 0,
             take: 1,

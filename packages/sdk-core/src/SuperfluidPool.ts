@@ -13,6 +13,7 @@ import {
     GetClaimableParams,
     GetDisconnectedBalanceParams,
     GetMemberFlowRateParams,
+    GetTotalAmountReceivedByMemberParams,
     GetUnitsParams,
     SuperfluidPoolDecreaseAllowanceParams,
     SuperfluidPoolIncreaseAllowanceParams,
@@ -231,6 +232,31 @@ export default class SuperfluidPoolClass {
             throw new SFError({
                 type: "SUPERFLUID_POOL_READ",
                 message: "There was an error getting member flow rate.",
+                cause: err,
+            });
+        }
+    };
+
+    /**
+     * Retrieves the flow rate for a specific member.
+     * @param member The member's address.
+     * @param providerOrSigner A provider or signer object
+     * @returns The total amount received by the member.
+     */
+    getTotalAmountReceivedByMember = async (
+        params: GetTotalAmountReceivedByMemberParams
+    ): Promise<string> => {
+        try {
+            return (
+                await this.contract
+                    .connect(params.providerOrSigner)
+                    .getTotalAmountReceivedByMember(params.member)
+            ).toString();
+        } catch (err) {
+            throw new SFError({
+                type: "SUPERFLUID_POOL_READ",
+                message:
+                    "There was an error getting the total amount received by member.",
                 cause: err,
             });
         }

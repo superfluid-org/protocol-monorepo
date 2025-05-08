@@ -1,0 +1,52 @@
+name: Setup Workflow Base
+description: >
+  This sets up the base for a workflow, where:
+
+  - nix is installed,
+  - cache is looked up,
+  - and nix dev shell is setup if cache is missed.
+
+inputs:
+  package-name:
+    description: Name of the package where input files are from
+    required: true
+  cache-key-prefix:
+    description: Cache key prefix to attach to the calculated input files hash
+    required: true
+  dev-shell-name:
+    description: Default shell to be used
+
+outputs:
+  cache-hit:
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - uses: DeterminateSystems/nix-installer-action@v13
+
+    - name: Load the half-board nix module
+      id: hb
+      run: |
+        ./tasks/mk-cache-key.sh ./packages/${{ inputs.package-name }} > cache.json
+        jq . cache.json
+        key_prefix="${{ inputs.cache-key-prefix }}"
+        path=$(jq '.outputs | join("\n")' cache.json)
+        hash=$(jq -r .hash cache.json)
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+        echo "key=${key_prefix}${hash}" >> "$GITHUB_OUTPUT"
+      shell: nix develop .#mk-cache-key -c bash -xe {0}
+
+    - name: Lookup cache
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ fromJSON(steps.hb.outputs.path) }}
+        key: ${{ steps.hb.outputs.key }}
+
+    - name: Initialize nix dev shell
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        node --version
+        yarn --version
+      shell: nix develop .#${{ inputs.dev-shell-name }} -c bash -xe {0}

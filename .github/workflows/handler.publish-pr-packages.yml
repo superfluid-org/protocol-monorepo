@@ -12,17 +12,17 @@ jobs:
 
     permissions: write-all
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v3
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 24.x
 
       - name: Show context
         env:
@@ -39,7 +39,7 @@ jobs:
       - name: Download artifact
         continue-on-error: true
         id: download_artifact
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v6
         with:
           workflow: ${{ github.event.workflow_run.workflow_id }}
           workflow_conclusion: success

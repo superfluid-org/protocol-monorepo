@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
@@ -14,7 +14,8 @@ import { AgreementLibrary } from "./AgreementLibrary.sol";
 
 
 /**
- * @title InstantDistributionAgreementV1 contract
+ * @title [DEPRECATED] InstantDistributionAgreementV1 contract
+ * @custom:deprecated Use GeneralDistributionAgreementV1 instead
  * @author Superfluid
  * @dev Please read IInstantDistributionAgreementV1 for implementation notes.
  * @dev For more technical notes, please visit protocol-monorepo wiki area.

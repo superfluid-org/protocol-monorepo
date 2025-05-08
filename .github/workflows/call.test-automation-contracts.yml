@@ -7,37 +7,46 @@ jobs:
   test-automation-contract:
     name: Test Automation Contracts
 
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18, 20]
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
-        shell: nix develop .#ci-node${{ matrix.node-version }} -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
+      - name: Setup workflow base
+        id: base
+        uses: ./.github/actions/setup-workflow-base
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          package-name: automation-contracts
+          cache-key-prefix: automation-contracts-
+          dev-shell-name: ci-default
 
-      - name: Install, lint and build
+      - name: Install dependencies
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
           yarn install --frozen-lockfile
+          solc --version
+          forge --version
+
+      - name: Lint and build
+        if: steps.base.outputs.cache-hit != 'true'
+        run: |
           yarn lint
           yarn build
 
       - name: Test automation-contracts-scheduler
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
-          echo "FOUNDRY_PROFILE=ci" >> $GITHUB_ENV
-          echo "FOUNDRY_SOLC_VERSION=$SOLC" >> $GITHUB_ENV
           yarn workspace scheduler test
+        env:
+          FOUNDRY_PROFILE: ci
 
       - name: Test automation-contracts-autowrap
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
-          echo "FOUNDRY_PROFILE=ci" >> $GITHUB_ENV
-          echo "FOUNDRY_SOLC_VERSION=$SOLC" >> $GITHUB_ENV
           yarn workspace autowrap test
+        env:
+          FOUNDRY_PROFILE: ci

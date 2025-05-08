@@ -20,6 +20,7 @@ import { mockedGetAppManifest, mockedRealtimeBalanceOf } from "../../mockedFunct
 import { updatePoolConnectionAndReturnPoolConnectionUpdatedEvent } from "../gdav1.helper";
 import { updateMemberUnitsAndReturnMemberUnitsUpdatedEvent } from "../gdav1.helper";
 import { stringToBytes } from "../../converters";
+import { AccountTokenSnapshot } from "../../../generated/schema";
 
 const initialFlowRate = BigInt.fromI32(100);
 const superToken = maticXAddress;
@@ -31,13 +32,19 @@ describe("GeneralDistributionAgreementV1 Event Entity Unit Tests", () => {
 
     test("handlePoolCreated() - Should create a new PoolCreatedEvent entity", () => {
         const admin = bob;
+        const accountTokenSnapshotId = admin + "-" + superToken;
+
+        // Act
         const poolCreatedEvent = createPoolAndReturnPoolCreatedEvent(admin, superToken, superfluidPool);
 
+        // Assert
         const id = assertEventBaseProperties(poolCreatedEvent, "PoolCreated");
         assert.fieldEquals("PoolCreatedEvent", id, "token", superToken);
         assert.fieldEquals("PoolCreatedEvent", id, "caller", poolCreatedEvent.transaction.from.toHexString());
         assert.fieldEquals("PoolCreatedEvent", id, "admin", admin);
         assert.fieldEquals("PoolCreatedEvent", id, "pool", superfluidPool);
+
+        assert.fieldEquals("AccountTokenSnapshot", accountTokenSnapshotId, "adminOfPoolCount", BigInt.fromI32(1).toString());
     });
 
     test("handlePoolConnectionUpdated() - Should create a new handlePoolConnectionUpdatedEvent entity (connected)", () => {

@@ -20,8 +20,6 @@ When your Super Token balance reaches a certain lower threshold, Auto Wrap steps
 
 PRIVATE_KEY=
 
-GOERLI_PRIVATE_KEY=
-MUMBAI_PRIVATE_KEY=
 POLYGON_PRIVATE_KEY=
 BSC_PRIVATE_KEY=
 
@@ -59,8 +57,7 @@ npx hardhat addStrategy --manager <manager_address> --strategy <strategy_address
 #### Testnets
 |          | Manager                                                                                                                              | WrapStrategy                                                                                                                         |
 |----------|--------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
-| Goerli   | [0x0B82D14E9616ca4d260E77454834AdCf5887595F](https://goerli.etherscan.io/address/0x0B82D14E9616ca4d260E77454834AdCf5887595F#code)    | [0xea49af829d3e28d3ec49e0e0a0ba1e7860a56f60](https://goerli.etherscan.io/address/0xea49af829d3e28d3ec49e0e0a0ba1e7860a56f60#code)    |
-| Mumbai   | [0x3eAB3c6207F488E475b7955B631B564F0E6317B9](https://mumbai.polygonscan.com/address/0x3eAB3c6207F488E475b7955B631B564F0E6317B9#code) | [0x544728AFDBeEafBeC9e1329031788edb53017bC4](https://mumbai.polygonscan.com/address/0x544728AFDBeEafBeC9e1329031788edb53017bC4#code) |
+| OP Sepolia   | [0xe567b32C10B0dB72d9490eB1B9A409C5ADed192C](https://sepolia-optimism.etherscan.io/address/0xe567b32C10B0dB72d9490eB1B9A409C5ADed192C) | [0xf232f1fd34CE12e24F4391865c2D6E374D2C34d9](https://sepolia-optimism.etherscan.io/address/0xf232f1fd34CE12e24F4391865c2D6E374D2C34d9) |
 
 #### Mainnets
 

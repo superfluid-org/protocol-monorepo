@@ -22,7 +22,7 @@ export class SubgraphClient {
             variables: variables ? cleanVariables<V>(variables) : undefined,
             // TODO: explicit casting is semi-dirty and not recommended
             // but I am not sure how to fix this right now
-        } as RequestExtendedOptions<V, T>);
+        } as unknown as RequestExtendedOptions<V, T>);
     }
 }
 

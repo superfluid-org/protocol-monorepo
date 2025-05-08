@@ -1,14 +1,28 @@
 {
     "name": "@superfluid-finance/subgraph",
-    "version": "1.7.0",
     "description": "Subgraph for the Superfluid Ethereum contracts.",
+    "version": "2.2.0",
+    "dependencies": {
+        "@graphprotocol/graph-cli": "0.97.0",
+        "@graphprotocol/graph-ts": "0.38.0",
+        "@superfluid-finance/sdk-core": "0.9.0",
+        "mustache": "4.2.0"
+    },
+    "devDependencies": {
+        "@superfluid-finance/metadata": "^1.6.0",
+        "coingecko-api": "^1.0.10",
+        "graphql": "^16.9.0",
+        "graphql-request": "^6.1.0",
+        "lodash": "^4.17.21",
+        "matchstick-as": "^0.6.0"
+    },
     "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/subgraph",
+    "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
         "directory": "packages/subgraph"
     },
-    "license": "MIT",
     "scripts": {
         "getAbi": "node scripts/getAbi",
         "codegen": "graph codegen",
@@ -42,25 +56,10 @@
         "watch": "graph deploy superfluid-test --node http://localhost:8020/ --ipfs http://localhost:5001 --watch",
         "lint": "run-s lint:*",
         "lint:js-eslint": "eslint . --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look good.'",
-        "pre-commit": "if [ ! -z \"$(git status -s .)\" ];then run-s pre-commit:*;else true;fi",
-        "pre-commit:lint": "yarn lint",
         "generate-sf-meta": "./tasks/getSFMeta.sh",
         "generate-sf-meta-local": "COMMIT_HASH=local CONFIGURATION=local BRANCH=local TAG=local ./tasks/getSFMeta.sh",
         "check-updates": "ncu --target minor --dep prod,dev",
-        "cloc": "cloc src"
-    },
-    "dependencies": {
-        "@graphprotocol/graph-cli": "0.67.4",
-        "@graphprotocol/graph-ts": "0.32.0",
-        "@superfluid-finance/sdk-core": "^0.6.13",
-        "mustache": "^4.2.0"
-    },
-    "devDependencies": {
-        "@superfluid-finance/metadata": "^1.1.27",
-        "coingecko-api": "^1.0.10",
-        "graphql": "^16.8.1",
-        "graphql-request": "^6.1.0",
-        "lodash": "^4.17.21",
-        "matchstick-as": "^0.6.0"
+        "cloc": "cloc src",
+        "example:deploy-to-goldsky": "GOLDSKY_API_KEY=${YOUR_API_KEY} bash ./tasks/deploy.sh -o goldsky -n ${NETWORK} -r ${TAG} -v ${VERSION}"
     }
 }

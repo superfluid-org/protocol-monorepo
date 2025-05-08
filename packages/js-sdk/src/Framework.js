@@ -59,7 +59,7 @@ module.exports = class Framework {
                 options.gasReportType !== "JSON"
             ) {
                 throw new Error(
-                    "Unsuported gas report type: " + options.gasReportType
+                    "Unsupported gas report type: " + options.gasReportType
                 );
             }
             console.debug("Enabling gas report type:", options.gasReportType);
@@ -95,7 +95,7 @@ module.exports = class Framework {
             contractLoader: this._options.contractLoader,
             networkId: this.networkId,
             // copy of ethereum-contracts/ops-scripts/libs/common.js:getGasConfig()
-            gasConfig: (networkId) => {
+            gasConfig: ((networkId) => {
                 let gasConfig = {};
 
                 const networkConfig = Object.values(truffleConfig.networks)
@@ -123,7 +123,7 @@ module.exports = class Framework {
                 }
 
                 return gasConfig;
-            },
+            })(this.networkId),
         });
 
         const resolverAddress =

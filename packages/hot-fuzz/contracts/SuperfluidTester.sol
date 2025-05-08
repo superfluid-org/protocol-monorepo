@@ -8,11 +8,8 @@ import {ISuperfluidPool} from
 import {PoolConfig} from
     "@superfluid-finance/ethereum-contracts/contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import "@superfluid-finance/ethereum-contracts/contracts/agreements/ConstantFlowAgreementV1.sol";
-import "@superfluid-finance/ethereum-contracts/contracts/agreements/InstantDistributionAgreementV1.sol";
-import "@superfluid-finance/ethereum-contracts/contracts/apps/CFAv1Library.sol";
-import "@superfluid-finance/ethereum-contracts/contracts/apps/IDAv1Library.sol";
 import {SuperTokenV1Library} from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
-import "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.sol";
+import "@superfluid-finance/ethereum-contracts/contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 
 contract SuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
@@ -123,39 +120,6 @@ contract SuperfluidTester {
         );
     }
 
-    // IDA functions
-    function createIndex(uint32 indexId) public {
-        superToken.createIndex(indexId);
-    }
-
-    function updateSubscriptionUnits(uint32 indexId, address subscriber, uint128 units) public {
-        superToken.updateSubscriptionUnits(indexId, subscriber, units);
-    }
-
-    function updateIndex(uint32 indexId, uint128 indexValue) public {
-        superToken.updateIndexValue(indexId, indexValue);
-    }
-
-    function distribute(uint32 indexId, uint256 amount) public {
-        superToken.distribute(indexId, amount);
-    }
-
-    function approveSubscription(address publisher, uint32 indexId) public {
-        superToken.approveSubscription(publisher, indexId);
-    }
-
-    function revokeSubscription(address publisher, uint32 indexId) public {
-        superToken.revokeSubscription(publisher, indexId);
-    }
-
-    function deleteSubscription(address publisher, uint32 indexId, address subscriber) public {
-        superToken.deleteSubscription(publisher, indexId, subscriber);
-    }
-
-    function claim(address publisher, uint32 indexId, address subscriber) public {
-        superToken.claim(publisher, indexId, subscriber);
-    }
-
     // GDA functions
     function createPool(address admin, PoolConfig memory config) public returns (ISuperfluidPool pool) {
         pool = superToken.createPool(admin, config);
@@ -169,8 +133,8 @@ contract SuperfluidTester {
         superToken.disconnectPool(pool);
     }
 
-    function distributeToPool(address from, ISuperfluidPool pool, uint256 requestedAmount) public {
-        superToken.distributeToPool(from, pool, requestedAmount);
+    function distribute(address from, ISuperfluidPool pool, uint256 requestedAmount) public {
+        superToken.distribute(from, pool, requestedAmount);
     }
 
     function distributeFlow(address from, ISuperfluidPool pool, int96 flowRate) public {

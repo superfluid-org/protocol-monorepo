@@ -10,23 +10,21 @@ jobs:
 
     permissions: write-all
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: superfluid-finance/build-scripts
           path: build-scripts
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Parse Tag
         env:
@@ -58,7 +56,7 @@ jobs:
         id: publish-sdk-core
         if: env.PUBLISH_SDK_CORE == 1
         run: |
-          yarn --cwd packages/sdk-core generate-graphql-schema:v1
+          yarn --cwd packages/sdk-core get-graphql-schema:v1
           yarn --cwd packages/ethereum-contracts build
           yarn --cwd packages/sdk-core build
           tasks/npm-publish.sh packages/sdk-core/ latest
@@ -103,7 +101,7 @@ jobs:
         if: env.PUBLISH_SDK_REDUX == 1
         run: |
           yarn --cwd packages/ethereum-contracts build
-          yarn --cwd packages/sdk-core generate-graphql-schema:v1
+          yarn --cwd packages/sdk-core get-graphql-schema:v1
           yarn --cwd packages/sdk-core build
           yarn --cwd packages/sdk-redux build
           tasks/npm-publish.sh packages/sdk-redux/ latest

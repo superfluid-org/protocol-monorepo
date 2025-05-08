@@ -1,8 +1,10 @@
-specVersion: 0.0.5
-description: Subgraph for the Superfluid Ethereum contracts.
+specVersion: 1.0.0
+description: Subgraph for the Superfluid Protocol V1 contracts.
 repository: https://github.com/superfluid-finance/protocol-monorepo
 schema:
     file: ./schema.graphql
+indexerHints:
+  prune: {{#indexerHints_prune}}{{ indexerHints_prune }}{{/indexerHints_prune}}{{^indexerHints_prune}}never{{/indexerHints_prune}}
 dataSources:
     - kind: ethereum/contract
       name: SuperTokenFactory
@@ -13,7 +15,7 @@ dataSources:
           startBlock: {{ hostStartBlock }}
       mapping:
           kind: ethereum/events
-          apiVersion: 0.0.7
+          apiVersion: 0.0.8
           language: wasm/assemblyscript
           file: ./src/mappings/superTokenFactory.ts
           entities:
@@ -50,7 +52,7 @@ dataSources:
           startBlock: {{ hostStartBlock }}
       mapping:
           kind: ethereum/events
-          apiVersion: 0.0.7
+          apiVersion: 0.0.8
           language: wasm/assemblyscript
           file: ./src/mappings/host.ts
           entities:
@@ -96,7 +98,7 @@ dataSources:
           startBlock: {{ hostStartBlock }}
       mapping:
           kind: ethereum/events
-          apiVersion: 0.0.7
+          apiVersion: 0.0.8
           language: wasm/assemblyscript
           file: ./src/mappings/cfav1.ts
           entities:
@@ -139,7 +141,7 @@ dataSources:
         startBlock: {{ hostStartBlock }}
       mapping:
         kind: ethereum/events
-        apiVersion: 0.0.7
+        apiVersion: 0.0.8
         language: wasm/assemblyscript
         file: ./src/mappings/idav1.ts
         entities:
@@ -210,7 +212,7 @@ dataSources:
         startBlock: {{ hostStartBlock }}
       mapping:
         kind: ethereum/events
-        apiVersion: 0.0.7
+        apiVersion: 0.0.8
         language: wasm/assemblyscript
         file: ./src/mappings/gdav1.ts
         entities:
@@ -263,7 +265,7 @@ dataSources:
         startBlock: {{ hostStartBlock }}
       mapping:
         kind: ethereum/events
-        apiVersion: 0.0.7
+        apiVersion: 0.0.8
         language: wasm/assemblyscript
         file: ./src/mappings/resolver.ts
         entities:
@@ -289,72 +291,6 @@ dataSources:
           - event: Set(indexed string,address)
             handler: handleSet
             receipt: true
-    - kind: ethereum/contract
-      name: ConstantOutflowNFT
-      network: {{ network }}
-      source:
-        address: "{{ constantOutflowNFTAddress }}"
-        abi: IFlowNFTBase
-        startBlock: {{ hostStartBlock }}
-      mapping:
-        kind: ethereum/events
-        apiVersion: 0.0.7
-        language: wasm/assemblyscript
-        file: ./src/mappings/flowNFT.ts
-        entities:
-          - ApprovalEvent
-          - ApprovalForAllEvent
-          - MetadataUpdateEvent
-          - TransferEvent
-        abis:
-          - name: IFlowNFTBase
-            file: ./abis/IFlowNFTBase.json
-        eventHandlers:
-          - event: Transfer(indexed address,indexed address,indexed uint256)
-            handler: handleTransfer
-            receipt: true
-          - event: Approval(indexed address,indexed address,indexed uint256)
-            handler: handleApproval
-            receipt: true
-          - event: ApprovalForAll(indexed address,indexed address,bool)
-            handler: handleApprovalForAll
-            receipt: true
-          - event: MetadataUpdate(uint256)
-            handler: handleMetadataUpdate
-            receipt: true
-    - kind: ethereum/contract
-      name: ConstantInflowNFT
-      network: {{ network }}
-      source:
-        address: "{{ constantInflowNFTAddress }}"
-        abi: IFlowNFTBase
-        startBlock: {{ hostStartBlock }}
-      mapping:
-        kind: ethereum/events
-        apiVersion: 0.0.7
-        language: wasm/assemblyscript
-        file: ./src/mappings/flowNFT.ts
-        entities:
-          - ApprovalEvent
-          - ApprovalForAllEvent
-          - MetadataUpdateEvent
-          - TransferEvent
-        abis:
-          - name: IFlowNFTBase
-            file: ./abis/IFlowNFTBase.json
-        eventHandlers:
-          - event: Transfer(indexed address,indexed address,indexed uint256)
-            handler: handleTransfer
-            receipt: true
-          - event: Approval(indexed address,indexed address,indexed uint256)
-            handler: handleApproval
-            receipt: true
-          - event: ApprovalForAll(indexed address,indexed address,bool)
-            handler: handleApprovalForAll
-            receipt: true
-          - event: MetadataUpdate(uint256)
-            handler: handleMetadataUpdate
-            receipt: true
 templates:
   - name: SuperToken
     kind: ethereum/contract
@@ -363,7 +299,7 @@ templates:
       abi: ISuperToken
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       file: ./src/mappings/superToken.ts
       entities:
@@ -422,7 +358,7 @@ templates:
       abi: SuperfluidGovernanceBase
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       file: ./src/mappings/superfluidGovernance.ts
       entities:
@@ -462,7 +398,7 @@ templates:
       abi: TOGA
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       file: ./src/mappings/toga.ts
       entities:
@@ -489,7 +425,7 @@ templates:
       abi: ISuperfluidPool
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.8
       language: wasm/assemblyscript
       file: ./src/mappings/superfluidPool.ts
       entities:

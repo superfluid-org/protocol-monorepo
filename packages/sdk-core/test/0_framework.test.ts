@@ -27,7 +27,7 @@ makeSuite("Framework Tests", (testEnv: TestEnvironment) => {
             try {
                 await Framework.create({
                     // force cast because we know this exists
-                    chainId: networkNameToChainIdMap.get("eth-goerli")!,
+                    chainId: networkNameToChainIdMap.get("polygon-mainnet")!,
                     provider: testEnv.provider,
                 });
             } catch (err: any) {
@@ -36,7 +36,7 @@ makeSuite("Framework Tests", (testEnv: TestEnvironment) => {
                     "Network Mismatch Error: Your provider network chainId is: " +
                         chainId +
                         " whereas your desired chainId is: " +
-                        networkNameToChainIdMap.get("eth-goerli")!
+                        networkNameToChainIdMap.get("polygon-mainnet")!
                 );
             }
         });

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
@@ -8,11 +8,12 @@ import {
     ISuperToken
 } from "../interfaces/superfluid/ISuperTokenFactory.sol";
 import {
-    ISuperfluid, IConstantOutflowNFT, IConstantInflowNFT, IPoolAdminNFT, IPoolMemberNFT
+    ISuperfluid, IPoolAdminNFT, IPoolMemberNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { UUPSProxy } from "../upgradability/UUPSProxy.sol";
 import { UUPSProxiable } from "../upgradability/UUPSProxiable.sol";
 import { FullUpgradableSuperTokenProxy } from "./FullUpgradableSuperTokenProxy.sol";
+import { IConstantOutflowNFT, IConstantInflowNFT } from "./SuperToken.sol";
 
 abstract contract SuperTokenFactoryBase is
     UUPSProxiable,
@@ -144,16 +145,6 @@ abstract contract SuperTokenFactoryBase is
         // We only do this if the new logic contracts passed in updating the SuperTokenFactory
         // are different from the current logic contracts
         SuperTokenFactory newFactory = SuperTokenFactory(newAddress);
-        address newConstantOutflowLogic = address(newFactory.CONSTANT_OUTFLOW_NFT_LOGIC());
-        address newConstantInflowLogic = address(newFactory.CONSTANT_INFLOW_NFT_LOGIC());
-
-        if (address(CONSTANT_OUTFLOW_NFT_LOGIC) != newConstantOutflowLogic) {
-            UUPSProxiable(address(_SUPER_TOKEN_LOGIC.CONSTANT_OUTFLOW_NFT())).updateCode(newConstantOutflowLogic);
-        }
-
-        if (address(CONSTANT_INFLOW_NFT_LOGIC) != newConstantInflowLogic) {
-            UUPSProxiable(address(_SUPER_TOKEN_LOGIC.CONSTANT_INFLOW_NFT())).updateCode(newConstantInflowLogic);
-        }
 
         if (address(POOL_ADMIN_NFT_LOGIC) != address(newFactory.POOL_ADMIN_NFT_LOGIC())) {
             UUPSProxiable(address(_SUPER_TOKEN_LOGIC.POOL_ADMIN_NFT())).updateCode(

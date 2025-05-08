@@ -24,7 +24,7 @@ on:
 jobs:
 
   list-super-token-script:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       RELEASE_VERSION: ${{ github.event.inputs.release_version }}
@@ -35,14 +35,13 @@ jobs:
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        # sticking to node20, otherwise truffle fails.
+        shell: nix develop .#ci-node20 -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Build
         run: |
@@ -57,18 +56,4 @@ jobs:
           npx truffle exec \
             --network ${{ github.event.inputs.network }} \
             ops-scripts/resolver-list-super-token.js \
-            : ${{ github.event.inputs.token_address }}
-
-      # workaround for OG networks with a Resolver not emitting events
-      - name: Trigger Transfer Event
-        if: >
-          github.event.inputs.network == 'polygon-mainnet' ||
-          github.event.inputs.network == 'xdai-mainnet' ||
-          github.event.inputs.network == 'polygon-mumbai' ||
-          github.event.inputs.network == 'eth-goerli'
-        run: |
-          cd packages/ethereum-contracts
-          npx truffle exec \
-            --network ${{ github.event.inputs.network }} \
-            ops-scripts/tmp-trigger-token-transfer.js \
             : ${{ github.event.inputs.token_address }}

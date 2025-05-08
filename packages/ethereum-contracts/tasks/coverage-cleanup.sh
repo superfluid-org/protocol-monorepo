@@ -4,13 +4,15 @@ set -ex
 
 cd "$(dirname "$0")"/..
 
+LCOV="lcov --ignore-errors inconsistent"
+
 # extract coverage for Superfluid contracts from forge coverage
-lcov -e ../../lcov.info \
+$LCOV -e ../../lcov.info \
      "packages/ethereum-contracts/contracts/*" \
      -o lcov.info
 
 # remove contracts whose coverage we don't care about (see .solcover.js)
-lcov -r lcov.info \
+$LCOV -r lcov.info \
      "packages/ethereum-contracts/contracts/mocks/*" \
      "packages/ethereum-contracts/contracts/apps/*Base*" \
      "packages/ethereum-contracts/contracts/utils/*Test*" \
@@ -19,6 +21,6 @@ lcov -r lcov.info \
      -o lcov.info
 
 # merge hardhat and forge coverage files
-lcov -a lcov.info \
+$LCOV -a lcov.info \
      -a coverage/lcov.info \
      -o coverage/lcov.info

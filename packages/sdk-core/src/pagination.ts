@@ -121,7 +121,7 @@ export function isLastIdPaging(paging?: Paging): paging is LastIdPaging {
 export function isAllPaging(paging?: Paging): paging is AllPaging {
     return (
         paging !== undefined &&
-        paging.skip === undefined &&
+        !paging.skip &&
         paging.lastId === undefined &&
         paging.take === Infinity
     );

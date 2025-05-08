@@ -1,11 +1,12 @@
 import { Address, BigInt, ethereum } from "@graphprotocol/graph-ts";
 import { createMockedFunction } from "matchstick-as/assembly/index";
 import { FlowUpdated } from "../generated/ConstantFlowAgreementV1/IConstantFlowAgreementV1";
-import { BIG_INT_ZERO } from "../src/utils";
+import { BIG_INT_ZERO, ZERO_ADDRESS } from "../src/utils";
 import {
     FAKE_INITIAL_BALANCE,
     FAKE_SUPER_TOKEN_TOTAL_SUPPLY,
     hostAddress,
+    resolverAddress,
 } from "./constants";
 import {
     getETHAddress,
@@ -45,6 +46,8 @@ export function mockedHandleSuperTokenInitRPCCalls(
     // token.try_decimals()
     mockedTokenDecimals(superToken, decimals);
     // [END] getTokenInfoAndReturn
+
+    mockedResolverGet(resolverAddress, "supertokens.v1." + tokenSymbol, ZERO_ADDRESS.toHexString());
 
     // updateTotalSupplyForNativeSuperToken(token, tokenStatistic, tokenAddress)
     mockedTokenTotalSupply(superToken, FAKE_SUPER_TOKEN_TOTAL_SUPPLY);
@@ -95,7 +98,7 @@ export function mockedHandleFlowUpdatedRPCCalls(
     // getOrInitStream(event) => getOrInitAccount(receiver) => host.try_getAppManifest(receiver)
     mockedGetAppManifest(receiver, false, false, BIG_INT_ZERO);
 
-    // [START] getOrInitStream(event) => getOrInitSuperToken(token, block) => handleTokenRPCCalls(token, resolverAddress)
+    // [START] getOrInitStream(event) => getOrInitSuperToken(token, block) => handleTokenRPCCalls(token)
     mockedHandleSuperTokenInitRPCCalls(
         superToken,
         decimals,
@@ -103,7 +106,9 @@ export function mockedHandleFlowUpdatedRPCCalls(
         tokenName,
         tokenSymbol
     );
-    // [END] getOrInitStream(event) => getOrInitSuperToken(token, block) => handleTokenRPCCalls(token, resolverAddress)
+    // [END] getOrInitStream(event) => getOrInitSuperToken(token, block) => handleTokenRPCCalls(token)
+
+    mockedResolverGet(resolverAddress, "supertokens.v1." + tokenSymbol, ZERO_ADDRESS.toHexString());
 
     // updateATSStreamedAndBalanceUntilUpdatedAt => updateATSBalanceAndUpdatedAt => try_realtimeBalanceOf(sender)
     mockedRealtimeBalanceOf(
@@ -378,4 +383,20 @@ export function mockedApprove(
             ethereum.Value.fromAddress(Address.fromString(spenderAddress))
         ])
         .returns([getETHUnsignedBigInt(expectedValue)]);
+}
+
+export function mockedAppManifestAndRealtimeBalanceOf(
+    tokenAddress: string,
+    accountAddress: string,
+    timestamp: BigInt
+): void {
+    mockedGetAppManifest(accountAddress, false, false, BIG_INT_ZERO);
+    mockedRealtimeBalanceOf(
+        tokenAddress,
+        accountAddress,
+        timestamp,
+        FAKE_INITIAL_BALANCE,
+        BIG_INT_ZERO,
+        BIG_INT_ZERO
+    );
 }

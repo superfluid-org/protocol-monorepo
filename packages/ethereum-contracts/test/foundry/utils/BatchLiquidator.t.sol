@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
-import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 import {
     ISuperfluid,
     ISuperToken,
@@ -61,17 +61,17 @@ contract BatchLiquidatorTest is FoundrySuperfluidTester {
         _helperTransferAll(superToken, sender, admin);
     }
 
-    function _assertNoCFAFlow(address sender, address receiver) internal {
+    function _assertNoCFAFlow(address sender, address receiver) internal view {
         (, int96 flowRate,,) = sf.cfa.getFlow(superToken, sender, receiver);
         assertEq(flowRate, 0, "BatchLiquidator: CFA Flowrate should be 0");
     }
 
-    function _assertNoGDAFlow(address sender, ISuperfluidPool pool) internal {
+    function _assertNoGDAFlow(address sender, ISuperfluidPool pool) internal view {
         int96 flowRate = sf.gda.getFlowRate(superToken, sender, pool);
         assertEq(flowRate, 0, "BatchLiquidator: GDA Flowrate should be 0");
     }
 
-    function _assertLiquidatorBalanceGreater(address _liqudidator, uint256 balanceBefore_) internal {
+    function _assertLiquidatorBalanceGreater(address _liqudidator, uint256 balanceBefore_) internal view {
         assertGt(
             superToken.balanceOf(_liqudidator),
             balanceBefore_,

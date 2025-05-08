@@ -6,9 +6,42 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
 ### Changed
+### Fixed
+
+## [0.9.0] - 2024-12-13
+
+### Added
+- Handle new Operation types with BatchCall
+- Forward ETH value with BatchCall and Operation
+
+## [0.8.0] - 2024-08-01
+
+### Breaking
+
+-   Removed all FlowNFT related functionality, because deprecated from the protocol
+
+## [0.7.1] - 2024-06-19
+
+### Updated
+
+-   Metadata changes for recently added networks
+
+## [0.7.0] - 2023-05-01
+
+### Added
+
+-   Added Degen chain support
+-   Added `getTotalAmountReceivedByMember`
+
+### Changed
+
 -   Map the name from subgraph to an unknown event, instead of "\_Unknown".
 -   Don't lock metadata version to a specific version, use semver (^).
+-   Allow infinite pagination with 'skip: 0' value (previously had to be undefined)
+-   Add subgraphs queries for Pools, PoolMembers and PoolDistributors
+-   Map `isNFTApproval` and `isNFTTransfer` onto events
 
 ## [0.6.12] - 2023-10-23
 

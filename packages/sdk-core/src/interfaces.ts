@@ -778,6 +778,11 @@ export interface GetMemberFlowRateParams {
     readonly providerOrSigner: ethers.providers.Provider | ethers.Signer;
 }
 
+export interface GetTotalAmountReceivedByMemberParams {
+    readonly member: string;
+    readonly providerOrSigner: ethers.providers.Provider | ethers.Signer;
+}
+
 export interface ClaimAllForMemberParams {
     readonly member: string;
     readonly signer: ethers.Signer;

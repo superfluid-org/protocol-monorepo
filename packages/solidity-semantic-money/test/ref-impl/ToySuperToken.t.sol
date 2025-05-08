@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 // solhint-disable not-rely-on-time
 
@@ -62,17 +62,17 @@ contract ToySuperTokenTest is Test {
         vm.stopPrank();
     }
 
-    function assertEq(FlowRate a, FlowRate b, string memory e) internal {
+    function assertEq(FlowRate a, FlowRate b, string memory e) internal pure {
         assertEq(FlowRate.unwrap(a), FlowRate.unwrap(b), e);
     }
-    function assertEq(Unit a, Unit b, string memory e) internal {
+    function assertEq(Unit a, Unit b, string memory e) internal pure {
         assertEq(Unit.unwrap(a), Unit.unwrap(b), e);
     }
-    function assertEq(Value a, Value b, string memory e) internal {
+    function assertEq(Value a, Value b, string memory e) internal pure {
         assertEq(Value.unwrap(a), Value.unwrap(b), e);
     }
     function getAdjustmentFlowRate(ToySuperfluidPool pool, address expectedRecipient)
-        internal returns (FlowRate)
+        internal view returns (FlowRate)
     {
         (address recipient, ,FlowRate r) = token.getPoolAdjustmentFlowInfo(pool);
         assertEq(recipient, expectedRecipient, "expectedRecipient fail");
@@ -117,7 +117,7 @@ contract ToySuperTokenTest is Test {
         vm.startPrank(alice);
         token.flow(alice, bob, FlowId.wrap(0), rr1);
         vm.stopPrank();
-        assertEq(token.getNetFlowRate(alice), rr1.inv(), "e1.1");
+        assertEq(token.getNetFlowRate(alice), -rr1, "e1.1");
         assertEq(token.getNetFlowRate(bob), rr1, "e1.2");
         assertEq(token.getFlowRate(alice, bob, FlowId.wrap(0)), rr1, "e1.3");
 
@@ -126,7 +126,7 @@ contract ToySuperTokenTest is Test {
         vm.startPrank(alice);
         token.flow(alice, bob, FlowId.wrap(0), rr2);
         vm.stopPrank();
-        assertEq(token.getNetFlowRate(alice), rr2.inv(), "e2.1");
+        assertEq(token.getNetFlowRate(alice), -rr2, "e2.1");
         assertEq(token.getNetFlowRate(bob), rr2, "e2.2");
         assertEq(token.getFlowRate(alice, bob, FlowId.wrap(0)), rr2, "e2.3");
 
@@ -162,7 +162,7 @@ contract ToySuperTokenTest is Test {
         assertEq(token.getFlowRate(alice, bob, FlowId.wrap(0)), rr1, "e1.1");
         assertEq(token.getFlowRate(alice, carol, FlowId.wrap(0)), rr2, "e1.2");
         assertEq(token.getFlowRate(bob, carol, FlowId.wrap(0)), FlowRate.wrap(0), "e1.3");
-        assertEq(token.getNetFlowRate(alice).inv(),
+        assertEq(-token.getNetFlowRate(alice),
                  token.getNetFlowRate(bob) + token.getNetFlowRate(carol), "e2");
         assertEq(a1 - a2, k2 + (uint256(r1) + uint256(r2)) * uint256(dt1), "e3.1");
         assertEq(a1 - a2, k2 + b2 - b1 + c2 - c1, "e3.2");
@@ -197,7 +197,7 @@ contract ToySuperTokenTest is Test {
         assertEq(token.getFlowRate(bob, carol, FlowId.wrap(0)), rr2, "e1.2");
         assertEq(token.getFlowRate(alice, bob, FlowId.wrap(0)), FlowRate.wrap(0), "e1.3");
         assertEq(token.getNetFlowRate(alice) + token.getNetFlowRate(bob),
-                 token.getNetFlowRate(carol).inv(), "e2");
+                 -token.getNetFlowRate(carol), "e2");
         assertEq(a1 - a2, k1 + uint256(r1) * uint256(t2), "e3.1");
         assertEq(b1 - b2, k2 + uint256(r2) * uint256(t2), "e3.2");
         assertEq(a1 - a2 + b1 - b2, k1 + k2 + c2 - c1, "e3.3");
@@ -309,11 +309,11 @@ contract ToySuperTokenTest is Test {
             emit log_named_int("cnr1", FlowRate.unwrap(cnr1));
 
             assertEq(pdr, pdr1, "e4.1");
-            assertEq(anr1, ar.inv() + ajr1, "e4.2");
+            assertEq(anr1, -ar + ajr1, "e4.2");
             assertEq(pdr, rrr1, "e4.3");
-            assertEq(anr1, rrr1.inv() + ajr1, "e4.4");
+            assertEq(anr1, -rrr1 + ajr1, "e4.4");
             assertEq(bnr1 + cnr1, rrr1, "e4.5");
-            assertEq(pnr1, ajr1.inv(), "e4.6");
+            assertEq(pnr1, -ajr1, "e4.6");
             assertEq(anr1 + bnr1 + cnr1 + pnr1, FlowRate.wrap(0), "e4.7");
         }
 
@@ -340,11 +340,11 @@ contract ToySuperTokenTest is Test {
             emit log_named_int("cnr2", FlowRate.unwrap(cnr2));
 
             assertEq(pdr, pdr2, "e5.1");
-            assertEq(ar.inv() + ajr2, anr2, "e5.2");
+            assertEq(-ar + ajr2, anr2, "e5.2");
             assertEq(pdr, rrr2, "e5.3");
-            assertEq(rrr2.inv() + ajr2, anr2, "e5.4");
+            assertEq(-rrr2 + ajr2, anr2, "e5.4");
             assertEq(bnr2 + cnr2, rrr2, "e5.5");
-            assertEq(pnr2, ajr2.inv(), "e5.6");
+            assertEq(pnr2, -ajr2, "e5.6");
             assertEq(anr2 + bnr2 + cnr2 + pnr2, FlowRate.wrap(0), "e5.7");
         }
         {
@@ -424,7 +424,7 @@ contract ToySuperTokenTest is Test {
             FlowRate pr2 = token.getNetFlowRate(address(pl));
 
             assertEq(pl.getConnectedFlowRate(), rrr, "e4.1");
-            assertEq(ar2, rrr.inv(), "e4.2");
+            assertEq(ar2, -rrr, "e4.2");
             assertEq(br2 + pl.getDisconnectedFlowRate(), rrr, "e4.3");
             assertEq(pr2, pl.getDisconnectedFlowRate(), "e4.4");
             assertEq(ar2 + br2 + cr2 + pr2, FlowRate.wrap(0), "e4.5");
@@ -505,7 +505,7 @@ contract ToySuperTokenTest is Test {
             emit log_named_int("pnr4", FlowRate.unwrap(pnr4));
 
             assertEq(pl.getConnectedFlowRate(), rrr, "e3.1");
-            assertEq(anr4, rrr.inv(), "e3.2");
+            assertEq(anr4, -rrr, "e3.2");
             assertEq(bnr4 + pl.getDisconnectedFlowRate(), rrr, "e3.3");
             assertEq(pnr4, pl.getDisconnectedFlowRate(), "e3.4");
             assertEq(anr4 + bnr4 + pnr4, FlowRate.wrap(0), "e3.5");
@@ -619,8 +619,8 @@ contract ToySuperTokenTest is Test {
             assertEq(pr2, FlowRate.wrap(0), "e4.5");
             assertEq(ar2 + br2 + cr2 + pr2, FlowRate.wrap(0), "e4.6");
             assertEq(pdr2, pdr, "e4.7");
-            assertEq(ar2.inv(), ar, "e4.8");
-            assertEq(br2.inv(), br, "e4.9");
+            assertEq(-ar2, ar, "e4.8");
+            assertEq(-br2, br, "e4.9");
         }
 
         {

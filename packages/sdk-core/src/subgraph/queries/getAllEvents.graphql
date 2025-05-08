@@ -12,6 +12,7 @@ query getAllEvents(
         orderBy: $orderBy
         orderDirection: $orderDirection
     ) {
+        name
         ... on FlowUpdatedEvent {
             # we repeat `...eventFields` in each event so it throws an error in the mapper when an expected event isn't included here
             ...eventFields
@@ -396,12 +397,6 @@ query getAllEvents(
             ...eventFields
         }
         ... on ApprovalEvent {
-            ...eventFields
-        }
-        ... on ApprovalForAllEvent {
-            ...eventFields
-        }
-        ... on MetadataUpdateEvent {
             ...eventFields
         }
     }

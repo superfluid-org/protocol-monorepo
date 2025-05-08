@@ -7,13 +7,12 @@ import {
 } from 'wagmi';
 import {
   polygon,
-  polygonMumbai,
-  goerli
+  avalancheFuji
 } from 'wagmi/chains'
 import { publicProvider } from 'wagmi/providers/public';
 
 export const { chains, provider } = configureChains(
-  [polygon, polygonMumbai, goerli],
+  [polygon, avalancheFuji],
   [
     publicProvider()
   ]
@@ -21,6 +20,7 @@ export const { chains, provider } = configureChains(
 
 export const { connectors } = getDefaultWallets({
   appName: 'SDK-redux example',
+  projectId: "",
   chains
 });
 

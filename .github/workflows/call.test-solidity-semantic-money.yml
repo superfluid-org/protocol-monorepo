@@ -7,32 +7,36 @@ jobs:
   test-solidity-semantic-money:
     name: Test solidity-semantic-money - Linux
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
      run:
-       shell: nix develop . -c bash -xe {0}
+       shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: cachix/install-nix-action@v19
+      - uses: actions/checkout@v4
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          submodules: recursive
 
-      - name: Initialize Nix DevShell
+      - name: Setup workflow base
+        id: base
+        uses: ./.github/actions/setup-workflow-base
+        with:
+          package-name: solidity-semantic-money
+          cache-key-prefix: solidity-semantic-money-
+          dev-shell-name: ci-default
+
+      - name: Install dependencies
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
+          yarn install --frozen-lockfile
+          solc --version
           forge --version
 
-      - name: Initialize Node Modules
+      - name: Build and test
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
-          yarn install
-
-      - name: Build & Test
-        run: |
-          cd packages/solidity-semantic-money
-          # use native compiler provided through the nix devShell
-          echo "FOUNDRY_SOLC_VERSION=$SOLC" >> $GITHUB_ENV
           make build-src test-all
+        working-directory: packages/solidity-semantic-money
         env:
           FOUNDRY_FUZZ_RUNS: 4200 # yea, baby

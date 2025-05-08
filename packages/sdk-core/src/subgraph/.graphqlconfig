@@ -4,7 +4,7 @@
   "extensions": {
     "endpoints": {
       "Default GraphQL Endpoint": {
-        "url": "https://api.thegraph.com/subgraphs/name/superfluid-finance/protocol-feature-goerli",
+        "url": "https://subgraph-endpoints.superfluid.dev/optimism-mainnet/protocol-v1",
         "headers": {
           "user-agent": "JS GraphQL"
         },

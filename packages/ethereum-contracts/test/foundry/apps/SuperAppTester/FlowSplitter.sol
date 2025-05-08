@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 // code taken from:
 // https://github.com/superfluid-finance/super-examples/blob/main/projects/flow-splitter/contracts/FlowSplitter.sol

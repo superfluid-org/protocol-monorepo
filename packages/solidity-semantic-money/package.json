@@ -1,37 +1,34 @@
 {
-  "name": "@superfluid-finance/solidity-semantic-money",
-  "version": "0.1.0",
-  "description": "Semantic money implementation in solidity.",
-  "main": "index.js",
-  "directories": {
-    "src": "src",
-    "test": "test"
-  },
-  "scripts": {
-    "test": "make test-all",
-    "lint": "run-s lint:*",
-    "lint:sol": "solhint -w 0 `find src test -name *.sol` && echo '✔  Your .sol files look good.'",
-    "pre-commit": "if [ ! -z \"$(git status -s .)\" ];then run-s pre-commit:*;else true;fi",
-    "pre-commit:lint": "yarn lint",
-    "check-updates": "ncu --target minor"
-  },
-  "dependencies": {
-    "@openzeppelin/contracts": "4.9.6"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
-    "directory": "packages/solidity-semantic-money"
-  },
-  "keywords": [
-    "money",
-    "finance",
-    "semantic money",
-    "solidity"
-  ],
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/superfluid-finance/protocol-monorepo/issues"
-  },
-  "homepage": "https://github.com/superfluid-finance/protocol-monorepo#readme"
+    "name": "@superfluid-finance/solidity-semantic-money",
+    "description": "Semantic money implementation in solidity.",
+    "version": "0.1.0",
+    "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
+    "dependencies": {
+        "@openzeppelin/contracts": "4.9.6"
+    },
+    "directories": {
+        "src": "src",
+        "test": "test"
+    },
+    "homepage": "https://github.com/superfluid-finance/protocol-monorepo#readme",
+    "keywords": [
+        "money",
+        "finance",
+        "semantic money",
+        "solidity"
+    ],
+    "license": "MIT",
+    "main": "index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "directory": "packages/solidity-semantic-money"
+    },
+    "scripts": {
+        "build": "make build-all",
+        "test": "make test-all",
+        "lint": "run-s lint:*",
+        "lint:sol": "solhint -w 0 `find src test -name *.sol` && echo '✔  Your .sol files look good.'",
+        "check-updates": "ncu --target minor"
+    }
 }

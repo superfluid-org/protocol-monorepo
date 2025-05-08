@@ -77,6 +77,20 @@ export function createTokenUpgradedEvent(
     return newTokenUpgradedEvent;
 }
 
+export function createSuperTokenApprovalEvent(
+    owner: string,
+    spender: string,
+    value: BigInt
+): Approval {
+    const newApprovalEvent = changetype<Approval>(newMockEvent());
+    newApprovalEvent.parameters = new Array();
+    newApprovalEvent.parameters.push(getAddressEventParam("owner", owner));
+    newApprovalEvent.parameters.push(getAddressEventParam("spender", spender));
+    newApprovalEvent.parameters.push(getBigIntEventParam("value", value));
+
+    return newApprovalEvent;
+}
+
 export function createTokenDowngradedEvent(
     account: string,
     amount: BigInt

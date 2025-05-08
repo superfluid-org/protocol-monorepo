@@ -22,13 +22,12 @@ export const subgraphApi = initializeSubgraphApiSlice((options) =>
 ).injectEndpoints(allSubgraphEndpoints);
 
 export const makeStore = () => {
-    const goerliChainId = 5;
-    setFrameworkForSdkRedux(goerliChainId, () =>
+    const xdaiChainId = 100;
+    setFrameworkForSdkRedux(xdaiChainId, () =>
         Framework.create({
-            chainId: goerliChainId,
+            chainId: xdaiChainId,
             provider: new ethers.providers.StaticJsonRpcProvider(
-                "https://rpc-endpoints.superfluid.dev/eth-goerli",
-                "goerli" 
+                "https://rpc-endpoints.superfluid.dev/xdai-mainnet"
             ),
         })
     );

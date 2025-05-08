@@ -6,6 +6,34 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [2.2.0]
+
+- Fix missing Token name/symbol in some cases
+- Fix Pool's `totalAmountDistributed` being wrong in some cases
+- Add `adminOfPoolCount` to AccountTokenSnapshot to count how many pools the account is admin of
+- Add `balanceLastUpdatedFromRpcBlocknumber` to AccountTokenSnapshot to track when last RPC call was made
+- Don't always make an RPC call when updating the balance of an AccountTokenSnapshot, use the balance delta for simple cases
+- Account for GDA's adjustment flow when setting the `isLiquidationEstimateOptimistic` flag on AccountTokenSnapshot
+
+## [2.1.0]
+
+## Breaking
+
+- Removed FlowNFT related entities and attributes
+
+## [2.0.0]
+
+### Changed
+- Enabled history pruning which disables perfect time-travel queries.
+
+## [1.7.1] - 2024-04-22
+
+### Added
+- Support for vendor "airstack"
+
+### Fixes
+- Various GDA related fixes
+
 ## [1.7.0] - 2024-02-05
 
 ### Added

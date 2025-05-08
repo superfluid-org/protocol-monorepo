@@ -1,8 +1,6 @@
 import { BytesLike, ethers, Overrides } from "ethers";
 
 import ConstantFlowAgreementV1 from "./ConstantFlowAgreementV1";
-import ConstantInflowNFT from "./ConstantInflowNFT";
-import ConstantOutflowNFT from "./ConstantOutflowNFT";
 import ERC20Token from "./ERC20Token";
 import GeneralDistributionAgreementV1 from "./GeneralDistributionAgreementV1";
 import Governance from "./Governance";
@@ -72,11 +70,6 @@ import {
     tryGet,
 } from "./utils";
 
-export interface NFTAddresses {
-    readonly constantInflowNFTProxy: string;
-    readonly constantOutflowNFTProxy: string;
-}
-
 export interface ITokenSettings {
     readonly address: string;
     readonly config: IConfig;
@@ -105,10 +98,6 @@ export default abstract class SuperToken extends ERC20Token {
     readonly gdaV1: GeneralDistributionAgreementV1;
     readonly governance: Governance;
     readonly underlyingToken?: ERC20Token;
-    readonly constantOutflowNFTProxy?: ConstantOutflowNFT;
-    readonly constantInflowNFTProxy?: ConstantInflowNFT;
-    readonly constantOutflowNFTLogic?: string;
-    readonly constantInflowNFTLogic?: string;
     override readonly contract: ISuperToken;
 
     protected constructor(options: ITokenOptions, settings: ITokenSettings) {
@@ -183,73 +172,21 @@ export default abstract class SuperToken extends ERC20Token {
             const nativeTokenSymbol = resolverData.nativeTokenSymbol || "ETH";
             const nativeSuperTokenSymbol = nativeTokenSymbol + "x";
 
-            // @note This is tech debt and should be reverted once GoodDollar upgrades their token contract
-            // @note We are using tryGet here just to handle GoodDollar not having
-            // CONSTANT_OUTFLOW_NFT in its SuperToken implementation.
-            let constantOutflowNFTProxy = await tryGet(
-                superToken.CONSTANT_OUTFLOW_NFT(),
-                ethers.constants.AddressZero
-            );
-            let constantInflowNFTProxy = await tryGet(
-                superToken.CONSTANT_INFLOW_NFT(),
-                ethers.constants.AddressZero
-            );
-
-            // @note We only want to run this bit of code for GoodDollar SuperTokens
-            // (dev and mainnet)
-            const GOOD_DOLLAR_SYMBOL = "G$";
-            if (tokenSymbol === GOOD_DOLLAR_SYMBOL) {
-                // @note we need to create a new interface for the old GoodDollar SuperToken
-                // which contains the functions for constantInflowNFT and constantOutflowNFT
-                const oldSuperTokenInterface = new ethers.utils.Interface([
-                    "function constantInflowNFT() view returns (address)",
-                    "function constantOutflowNFT() view returns (address)",
-                ]);
-                const goodDollarSpecificToken = new ethers.Contract(
-                    superToken.address,
-                    oldSuperTokenInterface
-                );
-
-                // @note we attempt to get the constantInflowNFT and constantOutflowNFT
-                if (constantOutflowNFTProxy === ethers.constants.AddressZero) {
-                    constantOutflowNFTProxy = await tryGet(
-                        goodDollarSpecificToken.constantOutflowNFT(),
-                        ethers.constants.AddressZero
-                    );
-                }
-                if (constantInflowNFTProxy === ethers.constants.AddressZero) {
-                    constantInflowNFTProxy = await tryGet(
-                        goodDollarSpecificToken.constantInflowNFT(),
-                        ethers.constants.AddressZero
-                    );
-                }
-            }
-
-            const nftAddresses: NFTAddresses = {
-                constantOutflowNFTProxy,
-                constantInflowNFTProxy,
-            };
-
             if (nativeSuperTokenSymbol === tokenSymbol) {
                 return new NativeAssetSuperToken(
                     options,
                     settings,
-                    nativeTokenSymbol,
-                    nftAddresses
+                    nativeTokenSymbol
                 );
             }
 
             if (underlyingTokenAddress !== ethers.constants.AddressZero) {
-                return new WrapperSuperToken(
-                    options,
-                    {
-                        ...settings,
-                        underlyingTokenAddress,
-                    },
-                    nftAddresses
-                );
+                return new WrapperSuperToken(options, {
+                    ...settings,
+                    underlyingTokenAddress,
+                });
             }
-            return new PureSuperToken(options, settings, nftAddresses);
+            return new PureSuperToken(options, settings);
         } catch (err) {
             throw new SFError({
                 type: "SUPERTOKEN_INITIALIZATION",
@@ -1042,22 +979,13 @@ export default abstract class SuperToken extends ERC20Token {
  */
 export class WrapperSuperToken extends SuperToken {
     override readonly underlyingToken: ERC20Token;
-    override readonly constantOutflowNFTProxy: ConstantOutflowNFT;
-    override readonly constantInflowNFTProxy: ConstantInflowNFT;
 
     constructor(
         options: ITokenOptions,
-        settings: ITokenSettings & { underlyingTokenAddress: string },
-        nftAddresses: NFTAddresses
+        settings: ITokenSettings & { underlyingTokenAddress: string }
     ) {
         super(options, settings);
         this.underlyingToken = new ERC20Token(settings.underlyingTokenAddress);
-        this.constantInflowNFTProxy = new ConstantInflowNFT(
-            nftAddresses.constantInflowNFTProxy
-        );
-        this.constantOutflowNFTProxy = new ConstantOutflowNFT(
-            nftAddresses.constantOutflowNFTProxy
-        );
     }
 
     /** ### WrapperSuperToken Contract Write Functions ### */
@@ -1159,21 +1087,8 @@ export class WrapperSuperToken extends SuperToken {
  * PureSuperToken doesn't have any underlying ERC20 token.
  */
 export class PureSuperToken extends SuperToken {
-    override readonly constantOutflowNFTProxy: ConstantOutflowNFT;
-    override readonly constantInflowNFTProxy: ConstantInflowNFT;
-
-    constructor(
-        options: ITokenOptions,
-        settings: ITokenSettings,
-        nftAddresses: NFTAddresses
-    ) {
+    constructor(options: ITokenOptions, settings: ITokenSettings) {
         super(options, settings);
-        this.constantInflowNFTProxy = new ConstantInflowNFT(
-            nftAddresses.constantInflowNFTProxy
-        );
-        this.constantOutflowNFTProxy = new ConstantOutflowNFT(
-            nftAddresses.constantOutflowNFTProxy
-        );
     }
 }
 
@@ -1182,23 +1097,14 @@ export class PureSuperToken extends SuperToken {
  */
 export class NativeAssetSuperToken extends SuperToken {
     readonly nativeTokenSymbol: string;
-    override readonly constantOutflowNFTProxy: ConstantOutflowNFT;
-    override readonly constantInflowNFTProxy: ConstantInflowNFT;
 
     constructor(
         options: ITokenOptions,
         settings: ITokenSettings,
-        nativeTokenSymbol: string,
-        nftAddresses: NFTAddresses
+        nativeTokenSymbol: string
     ) {
         super(options, settings);
         this.nativeTokenSymbol = nativeTokenSymbol;
-        this.constantInflowNFTProxy = new ConstantInflowNFT(
-            nftAddresses.constantInflowNFTProxy
-        );
-        this.constantOutflowNFTProxy = new ConstantOutflowNFT(
-            nftAddresses.constantOutflowNFTProxy
-        );
     }
 
     get nativeAssetContract() {

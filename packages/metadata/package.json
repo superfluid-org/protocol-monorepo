@@ -1,33 +1,28 @@
 {
-  "name": "@superfluid-finance/metadata",
-  "version": "1.1.28",
-  "description": "Superfluid Metadata",
-  "main": "main/index.cjs",
-  "module": "module/index.js",
-  "type": "module",
-  "types": "module/index.d.ts",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
-    "directory": "packages/metadata"
-  },
-  "bugs": {
-    "url": "https://github.com/superfluid-finance/protocol-monorepo/issues"
-  },
-  "scripts": {
-    "build": "./build.sh && echo '@superfluid-finance/metadata build successfully'",
-    "bump-version-to": "./bump-version-to.sh $@",
-    "pre-commit": "if [ ! -z \"$(git status -s .)\" ];then run-s pre-commit:*;else true;fi",
-    "pre-commit:lint": "yarn lint",
-    "pre-commit:check": "./tasks/compare-committed-against-build.sh",
-    "lint": "run-s lint:*",
-    "lint:js-eslint": "eslint . --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look good.'",
-    "lint:consistency": "./tasks/compare-committed-against-build.sh",
-    "fix": "run-s fix:*",
-    "fix:eslint": "yarn lint:js-eslint --fix",
-    "check-updates": "ncu --target minor"
-  },
-  "author": "Superfluid",
-  "license": "MIT",
-  "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/metadata#readme"
+    "name": "@superfluid-finance/metadata",
+    "description": "Superfluid Metadata",
+    "version": "1.6.0",
+    "author": "Superfluid",
+    "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
+    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/metadata#readme",
+    "license": "MIT",
+    "main": "main/index.cjs",
+    "module": "module/index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "directory": "packages/metadata"
+    },
+    "scripts": {
+        "build": "./build.sh && echo '@superfluid-finance/metadata build successfully'",
+        "bump-version-to": "./bump-version-to.sh $@",
+        "lint": "run-s lint:*",
+        "lint:js-eslint": "eslint . --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look good.'",
+        "lint:consistency": "./tasks/compare-committed-against-build.sh",
+        "fix": "run-s fix:*",
+        "fix:eslint": "yarn lint:js-eslint --fix",
+        "check-updates": "ncu --target minor"
+    },
+    "type": "module",
+    "types": "module/index.d.ts"
 }

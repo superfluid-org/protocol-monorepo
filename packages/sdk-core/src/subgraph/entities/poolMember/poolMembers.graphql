@@ -1,0 +1,39 @@
+query poolMembers(
+    $first: Int = 10
+    $skip: Int = 0
+    $orderBy: PoolMember_orderBy = id
+    $orderDirection: OrderDirection = asc
+    $where: PoolMember_filter = {}
+    $block: Block_height
+) {
+    poolMembers(
+        first: $first
+        orderBy: $orderBy
+        orderDirection: $orderDirection
+        skip: $skip
+        where: $where
+        block: $block
+    ) {
+        id
+        createdAtTimestamp
+        createdAtBlockNumber
+        updatedAtTimestamp
+        updatedAtBlockNumber
+        units
+        pool {
+            id
+            token {
+                id
+            }
+        }
+        account {
+            id
+        }
+        isConnected
+        totalAmountClaimed
+        totalAmountReceivedUntilUpdatedAt
+        poolTotalAmountDistributedUntilUpdatedAt
+        syncedPerUnitFlowRate
+        syncedPerUnitSettledValue
+    }
+}

@@ -18,8 +18,6 @@ deployContractsAndToken()
             nativeAssetSuperTokenAddress:
                 tokenDeploymentOutput.nativeAssetSuperTokenData
                     .nativeAssetSuperTokenAddress,
-            constantOutflowNFTAddress: frameworkAddresses.constantOutflowNFT,
-            constantInflowNFTAddress: frameworkAddresses.constantInflowNFT,
         };
 
         // create json output

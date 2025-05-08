@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 // solhint-disable not-rely-on-time
 
@@ -57,7 +57,7 @@ contract AqueductTest is Test {
         }
     }
 
-    function assertEq(Value a, Value b, string memory e) internal {
+    function assertEq(Value a, Value b, string memory e) internal pure {
         assertEq(Value.unwrap(a), Value.unwrap(b), e);
     }
 

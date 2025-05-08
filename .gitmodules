@@ -1,6 +1,3 @@
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "cairo_contracts"]
-	path = packages/starknet-contracts/lib/cairo_contracts
-	url = https://github.com/OpenZeppelin/cairo-contracts

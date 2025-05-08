@@ -22,10 +22,42 @@ module.exports = function getConfig(chainId) {
             trustedForwarders: ["0x3075b4dc7085C48A14A5A39BBa68F58B19545971"],
         },
 
+        // persistent chains
+
+        // eth-mainnet
+        1: {
+            // we keep it low because mainnet is expensive and we don't want solvency risks
+            appCallbackGasLimit: 3000000,
+        },
+
+        // xdai-mainnet
+        100: {
+            // half of the block gas limit of 17M
+            appCallbackGasLimit: 8500000,
+        },
+
+        // avalanche-fuji
+        43113: {
+            // half of the block gas limit of 15M
+            appCallbackGasLimit: 7500000,
+        },
+        // avalanche-c
+        43114: {
+            // half of the block gas limit of 15M
+            appCallbackGasLimit: 7500000,
+        },
+
         // Celo Mainnet
         42220: {
             gov_enableAppWhiteListing: false,
-        }
+        },
+
+        // scroll-mainnet
+        534352: {
+            // we keep it low in order to minimize the chance of "proof overflows"
+            // see https://docs.scroll.io/en/technology/sequencer/execution-node/#circuit-capacity-checker
+            appCallbackGasLimit: 3000000,
+        },
     };
 
     const sfNw = sfMetadata.getNetworkByChainId(chainId);
@@ -47,10 +79,12 @@ module.exports = function getConfig(chainId) {
         },
         cfaFwd: sfNw?.contractsV1?.cfaV1Forwarder || "0xcfA132E353cB4E398080B9700609bb008eceB125",
         gdaFwd: sfNw?.contractsV1?.gdaV1Forwarder || "0x6dA170169d5Fca20F902b7E5755346a97c94B07c",
+        macroFwd: sfNw?.contractsV1?.macroForwarder || "0xFD0268E33111565dE546af2675351A4b1587F89F",
         nativeTokenSymbol: sfNw?.nativeTokenSymbol || "ETH",
         metadata: sfNw,
         resolverAddress: global?.process.env.RESOLVER_ADDRESS || sfNw?.contractsV1?.resolver,
         trustedForwarders: sfNw?.trustedForwarders,
+        appCallbackGasLimit: 15000000,
         ...EXTRA_CONFIG[chainId]
     };
 };

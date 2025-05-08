@@ -73,9 +73,9 @@ describe("SuperTokenV1Library.GDA", function () {
         const event = receipt.events?.find((x) =>
             x.topics.includes(POOL_CREATED_TOPIC)
         );
-        return ethers.utils.hexStripZeros(
-            event ? event.data : ethers.constants.AddressZero
-        );
+        return event
+            ? `0x${event.data.substring(event.data.length - 40)}`
+            : ethers.constants.AddressZero;
     };
 
     let alice: string, bob: string;
@@ -120,6 +120,7 @@ describe("SuperTokenV1Library.GDA", function () {
         );
         const receipt = await createPoolTxn.wait();
         const poolAddress = getPoolAddressFromReceipt(receipt);
+
         const poolContract = await ethers.getContractAt(
             "SuperfluidPool",
             poolAddress
@@ -169,7 +170,7 @@ describe("SuperTokenV1Library.GDA", function () {
                     pool.address,
                     requestedDistributionAmount
                 );
-            await superTokenLibraryGDAMock.distributeToPoolTest(
+            await superTokenLibraryGDAMock.distributeTest(
                 superToken.address,
                 superTokenLibraryGDAMock.address,
                 pool.address,

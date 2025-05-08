@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 // solhint-disable const-name-snakecase
 // solhint-disable max-line-length
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 /// @dev This is meant to be used by test framework to get the raw bytecode without compiling the origin contract
 library ERC1820RegistryCompiled {

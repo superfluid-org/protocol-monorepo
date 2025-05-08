@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
-import { FoundrySuperfluidTester } from "./FoundrySuperfluidTester.sol";
-import { IPureSuperToken, ISETH, TestToken, SuperToken } from "../../contracts/utils/SuperfluidFrameworkDeployer.sol";
+import { FoundrySuperfluidTester } from "./FoundrySuperfluidTester.t.sol";
+import { IPureSuperToken, ISETH, TestToken, SuperToken } from "../../contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import { SuperfluidLoader } from "../../contracts/utils/SuperfluidLoader.sol";
 
 contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
     constructor() FoundrySuperfluidTester(1) { }
 
-    function testAllContractsDeployed() public {
+    function testAllContractsDeployed() public view {
         assertTrue(address(sf.governance) != address(0), "SFDeployer: governance not deployed");
         assertTrue(address(sf.host) != address(0), "SFDeployer: host not deployed");
         assertTrue(address(sf.cfa) != address(0), "SFDeployer: cfa not deployed");
@@ -16,27 +16,25 @@ contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
         assertTrue(address(sf.gda) != address(0), "SFDeployer: gda not deployed");
         assertTrue(address(sf.superTokenFactory) != address(0), "SFDeployer: superTokenFactory not deployed");
         assertTrue(address(sf.superTokenLogic) != address(0), "SFDeployer: superTokenLogic not deployed");
-        assertTrue(address(sf.constantOutflowNFT) != address(0), "SFDeployer: constantOutflowNFT not deployed");
-        assertTrue(address(sf.constantInflowNFT) != address(0), "SFDeployer: constantInflowNFT not deployed");
         assertTrue(address(sf.resolver) != address(0), "SFDeployer: resolver not deployed");
         assertTrue(address(sf.superfluidLoader) != address(0), "SFDeployer: superfluidLoader not deployed");
         assertTrue(address(sf.cfaV1Forwarder) != address(0), "SFDeployer: cfaV1Forwarder not deployed");
-        assertTrue(address(sf.idaV1Forwarder) != address(0), "SFDeployer: idaV1Forwarder not deployed");
         assertTrue(address(sf.gdaV1Forwarder) != address(0), "SFDeployer: gdaV1Forwarder not deployed");
+        assertTrue(address(sf.macroForwarder) != address(0), "SFDeployer: macroForwarder not deployed");
         assertTrue(address(sf.batchLiquidator) != address(0), "SFDeployer: batchLiquidator not deployed");
     }
 
-    function testResolverGetsGovernance() public {
+    function testResolverGetsGovernance() public view {
         assertEq(
             sf.resolver.get("TestGovernance.test"), address(sf.governance), "SFDeployer: governance not registered"
         );
     }
 
-    function testResolverGetsHost() public {
+    function testResolverGetsHost() public view {
         assertEq(sf.resolver.get("Superfluid.test"), address(sf.host), "SFDeployer: host not registered");
     }
 
-    function testResolverGetsLoader() public {
+    function testResolverGetsLoader() public view {
         assertEq(
             sf.resolver.get("SuperfluidLoader-v1"),
             address(sf.superfluidLoader),
@@ -44,7 +42,7 @@ contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
         );
     }
 
-    function testLoaderGetsFramework() public {
+    function testLoaderGetsFramework() public view {
         SuperfluidLoader.Framework memory loadedSf = sf.superfluidLoader.loadFramework("test");
 
         assertEq(address(loadedSf.superfluid), address(sf.host), "SFDeployer: host not loaded");

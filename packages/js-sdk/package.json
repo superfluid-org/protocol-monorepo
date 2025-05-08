@@ -1,16 +1,24 @@
 {
     "name": "@superfluid-finance/js-sdk",
-    "version": "0.6.3",
     "description": "Javascript SDK for building with Superfluid Protocol",
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/js-sdk#readme",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
-        "directory": "packages/js-sdk"
+    "version": "0.6.3",
+    "browser": {
+        "fs": false,
+        "path": false
     },
-    "license": "MIT",
-    "main": "src/index.js",
-    "types": "src/index.d.ts",
+    "dependencies": {
+        "@superfluid-finance/metadata": "^1.6.0",
+        "@truffle/contract": "4.6.31",
+        "auto-bind": "4.0.0",
+        "node-fetch": "2.7.0"
+    },
+    "devDependencies": {
+        "@superfluid-finance/ethereum-contracts": "^1.12.1",
+        "chai-as-promised": "^8.0.0",
+        "webpack": "^5.94.0",
+        "webpack-bundle-analyzer": "^4.10.2",
+        "webpack-cli": "^5.1.4"
+    },
     "files": [
         "src/**/*.md",
         "src/**/*.d.ts",
@@ -18,9 +26,13 @@
         "src/**/*.js",
         "dist/index.js"
     ],
-    "browser": {
-        "fs": false,
-        "path": false
+    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/js-sdk#readme",
+    "license": "MIT",
+    "main": "src/index.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "directory": "packages/js-sdk"
     },
     "scripts": {
         "dev": "nodemon -e js,ts -i build -x 'truffle test 2>&1'",
@@ -35,24 +47,9 @@
         "stats": "webpack --profile --json > stats.json && webpack-bundle-analyzer ./stats.json",
         "lint": "run-s lint:*",
         "lint:js-eslint": "eslint . --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look good.'",
-        "check-no-focused-tests": "grep -FR .only test || { echo '✔  No test is focused.';exit 0; } && { echo '✘ You have focused tests.'; exit 1; }",
-        "pre-commit": "if [ ! -z \"$(git status -s .)\" ];then run-s pre-commit:*;else true;fi",
-        "pre-commit:lint": "yarn lint",
-        "pre-commit:check-no-focused-tests": "yarn check-no-focused-tests",
+        "lint:check-no-focused-tests": "grep -FR .only test || { echo '✔  No test is focused.';exit 0; } && { echo '✘ You have focused tests.'; exit 1; }",
         "check-updates": "ncu --target minor --dep prod,dev",
         "cloc": "sh tasks/cloc.sh"
     },
-    "dependencies": {
-        "@superfluid-finance/metadata": "^1.1.27",
-        "@truffle/contract": "4.6.31",
-        "auto-bind": "4.0.0",
-        "node-fetch": "2.7.0"
-    },
-    "devDependencies": {
-        "@superfluid-finance/ethereum-contracts": "^1.9.0",
-        "chai-as-promised": "^7.1.1",
-        "webpack": "^5.90.1",
-        "webpack-bundle-analyzer": "^4.10.1",
-        "webpack-cli": "^4.10.0"
-    }
+    "types": "src/index.d.ts"
 }

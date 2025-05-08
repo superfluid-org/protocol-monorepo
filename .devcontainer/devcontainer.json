@@ -3,7 +3,7 @@
 {
 	"name": "Node.js & TypeScript",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
+	"image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	"features": {
 		// If having issues with Nix then consult:
@@ -19,7 +19,9 @@
 		"ghcr.io/lukewiwa/features/shellcheck:0": {},
 		"ghcr.io/devcontainers-contrib/features/curl-apt-get:1": {},
 		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
-		"ghcr.io/devcontainers-contrib/features/act:1": {}
+		"ghcr.io/devcontainers-contrib/features/act:1": {},
+		"ghcr.io/devcontainers/features/node:1": {},
+		"ghcr.io/eitsupi/devcontainer-features/jq-likes:2": {}
 	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
@@ -29,10 +31,11 @@
 	// 3. if you want to use nix further, do "nix develop"
 	"postCreateCommand": [
 		"curl -L https://foundry.paradigm.xyz | bash",
-		"source /home/node/.bashrc && foundryup",
+		"source /home/vscode/.bashrc && foundryup",
 		"yarn global add npm-run-all",
 		"yarn install && yarn build",
-		"./tasks/fix-devcontainer.sh && nix develop . -c bash <(echo \"yarn install && yarn build\")"
+		"sudo apt-get install libpq5", // for subgraph's matchstick
+		"./tasks/fix-devcontainer.sh && yarn shell . -c bash <(echo \"yarn install && yarn build\")"
 	]
 	// Configure tool-specific properties.
 	// "customizations": {},

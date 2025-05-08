@@ -19,7 +19,7 @@ import {
 } from "../../../src/mappings/gdav1";
 import { updateMemberUnitsAndReturnMemberUnitsUpdatedEvent } from "../gdav1.helper";
 import { handleDistributionClaimed, handleMemberUnitsUpdated } from "../../../src/mappings/superfluidPool";
-import { getOrInitPoolMember } from "../../../src/mappingHelpers";
+import { getOrInitOrUpdatePoolMember } from "../../../src/mappingHelpers";
 import { stringToBytes } from "../../converters";
 
 const initialFlowRate = BigInt.fromI32(100);
@@ -285,7 +285,7 @@ describe("GeneralDistributionAgreementV1 Higher Order Level Entity Unit Tests", 
         const oldUnits = BigInt.fromI32(0);
         const newUnits = BigInt.fromI32(100000000);
         const memberUnitsUpdatedEvent = createMemberUnitsUpdatedEvent(superToken, poolMember, oldUnits, newUnits);
-        const poolMemberEntity = getOrInitPoolMember(
+        const poolMemberEntity = getOrInitOrUpdatePoolMember(
             memberUnitsUpdatedEvent,
             memberUnitsUpdatedEvent.address,
             Address.fromString(poolMember)
@@ -319,7 +319,7 @@ describe("GeneralDistributionAgreementV1 Higher Order Level Entity Unit Tests", 
         const oldUnits = BigInt.fromI32(0);
         const newUnits = BigInt.fromI32(100000000);
         const memberUnitsUpdatedEvent = createMemberUnitsUpdatedEvent(superToken, poolMember, oldUnits, newUnits);
-        const poolMemberEntity = getOrInitPoolMember(
+        const poolMemberEntity = getOrInitOrUpdatePoolMember(
             memberUnitsUpdatedEvent,
             memberUnitsUpdatedEvent.address,
             Address.fromString(poolMember)
@@ -362,7 +362,7 @@ describe("GeneralDistributionAgreementV1 Higher Order Level Entity Unit Tests", 
         const oldUnits = BigInt.fromI32(0);
         const newUnits = BigInt.fromI32(100000000);
         const memberUnitsUpdatedEvent = createMemberUnitsUpdatedEvent(superToken, poolMember, oldUnits, newUnits);
-        const poolMemberEntity = getOrInitPoolMember(
+        const poolMemberEntity = getOrInitOrUpdatePoolMember(
             memberUnitsUpdatedEvent,
             memberUnitsUpdatedEvent.address,
             Address.fromString(poolMember)
@@ -395,7 +395,7 @@ describe("GeneralDistributionAgreementV1 Higher Order Level Entity Unit Tests", 
         const oldUnits = BigInt.fromI32(0);
         const newUnits = BigInt.fromI32(100000000);
         const memberUnitsUpdatedEvent = createMemberUnitsUpdatedEvent(superToken, poolMember, oldUnits, newUnits);
-        const poolMemberEntity = getOrInitPoolMember(
+        const poolMemberEntity = getOrInitOrUpdatePoolMember(
             memberUnitsUpdatedEvent,
             memberUnitsUpdatedEvent.address,
             Address.fromString(poolMember)

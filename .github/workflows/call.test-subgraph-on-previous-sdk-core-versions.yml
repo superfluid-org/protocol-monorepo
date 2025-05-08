@@ -14,14 +14,12 @@ jobs:
   build-and-test-live-subgraph-previous-releases:
     name: Build and test current subgraph release with previous sdk-core versions
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
         version: [
-          v0.3.2,
-          v0.4.0,
-          v0.5.0,
+          v0.5.9,
           v0.6.0
           latest
         ]
@@ -32,14 +30,12 @@ jobs:
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: "Install dependencies"
         run: yarn install --frozen-lockfile
@@ -66,14 +62,11 @@ jobs:
         run: yarn prepare-local
         working-directory: ./packages/subgraph
 
-      - name: "Run setup-graph-node"
-        run: |
-          chmod +x ./tasks/setup-graph-node.sh
-          ./tasks/setup-graph-node.sh
-        working-directory: ./packages/subgraph
-
       - name: "Docker compose"
-        run: docker-compose up &
+        run: |
+          ./tasks/setup-graph-node.sh &
+          # wait for it to sync
+          sleep 15
         working-directory: ./packages/subgraph
 
       - name: "Prepare and Deploy Local Subgraph"

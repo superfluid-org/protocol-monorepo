@@ -6,10 +6,10 @@ on:
 
 jobs:
   update-evm-contracts-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Show contexts
         env:
@@ -23,17 +23,17 @@ jobs:
           echo github.head_ref: "$HEAD_REF"
           echo github.base_ref: ${{ github.base_ref }}
 
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v3
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 24.x
           cache: "yarn"
 
       - name: Install
         run: |
           yarn install --frozen-lockfile
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: superfluid-finance/build-scripts
           path: build-scripts

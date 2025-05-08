@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPLv3
 // solhint-disable not-rely-on-time
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 // Notes: We use these interfaces in natspec documentation below, grep @inheritdoc
 // solhint-disable-next-line no-unused-import
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {
     BasicParticle,
@@ -24,7 +24,36 @@ import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPo
 import { GeneralDistributionAgreementV1 } from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import { BeaconProxiable } from "../../upgradability/BeaconProxiable.sol";
 import { IPoolMemberNFT } from "../../interfaces/agreements/gdav1/IPoolMemberNFT.sol";
-import { SafeGasLibrary } from "../../libs/SafeGasLibrary.sol";
+
+using SafeCast for uint256;
+using SafeCast for int256;
+
+function toSemanticMoneyUnit(uint128 units) pure returns (Unit) {
+    // @note safe upcasting from uint128 to uint256
+    // and use of safecast library for downcasting from uint256 to int128
+    return Unit.wrap(uint256(units).toInt256().toInt128());
+}
+
+function poolIndexDataToWrappedParticle(SuperfluidPool.PoolIndexData memory data)
+    pure
+    returns (BasicParticle memory wrappedParticle)
+{
+    wrappedParticle = BasicParticle({
+        _settled_at: Time.wrap(data.wrappedSettledAt),
+        _flow_rate: FlowRate.wrap(int128(data.wrappedFlowRate)), // upcast from int96 is safe
+        _settled_value: Value.wrap(data.wrappedSettledValue)
+    });
+}
+
+function poolIndexDataToPDPoolIndex(SuperfluidPool.PoolIndexData memory data)
+    pure
+    returns (PDPoolIndex memory pdPoolIndex)
+{
+    pdPoolIndex = PDPoolIndex({
+        total_units: toSemanticMoneyUnit(data.totalUnits),
+        _wrapped_particle: poolIndexDataToWrappedParticle(data)
+    });
+}
 
 /**
  * @title SuperfluidPool
@@ -34,10 +63,33 @@ import { SafeGasLibrary } from "../../libs/SafeGasLibrary.sol";
  */
 contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     using SemanticMoney for BasicParticle;
-    using SafeCast for uint256;
-    using SafeCast for int256;
+
+    // Structs
+    struct PoolIndexData {
+        uint128 totalUnits;
+        uint32 wrappedSettledAt;
+        int96 wrappedFlowRate;
+        int256 wrappedSettledValue;
+    }
+
+    struct MemberData {
+        uint128 ownedUnits;
+        uint32 syncedSettledAt;
+        int96 syncedFlowRate;
+        int256 syncedSettledValue;
+        int256 settledValue;
+        int256 claimedValue;
+    }
+
+    // Constants & Immutables
+
+    string internal constant _DEFAULT_ERC20_NAME = "Superfluid Pool";
+    string internal constant _DEFAULT_ERC20_SYMBOL = "POOL";
+    // ERC20 decimals implicitly defaults to 0
 
     GeneralDistributionAgreementV1 public immutable GDA;
+
+    // State variables - NEVER REORDER!
 
     ISuperfluidToken public superToken;
     address public admin;
@@ -56,6 +108,11 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     /// @inheritdoc ISuperfluidPool
     bool public distributionFromAnyAddress;
 
+    // ERC20 metadata
+    string internal _erc20Name;
+    string internal _erc20Symbol;
+    uint8 internal _erc20Decimals;
+
     constructor(GeneralDistributionAgreementV1 gda) {
         GDA = gda;
     }
@@ -64,19 +121,26 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         address admin_,
         ISuperfluidToken superToken_,
         bool transferabilityForUnitsOwner_,
-        bool distributionFromAnyAddress_
+        bool distributionFromAnyAddress_,
+        string memory erc20Name_,
+        string memory erc20Symbol_,
+        uint8 erc20Decimals_
     ) external initializer {
         admin = admin_;
         superToken = superToken_;
         transferabilityForUnitsOwner = transferabilityForUnitsOwner_;
         distributionFromAnyAddress = distributionFromAnyAddress_;
+        _erc20Name = erc20Name_;
+        _erc20Symbol = erc20Symbol_;
+        _erc20Decimals = erc20Decimals_;
     }
 
     function proxiableUUID() public pure override returns (bytes32) {
         return keccak256("org.superfluid-finance.contracts.SuperfluidPool.implementation");
     }
 
-    function getIndex() external view returns (PoolIndexData memory) {
+    /// @dev This function is only meant to be called by the GDAv1 contract
+    function poolOperatorGetIndex() external view returns (PoolIndexData memory) {
         return _index;
     }
 
@@ -138,6 +202,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     }
 
     function _transfer(address from, address to, uint256 amount) internal {
+        if (from == to) revert SUPERFLUID_POOL_SELF_TRANSFER_NOT_ALLOWED();
         if (!transferabilityForUnitsOwner) revert SUPERFLUID_POOL_TRANSFER_UNITS_NOT_ALLOWED();
 
         uint128 fromUnitsBefore = _getUnits(from);
@@ -215,6 +280,21 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     }
 
     /// @inheritdoc ISuperfluidPool
+    function getTotalAmountReceivedByMember(address memberAddr) external view override returns (uint256) {
+        MemberData memory memberData = _membersData[memberAddr];
+
+        // max timestamp is uint32.max
+        return uint256(
+            Value.unwrap(
+                // PDPoolMemberMU(poolIndex, memberData)
+                PDPoolMemberMU(poolIndexDataToPDPoolIndex(_index), _memberDataToPDPoolMember(memberData)).settle(
+                    Time.wrap(uint32(block.timestamp))
+                ).m._settled_value
+            )
+        );
+    }
+
+    /// @inheritdoc ISuperfluidPool
     function getMemberFlowRate(address memberAddr) external view override returns (int96) {
         uint128 units = _getUnits(memberAddr);
         if (units == 0) return 0;
@@ -222,27 +302,19 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         else return (_index.wrappedFlowRate * uint256(units).toInt256()).toInt96();
     }
 
-    function _poolIndexDataToWrappedParticle(PoolIndexData memory data)
-        internal
-        pure
-        returns (BasicParticle memory wrappedParticle)
-    {
-        wrappedParticle = BasicParticle({
-            _settled_at: Time.wrap(data.wrappedSettledAt),
-            _flow_rate: FlowRate.wrap(int128(data.wrappedFlowRate)), // upcast from int96 is safe
-            _settled_value: Value.wrap(data.wrappedSettledValue)
-        });
+    /// @inheritdoc IERC20Metadata
+    function name() external view override returns (string memory) {
+        return bytes(_erc20Name).length == 0 ? "Superfluid Pool" : _erc20Name;
     }
 
-    function poolIndexDataToPDPoolIndex(PoolIndexData memory data)
-        public
-        pure
-        returns (PDPoolIndex memory pdPoolIndex)
-    {
-        pdPoolIndex = PDPoolIndex({
-            total_units: _toSemanticMoneyUnit(data.totalUnits),
-            _wrapped_particle: _poolIndexDataToWrappedParticle(data)
-        });
+    /// @inheritdoc IERC20Metadata
+    function symbol() external view override returns (string memory) {
+        return bytes(_erc20Symbol).length == 0 ? "POOL" : _erc20Symbol;
+    }
+
+    /// @inheritdoc IERC20Metadata
+    function decimals() external view override returns (uint8) {
+        return _erc20Decimals;
     }
 
     function _pdPoolIndexToPoolIndexData(PDPoolIndex memory pdPoolIndex)
@@ -264,7 +336,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         returns (PDPoolMember memory pdPoolMember)
     {
         pdPoolMember = PDPoolMember({
-            owned_units: _toSemanticMoneyUnit(memberData.ownedUnits),
+            owned_units: toSemanticMoneyUnit(memberData.ownedUnits),
             _synced_particle: BasicParticle({
                 _settled_at: Time.wrap(memberData.syncedSettledAt),
                 _flow_rate: FlowRate.wrap(int128(memberData.syncedFlowRate)), // upcast from int96 is safe
@@ -272,12 +344,6 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
             }),
             _settled_value: Value.wrap(memberData.settledValue)
         });
-    }
-
-    function _toSemanticMoneyUnit(uint128 units) internal pure returns (Unit) {
-        // @note safe upcasting from uint128 to uint256
-        // and use of safecast library for downcasting from uint256 to int128
-        return Unit.wrap(uint256(units).toInt256().toInt128());
     }
 
     function _pdPoolMemberToMemberData(PDPoolMember memory pdPoolMember, int256 claimedValue)
@@ -320,7 +386,15 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool) {
         if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
 
-        _updateMemberUnits(memberAddr, newUnits);
+        uint128 oldUnits = _updateMemberUnits(memberAddr, newUnits);
+
+        // Unit updates by admin are effectively mint/burn operations when viewed through the ERC20 lens.
+        // We thus emit a Transfer event from/to the zero address accordingly.
+        if (oldUnits < newUnits) {
+            emit Transfer(address(0), memberAddr, newUnits - oldUnits);
+        } else if (oldUnits > newUnits) {
+            emit Transfer(memberAddr, address(0), oldUnits - newUnits);
+        }
 
         return true;
     }
@@ -351,39 +425,23 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         IPoolMemberNFT poolMemberNFT = IPoolMemberNFT(_canCallNFTHook(superToken));
         if (address(poolMemberNFT) != address(0)) {
             uint256 tokenId = poolMemberNFT.getTokenId(address(this), memberAddr);
-            uint256 gasLeftBefore;
             if (newUnits == 0) {
                 if (poolMemberNFT.poolMemberDataByTokenId(tokenId).member != address(0)) {
-                    gasLeftBefore = gasleft();
-                    // solhint-disable-next-line no-empty-blocks
-                    try poolMemberNFT.onDelete(address(this), memberAddr) { }
-                    catch {
-                        SafeGasLibrary._revertWhenOutOfGas(gasLeftBefore);
-                    }
+                    poolMemberNFT.onDelete(address(this), memberAddr);
                 }
             } else {
                 // if not minted, we mint a new pool member nft
                 if (poolMemberNFT.poolMemberDataByTokenId(tokenId).member == address(0)) {
-                    gasLeftBefore = gasleft();
-                    // solhint-disable-next-line no-empty-blocks
-                    try poolMemberNFT.onCreate(address(this), memberAddr) { }
-                    catch {
-                        SafeGasLibrary._revertWhenOutOfGas(gasLeftBefore);
-                    }
-                    // if minted, we update the pool member nft
+                    poolMemberNFT.onCreate(address(this), memberAddr);
                 } else {
-                    gasLeftBefore = gasleft();
-                    // solhint-disable-next-line no-empty-blocks
-                    try poolMemberNFT.onUpdate(address(this), memberAddr) { }
-                    catch {
-                        SafeGasLibrary._revertWhenOutOfGas(gasLeftBefore);
-                    }
+                    // if minted, we update the pool member nft
+                    poolMemberNFT.onUpdate(address(this), memberAddr);
                 }
             }
         }
     }
 
-    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (bool) {
+    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
         // @note normally we keep the sanitization in the external functions, but here
         // this is used in both updateMemberUnits and transfer
         if (GDA.isPool(superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
@@ -391,24 +449,19 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
         uint32 time = uint32(ISuperfluid(superToken.getHost()).getNow());
         Time t = Time.wrap(time);
-        Unit wrappedUnits = _toSemanticMoneyUnit(newUnits);
+        Unit wrappedUnits = toSemanticMoneyUnit(newUnits);
 
         PDPoolIndex memory pdPoolIndex = poolIndexDataToPDPoolIndex(_index);
         MemberData memory memberData = _membersData[memberAddr];
         PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(memberData);
 
-        uint128 oldUnits = memberData.ownedUnits;
+        oldUnits = memberData.ownedUnits;
 
         PDPoolMemberMU memory mu = PDPoolMemberMU(pdPoolIndex, pdPoolMember);
 
         // update pool's disconnected units
         if (!GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr)) {
-            // trigger the side effect of claiming all if not connected
-            // @note claiming is a bit surprising here given the function name
-            int256 claimedAmount = _claimAll(memberAddr, time);
-
-            // update pool's disconnected units
-            _shiftDisconnectedUnits(wrappedUnits - mu.m.owned_units, Value.wrap(claimedAmount), t);
+            _shiftDisconnectedUnits(wrappedUnits - mu.m.owned_units, Value.wrap(0), t);
         }
 
         // update pool member's units
@@ -423,8 +476,6 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
 
         _handlePoolMemberNFT(memberAddr, newUnits);
-
-        return true;
     }
 
     function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {

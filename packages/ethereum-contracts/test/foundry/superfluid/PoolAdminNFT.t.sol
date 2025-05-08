@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import { IERC165, IERC721, IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
@@ -42,13 +42,13 @@ contract PoolAdminNFTIntegrationTest is PoolNFTBaseIntegrationTest {
                                     Passing Tests
     //////////////////////////////////////////////////////////////////////////*/
 
-    function testProxiableUUIDIsExpectedValue() public {
+    function testProxiableUUIDIsExpectedValue() public view {
         assertEq(
             poolAdminNFT.proxiableUUID(), keccak256("org.superfluid-finance.contracts.PoolAdminNFT.implementation")
         );
     }
 
-    function testTokenURIForPoolAdminNFT(uint256 tokenId) public {
+    function testTokenURIForPoolAdminNFT(uint256 tokenId) public view {
         assertEq(poolAdminNFT.tokenURI(tokenId), string(abi.encodePacked(poolAdminNFT.baseURI())));
     }
 }

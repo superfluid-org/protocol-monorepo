@@ -81,7 +81,7 @@ export function handleIndexCreated(event: IndexCreated): void {
         event.params.publisher,
         event.params.token,
         event.block,
-        null // will do RPC if any units exist anyways (balance isn't impacted by index creation)
+        BigInt.fromI32(0) // will do RPC if any units exist anyways (balance isn't impacted by index creation)
     );
 
     _createAccountTokenSnapshotLogEntity(
@@ -262,7 +262,7 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
         event.params.subscriber,
         event.params.token,
         event.block,
-        null // will do RPC if any units exist anyways
+        balanceDelta
     );
 
     if (hasSubscriptionWithUnits) {
@@ -280,7 +280,7 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
             event.params.publisher,
             event.params.token,
             event.block,
-            null // will do RPC if any units exist anyways
+            BigInt.fromI32(0)
         );
         _createAccountTokenSnapshotLogEntity(
             event,
@@ -365,13 +365,13 @@ export function handleSubscriptionDistributionClaimed(
         event.params.publisher,
         event.params.token,
         event.block,
-        null // will do RPC call if they have sub w/ units
+        BigInt.fromI32(0)
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
         event.block,
-        null // will do RPC call if they have sub w/ units
+        event.params.amount
     );
     _createAccountTokenSnapshotLogEntity(
         event,
@@ -445,7 +445,7 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
         event.params.subscriber,
         event.params.token,
         event.block,
-        null // will do RPC call if they have sub w/ units
+        balanceDelta
     );
 
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
@@ -467,7 +467,7 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
         event.params.publisher,
         event.params.token,
         event.block,
-        null // will do RPC call if they have sub w/ units
+        BigInt.fromI32(0)
     );
 
     // occurs on revoke or delete
@@ -563,13 +563,13 @@ export function handleSubscriptionUnitsUpdated(
         event.params.publisher,
         event.params.token,
         event.block,
-        null // will do RPC call if they have sub w/ units
+        BigInt.fromI32(0)
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
         event.block,
-        null // will do RPC call if they have sub w/ units
+        balanceDelta
     );
 
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);

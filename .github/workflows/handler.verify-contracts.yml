@@ -16,7 +16,7 @@ jobs:
   verify-on-etherscan:
     name: Verify on Etherscan
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       RELEASE_VERSION: ${{ github.event.inputs.release_version }}
@@ -24,20 +24,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-          network: [eth-goerli, eth-sepolia, polygon-mumbai, optimism-goerli, arbitrum-goerli, avalanche-fuji, base-goerli, polygon-mainnet, optimism-mainnet, arbitrum-one, avalanche-c, bsc-mainnet, celo-mainnet]
+          network: [eth-sepolia, optimism-sepolia, avalanche-fuji, polygon-mainnet, xdai-mainnet, optimism-mainnet, arbitrum-one, avalanche-c, bsc-mainnet, eth-mainnet, celo-mainnet, base-mainnnet, scroll-mainnet]
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Check only_network
         if: ${{ github.event.inputs.only_network != '' && github.event.inputs.only_network != matrix.network }}
         run: echo "DO_SKIP=1" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@v19
+      - uses: cachix/install-nix-action@v27
         if: env.DO_SKIP != 1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}

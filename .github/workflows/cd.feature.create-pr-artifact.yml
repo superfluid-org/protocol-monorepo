@@ -8,20 +8,18 @@ jobs:
   create_pr_artifact:
     name: Create PR Artifact
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     if: ${{ !github.event.pull_request.draft }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Show context
         env:
@@ -41,8 +39,8 @@ jobs:
           echo "  .locked" ${{ github.event.pull_request.locked }}
           echo "  .draft" ${{ github.event.pull_request.draft }}
 
-      - name: Check changeset
-        run: tasks/check-changeset.sh ${{ github.sha }} dev
+      - name: Create build set
+        run: tasks/create-build-set.sh ${{ github.sha }} dev origin
 
       - name: Install dependencies
         if: env.PUBLISH_PR_ARTIFACT == 1
@@ -78,7 +76,7 @@ jobs:
           done
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: pr-packages
           path: bin

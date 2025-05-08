@@ -5,9 +5,7 @@ set -e
 
 cd "$(dirname "$0")/.." || exit 1
 
-JQ="npx --package=node-jq -- jq"
-
-CONTRACTS=( $($JQ -r .[] tasks/bundled-abi-contracts-list.json) ) || exit 2
+CONTRACTS=( $(jq -r .[] tasks/bundled-abi-contracts-list.json) ) || exit 2
 
 {
     echo "if (typeof module === \"undefined\") module = {};"
@@ -19,7 +17,7 @@ CONTRACTS=( $($JQ -r .[] tasks/bundled-abi-contracts-list.json) ) || exit 2
     echo "${CONTRACTS[@]}" | xargs -n1 -P4 bash -c "
         {
             echo -n \"    \$1: \"
-            $JQ \".abi\" build/truffle/\"\$1\".json || exit 3
+            jq \".abi\" build/truffle/\"\$1\".json || exit 3
             echo ','
         } > build/bundled-abi.\$1.frag
         " --

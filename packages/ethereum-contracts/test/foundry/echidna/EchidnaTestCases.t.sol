@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
-import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.sol";
+import { FoundrySuperfluidTester } from "../../foundry/FoundrySuperfluidTester.t.sol";
 import { ISuperfluidPool, SuperfluidPool } from "../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { ISuperToken, SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
@@ -25,6 +25,7 @@ contract EchidnaTestCases is FoundrySuperfluidTester {
     function testDistributeFlowToDisconnectedMember(address member, uint64 units, int32 flowRate, bool useForwarder)
         public
     {
+        vm.assume(member != address(0));
         vm.assume(flowRate > 0);
 
         _helperUpdateMemberUnits(currentPool, alice, member, units);

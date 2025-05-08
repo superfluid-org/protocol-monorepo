@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import { BatchOperation, ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
 import { CallUtils } from "../libs/CallUtils.sol";
@@ -25,12 +25,20 @@ abstract contract ForwarderBase {
     }
 
     function _forwardBatchCall(ISuperfluid.Operation[] memory ops) internal returns (bool) {
+        return _forwardBatchCallWithValue(ops, 0);
+    }
+
+    function _forwardBatchCallWithValue(ISuperfluid.Operation[] memory ops, uint256 valueToForward)
+        internal
+        returns (bool)
+    {
         bytes memory fwBatchCallData = abi.encodeCall(_host.forwardBatchCall, (ops));
 
         // https://eips.ethereum.org/EIPS/eip-2771
         // we encode the msg.sender as the last 20 bytes per EIP-2771 to extract the original txn signer later on
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returnedData) = address(_host).call(abi.encodePacked(fwBatchCallData, msg.sender));
+        (bool success, bytes memory returnedData) = address(_host)
+            .call{value: valueToForward}(abi.encodePacked(fwBatchCallData, msg.sender));
 
         if (!success) {
             CallUtils.revertFromReturnedData(returnedData);

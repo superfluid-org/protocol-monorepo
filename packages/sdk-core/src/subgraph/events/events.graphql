@@ -14,6 +14,7 @@ query flowUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...flowUpdatedEvent
     }
 }
@@ -34,6 +35,7 @@ query flowOperatorUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...flowOperatorUpdatedEvent
     }
 }
@@ -54,6 +56,7 @@ query indexCreatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...indexCreatedEvent
     }
 }
@@ -74,6 +77,7 @@ query indexDistributionClaimedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...indexDistributionClaimedEvent
     }
 }
@@ -94,6 +98,7 @@ query indexUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...indexUpdatedEvent
     }
 }
@@ -114,6 +119,7 @@ query indexSubscribedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...indexSubscribedEvent
     }
 }
@@ -134,6 +140,7 @@ query indexUnitsUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...indexUnitsUpdatedEvent
     }
 }
@@ -154,6 +161,7 @@ query indexUnsubscribedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...indexUnsubscribedEvent
     }
 }
@@ -174,6 +182,7 @@ query subscriptionApprovedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...subscriptionApprovedEvent
     }
 }
@@ -194,6 +203,7 @@ query subscriptionDistributionClaimedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...subscriptionDistributionClaimedEvent
     }
 }
@@ -214,6 +224,7 @@ query subscriptionRevokedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...subscriptionRevokedEvent
     }
 }
@@ -234,6 +245,7 @@ query subscriptionUnitsUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...subscriptionUnitsUpdatedEvent
     }
 }
@@ -254,6 +266,7 @@ query transferEvents(
         where: $where
         block: $block
     ) {
+        name
         ...transferEvent
     }
 }
@@ -274,6 +287,7 @@ query tokenUpgradedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...tokenUpgradedEvent
     }
 }
@@ -294,6 +308,7 @@ query tokenDowngradedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...tokenDowngradedEvent
     }
 }
@@ -314,6 +329,7 @@ query agreementClassRegisteredEvents(
         where: $where
         block: $block
     ) {
+        name
         ...agreementClassRegisteredEvent
     }
 }
@@ -334,6 +350,7 @@ query agreementClassUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...agreementClassUpdatedEvent
     }
 }
@@ -354,6 +371,7 @@ query appRegisteredEvents(
         where: $where
         block: $block
     ) {
+        name
         ...appRegisteredEvent
     }
 }
@@ -374,6 +392,7 @@ query governanceReplacedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...governanceReplacedEvent
     }
 }
@@ -394,6 +413,7 @@ query jailEvents(
         where: $where
         block: $block
     ) {
+        name
         ...jailEvent
     }
 }
@@ -414,6 +434,7 @@ query superTokenFactoryUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...superTokenFactoryUpdatedEvent
     }
 }
@@ -434,6 +455,7 @@ query superTokenLogicUpdatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...superTokenLogicUpdatedEvent
     }
 }
@@ -454,6 +476,7 @@ query roleAdminChangedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...roleAdminChangedEvent
     }
 }
@@ -474,6 +497,7 @@ query roleGrantedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...roleGrantedEvent
     }
 }
@@ -494,6 +518,7 @@ query roleRevokedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...roleRevokedEvent
     }
 }
@@ -514,6 +539,7 @@ query setEvents(
         where: $where
         block: $block
     ) {
+        name
         ...setEvent
     }
 }
@@ -534,6 +560,7 @@ query cfaV1LiquidationPeriodChangedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...cfaV1LiquidationPeriodChangedEvent
     }
 }
@@ -554,6 +581,7 @@ query configChangedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...configChangedEvent
     }
 }
@@ -574,6 +602,7 @@ query rewardAddressChangedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...rewardAddressChangedEvent
     }
 }
@@ -594,6 +623,7 @@ query superTokenMinimumDepositChangedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...superTokenMinimumDepositChangedEvent
     }
 }
@@ -614,6 +644,7 @@ query trustedForwarderChangedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...trustedForwarderChangedEvent
     }
 }
@@ -634,6 +665,7 @@ query agreementLiquidatedByEvents(
         where: $where
         block: $block
     ) {
+        name
         ...agreementLiquidatedByEvent
     }
 }
@@ -654,6 +686,7 @@ query burnedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...burnedEvent
     }
 }
@@ -674,6 +707,7 @@ query mintedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...mintedEvent
     }
 }
@@ -694,6 +728,7 @@ query sentEvents(
         where: $where
         block: $block
     ) {
+        name
         ...sentEvent
     }
 }
@@ -714,6 +749,7 @@ query customSuperTokenCreatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...customSuperTokenCreatedEvent
     }
 }
@@ -734,6 +770,7 @@ query superTokenCreatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...superTokenCreatedEvent
     }
 }
@@ -754,6 +791,7 @@ query superTokenLogicCreatedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...superTokenLogicCreatedEvent
     }
 }
@@ -774,6 +812,7 @@ query newPICEvents(
         where: $where
         block: $block
     ) {
+        name
         ...newPICEvent
     }
 }
@@ -794,6 +833,7 @@ query exitRateChangedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...newExitRateChangedEvent
     }
 }
@@ -814,6 +854,7 @@ query bondIncreasedEvents(
         where: $where
         block: $block
     ) {
+        name
         ...newBondIncreasedEvent
     }
 }
@@ -838,6 +879,7 @@ query events(
         blockNumber
         transactionHash
         timestamp
+        name
         ... on FlowUpdatedEvent {
             ...flowUpdatedEvent
         }
@@ -990,12 +1032,6 @@ query events(
         }
         ... on ApprovalEvent {
             ...approvalEvent
-        }
-        ... on ApprovalForAllEvent {
-            ...approvalForAllEvent
-        }
-        ... on MetadataUpdateEvent {
-            ...metadataUpdateEvent
         }
     }
 }
@@ -1435,11 +1471,5 @@ fragment memberUnitsUpdatedEvent on MemberUnitsUpdatedEvent {
     ...eventFields
 }
 fragment approvalEvent on ApprovalEvent {
-    ...eventFields
-}
-fragment approvalForAllEvent on ApprovalForAllEvent {
-    ...eventFields
-}
-fragment metadataUpdateEvent on MetadataUpdateEvent {
     ...eventFields
 }

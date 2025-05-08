@@ -21,7 +21,7 @@ import { getOrInitTokenGovernanceConfig } from "../mappingHelpers";
 export function handleConfigChanged(event: ConfigChanged): void {
     const eventId = createEventID("ConfigChanged", event);
     const ev = new ConfigChangedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.address, event.params.host, event.params.superToken])
 
     ev.governanceAddress = event.address;
     ev.host = event.params.host;
@@ -35,7 +35,7 @@ export function handleConfigChanged(event: ConfigChanged): void {
 export function handleRewardAddressChanged(event: RewardAddressChanged): void {
     const eventId = createEventID("RewardAddressChanged", event);
     const ev = new RewardAddressChangedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.address, event.params.host, event.params.superToken, event.params.rewardAddress]);
 
     ev.governanceAddress = event.address;
     ev.host = event.params.host;
@@ -66,7 +66,7 @@ export function handleCFAv1LiquidationPeriodChanged(
 ): void {
     const eventId = createEventID("CFAv1LiquidationPeriodChanged", event);
     const ev = new CFAv1LiquidationPeriodChangedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.address, event.params.host, event.params.superToken]);
 
     ev.governanceAddress = event.address;
     ev.host = event.params.host;
@@ -91,7 +91,7 @@ export function handlePPPConfigurationChanged(
 ): void {
     const eventId = createEventID("PPPConfigurationChanged", event);
     const ev = new PPPConfigurationChangedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.address, event.params.host, event.params.superToken]);
 
     ev.governanceAddress = event.address;
     ev.host = event.params.host;
@@ -118,7 +118,12 @@ export function handleTrustedForwarderChanged(
 ): void {
     const eventId = createEventID("TrustedForwarderChanged", event);
     const ev = new TrustedForwarderChangedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [
+        event.address,
+        event.params.host,
+        event.params.superToken,
+        event.params.forwarder,
+    ]);
 
     ev.governanceAddress = event.address;
     ev.host = event.params.host;
@@ -134,7 +139,7 @@ export function handleSuperTokenMinimumDepositChanged(
 ): void {
     const eventId = createEventID("SuperTokenMinimumDepositChanged", event);
     const ev = new SuperTokenMinimumDepositChangedEvent(eventId);
-    initializeEventEntity(ev, event, []);
+    initializeEventEntity(ev, event, [event.address, event.params.host, event.params.superToken]);
 
     ev.governanceAddress = event.address;
     ev.host = event.params.host;

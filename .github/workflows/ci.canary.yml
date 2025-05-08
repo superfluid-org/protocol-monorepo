@@ -4,49 +4,38 @@ on:
   push:
     branches: ["dev"]
     paths:
-      - "package.json"
-      - "packages/**"
-      # - "**.md" commented-out because README updates should go to the packages
       - ".github/workflows/ci.canary.yml"
+      - ".github/workflows/call.*.yml"
+      - "package.json"
+      - "yarn.lock"
+      - "packages/**"
       - "codecov.yml"
-      - ".github/workflows/call.test-local-subgraph.yml"
+      # - "**.md" are commented out because docs updates should go into the packages
 
 jobs:
   check:
     name: Checking what packages need to be built
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+
+    defaults:
+      run:
+        shell: nix develop .#ci-minimum -c bash -xe {0}
 
     outputs:
       build_subgraph: ${{ env.BUILD_SUBGRAPH }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Check changeset
-        run: tasks/check-changeset.sh ${{ github.sha }} dev
+      - uses: DeterminateSystems/nix-installer-action@v13
 
-  essential-build-and-test:
-    name: Build and test essential packages of dev branch
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18, 20]
-
-    defaults:
-      run:
-        shell: nix develop .#ci-node${{ matrix.node-version }} -c bash -xe {0}
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Initialize nix dev shell
+        run: |
+          node --version
+          yarn --version
+          shellcheck --version
+          actionlint --version
 
       - name: Show contexts
         env:
@@ -60,33 +49,70 @@ jobs:
           echo github.head_ref: "$HEAD_REF"
           echo github.base_ref: ${{ github.base_ref }}
 
-      - name: Install, lint, build, and test
+      - name: Run global lint
         run: |
-          yarn install --frozen-lockfile
-          yarn lint
-          echo "FOUNDRY_PROFILE=ci" >> $GITHUB_ENV
-          echo "FOUNDRY_SOLC_VERSION=$SOLC" >> $GITHUB_ENV
-          yarn build
-          yarn test
-        env:
-          POLYGON_MAINNET_PROVIDER_URL: ${{ secrets.POLYGON_MAINNET_PROVIDER_URL }}
-          SUBGRAPH_RELEASE_TAG: dev
+          npm run lint:shellcheck
+          npm run lint:actionlint
+
+      - name: Create build set
+        run: tasks/create-build-set.sh ${{ github.sha }} dev origin
+
+  test-spec-haskell:
+    uses: ./.github/workflows/call.test-spec-haskell.yml
+    name: Build and Test Spec Haskell (Canary Branch)
+    needs: [check]
+
+  test-solidity-semantic-money:
+    name: Build and Test Solidity Semantic Money (Canary Branch)
+    uses: ./.github/workflows/call.test-solidity-semantic-money.yml
+    needs: [check]
+
+  test-ethereum-contracts:
+    name: Test ethereum-contracts (Canary Branch)
+    uses: ./.github/workflows/call.test-ethereum-contracts.yml
+    needs: [check]
+    with:
+      run-coverage-tests: false
+
+  coverage-ethereum-contracts:
+    name: Coverage test ethereum-contracts (Canary Branch)
+    uses: ./.github/workflows/call.test-ethereum-contracts.yml
+    needs: [check]
+    with:
+      run-coverage-tests: true
 
   test-hot-fuzz:
     uses: ./.github/workflows/call.test-hot-fuzz.yml
     name: Hot Fuzz (Development Branch)
-
-  test-subgraph:
-    uses: ./.github/workflows/call.test-local-subgraph.yml
-    name: Build and Test Subgraph (Development Branch)
+    needs: [check]
 
   test-sdk-core:
     uses: ./.github/workflows/call.test-sdk-core.yml
     name: Build and Test SDK-Core (Development Branch)
+    needs: [check]
     with:
       subgraph-release: local
       subgraph-endpoint: http://localhost:8000/subgraphs/name/superfluid-test
       run-coverage-tests: false
+
+  coverage-sdk-core:
+    uses: ./.github/workflows/call.test-sdk-core.yml
+    name: Build and Test SDK-Core Coverage (Canary Branch)
+    needs: [check]
+    with:
+      subgraph-release: local
+      subgraph-endpoint: http://localhost:8000/subgraphs/name/superfluid-test
+      run-coverage-tests: true
+
+  test-subgraph:
+    uses: ./.github/workflows/call.test-local-subgraph.yml
+    name: Build and Test Subgraph (Development Branch)
+    needs: [check]
+
+  test-automation-contracts:
+    uses: ./.github/workflows/call.test-automation-contracts.yml
+    name: Build and Test Automation Contracts (Canary Branch)
+    needs: [check]
 
   # deploy subgraph if changes are made, we can call this every time, but we won't actually do any deployments
   # if the IPFS hash generated stays the same (no mapping logic changes)
@@ -102,49 +128,26 @@ jobs:
     secrets:
       THE_GRAPH_ACCESS_TOKEN: ${{ secrets.THE_GRAPH_ACCESS_TOKEN }}
 
-  test-solidity-semantic-money:
-    name: Build and Test Solidity Semantic Money (Canary Branch)
-    uses: ./.github/workflows/call.test-solidity-semantic-money.yml
-
-  test-spec-haskell:
-    uses: ./.github/workflows/call.test-spec-haskell.yml
-    name: Build and Test Spec Haskell (Canary Branch)
-
-  test-automation-contracts:
-    uses: ./.github/workflows/call.test-automation-contracts.yml
-    name: Build and Test Automation Contracts (Canary Branch)
-
-  coverage-ethereum-contracts:
-    name: Coverage test ethereum-contracts (Canary Branch)
-    uses: ./.github/workflows/call.test-ethereum-contracts.yml
-    with:
-      run-coverage-tests: true
-
-  coverage-sdk-core:
-    uses: ./.github/workflows/call.test-sdk-core.yml
-    name: Build and Test SDK-Core Coverage (Canary Branch)
-    with:
-      subgraph-release: local
-      subgraph-endpoint: http://localhost:8000/subgraphs/name/superfluid-test
-      run-coverage-tests: true
-
   upload-coverage-reports:
     name: Upload Coverage Reports (Feature Branch)
     uses: ./.github/workflows/call.upload-coverage-reports.yml
     needs: [coverage-ethereum-contracts, coverage-sdk-core]
+    secrets:
+      codecov_token: ${{ secrets.CODECOV_TOKEN }}
 
   all-packages-tested:
     name: All packages tested (Dev Branch)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-not-requiring-successful-dependent-jobs
     if: ${{ always() }}
-    needs: [ essential-build-and-test
-           , test-spec-haskell
+
+    needs: [ test-spec-haskell
            , test-solidity-semantic-money
+           , test-ethereum-contracts, coverage-ethereum-contracts
            , test-hot-fuzz
+           , test-sdk-core, coverage-sdk-core
            , test-subgraph
-           , coverage-ethereum-contracts
-           , coverage-sdk-core
+           , test-automation-contracts
            ]
     steps:
       - name: Test Results
@@ -160,12 +163,15 @@ jobs:
               echo "Passed."
             fi
           }
-          check_result essential-build-and-test ${{ needs.essential-build-and-test.result }}
           check_result spec-haskell ${{ needs.test-spec-haskell.result }}
+          check_result solidity-semantic-money ${{ needs.test-solidity-semantic-money.result }}
+          check_result test-ethereum-contracts ${{ needs.test-ethereum-contracts.result }}
+          check_result coverage-ethereum-contracts ${{ needs.coverage-ethereum-contracts.result }}
           check_result hot-fuzz ${{ needs.test-hot-fuzz.result }}
+          check_result test-sdk-core ${{ needs.test-sdk-core.result }}
+          check_result coverage-sdk-core ${{ needs.coverage-sdk-core.result }}
           check_result subgraph ${{ needs.test-subgraph.result }}
-          check_result ethereum-contracts-coverage ${{ needs.coverage-ethereum-contracts.result }}
-          check_result sdk-core-coverage ${{ needs.coverage-sdk-core.result }}
+          check_result automation-contracts ${{ needs.test-automation-contracts.result }}
 
   publish-npm-packages:
     name: Publish canary packages to registries
@@ -174,18 +180,16 @@ jobs:
 
     needs: [all-packages-tested]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -218,23 +222,21 @@ jobs:
 
     needs: [all-packages-tested]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: superfluid-finance/build-scripts
           path: build-scripts
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -274,25 +276,25 @@ jobs:
   upgrade-contracts:
     name: Upgrade ethereum-contracts on canary testnet (protocol release version "canary")
 
+    if: false # disable this for now
+
     needs: [all-packages-tested]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
       matrix:
-        network: [avalanche-fuji]
+        network: [optimism-sepolia]
 
     defaults:
       run:
-        shell: nix develop -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Build
         run: |
@@ -307,5 +309,5 @@ jobs:
           tasks/etherscan-verify-framework.sh ${{ matrix.network }} addresses.vars
         env:
           RELEASE_VERSION: canary
-          AVALANCHE_FUJI_MNEMONIC: ${{ secrets.BUILD_AGENT_MNEMONIC  }}
-          AVALANCHE_FUJI_PROVIDER_URL: ${{ secrets.AVALANCHE_FUJI_PROVIDER_URL }}
+          OPTIMISM_SEPOLIA_MNEMONIC: ${{ secrets.BUILD_AGENT_MNEMONIC }}
+          OPTIMISM_SEPOLIA_PROVIDER_URL: ${{ secrets.OPTIMISM_SEPOLIA_PROVIDER_URL }}

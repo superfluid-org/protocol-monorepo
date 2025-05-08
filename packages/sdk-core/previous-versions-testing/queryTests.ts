@@ -5,21 +5,26 @@ import metadata from "@superfluid-finance/metadata";
 
 /**
  * We only use matic network endpoints for v1 release tests
- * otherwise, we use goerli
+ * otherwise, we use avalanche fuji
  * @returns chainId
  */
 export const getChainId = () => {
     // null coalesce, but this should NEVER return null for either
     return process.env.SUBGRAPH_RELEASE_TAG == "v1"
         ? metadata.getNetworkByShortName("matic")?.chainId ?? 0
-        : metadata.getNetworkByShortName("goerli")?.chainId ?? 0;
+        : metadata.getNetworkByShortName("fuji")?.chainId ?? 0;
 };
 
 export const testQueryClassFunctions = async (query: Query) => {
+    console.log("query listAllSuperTokens...");
     await query.listAllSuperTokens({}, { take: 10 });
+    console.log("query listIndexes...");
     await query.listIndexes({}, { take: 10 });
+    console.log("query listIndexSubscriptions...");
     await query.listIndexSubscriptions({}, { take: 10 });
+    console.log("query listStreams...");
     await query.listStreams({}, { take: 10 });
+    console.log("query listUserInteractedSuperTokens...");
     await query.listUserInteractedSuperTokens({}, { take: 10 });
 };
 

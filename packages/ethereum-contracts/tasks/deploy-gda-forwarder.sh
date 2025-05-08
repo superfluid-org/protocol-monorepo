@@ -4,9 +4,6 @@ set -eu
 # Usage:
 # tasks/deploy-gda-forwarder.sh <network>
 #
-# Example:
-# tasks/deploy-gda-forwarder.sh optimism-goerli
-#
 # The invoking account needs to be (co-)owner of the resolver and governance
 #
 # important ENV vars:

@@ -194,7 +194,7 @@ abstract contract CFASuperAppBase is ISuperApp {
         if (!isAcceptedSuperToken(superToken)) revert NotAcceptedSuperToken();
 
         (address sender, ) = abi.decode(agreementData, (address, address));
-        (uint256 lastUpdated, int96 flowRate,,) = superToken.getFlowInfo(sender, address(this));
+        (uint256 lastUpdated, int96 flowRate,,) = superToken.getCFAFlowInfo(sender, address(this));
 
         return abi.encode(
             flowRate,
@@ -245,7 +245,7 @@ abstract contract CFASuperAppBase is ISuperApp {
         }
 
         (address sender, address receiver) = abi.decode(agreementData, (address, address));
-        (uint256 lastUpdated, int96 flowRate,,) = superToken.getFlowInfo(sender, receiver);
+        (uint256 lastUpdated, int96 flowRate,,) = superToken.getCFAFlowInfo(sender, receiver);
 
         return abi.encode(
             lastUpdated,

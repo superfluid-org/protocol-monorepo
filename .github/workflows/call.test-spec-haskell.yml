@@ -7,54 +7,53 @@ jobs:
   test-spec-haskell:
     name: Test Spec Haskell - Linux - ${{ matrix.compiler-name }}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
         include:
-          - compiler-name: ghc-9.2
-            dev-shell-type: ci-spec-ghc92
           - compiler-name: ghc-9.4
-            dev-shell-type: ci-spec-ghc94
+            dev-shell-name: ci-spec-ghc94
       fail-fast: false
 
     defaults:
       run:
-        shell: nix develop .#${{ matrix.dev-shell-type }} -c bash -xe {0}
+        shell: nix develop .#${{ matrix.dev-shell-name }} -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: cachix/install-nix-action@v19
+      - name: Setup workflow base
+        id: base
+        uses: ./.github/actions/setup-workflow-base
         with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          package-name: spec-haskell
+          cache-key-prefix: spec-haskell-${{ matrix.compiler-name }}-
+          dev-shell-name: ${{ matrix.dev-shell-name }}
 
-      - name: Initialize devShell
+      - name: Run cabal update
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
-          set -xe
+          cabal v2-update
           cabal --version
           ghc --version
 
-      - name: Run cabal update
-        run: |
-          cabal v2-update
-
       - name: Run lint
-        run: |
-          cd packages/spec-haskell
-          make lint
+        if: steps.base.outputs.cache-hit != 'true'
+        run: make lint
+        working-directory: packages/spec-haskell
 
       - name: Run build
-        run: |
-          cd packages/spec-haskell
-          make build
+        if: steps.base.outputs.cache-hit != 'true'
+        run: make build
+        working-directory: packages/spec-haskell
 
       - name: Run tests
-        run: |
-          cd packages/spec-haskell
-          make test
+        if: steps.base.outputs.cache-hit != 'true'
+        run: make test
+        working-directory: packages/spec-haskell
 
       - name: Make haddock docs
-        run: |
-          cd packages/spec-haskell
-          make docs-haddock
+        if: steps.base.outputs.cache-hit != 'true'
+        run: make docs-haddock
+        working-directory: packages/spec-haskell

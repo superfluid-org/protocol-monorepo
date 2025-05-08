@@ -3,9 +3,9 @@ pragma solidity >= 0.8.11;
 
 import { ISuperfluidToken } from "./ISuperfluidToken.sol";
 import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import { IERC5267 } from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import { IERC777 } from "@openzeppelin/contracts/token/ERC777/IERC777.sol";
-import { IConstantOutflowNFT } from "./IConstantOutflowNFT.sol";
-import { IConstantInflowNFT } from "./IConstantInflowNFT.sol";
 import { IPoolAdminNFT } from "../agreements/gdav1/IPoolAdminNFT.sol";
 import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
 
@@ -13,25 +13,27 @@ import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
  * @title Super token (Superfluid Token + ERC20 + ERC777) interface
  * @author Superfluid
  */
-interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777 {
+interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit, IERC5267 {
 
     /**************************************************************************
      * Errors
      *************************************************************************/
-    error SUPER_TOKEN_CALLER_IS_NOT_OPERATOR_FOR_HOLDER();       // 0xf7f02227
-    error SUPER_TOKEN_NOT_ERC777_TOKENS_RECIPIENT();             // 0xfe737d05
-    error SUPER_TOKEN_INFLATIONARY_DEFLATIONARY_NOT_SUPPORTED(); // 0xe3e13698
-    error SUPER_TOKEN_NO_UNDERLYING_TOKEN();                     // 0xf79cf656
-    error SUPER_TOKEN_ONLY_SELF();                               // 0x7ffa6648
-    error SUPER_TOKEN_ONLY_ADMIN();                              // 0x0484acab
-    error SUPER_TOKEN_ONLY_GOV_OWNER();                          // 0xd9c7ed08
-    error SUPER_TOKEN_APPROVE_FROM_ZERO_ADDRESS();               // 0x81638627
-    error SUPER_TOKEN_APPROVE_TO_ZERO_ADDRESS();                 // 0xdf070274
-    error SUPER_TOKEN_BURN_FROM_ZERO_ADDRESS();                  // 0xba2ab184
-    error SUPER_TOKEN_MINT_TO_ZERO_ADDRESS();                    // 0x0d243157
-    error SUPER_TOKEN_TRANSFER_FROM_ZERO_ADDRESS();              // 0xeecd6c9b
-    error SUPER_TOKEN_TRANSFER_TO_ZERO_ADDRESS();                // 0xe219bd39
-    error SUPER_TOKEN_NFT_PROXY_ADDRESS_CHANGED();               // 0x6bef249d
+    error SUPER_TOKEN_CALLER_IS_NOT_OPERATOR_FOR_HOLDER();                   // 0xf7f02227
+    error SUPER_TOKEN_NOT_ERC777_TOKENS_RECIPIENT();                         // 0xfe737d05
+    error SUPER_TOKEN_INFLATIONARY_DEFLATIONARY_NOT_SUPPORTED();             // 0xe3e13698
+    error SUPER_TOKEN_NO_UNDERLYING_TOKEN();                                 // 0xf79cf656
+    error SUPER_TOKEN_ONLY_SELF();                                           // 0x7ffa6648
+    error SUPER_TOKEN_ONLY_ADMIN();                                          // 0x0484acab
+    error SUPER_TOKEN_ONLY_GOV_OWNER();                                      // 0xd9c7ed08
+    error SUPER_TOKEN_APPROVE_FROM_ZERO_ADDRESS();                           // 0x81638627
+    error SUPER_TOKEN_APPROVE_TO_ZERO_ADDRESS();                             // 0xdf070274
+    error SUPER_TOKEN_BURN_FROM_ZERO_ADDRESS();                              // 0xba2ab184
+    error SUPER_TOKEN_MINT_TO_ZERO_ADDRESS();                                // 0x0d243157
+    error SUPER_TOKEN_TRANSFER_FROM_ZERO_ADDRESS();                          // 0xeecd6c9b
+    error SUPER_TOKEN_TRANSFER_TO_ZERO_ADDRESS();                            // 0xe219bd39
+    error SUPER_TOKEN_NFT_PROXY_ADDRESS_CHANGED();                           // 0xef1b6ddf
+    error SUPER_TOKEN_PERMIT_EXPIRED_SIGNATURE(uint256 deadline);            // 0x6e72b90f
+    error SUPER_TOKEN_PERMIT_INVALID_SIGNER(address signer, address owner);  // 0xb6422105
 
     /**
      * @dev Initialize the contract
@@ -73,10 +75,6 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777 {
     * Immutable variables
     *************************************************************************/
 
-    // solhint-disable-next-line func-name-mixedcase
-    function CONSTANT_OUTFLOW_NFT() external view returns (IConstantOutflowNFT);
-    // solhint-disable-next-line func-name-mixedcase
-    function CONSTANT_INFLOW_NFT() external view returns (IConstantInflowNFT);
     // solhint-disable-next-line func-name-mixedcase
     function POOL_ADMIN_NFT() external view returns (IPoolAdminNFT);
     // solhint-disable-next-line func-name-mixedcase
@@ -578,22 +576,27 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777 {
     */
     function operationDowngrade(address account, uint256 amount) external;
 
-    // Flow NFT events
     /**
-     * @dev Constant Outflow NFT proxy created event
-     * @param constantOutflowNFT constant outflow nft address
-     */
-    event ConstantOutflowNFTCreated(
-        IConstantOutflowNFT indexed constantOutflowNFT
-    );
+    * @dev Upgrade ERC20 to SuperToken by host contract and transfer immediately.
+    * @param account The account to be changed.
+    * @param to The account to receive upgraded tokens
+    * @param amount Number of tokens to be upgraded (in 18 decimals)
+    *
+    * @custom:modifiers
+    *  - onlyHost
+    */
+    function operationUpgradeTo(address account, address to, uint256 amount) external;
 
     /**
-     * @dev Constant Inflow NFT proxy created event
-     * @param constantInflowNFT constant inflow nft address
-     */
-    event ConstantInflowNFTCreated(
-        IConstantInflowNFT indexed constantInflowNFT
-    );
+    * @dev Downgrade ERC20 to SuperToken by host contract and transfer immediately.
+    * @param account The account to be changed.
+    * @param to The account to receive downgraded tokens
+    * @param amount Number of tokens to be downgraded (in 18 decimals)
+    *
+    * @custom:modifiers
+    *  - onlyHost
+    */
+    function operationDowngradeTo(address account, address to, uint256 amount) external;
 
     /**
      * @dev Pool Admin NFT proxy created event

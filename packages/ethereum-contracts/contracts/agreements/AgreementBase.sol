@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPLv3
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import { UUPSProxiable } from "../upgradability/UUPSProxiable.sol";
 import { ISuperAgreement } from "../interfaces/superfluid/ISuperAgreement.sol";

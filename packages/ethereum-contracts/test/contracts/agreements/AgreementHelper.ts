@@ -4,7 +4,7 @@ import {ethers} from "hardhat";
 
 import IConstantFlowAgreementV1Artifact from "../../../build/hardhat/contracts/interfaces/agreements/IConstantFlowAgreementV1.sol/IConstantFlowAgreementV1.json";
 import IInstantDistributionAgreementV1Artifact from "../../../build/hardhat/contracts/interfaces/agreements/IInstantDistributionAgreementV1.sol/IInstantDistributionAgreementV1.json";
-import SuperfluidMockArtifact from "../../../build/hardhat/contracts/mocks/SuperfluidMock.sol/SuperfluidMock.json";
+import SuperfluidMockArtifact from "../../../build/hardhat/contracts/mocks/SuperfluidMock.t.sol/SuperfluidMock.json";
 import TestEnvironment from "../../TestEnvironment";
 
 import {

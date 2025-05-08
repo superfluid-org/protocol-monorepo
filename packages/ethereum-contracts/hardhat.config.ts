@@ -55,19 +55,15 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(
 
 const chainIds = {
     "eth-mainnet": 1,
-    "eth-goerli": 5,
     "eth-sepolia": 11155111,
 
     "xdai-mainnet": 100,
 
     "optimism-mainnet": 10,
-    "optimism-goerli": 420,
 
     "arbitrum-one": 42161,
-    "arbitrum-goerli": 421613,
 
     "polygon-mainnet": 137,
-    "polygon-mumbai": 80001,
 
     "avalanche-c": 43114,
     "avalanche-fuji": 43113,
@@ -97,7 +93,7 @@ function createNetworkConfig(
 
 const config: HardhatUserConfig = {
     solidity: {
-        version: "0.8.23",
+        version: "0.8.26",
         settings: {
             optimizer: {
                 enabled: true,
@@ -114,10 +110,6 @@ const config: HardhatUserConfig = {
             ...createNetworkConfig("bsc-mainnet"),
             url: process.env.BSC_MAINNET_PROVIDER_URL || "",
         },
-        "eth-goerli": {
-            ...createNetworkConfig("eth-goerli"),
-            url: process.env.ETH_GOERLI_PROVIDER_URL || "",
-        },
         "xdai-mainnet": {
             ...createNetworkConfig("xdai-mainnet"),
             url: process.env.XDAI_MAINNET_PROVIDER_URL || "",
@@ -126,25 +118,13 @@ const config: HardhatUserConfig = {
             ...createNetworkConfig("optimism-mainnet"),
             url: process.env.OPTIMISM_MAINNET_PROVIDER_URL || "",
         },
-        "optimism-goerli": {
-            ...createNetworkConfig("optimism-goerli"),
-            url: process.env.OPTIMISM_GOERLI_PROVIDER_URL || "",
-        },
         "arbitrum-one": {
             ...createNetworkConfig("arbitrum-one"),
             url: process.env.ARBITRUM_ONE_PROVIDER_URL || "",
         },
-        "arbitrum-goerli": {
-            ...createNetworkConfig("arbitrum-goerli"),
-            url: process.env.ARBITRUM_GOERLI_PROVIDER_URL || "",
-        },
         "polygon-mainnet": {
             ...createNetworkConfig("polygon-mainnet"),
             url: process.env.POLYGON_MAINNET_PROVIDER_URL || "",
-        },
-        "polygon-mumbai": {
-            ...createNetworkConfig("polygon-mumbai"),
-            url: process.env.POLYGON_MUMBAI_PROVIDER_URL || "",
         },
         "avalanche-c": {
             ...createNetworkConfig("avalanche-c"),
@@ -162,10 +142,6 @@ const config: HardhatUserConfig = {
             ...createNetworkConfig("eth-sepolia"),
             url: process.env.ETH_SEPOLIA_PROVIDER_URL || "",
         },
-        "base-goerli": {
-            ...createNetworkConfig("base-goerli"),
-            url: process.env.BASE_GOERLI_PROVIDER_URL || "",
-        },
         "scroll-sepolia": {
             ...createNetworkConfig("scroll-sepolia"),
             url: process.env.SCROLL_SEPOLIA_PROVIDER_URL || "",
@@ -175,9 +151,8 @@ const config: HardhatUserConfig = {
             url: process.env.SCROLL_MAINNET_PROVIDER_URL || "",
         },
         hardhat: {
-            // Fixing an issue that parallel coverage test is not working for unkown reason.
-            // Ref: https://github.com/NomicFoundation/hardhat/issues/4310
-            allowUnlimitedContractSize: process.env.IS_COVERAGE_TEST ? true : undefined,
+            // We defer the contract size limit test to foundry.
+            allowUnlimitedContractSize: true,
         },
     },
     mocha: {

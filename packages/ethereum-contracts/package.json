@@ -1,31 +1,62 @@
 {
     "name": "@superfluid-finance/ethereum-contracts",
-    "version": "1.9.0",
     "description": " Ethereum contracts implementation for the Superfluid Protocol",
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/ethereum-contracts#readme",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
-        "directory": "packages/ethereum-contracts"
+    "version": "1.12.1",
+    "dependencies": {
+        "@decentral.ee/web3-helpers": "0.5.3",
+        "@nomiclabs/hardhat-ethers": "2.2.3",
+        "@openzeppelin/contracts": "4.9.6",
+        "@truffle/contract": "4.6.31",
+        "ethereumjs-tx": "2.1.2",
+        "ethereumjs-util": "7.1.5",
+        "hardhat": "2.22.9"
     },
-    "license": "AGPL-3.0-or-later OR MIT",
+    "devDependencies": {
+        "@d10r/truffle-plugin-verify": "^0.6.11",
+        "@nomiclabs/hardhat-truffle5": "^2.0.7",
+        "@safe-global/safe-core-sdk": "^3.3.5",
+        "@safe-global/safe-service-client": "^2.0.3",
+        "@safe-global/safe-web3-lib": "^1.9.4",
+        "@superfluid-finance/js-sdk": "^0.6.3",
+        "@superfluid-finance/metadata": "^1.6.0",
+        "async": "^3.2.6",
+        "csv-writer": "^1.6.0",
+        "ethers": "^5.7.2",
+        "ganache-time-traveler": "^1.0.16",
+        "mochawesome": "^7.1.3",
+        "readline": "^1.3.0",
+        "solidity-coverage": "^0.8.12",
+        "solidity-docgen": "^0.6.0-beta.36",
+        "stack-trace": "0.0.10",
+        "truffle-flattener": "^1.6.0"
+    },
     "files": [
         "/contracts/**/*",
         "!/contracts/mocks/*",
         "/build/truffle/*.json",
-        "/build/hardhat/**/*",
         "!/build/truffle/*Mock*.json",
         "!/build/truffle/*Tester*.json",
         "!/build/truffle/*Anvil.json",
         "!/build/truffle/*Properties.json",
+        "/build/hardhat/**/*",
+        "!/build/hardhat/contracts/mocks/**/*",
         "/build/contracts-sizes.txt",
         "/build/bundled-abi.js",
         "/build/bundled-abi.json",
         "dev-scripts/**/*",
         "utils/**/*"
     ],
+    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/ethereum-contracts#readme",
+    "license": "AGPL-3.0-or-later OR MIT",
     "main": "./dev-scripts/index.js",
-    "typings": "./types/index.d.ts",
+    "peerDependencies": {
+        "ethers": "^5.7.2"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "directory": "packages/ethereum-contracts"
+    },
     "scripts": {
         "dev": "yarn dev-foundry",
         "dev-foundry": "nodemon -e sol -x yarn run-foundry test --hardhat",
@@ -43,7 +74,7 @@
         "build:post-contracts": "run-p -l build:post-contracts:*",
         "build:post-contracts:abi-bundle": "tasks/build-bundled-abi.sh",
         "build:post-contracts:dev-scripts-typings": "rm -rf dev-scripts/*.d.ts dev-scripts/*.d.ts.map; tsc -p tsconfig.scripts.json",
-        "build:post-contracts:contracts-size": "forge build --sizes > build/contracts-sizes.txt > /dev/null&",
+        "build:post-contracts:contracts-size": "forge build --sizes --skip test --skip script > build/contracts-sizes.txt",
         "verify-framework": "tasks/etherscan-verify-framework.sh",
         "testenv:start": "test/testenv-ctl.sh start",
         "testenv:stop": "test/testenv-ctl.sh stop",
@@ -59,7 +90,7 @@
         "posttest": "yarn testenv:stop",
         "test-coverage": "run-s test-coverage:*",
         "test-coverage:hardhat": "yarn run-hardhat coverage --testfiles testsuites/all-contracts.js --solcoverjs ./.solcover.js",
-        "test-coverage:foundry": "yarn run-foundry coverage --hardhat --report lcov",
+        "test-coverage:foundry": "yarn run-foundry coverage --gas-limit 999999999999 --report lcov",
         "test-slither": "tasks/test-slither.sh",
         "lint": "run-s lint:*",
         "lint:sol": "solhint -w 0 `find contracts -name *.sol` && echo '✔  Your .sol files look good.'",
@@ -70,41 +101,9 @@
         "fix": "run-s fix:*",
         "fix:eslint": "yarn lint-ts --fix",
         "lint:check-no-focused-tests": "grep -FR .only test || { echo 'No test is focused.';exit 0; } && { echo '✘ You have focused tests.'; exit 1; }",
-        "pre-commit": "if [ ! -z \"$(git status -s .)\" ];then run-s pre-commit:*;else true;fi",
-        "pre-commit:lint": "yarn lint",
         "check-updates": "ncu --target minor --dep prod,dev",
         "cloc": "tasks/cloc.sh",
         "docgen": "rm -rf docs/api; hardhat docgen"
     },
-    "dependencies": {
-        "@decentral.ee/web3-helpers": "0.5.3",
-        "@nomiclabs/hardhat-ethers": "^2.2.3",
-        "@openzeppelin/contracts": "4.9.6",
-        "@truffle/contract": "4.6.31",
-        "ethereumjs-tx": "2.1.2",
-        "ethereumjs-util": "7.1.5",
-        "hardhat": "^2.19.5"
-    },
-    "devDependencies": {
-        "@d10r/truffle-plugin-verify": "0.6.9",
-        "@nomiclabs/hardhat-truffle5": "^2.0.7",
-        "@safe-global/safe-core-sdk": "^3.3.5",
-        "@safe-global/safe-service-client": "^2.0.3",
-        "@safe-global/safe-web3-lib": "^1.9.4",
-        "@superfluid-finance/js-sdk": "^0.6.3",
-        "@superfluid-finance/metadata": "^1.1.27",
-        "async": "^3.2.5",
-        "csv-writer": "^1.6.0",
-        "ethers": "^5.7.2",
-        "ganache-time-traveler": "1.0.16",
-        "mochawesome": "^7.1.3",
-        "readline": "1.3.0",
-        "solidity-coverage": "0.8.6",
-        "solidity-docgen": "^0.6.0-beta.36",
-        "stack-trace": "0.0.10",
-        "truffle-flattener": "^1.6.0"
-    },
-    "peerDependencies": {
-        "ethers": "^5.7.2"
-    }
+    "typings": "./types/index.d.ts"
 }

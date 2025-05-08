@@ -830,7 +830,8 @@ type AgreementClassRegisteredEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `code`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -849,7 +850,8 @@ type AgreementClassUpdatedEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `code`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -868,7 +870,8 @@ type AppRegisteredEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `app`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -889,7 +892,9 @@ type GovernanceReplacedEvent implements Event @entity(immutable: true) {
     order: BigInt!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `oldGovernance`
+    addresses[1] = `newGovernance`
     """
     addresses: [Bytes!]!
     oldGovernance: Bytes!
@@ -905,7 +910,8 @@ type JailEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `app`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -924,7 +930,8 @@ type SuperTokenFactoryUpdatedEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `newFactory`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -942,7 +949,9 @@ type SuperTokenLogicUpdatedEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `token`
+    addresses[1] = `code`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -963,7 +972,9 @@ type RoleAdminChangedEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `previousAdminRole`
+    addresses[1] = `newAdminRole`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -983,7 +994,9 @@ type RoleGrantedEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `account`
+    addresses[1] = `sender`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1003,7 +1016,9 @@ type RoleRevokedEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `account`
+    addresses[1] = `sender`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1057,7 +1072,10 @@ type CFAv1LiquidationPeriodChangedEvent implements Event
     governanceAddress: Bytes!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `governanceAddress`
+    addresses[1] = `host`
+    addresses[2] = `superToken`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1083,7 +1101,10 @@ type ConfigChangedEvent implements Event @entity(immutable: true) {
     governanceAddress: Bytes!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `governanceAddress`
+    addresses[1] = `host`
+    addresses[2] = `superToken`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1110,7 +1131,11 @@ type RewardAddressChangedEvent implements Event @entity(immutable: true) {
     governanceAddress: Bytes!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `governanceAddress`
+    addresses[1] = `host`
+    addresses[2] = `superToken`
+    addresses[3] = `rewardAddress`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1136,7 +1161,10 @@ type PPPConfigurationChangedEvent implements Event @entity(immutable: true) {
     governanceAddress: Bytes!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `governanceAddress`
+    addresses[1] = `host`
+    addresses[2] = `superToken`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1164,7 +1192,10 @@ type SuperTokenMinimumDepositChangedEvent implements Event
     governanceAddress: Bytes!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `governanceAddress`
+    addresses[1] = `host`
+    addresses[2] = `superToken`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1190,7 +1221,11 @@ type TrustedForwarderChangedEvent implements Event @entity(immutable: true) {
     governanceAddress: Bytes!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `governanceAddress`
+    addresses[1] = `host`
+    addresses[2] = `superToken`
+    addresses[3] = `forwarder`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1388,7 +1423,7 @@ type TransferEvent implements Event @entity(immutable: true) {
 
     """
     Contains the addresses that were impacted by this event:
-    addresses[0] = `token` (superToken if `isNFTTransfer` is false, otherwise the ConstantOutflowNFT or ConstantInflowNFT)
+    addresses[0] = `token`
     addresses[1] = `from`
     addresses[2] = `to`
     """
@@ -1399,15 +1434,8 @@ type TransferEvent implements Event @entity(immutable: true) {
 
     from: Account!
     to: Account!
-    isNFTTransfer: Boolean!
-    """
-    If `isNFTTransfer` is true, value is the `tokenId` of the NFT transferred.
-    """
     value: BigInt!
 
-    """
-    If `isNFTTransfer` is true, value is the NFT address, else it is the SuperToken address.
-    """
     token: Bytes!
 }
 
@@ -1457,8 +1485,6 @@ type TokenUpgradedEvent implements Event @entity(immutable: true) {
     amount: BigInt!
 }
 
-
-#     NFTs    #
 type ApprovalEvent implements Event @entity(immutable: true) {
     id: ID!
     transactionHash: Bytes!
@@ -1468,75 +1494,31 @@ type ApprovalEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `token` (superToken)
+    addresses[1] = `owner`
+    addresses[2] = `to`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
     logIndex: BigInt!
     order: BigInt!
 
+    """
+    The address that will be granting allowance to transfer ERC20.
+    """
     owner: Account!
 
     """
-    The address that will be granted allowance to transfer the NFT.
+    The address that will be granted allowance to transfer ERC20.
     """
     to: Account!
-    """
-    The id of the NFT that will be granted allowance to transfer.
-    The id is: uint256(keccak256(abi.encode(block.chainid, superToken, sender, receiver)))
-    """
-    tokenId: BigInt!
-}
-
-type ApprovalForAllEvent implements Event @entity(immutable: true) {
-    id: ID!
-    transactionHash: Bytes!
-    gasPrice: BigInt!
-    gasUsed: BigInt!
-    timestamp: BigInt!
-    name: String!
 
     """
-    Empty addresses array.
+    If `amount` is non-zero, this event was emitted for the approval of an ERC20.
+    Tne amount of ERC20 tokens that will be granted allowance to transfer.
     """
-    addresses: [Bytes!]!
-    blockNumber: BigInt!
-    logIndex: BigInt!
-    order: BigInt!
-
-    owner: Account!
-
-    """
-    The address that will be granted operator permissions for the all of the owner's tokens.
-    """
-    operator: Account!
-    """
-    Whether the operator is enabled or disabled for `owner`.
-    """
-    approved: Boolean!
-}
-
-type MetadataUpdateEvent implements Event @entity(immutable: true) {
-    id: ID!
-    transactionHash: Bytes!
-    gasPrice: BigInt!
-    gasUsed: BigInt!
-    timestamp: BigInt!
-    name: String!
-
-    """
-    Empty addresses array.
-    """
-    addresses: [Bytes!]!
-    blockNumber: BigInt!
-    logIndex: BigInt!
-    order: BigInt!
-
-    """
-    The id of the NFT that will be granted allowance to transfer.
-    The id is: uint256(keccak256(abi.encode(block.chainid, superToken, sender, receiver)))
-    """
-    tokenId: BigInt!
+    amount: BigInt!
 }
 
 #     SuperTokenFactory    #
@@ -1590,7 +1572,8 @@ type SuperTokenLogicCreatedEvent implements Event @entity(immutable: true) {
     name: String!
 
     """
-    Empty addresses array.
+    Contains the addresses that were impacted by this event:
+    addresses[0] = `tokenLogic`
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1708,7 +1691,7 @@ type BondIncreasedEvent implements Event @entity(immutable: true) {
 """
 Account: A higher order entity created for any addresses which interact with Superfluid contracts.
 """
-type Account @entity {
+type Account @entity(immutable: false) {
     id: ID!
     createdAtTimestamp: BigInt!
     createdAtBlockNumber: BigInt!
@@ -1741,7 +1724,7 @@ type Account @entity {
         @derivedFrom(field: "account")
 }
 
-type Pool @entity {
+type Pool @entity(immutable: false) {
     """
     ID: poolAddress
     """
@@ -1757,6 +1740,11 @@ type Pool @entity {
     totalAmountInstantlyDistributedUntilUpdatedAt: BigInt!
     totalAmountFlowedDistributedUntilUpdatedAt: BigInt!
     totalAmountDistributedUntilUpdatedAt: BigInt!
+    totalFlowAdjustmentAmountDistributedUntilUpdatedAt: BigInt!
+
+    perUnitSettledValue: BigInt!
+    perUnitFlowRate: BigInt!
+
     """
     A member is any account which has more than 0 units in the pool.
     """
@@ -1796,7 +1784,7 @@ type Pool @entity {
         @derivedFrom(field: "pool")
 }
 
-type PoolMember @entity {
+type PoolMember @entity(immutable: false) {
     """
     ID composed of: "poolMember"-poolAddress-poolMemberAddress
     """
@@ -1812,6 +1800,9 @@ type PoolMember @entity {
     poolTotalAmountDistributedUntilUpdatedAt: BigInt!
     totalAmountReceivedUntilUpdatedAt: BigInt!
 
+    syncedPerUnitSettledValue: BigInt!
+    syncedPerUnitFlowRate: BigInt!
+
     account: Account!
     pool: Pool!
 
@@ -1824,7 +1815,7 @@ type PoolMember @entity {
         @derivedFrom(field: "poolMember")
 }
 
-type PoolDistributor @entity {
+type PoolDistributor @entity(immutable: false) {
     """
     ID composed of: "poolDistributor"-pool-poolDistributorAddress
     """
@@ -1855,7 +1846,7 @@ type PoolDistributor @entity {
 """
 Index: An Index higher order entity.
 """
-type Index @entity {
+type Index @entity(immutable: false) {
     """
     ID composed of: publisherAddress-tokenAddress-indexId
     """
@@ -1930,7 +1921,7 @@ type Index @entity {
 """
 IndexSubscription: A higher order entity that contains subscription data for a `subscriber` account of a particular `Index`.
 """
-type IndexSubscription @entity {
+type IndexSubscription @entity(immutable: false) {
     """
     ID composed of: subscriberAddress-publisherAddress-tokenAddress-IndexId
     """
@@ -1990,7 +1981,7 @@ A account can start a stream, update the flow rate, but when they close it, it i
 The next stream you create with the same `sender` and `receiver` will create a new stream entity.
 Therefore, multiple stream entities can be created between the same `sender` and `receiver`.
 """
-type Stream @entity {
+type Stream @entity(immutable: false) {
     """
     ID composed of: senderAddress-receiverAddress-tokenAddress-revisionIndex
     """
@@ -2027,7 +2018,7 @@ type Stream @entity {
 """
 FlowOperator: A higher order entity that of a flow operator for an `AccountTokenSnapshot`.
 """
-type FlowOperator @entity {
+type FlowOperator @entity(immutable: false) {
     """
     ID composed of: flowOperator-token-sender
     """
@@ -2076,7 +2067,7 @@ type FlowOperator @entity {
 """
 StreamPeriod: A higher order entity that represents a period of time in a Stream with a constant flowRate.
 """
-type StreamPeriod @entity {
+type StreamPeriod @entity(immutable: false) {
     """
     ID composed of: streamId - periodRevisionIndex
     """
@@ -2109,7 +2100,7 @@ type StreamPeriod @entity {
 TokenGovernanceConfig: A higher order entity that represents the governance configs for a token.
 If `id` is `address(0)`, it will be used as the default config.
 """
-type TokenGovernanceConfig @entity {
+type TokenGovernanceConfig @entity(immutable: false) {
     """
     id is the address of the SuperToken
     NOTE: the zero address is reserved for the default config for all tokens with unset configs.
@@ -2156,7 +2147,7 @@ type TokenGovernanceConfig @entity {
 ####################
 #  Helper Entities #
 ####################
-type StreamRevision @entity {
+type StreamRevision @entity(immutable: false) {
     """
     ID composed of: keccak256(abi.encode(sender,receiver))-tokenAddress
     """
@@ -2174,7 +2165,7 @@ type StreamRevision @entity {
 """
 Token: A higher order entity created for super tokens (and underlying tokens) that are "valid" (tokens that have Superfluid's host contract address set as the host).
 """
-type Token @entity {
+type Token @entity(immutable: false) {
     """
     ID: the token address
     """
@@ -2206,11 +2197,12 @@ type Token @entity {
     underlyingToken: Token
 
     """
+    If `governanceConfig.id` is the zero address, the token uses the default governance config.
     """
     governanceConfig: TokenGovernanceConfig
 }
 
-type ResolverEntry @entity {
+type ResolverEntry @entity(immutable: false) {
     """
     ID: the keccak256 hash of the set name
     """
@@ -2232,11 +2224,13 @@ type ResolverEntry @entity {
 """
 AccountTokenSnapshot: An aggregate entity which aggregates data between an `account`'s interaction with `token`.
 """
-type AccountTokenSnapshot @entity {
+type AccountTokenSnapshot @entity(immutable: false) {
     """
     ID composed of: accountID-tokenID
     """
     id: ID!
+    createdAtTimestamp: BigInt!
+    createdAtBlockNumber: BigInt!
     updatedAtTimestamp: BigInt!
     updatedAtBlockNumber: BigInt!
     # ---------------------------------- state ----------------------------------
@@ -2334,19 +2328,29 @@ type AccountTokenSnapshot @entity {
     totalApprovedSubscriptions: Int!
 
     """
-    The current (as of updatedAt) number of membership with units allocated to them tied to this `account`.
+    The current (as of updatedAt) number of membership with units allocated to them tied to this `account`. (both IDA and GDA)
     """
     totalMembershipsWithUnits: Int!
 
     """
-    Counts all currently (as of updatedAt) approved membership whether or not they have units.
+    Counts all currently (as of updatedAt) approved membership whether or not they have units. (both IDA and GDA)
     """
     totalConnectedMemberships: Int!
+
+    """
+    Counts how many pools the account is a pool admin of. The pool admin can be set arbitrarily when creating a GDA pool. The pool admin might receive an "adjustment flow" if the pool has a flow distribution.
+    """
+    adminOfPoolCount: Int!
 
     """
     Balance of `account` as of `updatedAtTimestamp`/`updatedAtBlock`.
     """
     balanceUntilUpdatedAt: BigInt!
+
+    """
+    The last block the balance was queried from an RPC (the most accurate source for balance data).
+    """
+    balanceLastUpdatedFromRpcBlocknumber: BigInt
 
     """
     The total deposit this account has held by all flow agreements for `account` active streams.
@@ -2436,7 +2440,7 @@ type AccountTokenSnapshot @entity {
 """
 AccountTokenSnapshotLog: Historical entries of `AccountTokenSnapshot` updates.
 """
-type AccountTokenSnapshotLog @entity {
+type AccountTokenSnapshotLog @entity(immutable: true) {
     id: ID!
     timestamp: BigInt!
     blockNumber: BigInt!
@@ -2632,7 +2636,7 @@ type AccountTokenSnapshotLog @entity {
 """
 TokenStatistic: An aggregate entity which contains aggregate data for `token`.
 """
-type TokenStatistic @entity {
+type TokenStatistic @entity(immutable: false) {
     """
     id: `token` (superToken) address
     """
@@ -2784,7 +2788,7 @@ type TokenStatistic @entity {
 """
 TokenStatisticLog: Historical entries of `TokenStatistic` updates.
 """
-type TokenStatisticLog @entity {
+type TokenStatisticLog @entity(immutable: true) {
     id: ID!
     timestamp: BigInt!
     blockNumber: BigInt!
@@ -2938,7 +2942,7 @@ type TokenStatisticLog @entity {
 #  Internal Entity #
 ####################
 
-type SFMeta @entity {
+type SFMeta @entity(immutable: true) {
     """
     The id is the commit hash.
     """

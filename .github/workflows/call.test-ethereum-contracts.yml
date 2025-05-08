@@ -8,76 +8,90 @@ on:
         type: boolean
 
 jobs:
-  # Ahhhhhhhhhh, it is silly, but the only way to preparing conditional matrix.
+  # When this scrip is written, it is the only way to preparing conditional matrix:
   # Ref: https://stackoverflow.com/questions/65384420/how-do-i-make-a-github-action-matrix-element-conditional
   matrix-prep:
     name: Preparing Conditional Strategy Matrix
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
 
     steps:
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v3
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
 
-    - id: set-matrix
-      run: |
-        if [ "${{ inputs.run-coverage-tests }}" == "true" ];then
-          echo "matrix={\"node-version\": [20]}" >> "$GITHUB_OUTPUT"
-        else
-          echo "matrix={\"node-version\": [18, 20]}" >> "$GITHUB_OUTPUT"
-        fi
+      - name: Set matrix variable
+        id: set-matrix
+        run: |
+          if [ "${{ inputs.run-coverage-tests }}" == "true" ];then
+            echo "matrix={\"node-version\": [24]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix={\"node-version\": [20, 22, 24]}" >> "$GITHUB_OUTPUT"
+          fi
 
   test-ethereum-contracts:
     name: Test ethereum-contracts
 
     needs: [matrix-prep]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix: ${{ fromJson(needs.matrix-prep.outputs.matrix) }}
+      fail-fast: false
+
+    env:
+      DEV_SHELL_NAME: ci-node${{ matrix.node-version }}
 
     defaults:
       run:
-        shell: nix develop .#ci-node${{ matrix.node-version }} -c bash -xe {0}
+        shell: nix develop .#${{ env.DEV_SHELL_NAME }} -c bash -xe {0}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - uses: cachix/install-nix-action@v19
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Initialize devShell
+      - name: Set cache key prefix
+        id: set-cache-key-prefix
         run: |
-          node --version
-          yarn --version
-          solc --version
+          if [ "${{ inputs.run-coverage-tests }}" == false ]; then
+            v=ethereum-contracts-${{ env.DEV_SHELL_NAME }}-test-
+          else
+            v=ethereum-contracts-${{ env.DEV_SHELL_NAME }}-coverage-
+          fi
+          echo "cache_key_prefix=$v" >> "$GITHUB_OUTPUT"
+        shell: bash
 
-      - name: Yarn Install
+      - name: Setup workflow base
+        id: base
+        uses: ./.github/actions/setup-workflow-base
+        with:
+          package-name: ethereum-contracts
+          cache-key-prefix: ${{ steps.set-cache-key-prefix.outputs.cache_key_prefix }}
+          dev-shell-name: ${{ env.DEV_SHELL_NAME }}
+
+      - name: Install dependencies
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
           yarn install --frozen-lockfile
+          solc --version
+          forge --version
           npx tsc --version
           npx hardhat --version
 
       - name: Lint and build
+        if: steps.base.outputs.cache-hit != 'true'
         run: |
           yarn lint
           yarn build
 
-      ########################################
-      ## Test Suite
-      ########################################
       - name: Run test suite
-        if: inputs.run-coverage-tests == false
+        if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == false
         run: |
           echo "FOUNDRY_PROFILE=ci" >> $GITHUB_ENV
-          echo "FOUNDRY_SOLC_VERSION=$SOLC" >> $GITHUB_ENV
           yarn test
           cat testing-benchmark.json
         working-directory: ./packages/ethereum-contracts
@@ -85,14 +99,10 @@ jobs:
           HARDHAT_TEST_JOBS: 4
           HARDHAT_RUN_PARALLEL: 1
 
-      ########################################
-      ## Coverage Test
-      ########################################
       - name: Run coverage test
-        if: inputs.run-coverage-tests == true
+        if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == true
         run: |
           echo "FOUNDRY_PROFILE=ci" >> $GITHUB_ENV
-          echo "FOUNDRY_SOLC_VERSION=$SOLC" >> $GITHUB_ENV
           yarn test-coverage
         working-directory: ./packages/ethereum-contracts
         # NOTE: currently coverage report is not working properly in parallel mode.
@@ -107,13 +117,13 @@ jobs:
           HARDHAT_RUN_PARALLEL: 0
 
       - name: Clean up and merge coverage artifacts
-        if: inputs.run-coverage-tests == true
+        if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == true
         run: ./tasks/coverage-cleanup.sh
         working-directory: ./packages/ethereum-contracts
 
       - name: Create coverage artifact
         if: inputs.run-coverage-tests == true
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ethereum-contracts-coverage
           path: |

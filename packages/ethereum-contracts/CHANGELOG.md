@@ -3,24 +3,143 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [unreleased]
+
+### Added
+- `SuperToken` now implements [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) (permit extension for EIP-20 signed approvals)
+
+## [v1.12.1]
+
+### Added
+- Superfluid Pools now implement `IERC20Metadata`, thus going forward have a name, symbol and decimals
+- `IGeneralDistributionAgreementV1.createPoolWithCustomERC20Metadata` and `SuperTokenV1Library.createPoolWithCustomERC20Metadata` for creating pools with custom ERC20 metadata
+- `SuperTokenV1Library`
+  - overloaded `claimAll` for the msg.sender to claim for themselves
+  - added `flowWithCtx` and `flowFromWithCtx`
+
+### Changed
+- Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
+- `SuperTokenV1Library.getFlowRate` and `SuperTokenV1Library.getFlowInfo` now also allow querying the flowrate between pools and pool members
+- Superfluid Pools now emit a Transfer event when changing units with `updateMemberUnits`.
+- Dependency foundry updated to 1.0
+
+### Breaking
+- `SuperTokenV1Library.distributeFlow`: return `actualFlowRate` instead of a bool
+- `SuperTokenV1Library.distribute`: return `actualAmount` instead of a bool
+
+## [v1.12.0]
+
+### Added
+- `SuperTokenV1Library`
+  - added agreement specific variants for `getFlowRate`, `getFlowInfo`, `getNetFlowRate` and `getNetFlowInfo`, e.g. `getCFAFlowRate`, `getGDAFlowRate`, ...
+  - added `flow` for changing CFA flows, can be used instead of the CRUD methods
+  - added `flowFrom` for changing CFA flows using ACL permissions, can be used instead of the CRUD methods
+  - added `distribute` and `distributeFlow` variants (overloaded) without `from` argument
+  - added `transferX` and `flowX` for agreement abstracted instant or flow transfers/distributions
+  - added `getTotalAmountReceivedFromPool` (alias for `getTotalAmountReceivedByMember`)
+- Host: added `ISuperfluid.getERC2771Forwarder`: to be used by batch call targets who want to use ERC-2771 for msg sender preservation
+- Utility contracts for forwarding of calls in the context of batch operations:
+  - `SimpleForwarder`: for forwarding arbitrary calls to arbitrary targets
+  - `ERC2771Forwarder`: for forwarding arbitrary calls to arbitrary targets with msg sender authenticated according to ERC-2771. Requires the target contract to recognize it as trusted forwarder.
+
+### Breaking
+- Removed `CFAv1Library`, superseded by `SuperTokenV1Library`.
+- The IDA is now declared as deprecated, shouldn't be used anymore. The GDA covers all its functionality.
+- Removed `IDAv1Library`.
+- `SuperTokenV1Library`
+  - removed IDA specific functionality. `distribute` now maps to the GDA.
+  - `getFlowRate` and `getFlowInfo` now work return the GDA flowrate/info if the receiver is a pool (previously it would return 0). In order to specifically query the CFA flowrate, use the newly added `getCFAFlowRate` and `getCFAFlowInfo`.
+  - removed `updateMemberUnits` (use ISuperfluidPool.updateMemberUnits instead)
+- Source file `SuperfluidFrameworkDeployer.sol` renamed to `SuperfluidFrameworkDeployer.t.sol`
+- Source file `FoundrySuperfluidTester.sol` renamed to `FoundrySuperfluidTester.t.sol`
+
+## [v1.11.1]
+
+### Changed
+
+- `MacroForwarder` made payable.
+- `IUserDefinedMacro`: added a method `postCheck()` which allows to verify state changes after running the macro.
+- `SuperfluidFrameworkDeployer` now also deploys and `MacroForwarder` and enables it as trusted forwarder.
+- `deploy-test-environment.js` now deploys fUSDC (the underlying) with 6 decimals (instead of 18) to better resemble the actual USDC.
+
+### Fixed
+
+- GDA Pools are not multi-tokens ready, added a permission check (#2010).
+
+## [v1.11.0]
 
 ### Breaking
 
-- The abstract base contract`SuperAppBaseFlow` was renamed to `CFASuperAppBase`.
-Initialization is now split between constructor and a method `_initialize`, with self-registration
-made optional.
-This allows the contract to be used with a SuperApp factory pattern (disable self-registration on networks with permissioned SuperApps) and for logic contracts in the context of the proxy pattern.
+- FlowNFTs are being deprecated. The hooks aren't invoked anymore by CFA and GDA.
+
+## [v1.10.0]
+
+### Breaking
+
+- ISuperfuidPool self-transfer is not allowed.
+- FoundrySuperfluidTester is test with forge-std@v1.9.1, which may break with 1.7.x and prio forge-std lib.
+- Removing SafeGasLibrary, in favor of CallbackUtils.
+
+### Added
+
+- `batchCall` now supports 4 additional operation types:
+  - `OPERATION_TYPE_SUPERTOKEN_UPGRADE_TO`
+  - `OPERATION_TYPE_SUPERTOKEN_DOWNGRADE_TO`
+  - `OPERATION_TYPE_SIMPLE_FORWARD_CALL`
+  - `OPERATION_TYPE_ERC2771_FORWARD_CALL`
+  The latter 2 allow to add arbitrary contract calls to batch call.
+- Solidity library CallbackUtils for dealing with EIP-150 1/64-rule for callbacks.
+
+### Changed
+
+- increase SuperApp callback gas limit on some chains, to be queried with `host.CALLBACK_GAS_LIMIT()`
+- Remove try/catch in PoolNFT callbacks.
+- upgrade flake locked foundry: 0.2.0 (20b3da1 2024-07-02T00:18:52.435480726Z).
+- relax pragram solidity with "^0.8.23".
+- bump solc to 0.8.26.
+- Faster SuperAppMockAux._burnGas implementation.
+- foundry test reorg:
+  - rename '.prop.sol' to '.prop.t.sol';
+  - mark mock-contract files with 't.sol' to be skipped by foundry build automatically;
+  - move some mock contracts to test/foundry if they are only used for foundry tests.
+
+## Fixes
+
+- Fix a few types and build warnings.
+- Make testTokenURIIsExpected work with non via-ir pipeline.
+
+## [v1.9.1] - 2024-03-19
+
+### Breaking
+
+- The abstract base contract`SuperAppBaseFlow` was renamed to `CFASuperAppBase` and doesn't self-register in the constructor anymore.
+This allows the contract to be used with a SuperApp factory pattern and by logic contracts in the context of the proxy pattern.
 Note: this will NOT break any deployed contracts, only affects undeployed Super Apps in case the ethereum-contracts dependency is updated.
+- `UniversalIndexData`, `PoolMemberData` and `FlowDistributionData` structs moved from `IGeneralDistributionAgreementV1.sol` to `GeneralDistributionAgreementV1.sol`
+- `PoolIndexData`, `MemberData` structs moved from `ISuperfluidPool.sol` to `SuperfluidPool.sol`
 
 ### Added
 
 - New utility: MacroForwarder - a trusted forwarder extensible with permission-less macro contracts.
+- New protocol contract view functions:
+  - `gdaV1.getFlow`
+  - `gdaV1.getAccountFlowInfo`
+  - `pool.poolOperatorGetIndex`
+  - `pool.getTotalAmountReceivedByMember`
+- New SuperTokenV1Library functions:
+  - `getGDAFlowInfo`
+  - `getGDANetFlowInfo`
+  - `getPoolAdjustmentFlowRate`
+  - `getTotalAmountReceivedByMember`
 
 ### Changed
 
 - bump solc to 0.8.23
+- `superTokenV1Library.getNetFlowInfo` sums CFA and GDA net flow info
 
+### Fixes
+
+- FlowNFT hooks can't revert with outofgas anymore
 
 ## [v1.9.0] - 2024-01-09
 

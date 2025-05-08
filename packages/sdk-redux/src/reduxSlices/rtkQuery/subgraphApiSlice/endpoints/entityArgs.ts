@@ -5,6 +5,9 @@ import {
     FlowOperatorListQuery,
     IndexListQuery,
     IndexSubscriptionsListQuery,
+    PoolDistributorsListQuery,
+    PoolListQuery,
+    PoolMembersListQuery,
     StreamListQuery,
     StreamPeriodListQuery,
     SubgraphGetQuery,
@@ -98,5 +101,29 @@ export interface FlowOperatorQuery extends SubgraphGetQuery {
 }
 
 export interface FlowOperatorsQuery extends FlowOperatorListQuery {
+    chainId: number;
+}
+
+export interface PoolQuery extends SubgraphGetQuery {
+    chainId: number;
+}
+
+export interface PoolsQuery extends PoolListQuery {
+    chainId: number;
+}
+
+export interface PoolMemberQuery extends SubgraphGetQuery {
+    chainId: number;
+}
+
+export interface PoolMembersQuery extends PoolMembersListQuery {
+    chainId: number;
+}
+
+export interface PoolDistributorQuery extends SubgraphGetQuery {
+    chainId: number;
+}
+
+export interface PoolDistributorsQuery extends PoolDistributorsListQuery {
     chainId: number;
 }
