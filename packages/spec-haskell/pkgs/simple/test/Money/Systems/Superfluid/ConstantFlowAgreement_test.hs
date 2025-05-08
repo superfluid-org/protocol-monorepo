@@ -73,8 +73,8 @@ simple1to1ScenarioTest = TokenTestCase TokenTestSpec
     runToken $ SF.updateFlow alice bob (2*fr1x)
     expectFlowRateTo  (alice,   bob) $ assertEqual' (2*fr1x)
     expectFlowRateTo  (alice, carol) $ assertEqual'       0
-    expectNetFlowRateTo alice $ assertEqual' (- 2*fr1x)
-    expectNetFlowRateTo bob   $ assertEqual' (  2*fr1x)
+    expectNetFlowRateTo alice $ assertEqual' ((-2) * fr1x)
+    expectNetFlowRateTo bob   $ assertEqual' (2 * fr1x)
     expectNetFlowRateTo carol $ assertEqual'      0
     expectZeroTotalValue
 
@@ -117,7 +117,7 @@ simple1to2ScenarioTest = TokenTestCase TokenTestSpec
     expectFlowRateTo (alice, bob)   $ assertEqual'    fr1x
     expectFlowRateTo (alice, carol) $ assertEqual' (3*fr1x)
     expectFlowRateTo (bob, carol)   $ assertEqual'       0
-    expectNetFlowRateTo alice $ assertEqual'  (-4*fr1x)
+    expectNetFlowRateTo alice $ assertEqual'  ((-4)*fr1x)
     expectNetFlowRateTo bob   $ assertEqual'      fr1x
     expectNetFlowRateTo carol $ assertEqual'  ( 3*fr1x)
     expectZeroTotalValue
@@ -131,12 +131,12 @@ simple1to2ScenarioTest = TokenTestCase TokenTestSpec
 
     -- T3a: updating flow: alice -> bob 2x
     runToken $ SF.updateFlow alice bob (2*fr1x)
-    expectFlowRateTo (alice, bob)   $ assertEqual' (2*fr1x)
-    expectFlowRateTo (alice, carol) $ assertEqual' (3*fr1x)
+    expectFlowRateTo (alice, bob)   $ assertEqual' (2 * fr1x)
+    expectFlowRateTo (alice, carol) $ assertEqual' (3 * fr1x)
     expectFlowRateTo (bob, carol)   $ assertEqual'       0
-    expectNetFlowRateTo alice $ assertEqual'  (-5*fr1x)
-    expectNetFlowRateTo bob   $ assertEqual'  ( 2*fr1x)
-    expectNetFlowRateTo carol $ assertEqual'  ( 3*fr1x)
+    expectNetFlowRateTo alice $ assertEqual'  ((-5) * fr1x)
+    expectNetFlowRateTo bob   $ assertEqual'  (2 * fr1x)
+    expectNetFlowRateTo carol $ assertEqual'  (3 * fr1x)
     expectZeroTotalValue
 
     -- T4: move time forward and test balance moves
