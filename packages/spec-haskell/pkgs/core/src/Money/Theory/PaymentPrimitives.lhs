@@ -90,10 +90,10 @@ sem :: MoneyDistribution md
     => 𝓜 md -> MoneyDistributionModel' md
 sem (TransferI ka kb amount) = \u _ ->
     let x = fromIntegral amount
-    in ceiling $ -x * ρ ka u + x * ρ kb u
+    in ceiling $ -(x * ρ ka u) + x * ρ kb u
 sem (FlowI ka kb r t') = \u t ->
-    let x = fromIntegral $ -r * coerce(t - t')
-    in ceiling $ -x * ρ ka u + x * ρ kb u
+    let x = fromIntegral $ -(r * coerce(t - t'))
+    in ceiling $ -(x * ρ ka u) + x * ρ kb u
 -- GHC 9.4.2 bug re non-exhaustive pattern matching?
 sem _ = error "huh?"
 
