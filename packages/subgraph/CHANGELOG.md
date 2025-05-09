@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Fix `totalSubscriptionsWithUnits` on TokenStatistics
 - Use declarative eth calls for indexing optimization
 - Remove `receipt: true` from handlers, resulting in `gasUsed` staying null, but improving indexing performance
+- Disable indexing of `Send` events. Use `Transfer` instead.
 
 ## [2.2.0]
 
