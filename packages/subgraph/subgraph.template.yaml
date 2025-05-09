@@ -36,7 +36,6 @@ dataSources:
           eventHandlers:
               - event: SuperTokenCreated(indexed address)
                 handler: handleSuperTokenCreated
-                receipt: true
                 calls:
                   getHost: ISuperToken[event.params.token].getHost()
                   getUnderlyingToken: ISuperToken[event.params.token].getUnderlyingToken()
@@ -44,7 +43,6 @@ dataSources:
                   getDecimals: ISuperToken[event.params.token].decimals()
               - event: CustomSuperTokenCreated(indexed address)
                 handler: handleCustomSuperTokenCreated
-                receipt: true
                 calls:
                   getHost: ISuperToken[event.params.token].getHost()
                   getUnderlyingToken: ISuperToken[event.params.token].getUnderlyingToken()
@@ -52,7 +50,6 @@ dataSources:
                   getDecimals: ISuperToken[event.params.token].decimals()
               - event: SuperTokenLogicCreated(indexed address)
                 handler: handleSuperTokenLogicCreated
-                receipt: true
                 calls:
                   getHost: ISuperToken[event.params.token].getHost()
     - kind: ethereum/contract
@@ -82,25 +79,18 @@ dataSources:
           eventHandlers:
               - event: GovernanceReplaced(address,address)
                 handler: handleGovernanceReplaced
-                receipt: true
               - event: AgreementClassRegistered(bytes32,address)
                 handler: handleAgreementClassRegistered
-                receipt: true
               - event: AgreementClassUpdated(bytes32,address)
                 handler: handleAgreementClassUpdated
-                receipt: true
               - event: SuperTokenFactoryUpdated(address)
                 handler: handleSuperTokenFactoryUpdated
-                receipt: true
               - event: SuperTokenLogicUpdated(indexed address,address)
                 handler: handleSuperTokenLogicUpdated
-                receipt: true
               - event: AppRegistered(indexed address)
                 handler: handleAppRegistered
-                receipt: true
               - event: Jail(indexed address,uint256)
                 handler: handleJail
-                receipt: true
     - kind: ethereum/contract
       name: ConstantFlowAgreementV1
       network: {{ network }}
@@ -137,17 +127,14 @@ dataSources:
           eventHandlers:
               - event: FlowUpdated(indexed address,indexed address,indexed address,int96,int256,int256,bytes)
                 handler: handleFlowUpdated
-                receipt: true
                 calls:
                   balanceOfSender: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.sender)
                   balanceOfReceiver: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.receiver)
                   deposit: IConstantFlowAgreementV1[event.address].getFlow(event.params.token, event.params.sender, event.params.receiver)
               - event: FlowUpdatedExtension(indexed address,uint256)
                 handler: handleFlowUpdatedExtension
-                receipt: true
               - event: FlowOperatorUpdated(indexed address,indexed address,indexed address,uint8,int96)
                 handler: handleFlowOperatorUpdated
-                receipt: true
     - kind: ethereum/contract
       name: InstantDistributionAgreementV1
       network: {{ network }}
@@ -191,43 +178,33 @@ dataSources:
         eventHandlers:
           - event: IndexCreated(indexed address,indexed address,indexed uint32,bytes)
             handler: handleIndexCreated
-            receipt: true
           - event: IndexDistributionClaimed(indexed address,indexed address,indexed uint32,address,uint256)
             handler: handleIndexDistributionClaimed
-            receipt: true
             calls:
               balanceOfSubscriber: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.subscriber)
           - event: IndexUpdated(indexed address,indexed address,indexed uint32,uint128,uint128,uint128,uint128,bytes)
             handler: handleIndexUpdated
-            receipt: true
           - event: IndexSubscribed(indexed address,indexed address,indexed uint32,address,bytes)
             handler: handleIndexSubscribed
-            receipt: true
           - event: IndexUnitsUpdated(indexed address,indexed address,indexed uint32,address,uint128,bytes)
             handler: handleIndexUnitsUpdated
-            receipt: true
           - event: IndexUnsubscribed(indexed address,indexed address,indexed uint32,address,bytes)
             handler: handleIndexUnsubscribed
-            receipt: true
           - event: SubscriptionApproved(indexed address,indexed address,address,uint32,bytes)
             handler: handleSubscriptionApproved
-            receipt: true
             calls:
               balanceOfSubscriber: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.subscriber)
           - event: SubscriptionDistributionClaimed(indexed address,indexed address,address,uint32,uint256)
             handler: handleSubscriptionDistributionClaimed
-            receipt: true
             calls:
               balanceOfPublisher: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.publisher)
               balanceOfSubscriber: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.subscriber)
           - event: SubscriptionRevoked(indexed address,indexed address,address,uint32,bytes)
             handler: handleSubscriptionRevoked
-            receipt: true
             calls:
               balanceOfSubscriber: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.subscriber)
           - event: SubscriptionUnitsUpdated(indexed address,indexed address,address,uint32,uint128,bytes)
             handler: handleSubscriptionUnitsUpdated
-            receipt: true
             calls:
               balanceOfPublisher: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.publisher)
               balanceOfSubscriber: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.subscriber)
@@ -271,25 +248,20 @@ dataSources:
         eventHandlers:
           - event: BufferAdjusted(indexed address,indexed address,indexed address,int256,uint256,uint256)
             handler: handleBufferAdjusted
-            receipt: true
           - event: FlowDistributionUpdated(indexed address,indexed address,indexed address,address,int96,int96,int96,address,int96,bytes)
             handler: handleFlowDistributionUpdated
-            receipt: true
             calls:
               balanceOfDistributor: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.distributor)
           - event: InstantDistributionUpdated(indexed address,indexed address,indexed address,address,uint256,uint256,bytes)
             handler: handleInstantDistributionUpdated
-            receipt: true
             calls:
               balanceOfDistributor: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.distributor)
           - event: PoolConnectionUpdated(indexed address,indexed address,indexed address,bool,bytes)
             handler: handlePoolConnectionUpdated
-            receipt: true
             calls:
               balanceOfAccount: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.account)
           - event: PoolCreated(indexed address,indexed address,address)
             handler: handlePoolCreated
-            receipt: true
             calls:
               balanceOfAdmin: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.admin)
     - kind: ethereum/contract
@@ -317,16 +289,12 @@ dataSources:
         eventHandlers:
           - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
             handler: handleRoleAdminChanged
-            receipt: true
           - event: RoleGranted(indexed bytes32,indexed address,indexed address)
             handler: handleRoleGranted
-            receipt: true
           - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
             handler: handleRoleRevoked
-            receipt: true
           - event: Set(indexed string,address)
             handler: handleSet
-            receipt: true
 templates:
   - name: SuperToken
     kind: ethereum/contract
@@ -362,46 +330,38 @@ templates:
       eventHandlers:
         - event: AgreementLiquidatedBy(address,indexed address,bytes32,indexed address,indexed address,uint256,uint256)
           handler: handleAgreementLiquidatedBy
-          receipt: true
           calls:
             balanceOfLiquidator: ISuperToken[event.address].realtimeBalanceOfNow(event.params.liquidatorAccount)
             balanceOfPenalty: ISuperToken[event.address].realtimeBalanceOfNow(event.params.penaltyAccount)
             balanceOfBond: ISuperToken[event.address].realtimeBalanceOfNow(event.params.bondAccount)
         - event: AgreementLiquidatedV2(indexed address,bytes32,indexed address,indexed address,address,uint256,int256,bytes)
           handler: handleAgreementLiquidatedV2
-          receipt: true
           calls:
             balanceOfLiquidator: ISuperToken[event.address].realtimeBalanceOfNow(event.params.liquidatorAccount)
             balanceOfTarget: ISuperToken[event.address].realtimeBalanceOfNow(event.params.targetAccount)
             balanceOfRewardReceiver: ISuperToken[event.address].realtimeBalanceOfNow(event.params.rewardAmountReceiver)
         - event: Burned(indexed address,indexed address,uint256,bytes,bytes)
           handler: handleBurned
-          receipt: true
         - event: Minted(indexed address,indexed address,uint256,bytes,bytes)
           handler: handleMinted
-          receipt: true
         # Not indexing Sent event anymore. Use Transfer instead.
         # - event: Sent(indexed address,indexed address,indexed address,uint256,bytes,bytes)
         #   handler: handleSent
         #   receipt: true
         - event: TokenUpgraded(indexed address,uint256)
           handler: handleTokenUpgraded
-          receipt: true
           # Decided not to do calls here as the RPC call might not always happen.
         - event: TokenDowngraded(indexed address,uint256)
           handler: handleTokenDowngraded
-          receipt: true
           # Decided not to do calls here as the RPC call might not always happen.
         - event: Transfer(indexed address,indexed address,uint256)
           handler: handleTransfer
-          receipt: true
           calls:
             # Decided to parallelize here even though the RPC call might not always happen in the handler.
             balanceOfFrom: ISuperToken[event.address].realtimeBalanceOfNow(event.params.from)
             balanceOfTo: ISuperToken[event.address].realtimeBalanceOfNow(event.params.to)
         - event: Approval(indexed address,indexed address,uint256)
           handler: handleApproval
-          receipt: true
   - kind: ethereum/contract
     name: SuperfluidGovernance
     network: {{ network }}
@@ -426,22 +386,16 @@ templates:
       eventHandlers:
         - event: ConfigChanged(indexed address,indexed address,bytes32,bool,uint256)
           handler: handleConfigChanged
-          receipt: true
         - event: RewardAddressChanged(indexed address,indexed address,bool,address)
           handler: handleRewardAddressChanged
-          receipt: true
         - event: CFAv1LiquidationPeriodChanged(indexed address,indexed address,bool,uint256)
           handler: handleCFAv1LiquidationPeriodChanged
-          receipt: true
         - event: PPPConfigurationChanged(indexed address,indexed address,bool,uint256,uint256)
           handler: handlePPPConfigurationChanged
-          receipt: true
         - event: SuperTokenMinimumDepositChanged(indexed address,indexed address,bool,uint256)
           handler: handleSuperTokenMinimumDepositChanged
-          receipt: true
         - event: TrustedForwarderChanged(indexed address,indexed address,bool,address,bool)
           handler: handleTrustedForwarderChanged
-          receipt: true
   - kind: ethereum/contract
     name: TOGA
     network: {{ network }}
@@ -462,10 +416,8 @@ templates:
       eventHandlers:
         - event: NewPIC(indexed address,address,uint256,int96)
           handler: handleNewPIC
-          receipt: true
         - event: ExitRateChanged(indexed address,int96)
           handler: handleExitRateChanged
-          receipt: true
         - event: BondIncreased(indexed address,uint256)
           handler: handleBondIncreased
           receipt: true
@@ -502,11 +454,9 @@ templates:
       eventHandlers:
         - event: MemberUnitsUpdated(indexed address,indexed address,uint128,uint128)
           handler: handleMemberUnitsUpdated
-          receipt: true
           calls:
             balanceOfMember: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.member)
         - event: DistributionClaimed(indexed address,indexed address,int256,int256)
           handler: handleDistributionClaimed
-          receipt: true
           calls:
             balanceOfMember: ISuperToken[event.params.token].realtimeBalanceOfNow(event.params.member)
