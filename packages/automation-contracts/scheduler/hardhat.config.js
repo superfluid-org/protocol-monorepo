@@ -25,8 +25,29 @@ module.exports = {
             url: "http://127.0.0.1:8545/",
             chainId: 31337,
         },
+        ethereum: {
+            url: process.env.ETHEREUM_URL || "",
+            accounts:
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
+        },
+        gnosis: {
+            url: process.env.GNOSIS_URL || "",
+            accounts:
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
+        },
         polygon: {
             url: process.env.POLYGON_URL || "",
+            accounts:
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
+        },
+        avalanche: {
+            url: process.env.AVALANCHE_URL || "",
             accounts:
                 process.env.PRIVATE_KEY !== undefined
                     ? [process.env.PRIVATE_KEY]
@@ -40,7 +61,14 @@ module.exports = {
                     : [],
         },
         optimism: {
-            url: "https://mainnet.optimism.io",
+            url: process.env.OPTIMISM_URL || "https://mainnet.optimism.io",
+            accounts:
+                process.env.PRIVATE_KEY !== undefined
+                    ? [process.env.PRIVATE_KEY]
+                    : [],
+        },
+        arbitrum: {
+            url: process.env.ARBITRUM_URL,
             accounts:
                 process.env.PRIVATE_KEY !== undefined
                     ? [process.env.PRIVATE_KEY]
@@ -53,7 +81,7 @@ module.exports = {
                     ? [process.env.PRIVATE_KEY]
                     : [],
         },
-        "base-mainnet": {
+        base: {
             url: process.env.BASE_URL || "",
             accounts:
                 process.env.PRIVATE_KEY !== undefined

@@ -1694,7 +1694,7 @@ type BondIncreasedEvent implements Event @entity(immutable: true) {
 """
 Account: A higher order entity created for any addresses which interact with Superfluid contracts.
 """
-type Account @entity {
+type Account @entity(immutable: false) {
     id: ID!
     createdAtTimestamp: BigInt!
     createdAtBlockNumber: BigInt!
@@ -1727,7 +1727,7 @@ type Account @entity {
         @derivedFrom(field: "account")
 }
 
-type Pool @entity {
+type Pool @entity(immutable: false) {
     """
     ID: poolAddress
     """
@@ -1787,7 +1787,7 @@ type Pool @entity {
         @derivedFrom(field: "pool")
 }
 
-type PoolMember @entity {
+type PoolMember @entity(immutable: false) {
     """
     ID composed of: "poolMember"-poolAddress-poolMemberAddress
     """
@@ -1818,7 +1818,7 @@ type PoolMember @entity {
         @derivedFrom(field: "poolMember")
 }
 
-type PoolDistributor @entity {
+type PoolDistributor @entity(immutable: false) {
     """
     ID composed of: "poolDistributor"-pool-poolDistributorAddress
     """
@@ -1849,7 +1849,7 @@ type PoolDistributor @entity {
 """
 Index: An Index higher order entity.
 """
-type Index @entity {
+type Index @entity(immutable: false) {
     """
     ID composed of: publisherAddress-tokenAddress-indexId
     """
@@ -1924,7 +1924,7 @@ type Index @entity {
 """
 IndexSubscription: A higher order entity that contains subscription data for a `subscriber` account of a particular `Index`.
 """
-type IndexSubscription @entity {
+type IndexSubscription @entity(immutable: false) {
     """
     ID composed of: subscriberAddress-publisherAddress-tokenAddress-IndexId
     """
@@ -1984,7 +1984,7 @@ A account can start a stream, update the flow rate, but when they close it, it i
 The next stream you create with the same `sender` and `receiver` will create a new stream entity.
 Therefore, multiple stream entities can be created between the same `sender` and `receiver`.
 """
-type Stream @entity {
+type Stream @entity(immutable: false) {
     """
     ID composed of: senderAddress-receiverAddress-tokenAddress-revisionIndex
     """
@@ -2021,7 +2021,7 @@ type Stream @entity {
 """
 FlowOperator: A higher order entity that of a flow operator for an `AccountTokenSnapshot`.
 """
-type FlowOperator @entity {
+type FlowOperator @entity(immutable: false) {
     """
     ID composed of: flowOperator-token-sender
     """
@@ -2070,7 +2070,7 @@ type FlowOperator @entity {
 """
 StreamPeriod: A higher order entity that represents a period of time in a Stream with a constant flowRate.
 """
-type StreamPeriod @entity {
+type StreamPeriod @entity(immutable: false) {
     """
     ID composed of: streamId - periodRevisionIndex
     """
@@ -2103,7 +2103,7 @@ type StreamPeriod @entity {
 TokenGovernanceConfig: A higher order entity that represents the governance configs for a token.
 If `id` is `address(0)`, it will be used as the default config.
 """
-type TokenGovernanceConfig @entity {
+type TokenGovernanceConfig @entity(immutable: false) {
     """
     id is the address of the SuperToken
     NOTE: the zero address is reserved for the default config for all tokens with unset configs.
@@ -2150,7 +2150,7 @@ type TokenGovernanceConfig @entity {
 ####################
 #  Helper Entities #
 ####################
-type StreamRevision @entity {
+type StreamRevision @entity(immutable: false) {
     """
     ID composed of: keccak256(abi.encode(sender,receiver))-tokenAddress
     """
@@ -2168,7 +2168,7 @@ type StreamRevision @entity {
 """
 Token: A higher order entity created for super tokens (and underlying tokens) that are "valid" (tokens that have Superfluid's host contract address set as the host).
 """
-type Token @entity {
+type Token @entity(immutable: false) {
     """
     ID: the token address
     """
@@ -2205,7 +2205,7 @@ type Token @entity {
     governanceConfig: TokenGovernanceConfig
 }
 
-type ResolverEntry @entity {
+type ResolverEntry @entity(immutable: false) {
     """
     ID: the keccak256 hash of the set name
     """
@@ -2227,7 +2227,7 @@ type ResolverEntry @entity {
 """
 AccountTokenSnapshot: An aggregate entity which aggregates data between an `account`'s interaction with `token`.
 """
-type AccountTokenSnapshot @entity {
+type AccountTokenSnapshot @entity(immutable: false) {
     """
     ID composed of: accountID-tokenID
     """
@@ -2443,7 +2443,7 @@ type AccountTokenSnapshot @entity {
 """
 AccountTokenSnapshotLog: Historical entries of `AccountTokenSnapshot` updates.
 """
-type AccountTokenSnapshotLog @entity {
+type AccountTokenSnapshotLog @entity(immutable: true) {
     id: ID!
     timestamp: BigInt!
     blockNumber: BigInt!
@@ -2639,7 +2639,7 @@ type AccountTokenSnapshotLog @entity {
 """
 TokenStatistic: An aggregate entity which contains aggregate data for `token`.
 """
-type TokenStatistic @entity {
+type TokenStatistic @entity(immutable: false) {
     """
     id: `token` (superToken) address
     """
@@ -2791,7 +2791,7 @@ type TokenStatistic @entity {
 """
 TokenStatisticLog: Historical entries of `TokenStatistic` updates.
 """
-type TokenStatisticLog @entity {
+type TokenStatisticLog @entity(immutable: true) {
     id: ID!
     timestamp: BigInt!
     blockNumber: BigInt!
@@ -2945,7 +2945,7 @@ type TokenStatisticLog @entity {
 #  Internal Entity #
 ####################
 
-type SFMeta @entity {
+type SFMeta @entity(immutable: true) {
     """
     The id is the commit hash.
     """

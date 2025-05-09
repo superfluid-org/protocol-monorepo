@@ -85,11 +85,11 @@ simple1to2ScenarioTest = TokenTestCase TokenTestSpec
     let [alice, bob, carol] = testAddresses ctx
     runToken $ SF.updateDecayingFlow alice bob        u1x
     runToken $ SF.updateDecayingFlow alice carol (u1x * 2)
-    expectΕValTo alice $ assertFuzzilyEqualWith (-3*u1xd)
+    expectΕValTo alice $ assertFuzzilyEqualWith ((-3) * u1xd)
     expectΕValTo bob   $ assertFuzzilyEqualWith     u1xd
-    expectΕValTo carol $ assertFuzzilyEqualWith  (2*u1xd)
+    expectΕValTo carol $ assertFuzzilyEqualWith  (2 * u1xd)
     expectDistributionLimitTo (alice, bob)   $ assertEqual'    u1x
-    expectDistributionLimitTo (alice, carol) $ assertEqual' (2*u1x)
+    expectDistributionLimitTo (alice, carol) $ assertEqual' ( 2 * u1x)
 
     -- T1: move time forward and test balance moves
     timeTravel $ 3600 * 24
