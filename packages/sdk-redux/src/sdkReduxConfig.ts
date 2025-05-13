@@ -1,12 +1,12 @@
-import {Framework} from '@superfluid-finance/sdk-core';
-import {Signer} from 'ethers';
-import _ from 'lodash';
+import {type Framework} from '@superfluid-finance/sdk-core';
+import {type Signer} from 'ethers';
+import memoize from 'lodash.memoize';
 
 // NOTE: This file is marked for side-effects inside the package.json for efficient tree-shaking.
 
-import {RpcApiSliceEmpty} from './reduxSlices/rtkQuery/rpcApiSlice/rpcApiSlice';
-import {SubgraphApiSliceEmpty} from './reduxSlices/rtkQuery/subgraphApiSlice/subgraphApiSlice';
-import {TransactionTrackerSlice} from './reduxSlices/transactionTrackerSlice/transactionTrackerSlice';
+import {type RpcApiSliceEmpty} from './reduxSlices/rtkQuery/rpcApiSlice/rpcApiSlice';
+import {type SubgraphApiSliceEmpty} from './reduxSlices/rtkQuery/subgraphApiSlice/subgraphApiSlice';
+import {type TransactionTrackerSlice} from './reduxSlices/transactionTrackerSlice/transactionTrackerSlice';
 
 interface FrameworkLocator {
     getFramework: (chainId: number) => Promise<Framework>;
@@ -102,7 +102,7 @@ export default class SdkReduxConfig
             ? () => Promise.resolve(instanceOrFactory)
             : instanceOrFactory;
 
-        this.memoizedFrameworkFactories.set(chainId, _.memoize(frameworkFactory));
+        this.memoizedFrameworkFactories.set(chainId, memoize(frameworkFactory));
     }
 
     setTransactionTrackerSlice(slice: TransactionTrackerSlice): void {

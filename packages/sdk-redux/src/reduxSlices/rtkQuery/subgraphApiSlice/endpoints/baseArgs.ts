@@ -1,6 +1,6 @@
-import {DocumentNode} from 'graphql';
+import {type DocumentNode} from 'graphql';
 
-import {BaseQuery, NothingString} from '../../../argTypes';
+import {type BaseQuery, type NothingString} from '../../../argTypes';
 
 export interface CustomSubgraphQuery extends BaseQuery<unknown> {
     document: string | DocumentNode;

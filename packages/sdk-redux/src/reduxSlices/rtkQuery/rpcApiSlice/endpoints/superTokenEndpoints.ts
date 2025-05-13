@@ -1,16 +1,16 @@
 import {NativeAssetSuperToken, WrapperSuperToken} from '@superfluid-finance/sdk-core';
 
 import {getFramework} from '../../../../sdkReduxConfig';
-import {TransactionInfo} from '../../../argTypes';
+import {type TransactionInfo} from '../../../argTypes';
 import {registerNewTransactionAndReturnQueryFnResult} from '../../../transactionTrackerSlice/registerNewTransaction';
 import {createGeneralTags, createSpecificTags} from '../../cacheTags/CacheTagTypes';
-import {RpcEndpointBuilder} from '../rpcEndpointBuilder';
+import {type RpcEndpointBuilder} from '../rpcEndpointBuilder';
 
 import {
-    SuperTokenDowngradeMutation,
-    SuperTokenTransferMutation,
-    SuperTokenUpgradeAllowanceQuery,
-    SuperTokenUpgradeMutation,
+    type SuperTokenDowngradeMutation,
+    type SuperTokenTransferMutation,
+    type SuperTokenUpgradeAllowanceQuery,
+    type SuperTokenUpgradeMutation,
 } from './superTokenArgs';
 
 export const createSuperTokenEndpoints = (builder: RpcEndpointBuilder) => ({

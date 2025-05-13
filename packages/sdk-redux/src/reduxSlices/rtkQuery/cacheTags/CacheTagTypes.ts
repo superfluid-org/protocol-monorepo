@@ -1,5 +1,5 @@
 import {insertIf, typeGuard} from '../../../utils';
-import {NothingString} from '../../argTypes';
+import {type NothingString} from '../../argTypes';
 
 /**
  * Cache tag types for queries. Read more about caching from RTK-Query documentation: https://redux-toolkit.js.org/rtk-query/usage/automated-refetching#cache-tags

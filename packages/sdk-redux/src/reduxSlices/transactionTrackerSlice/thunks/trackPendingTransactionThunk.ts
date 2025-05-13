@@ -1,18 +1,18 @@
 // Having a single "track" action makes it easy to use transaction tracking logic.
 import {ErrorCode} from '@ethersproject/logger';
-import {createAsyncThunk, Dispatch} from '@reduxjs/toolkit';
+import {createAsyncThunk, type Dispatch} from '@reduxjs/toolkit';
 import {EventQueryHandler} from '@superfluid-finance/sdk-core';
 import {ethers, logger} from 'ethers';
 import promiseRetry from 'promise-retry';
 
 import {getFramework, getRpcApiSlice, getSubgraphApiSlice, getTransactionTrackerSlice} from '../../../sdkReduxConfig';
 import {MillisecondTimes} from '../../../utils';
-import {TransactionInfo} from '../../argTypes';
+import {type TransactionInfo} from '../../argTypes';
 import {createGeneralTags} from '../../rtkQuery/cacheTags/CacheTagTypes';
-import {EthersError} from '../ethersError';
-import {NewTransactionResponse} from '../registerNewTransaction';
+import {type EthersError} from '../ethersError';
+import {type NewTransactionResponse} from '../registerNewTransaction';
 import {transactionTrackerSelectors} from '../transactionTrackerAdapter';
-import {TransactionTrackerReducer, transactionTrackerSlicePrefix} from '../transactionTrackerSlice';
+import {type TransactionTrackerReducer, transactionTrackerSlicePrefix} from '../transactionTrackerSlice';
 import {trySerializeTransaction} from '../trySerializeTransaction';
 
 import {initiateNewTransactionTrackingThunk} from './initiateNewTransactionTrackingThunk';

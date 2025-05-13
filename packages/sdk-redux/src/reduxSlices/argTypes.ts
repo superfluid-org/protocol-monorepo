@@ -1,5 +1,5 @@
-import {ISuperTokenModifyFlowParams} from '@superfluid-finance/sdk-core';
-import {Signer} from 'ethers';
+import {type ISuperTokenModifyFlowParams} from '@superfluid-finance/sdk-core';
+import {type Signer} from 'ethers';
 
 import {mutationOverridesKey, mutationSignerKey} from '../utils';
 

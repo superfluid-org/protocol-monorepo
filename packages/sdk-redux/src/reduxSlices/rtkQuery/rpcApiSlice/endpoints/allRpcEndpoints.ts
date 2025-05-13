@@ -1,4 +1,4 @@
-import {RpcEndpointBuilder} from '../rpcEndpointBuilder';
+import {type RpcEndpointBuilder} from '../rpcEndpointBuilder';
 
 import {createFlowEndpoints} from './flowEndpoints';
 import {createIndexEndpoints} from './indexEndpoints';

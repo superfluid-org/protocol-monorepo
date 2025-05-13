@@ -1,21 +1,21 @@
 import {
-    AllEvents,
+    type AllEvents,
     EventQueryHandler,
-    FlowUpdatedEvent,
+    type FlowUpdatedEvent,
     FlowUpdatedEventQueryHandler,
-    ILightEntity,
-    IndexUpdatedEvent,
+    type ILightEntity,
+    type IndexUpdatedEvent,
     IndexUpdatedEventQueryHandler,
-    PagedResult,
-    RelevantAddressProviderFromFilter,
-    RelevantAddressProviderFromResult,
-    SubgraphGetQuery,
+    type PagedResult,
+    type RelevantAddressProviderFromFilter,
+    type RelevantAddressProviderFromResult,
+    type SubgraphGetQuery,
     SubgraphGetQueryHandler,
-    SubgraphListQuery,
+    type SubgraphListQuery,
     SubgraphListQueryHandler,
-    SubscriptionUnitsUpdatedEvent,
+    type SubscriptionUnitsUpdatedEvent,
     SubscriptionUnitsUpdatedEventQueryHandler,
-    TransferEvent,
+    type TransferEvent,
     TransferEventQueryHandler,
 } from '@superfluid-finance/sdk-core';
 
@@ -23,9 +23,9 @@ import {getSubgraphClient} from '../../../../sdkReduxConfig';
 import {createGeneralTags} from '../../cacheTags/CacheTagTypes';
 import {CacheTime} from '../../cacheTime';
 import {provideSpecificCacheTagsFromRelevantAddresses} from '../provideSpecificCacheTagsFromRelevantAddresses';
-import {SubgraphEndpointBuilder} from '../subgraphEndpointBuilder';
+import {type SubgraphEndpointBuilder} from '../subgraphEndpointBuilder';
 
-import {
+import type {
     EventQuery,
     EventsQuery,
     FlowUpdatedEventQuery,

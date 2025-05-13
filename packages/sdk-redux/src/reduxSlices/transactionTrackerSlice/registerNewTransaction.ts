@@ -1,8 +1,8 @@
-import {ThunkDispatch} from '@reduxjs/toolkit';
+import {type ThunkDispatch} from '@reduxjs/toolkit';
 import {providers} from 'ethers';
 
 import {initiateNewTransactionTrackingThunk} from './thunks/initiateNewTransactionTrackingThunk';
-import {TransactionTitle} from './transactionTitle';
+import {type TransactionTitle} from './transactionTitle';
 
 /**
  * A simpler TransactionResponse type, similar to wagmi's SendTransactionResult,

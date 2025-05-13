@@ -1,4 +1,4 @@
-import {RelevantAddresses} from '@superfluid-finance/sdk-core';
+import {type RelevantAddresses} from '@superfluid-finance/sdk-core';
 
 import {createMostSpecificTag} from '../cacheTags/CacheTagTypes';
 
