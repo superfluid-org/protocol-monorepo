@@ -29,6 +29,7 @@ export const initiateNewTransactionTrackingThunk = createAsyncThunk<
 
     dispatch(
         getTransactionTrackerSlice().actions.addTransaction({
+            id: transactionHash,
             chainId: arg.chainId,
             hash: transactionHash,
             signerAddress: ethers.utils.getAddress(arg.signerAddress),

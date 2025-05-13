@@ -1,11 +1,11 @@
 {
     "compilerOptions": {
         "incremental": true,
-        "target": "ES2019",
+        "target": "ESNext",
         "outDir": "dist/main",
         "rootDir": "src",
         "moduleResolution": "node",
-        "module": "commonjs",
+        "module": "ESNext",
         "lib": [ "DOM", "ESNext" ],
         "declaration": true,
         "declarationMap": true,

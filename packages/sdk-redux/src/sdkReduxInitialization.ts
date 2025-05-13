@@ -1,11 +1,13 @@
-import {CreateApi} from '@reduxjs/toolkit/dist/query';
-import type {ModuleName} from '@reduxjs/toolkit/dist/query/apiTypes';
+import {CreateApi} from '@reduxjs/toolkit/query';
+import {coreModuleName} from '@reduxjs/toolkit/query';
 import {Framework} from '@superfluid-finance/sdk-core';
 
 import {createRpcApiSlice} from './reduxSlices/rtkQuery/rpcApiSlice/rpcApiSlice';
 import {createSubgraphApiSlice} from './reduxSlices/rtkQuery/subgraphApiSlice/subgraphApiSlice';
 import {createTransactionTrackerSlice} from './reduxSlices/transactionTrackerSlice/transactionTrackerSlice';
 import {getConfig} from './sdkReduxConfig';
+
+type ModuleName = typeof coreModuleName;
 
 /**
  * For initializing "rpcApiSlice" Redux slice.

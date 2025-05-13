@@ -6,6 +6,7 @@ export type TransactionStatus = 'Pending' | 'Succeeded' | 'Failed' | 'Replaced' 
 
 // "Redux" stuff needs to be serializable. Blockchain transaction object is unserializable.
 export interface TrackedTransaction {
+    id: string;
     chainId: number;
     hash: string;
     /**

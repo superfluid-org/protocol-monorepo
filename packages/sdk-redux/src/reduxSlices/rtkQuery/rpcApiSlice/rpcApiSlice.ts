@@ -1,5 +1,5 @@
-import {CreateApi} from '@reduxjs/toolkit/dist/query';
-import type {ModuleName} from '@reduxjs/toolkit/dist/query/apiTypes';
+import {type CreateApi} from '@reduxjs/toolkit/query';
+import {coreModuleName} from '@reduxjs/toolkit/query';
 
 import {typeGuard} from '../../../utils';
 import {cacheTagTypes} from '../cacheTags/CacheTagTypes';
@@ -8,6 +8,8 @@ import {getSerializeQueryArgs} from '../getSerializeQueryArgs';
 import {rpcBaseQuery} from './rpcBaseQuery';
 import {RpcEndpointBuilder} from './rpcEndpointBuilder';
 import {RpcReducerPath} from './rpcReducerPath';
+
+type ModuleName = typeof coreModuleName;
 
 export const createRpcApiSlice = <T extends ModuleName>(createRtkQueryApi: CreateApi<T>) =>
     createRtkQueryApi({

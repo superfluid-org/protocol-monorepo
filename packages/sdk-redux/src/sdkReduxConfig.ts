@@ -1,6 +1,6 @@
 import {Framework} from '@superfluid-finance/sdk-core';
 import {Signer} from 'ethers';
-import _ from 'lodash';
+import {memoize} from 'lodash';
 
 // NOTE: This file is marked for side-effects inside the package.json for efficient tree-shaking.
 
@@ -102,7 +102,7 @@ export default class SdkReduxConfig
             ? () => Promise.resolve(instanceOrFactory)
             : instanceOrFactory;
 
-        this.memoizedFrameworkFactories.set(chainId, _.memoize(frameworkFactory));
+        this.memoizedFrameworkFactories.set(chainId, memoize(frameworkFactory));
     }
 
     setTransactionTrackerSlice(slice: TransactionTrackerSlice): void {

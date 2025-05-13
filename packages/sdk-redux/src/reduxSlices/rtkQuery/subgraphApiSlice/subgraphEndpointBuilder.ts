@@ -1,4 +1,4 @@
-import {EndpointBuilder} from '@reduxjs/toolkit/dist/query/endpointDefinitions';
+import {type EndpointBuilder} from '@reduxjs/toolkit/query';
 
 import {CacheTagType} from '../cacheTags/CacheTagTypes';
 

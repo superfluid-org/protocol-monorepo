@@ -1,10 +1,12 @@
-import {CreateApi} from '@reduxjs/toolkit/dist/query';
-import {ModuleName} from '@reduxjs/toolkit/dist/query/apiTypes';
+import {type CreateApi} from '@reduxjs/toolkit/query';
+import {coreModuleName} from '@reduxjs/toolkit/query';
 
 import {typeGuard} from '../../../utils';
 import {cacheTagTypes} from '../cacheTags/CacheTagTypes';
 import {CacheTime} from '../cacheTime';
 import {getSerializeQueryArgs} from '../getSerializeQueryArgs';
+
+type ModuleName = typeof coreModuleName;
 
 import {subgraphBaseQuery} from './subgraphBaseQuery';
 import {SubgraphEndpointBuilder} from './subgraphEndpointBuilder';
