@@ -9,12 +9,10 @@ All notable changes to the SDK-redux will be documented in this file.
 
 ## [0.7.0]
 
-### Added
 ### Changed
 - [BREAKING] update to @reduxjs/toolkit 2
 - [BREAKING] leave only ESM support (no CommonJS)
-
-### Fixed
+- use lodash's smaller direct libraries
 
 ## [0.6.1] - 2024-08-01
 
