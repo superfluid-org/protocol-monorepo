@@ -1,6 +1,6 @@
 import {type Framework} from '@superfluid-finance/sdk-core';
 import {type Signer} from 'ethers';
-import {memoize} from 'lodash';
+import memoize from 'lodash.memoize';
 
 // NOTE: This file is marked for side-effects inside the package.json for efficient tree-shaking.
 

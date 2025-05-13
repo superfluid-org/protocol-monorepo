@@ -1,6 +1,6 @@
 import {type ThunkDispatch, type UnknownAction} from '@reduxjs/toolkit';
 import {type AllEvents} from '@superfluid-finance/sdk-core';
-import uniqBy from 'lodash.uniqBy';
+import uniqBy from 'lodash.uniqby';
 
 import {getRpcApiSlice, getSubgraphApiSlice} from '../../../sdkReduxConfig';
 
