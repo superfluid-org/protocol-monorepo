@@ -37,11 +37,10 @@
     "homepage": "https://docs.superfluid.finance/",
     "keywords": [],
     "license": "MIT",
-    "main": "dist/main/index.js",
     "module": "dist/module/index.js",
     "peerDependencies": {
         "@reduxjs/toolkit": ">=2",
-        "@superfluid-finance/sdk-core": ">0.7.0"
+        "@superfluid-finance/sdk-core": ">=0.7.0"
     },
     "repository": {
         "type": "git",
@@ -64,7 +63,7 @@
         "cloc": "sh tasks/cloc.sh"
     },
     "sideEffects": [
-        "./src/sdkReduxConfig.ts"
+        "./dist/module/sdkReduxConfig.js"
     ],
     "typings": "dist/module/index.d.ts"
 }
