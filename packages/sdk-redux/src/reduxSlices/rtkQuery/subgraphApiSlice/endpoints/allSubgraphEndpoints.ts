@@ -1,4 +1,4 @@
-import {SubgraphEndpointBuilder} from '../subgraphEndpointBuilder';
+import {type SubgraphEndpointBuilder} from '../subgraphEndpointBuilder';
 
 import {createBaseEndpoints} from './baseEndpoints';
 import {createEntityEndpoints} from './entityEndpoints';

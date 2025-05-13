@@ -1,7 +1,7 @@
 import {getFramework} from '../../../../sdkReduxConfig';
-import {TransactionInfo} from '../../../argTypes';
+import {type TransactionInfo} from '../../../argTypes';
 import {registerNewTransactionAndReturnQueryFnResult} from '../../../transactionTrackerSlice/registerNewTransaction';
-import {RpcEndpointBuilder} from '../rpcEndpointBuilder';
+import {type RpcEndpointBuilder} from '../rpcEndpointBuilder';
 
 import {
     IndexCreateMutation,

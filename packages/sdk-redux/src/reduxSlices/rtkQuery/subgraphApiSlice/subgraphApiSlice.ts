@@ -1,16 +1,14 @@
 import {type CreateApi} from '@reduxjs/toolkit/query';
-import {coreModuleName} from '@reduxjs/toolkit/query';
 
 import {typeGuard} from '../../../utils';
+import {type ModuleName} from '../ModuleName';
 import {cacheTagTypes} from '../cacheTags/CacheTagTypes';
 import {CacheTime} from '../cacheTime';
 import {getSerializeQueryArgs} from '../getSerializeQueryArgs';
 
-type ModuleName = typeof coreModuleName;
-
 import {subgraphBaseQuery} from './subgraphBaseQuery';
 import {SubgraphEndpointBuilder} from './subgraphEndpointBuilder';
-import {SubgraphReducerPath} from './subgraphReducerPath';
+import {type SubgraphReducerPath} from './subgraphReducerPath';
 
 export const createSubgraphApiSlice = <T extends ModuleName>(createRtkQueryApi: CreateApi<T>) =>
     createRtkQueryApi({

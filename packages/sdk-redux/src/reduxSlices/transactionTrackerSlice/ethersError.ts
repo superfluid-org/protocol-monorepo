@@ -1,6 +1,6 @@
 import {ethers} from 'ethers';
 
-import {NewTransactionResponse} from './registerNewTransaction';
+import {type NewTransactionResponse} from './registerNewTransaction';
 
 export type EthersError = Error & {
     code: ethers.errors;

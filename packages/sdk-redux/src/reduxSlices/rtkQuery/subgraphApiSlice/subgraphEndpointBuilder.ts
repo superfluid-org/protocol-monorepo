@@ -1,8 +1,8 @@
 import {type EndpointBuilder} from '@reduxjs/toolkit/query';
 
-import {CacheTagType} from '../cacheTags/CacheTagTypes';
+import {type CacheTagType} from '../cacheTags/CacheTagTypes';
 
-import {SubgraphBaseQuery} from './subgraphBaseQuery';
-import {SubgraphReducerPath} from './subgraphReducerPath';
+import {type SubgraphBaseQuery} from './subgraphBaseQuery';
+import {type SubgraphReducerPath} from './subgraphReducerPath';
 
 export type SubgraphEndpointBuilder = EndpointBuilder<SubgraphBaseQuery, CacheTagType, SubgraphReducerPath>;

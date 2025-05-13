@@ -1,12 +1,12 @@
-import {Framework} from '@superfluid-finance/sdk-core';
-import {Signer} from 'ethers';
+import {type Framework} from '@superfluid-finance/sdk-core';
+import {type Signer} from 'ethers';
 import {memoize} from 'lodash';
 
 // NOTE: This file is marked for side-effects inside the package.json for efficient tree-shaking.
 
-import {RpcApiSliceEmpty} from './reduxSlices/rtkQuery/rpcApiSlice/rpcApiSlice';
-import {SubgraphApiSliceEmpty} from './reduxSlices/rtkQuery/subgraphApiSlice/subgraphApiSlice';
-import {TransactionTrackerSlice} from './reduxSlices/transactionTrackerSlice/transactionTrackerSlice';
+import {type RpcApiSliceEmpty} from './reduxSlices/rtkQuery/rpcApiSlice/rpcApiSlice';
+import {type SubgraphApiSliceEmpty} from './reduxSlices/rtkQuery/subgraphApiSlice/subgraphApiSlice';
+import {type TransactionTrackerSlice} from './reduxSlices/transactionTrackerSlice/transactionTrackerSlice';
 
 interface FrameworkLocator {
     getFramework: (chainId: number) => Promise<Framework>;
