@@ -1,9 +1,9 @@
 import {getFramework} from '../../../../sdkReduxConfig';
-import {TransactionInfo} from '../../../argTypes';
+import {type TransactionInfo} from '../../../argTypes';
 import {registerNewTransactionAndReturnQueryFnResult} from '../../../transactionTrackerSlice/registerNewTransaction';
-import {RpcEndpointBuilder} from '../rpcEndpointBuilder';
+import {type RpcEndpointBuilder} from '../rpcEndpointBuilder';
 
-import {FlowCreateMutation, FlowDeleteMutation, FlowUpdateMutation} from './flowArgs';
+import {type FlowCreateMutation, type FlowDeleteMutation, type FlowUpdateMutation} from './flowArgs';
 
 export const createFlowEndpoints = (builder: RpcEndpointBuilder) => ({
     flowCreate: builder.mutation<TransactionInfo, FlowCreateMutation>({

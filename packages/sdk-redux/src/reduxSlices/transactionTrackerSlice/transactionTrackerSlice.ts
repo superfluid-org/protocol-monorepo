@@ -5,7 +5,6 @@ import {transactionTrackerAdapter} from './transactionTrackerAdapter';
 export const transactionTrackerSlicePrefix = 'superfluid_transactions' as const;
 
 export const createTransactionTrackerSlice = () => ({
-    reducerPath: transactionTrackerSlicePrefix,
     ...createSlice({
         name: transactionTrackerSlicePrefix,
         initialState: transactionTrackerAdapter.getInitialState(),
@@ -14,6 +13,7 @@ export const createTransactionTrackerSlice = () => ({
             updateTransaction: transactionTrackerAdapter.updateOne,
         },
     }),
+    reducerPath: transactionTrackerSlicePrefix,
 });
 
 export type TransactionTrackerSlice = ReturnType<typeof createTransactionTrackerSlice>;

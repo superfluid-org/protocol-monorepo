@@ -1,4 +1,4 @@
-import {BaseQuery, BaseSuperTokenMutation} from '../../../argTypes';
+import {type BaseQuery, type BaseSuperTokenMutation} from '../../../argTypes';
 
 /**
  * Downgrade `amount` SuperToken's.

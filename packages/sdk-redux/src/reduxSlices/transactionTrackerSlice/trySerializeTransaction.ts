@@ -1,5 +1,5 @@
-import {SignatureLike} from '@ethersproject/bytes';
-import {ethers, Transaction} from 'ethers';
+import {type SignatureLike} from '@ethersproject/bytes';
+import {ethers, type Transaction} from 'ethers';
 
 /**
  * The use-case arose from Gnosis Safe transaction serialization failing.

@@ -2,8 +2,8 @@ import {createAsyncThunk} from '@reduxjs/toolkit';
 import {ethers} from 'ethers';
 
 import {getTransactionTrackerSlice} from '../../../sdkReduxConfig';
-import {NewTransactionResponse} from '../registerNewTransaction';
-import {TransactionTitle} from '../transactionTitle';
+import {type NewTransactionResponse} from '../registerNewTransaction';
+import {type TransactionTitle} from '../transactionTitle';
 import {transactionTrackerSlicePrefix} from '../transactionTrackerSlice';
 import {trySerializeTransaction} from '../trySerializeTransaction';
 
@@ -29,6 +29,7 @@ export const initiateNewTransactionTrackingThunk = createAsyncThunk<
 
     dispatch(
         getTransactionTrackerSlice().actions.addTransaction({
+            id: transactionHash,
             chainId: arg.chainId,
             hash: transactionHash,
             signerAddress: ethers.utils.getAddress(arg.signerAddress),

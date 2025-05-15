@@ -1,6 +1,6 @@
-import {AnyAction, ThunkDispatch} from '@reduxjs/toolkit';
-import {AllEvents} from '@superfluid-finance/sdk-core';
-import {uniqBy} from 'lodash';
+import {type ThunkDispatch, type UnknownAction} from '@reduxjs/toolkit';
+import {type AllEvents} from '@superfluid-finance/sdk-core';
+import uniqBy from 'lodash.uniqby';
 
 import {getRpcApiSlice, getSubgraphApiSlice} from '../../../sdkReduxConfig';
 
@@ -21,7 +21,7 @@ export const getSpecificCacheTagsToInvalidateForEvents = (chainId: number, event
 export const invalidateSpecificCacheTagsForEvents = (
     chainId: number,
     events: AllEvents[],
-    dispatch: ThunkDispatch<any, any, AnyAction>
+    dispatch: ThunkDispatch<any, any, UnknownAction>
 ) => {
     const tagsToInvalidate = getSpecificCacheTagsToInvalidateForEvents(chainId, events);
 

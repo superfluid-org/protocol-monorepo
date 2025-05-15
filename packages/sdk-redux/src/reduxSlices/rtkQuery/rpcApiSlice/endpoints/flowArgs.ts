@@ -1,4 +1,4 @@
-import {BaseSuperTokenMutation, NothingString} from '../../../argTypes';
+import {type BaseSuperTokenMutation, type NothingString} from '../../../argTypes';
 
 /**
  * Create a flow of the token of this class.
