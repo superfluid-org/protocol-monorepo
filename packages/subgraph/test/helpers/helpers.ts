@@ -211,7 +211,8 @@ export const waitUntilBlockIndexed = async (txnBlockNumber: number) => {
     let currentBlock: number;
     do {
         currentBlock = await getCurrentBlockNumber();
-        await asleep(50);
+        console.log(`Waiting for subgraph... Current: ${currentBlock}, Target: ${txnBlockNumber}`);
+        await asleep(500);
     } while (txnBlockNumber > currentBlock);
 };
 
