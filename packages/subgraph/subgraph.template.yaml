@@ -21,7 +21,7 @@ dataSources:
           entities:
               - CustomSuperTokenCreatedEvent
               - SuperTokenCreatedEvent
-              - SuperTokenLogicCreatedEventß
+              - SuperTokenLogicCreatedEvent
               - Token
               - TokenStatistic
           abis:
@@ -51,7 +51,7 @@ dataSources:
               - event: SuperTokenLogicCreated(indexed address)
                 handler: handleSuperTokenLogicCreated
                 calls:
-                  getHost: ISuperToken[event.params.token].getHost()
+                  getHost: ISuperToken[event.params.tokenLogic].getHost()
     - kind: ethereum/contract
       name: Host
       network: {{ network }}
