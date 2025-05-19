@@ -2790,6 +2790,7 @@ type TokenStatistic @entity(immutable: false) {
 
 """
 TokenStatisticLog: Historical entries of `TokenStatistic` updates.
+WARNING: This entity has been deprecated. It is not indexed anymore. It's kept in schema to avoid breakage in the schema.
 """
 type TokenStatisticLog @entity(immutable: true) {
     id: ID!

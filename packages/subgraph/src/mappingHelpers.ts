@@ -801,6 +801,9 @@ export function _createTokenStatisticLogEntity(
     tokenAddress: Address,
     eventName: string
 ): void {
+    // Note: we decided to deprecate TokenStatisticLogs based on high entity count and non-existent usage.
+    return;
+
     const tokenStatistic = getOrInitTokenStatistic(tokenAddress, event.block);
     const tokenStatisticLog = new TokenStatisticLog(
         createLogID("TSLog", tokenStatistic.id, event)
