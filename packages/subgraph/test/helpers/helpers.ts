@@ -32,6 +32,8 @@ export const beforeSetup = async (tokenAmount: number) => {
         (x, y) => ({ ...x, [y.address]: y }),
         {}
     );
+
+    console.log("Reading framework config...");
     const readFromDir = __dirname.split("test")[0] + "config/hardhat.json";
     const rawData = fs.readFileSync(readFromDir);
     const frameworkAddresses = JSON.parse(rawData.toString());
@@ -39,6 +41,8 @@ export const beforeSetup = async (tokenAmount: number) => {
     const users = signers.map((x) => x.address);
     let totalSupply = 0;
     const chainId = (await Deployer.provider!.getNetwork()).chainId;
+
+    console.log(`Creating Superfluid Framework (chainId: ${chainId})...`);
     const sf = await Framework.create({
         chainId,
         protocolReleaseVersion: "test",
@@ -49,6 +53,7 @@ export const beforeSetup = async (tokenAmount: number) => {
     const resolver = sf.contracts.resolver.connect(Deployer);
 
     console.log("\n");
+    console.log("Loading Super Token fDAIx...");
     const fDAIx = await sf.loadWrapperSuperToken("fDAIx");
 
     // types not properly handling this case
@@ -63,6 +68,7 @@ export const beforeSetup = async (tokenAmount: number) => {
     const amount = tokenAmount.toFixed(0);
 
     for (let i = 0; i < signers.length; i++) {
+        console.log(`Processing user ${i + 1}/${signers.length}: ${signers[i].address}`);
         const stringBigIntAmount = ethers.utils.parseUnits(amount).toString();
         await fDAI
             .connect(signers[0])
@@ -80,8 +86,11 @@ export const beforeSetup = async (tokenAmount: number) => {
 
     // NOTE: although we already set this in initialization, we need to reset it here to ensure
     // we wait for the indexer to catch up before the tests start
+    console.log("Setting resolver key...");
     const txn = await resolver.set("supertokens.test.fDAIx", fDAIx.address);
     const receipt = await txn.wait();
+
+    console.log(`Waiting for block ${receipt.blockNumber} to be indexed...`);
     await waitUntilBlockIndexed(receipt.blockNumber);
     const resolverFDAIxAddress = await resolver.get("supertokens.test.fDAIx");
 
