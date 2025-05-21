@@ -145,6 +145,7 @@ deploy_to_goldsky() {
     fi
 
     echo "********* Deploying $network subgraph $subgraphName to Goldsky. **********"
+    $GOLDSKY_CLI login --token "$GOLDSKY_API_KEY"
     if ! $GOLDSKY_CLI subgraph deploy "$subgraphName" --path . --token "$GOLDSKY_API_KEY"; then
         echo "Error: Deployment to Goldsky failed for $network"
         exit 1
