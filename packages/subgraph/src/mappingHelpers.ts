@@ -1091,6 +1091,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
         block
     );
 
+    const blockNumberBeforeUpdate = accountTokenSnapshot.updatedAtBlockNumber;
     const balanceUntilUpdatedAtBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
 
     // update the balance via external call if account has any subscription with more than 0 units
@@ -1104,7 +1105,10 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
 
     const balanceUntilUpdatedAtAfterUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
 
-    if (accountTokenSnapshot.updatedAtBlockNumber === block.number && balanceUntilUpdatedAtBeforeUpdate.equals(balanceUntilUpdatedAtAfterUpdate)) {
+    if (accountTokenSnapshot.createdAtBlockNumber !== block.number && // if the ATS is not new
+        blockNumberBeforeUpdate === block.number 
+        && balanceUntilUpdatedAtBeforeUpdate.equals(balanceUntilUpdatedAtAfterUpdate)
+    ) {
         // ATS has already been updated in the block and no new balance change discovered. It's safe to return early.
         return;
     }
