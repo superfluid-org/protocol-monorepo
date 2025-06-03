@@ -1085,27 +1085,33 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
 ): void {
     const block = event.block;
 
-    let accountTokenSnapshot = getOrInitAccountTokenSnapshot(
+    let ats = getOrInitAccountTokenSnapshot(
         accountAddress,
         tokenAddress,
         block
     );
 
-    const blockNumberBeforeUpdate = accountTokenSnapshot.updatedAtBlockNumber;
-    const balanceUntilUpdatedAtBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+    const totalInflowRateBeforeUpdate = ats.totalInflowRate;
+    const totalNetflowRateBeforeUpdate = ats.totalNetFlowRate;
+    const totalOutflowRateBeforeUpdate = ats.totalOutflowRate;
+    const balanceUntilUpdatedAtBeforeUpdate = ats.balanceUntilUpdatedAt;
+    const blockNumberBeforeUpdate = ats.updatedAtBlockNumber;
+    const updatedAtTimestampBeforeUpdate = ats.updatedAtTimestamp;
+    const totalCFANetflowRateBeforeUpdate = ats.totalCFANetFlowRate;
+    const totalCFAOutflowRateBeforeUpdate = ats.totalCFAOutflowRate;
 
     // update the balance via external call if account has any subscription with more than 0 units
     // or uses the balance delta (which includes amount streamed) and saves the entity
     // we always add the amount streamed in this function
-    accountTokenSnapshot = updateATSBalanceAndUpdatedAt(
-        accountTokenSnapshot,
+    ats = updateATSBalanceAndUpdatedAt(
+        ats,
         event,
         balanceDelta
     );
 
-    const balanceUntilUpdatedAtAfterUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+    const balanceUntilUpdatedAtAfterUpdate = ats.balanceUntilUpdatedAt;
 
-    if (accountTokenSnapshot.createdAtBlockNumber !== block.number && // if the ATS is not new
+    if (ats.createdAtBlockNumber !== block.number && // if the ATS is not new
         blockNumberBeforeUpdate === block.number 
         && balanceUntilUpdatedAtBeforeUpdate.equals(balanceUntilUpdatedAtAfterUpdate)
     ) {
@@ -1117,37 +1123,37 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
     const totalAmountStreamedSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalNetFlowRate
+            updatedAtTimestampBeforeUpdate,
+            totalNetflowRateBeforeUpdate
         );
     const totalAmountStreamedInSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalInflowRate
+            updatedAtTimestampBeforeUpdate,
+            totalInflowRateBeforeUpdate
         );
     const totalAmountStreamedOutSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalOutflowRate
+            updatedAtTimestampBeforeUpdate,
+            totalOutflowRateBeforeUpdate
         );
 
     // update the totalStreamedUntilUpdatedAt (net)
-    accountTokenSnapshot.totalAmountStreamedUntilUpdatedAt =
-        accountTokenSnapshot.totalAmountStreamedUntilUpdatedAt.plus(
+    ats.totalAmountStreamedUntilUpdatedAt =
+        ats.totalAmountStreamedUntilUpdatedAt.plus(
             totalAmountStreamedSinceLastUpdatedAt
         );
 
     // update the totalStreamedUntilUpdatedAt (in)
-    accountTokenSnapshot.totalAmountStreamedInUntilUpdatedAt =
-        accountTokenSnapshot.totalAmountStreamedInUntilUpdatedAt.plus(
+    ats.totalAmountStreamedInUntilUpdatedAt =
+        ats.totalAmountStreamedInUntilUpdatedAt.plus(
             totalAmountStreamedInSinceLastUpdatedAt
         );
 
     // update the totalStreamedUntilUpdatedAt (out)
-    accountTokenSnapshot.totalAmountStreamedOutUntilUpdatedAt =
-        accountTokenSnapshot.totalAmountStreamedOutUntilUpdatedAt.plus(
+    ats.totalAmountStreamedOutUntilUpdatedAt =
+        ats.totalAmountStreamedOutUntilUpdatedAt.plus(
             totalAmountStreamedOutSinceLastUpdatedAt
         );
 
@@ -1155,29 +1161,29 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
     const totalCFAAmountStreamedSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalCFANetFlowRate
+            updatedAtTimestampBeforeUpdate,
+            totalCFANetflowRateBeforeUpdate
         );
     const totalCFAAmountStreamedOutSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalCFAOutflowRate
+            updatedAtTimestampBeforeUpdate,
+            totalCFAOutflowRateBeforeUpdate
         );
 
     // update the totalCFAStreamedUntilUpdatedAt (net)
-    accountTokenSnapshot.totalCFAAmountStreamedUntilUpdatedAt =
-        accountTokenSnapshot.totalCFAAmountStreamedUntilUpdatedAt.plus(
+    ats.totalCFAAmountStreamedUntilUpdatedAt =
+        ats.totalCFAAmountStreamedUntilUpdatedAt.plus(
             totalCFAAmountStreamedSinceLastUpdatedAt
         );
 
     // update the totalCFAStreamedUntilUpdatedAt (out)
-    accountTokenSnapshot.totalCFAAmountStreamedOutUntilUpdatedAt =
-        accountTokenSnapshot.totalCFAAmountStreamedOutUntilUpdatedAt.plus(
+    ats.totalCFAAmountStreamedOutUntilUpdatedAt =
+        ats.totalCFAAmountStreamedOutUntilUpdatedAt.plus(
             totalCFAAmountStreamedOutSinceLastUpdatedAt
         );
 
-    accountTokenSnapshot.save();
+    ats.save();
 
     if (
         balanceUntilUpdatedAtBeforeUpdate.equals(BIG_INT_ZERO) &&

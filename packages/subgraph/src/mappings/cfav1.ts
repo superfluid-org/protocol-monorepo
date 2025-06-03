@@ -152,7 +152,7 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         depositDelta,
         isCreate,
         isDelete,
-        true,
+        true, // isCFA
         event.block
     );
     updateReceiverATSStreamData(
