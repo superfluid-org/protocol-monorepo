@@ -32,6 +32,8 @@ export const beforeSetup = async (tokenAmount: number) => {
         (x, y) => ({ ...x, [y.address]: y }),
         {}
     );
+
+    console.log("Reading framework config...");
     const readFromDir = __dirname.split("test")[0] + "config/hardhat.json";
     const rawData = fs.readFileSync(readFromDir);
     const frameworkAddresses = JSON.parse(rawData.toString());
@@ -82,9 +84,9 @@ export const beforeSetup = async (tokenAmount: number) => {
     // we wait for the indexer to catch up before the tests start
     const txn = await resolver.set("supertokens.test.fDAIx", fDAIx.address);
     const receipt = await txn.wait();
+
     await waitUntilBlockIndexed(receipt.blockNumber);
     const resolverFDAIxAddress = await resolver.get("supertokens.test.fDAIx");
-
     if (resolverFDAIxAddress !== fDAIx.address) {
         throw new Error("fDAIx not set properly in resolver.");
     }
@@ -211,6 +213,7 @@ export const waitUntilBlockIndexed = async (txnBlockNumber: number) => {
     let currentBlock: number;
     do {
         currentBlock = await getCurrentBlockNumber();
+        console.log(`Waiting for subgraph... Current: ${currentBlock}, Target: ${txnBlockNumber}`);
         await asleep(50);
     } while (txnBlockNumber > currentBlock);
 };
