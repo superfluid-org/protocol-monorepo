@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Money.Theory.TestMonetaryTypes where
-
+-- quickcheck
 import           Test.QuickCheck
-
+--
 import           Money.Theory.SemanticMoney
 
 
@@ -42,21 +42,21 @@ deriving instance Show TestUniversalIndex
 instance Arbitrary TestUniversalIndex where
     arbitrary = UniversalIndex <$> arbitrary
 
--- PDPoolIndex
+-- PDP_Index
 --
-type TestPDPoolIndex = PDPoolIndex TestMonetaryTypes TesBasicParticle
-deriving instance Show TestPDPoolIndex
-deriving instance Eq TestPDPoolIndex
-instance Arbitrary TestPDPoolIndex where
-    arbitrary = PDPoolIndex <$> arbitrary <*> arbitrary
+type TestPDP_Index = PDP_Index TestMonetaryTypes TesBasicParticle
+deriving instance Show TestPDP_Index
+deriving instance Eq TestPDP_Index
+instance Arbitrary TestPDP_Index where
+    arbitrary = PDP_Index <$> arbitrary <*> arbitrary
 
--- PDPoolMember
+-- PDP_Member
 --
 
-type TestPDPoolMember = PDPoolMember TestMonetaryTypes TesBasicParticle
-deriving instance Show TestPDPoolMember
-deriving instance Eq TestPDPoolMember
-instance Arbitrary TestPDPoolMember where
-    arbitrary = PDPoolMember <$> arbitrary <*> arbitrary <*> arbitrary
+type TestPDP_Member = PDP_Member TestMonetaryTypes TesBasicParticle
+deriving instance Show TestPDP_Member
+deriving instance Eq TestPDP_Member
+instance Arbitrary TestPDP_Member where
+    arbitrary = PDP_Member <$> arbitrary <*> arbitrary <*> arbitrary
 
-type TestPDPoolMemberMU = PDPoolMemberMU TestMonetaryTypes TesBasicParticle
+type TestPDP_MemberMU = PDP_MemberMU TestMonetaryTypes TesBasicParticle

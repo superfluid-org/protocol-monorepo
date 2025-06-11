@@ -22,6 +22,7 @@ library
     import:           optiongs
     hs-source-dirs:   src
     exposed-modules:
+        Money.Theory.MonetaryTypes
         Money.Theory.SemanticMoney
     -- other-modules:
     -- other-extensions:

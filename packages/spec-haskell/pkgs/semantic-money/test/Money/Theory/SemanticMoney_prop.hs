@@ -33,13 +33,13 @@ bp_settle_idempotency (a :: TesBasicParticle) = mu_settle_idempotency a
 bp_constant_rtb (a :: TesBasicParticle) = mu_constant_rtb a
 uidx_settle_idempotency (a :: TestUniversalIndex) = mu_settle_idempotency a
 uidx_constant_rtb (a :: TestUniversalIndex) = mu_constant_rtb a
-pdidx_settle_idempotency (a :: TestPDPoolIndex) = mu_settle_idempotency a
-pdidx_constant_rtb (a :: TestPDPoolIndex) = mu_constant_rtb a
-pdmb_settle_idempotency (a :: TestPDPoolMemberMU) = mu_settle_idempotency a
-pdmb_constant_rtb (a :: TestPDPoolIndex) t1 u1 t2 u2 = mu_constant_rtb b''
+pdidx_settle_idempotency (a :: TestPDP_Index) = mu_settle_idempotency a
+pdidx_constant_rtb (a :: TestPDP_Index) = mu_constant_rtb a
+pdmb_settle_idempotency (a :: TestPDP_MemberMU) = mu_settle_idempotency a
+pdmb_constant_rtb (a :: TestPDP_Index) t1 u1 t2 u2 = mu_constant_rtb b''
     -- adding two members to an existing index
-    where (a', b') = pdpUpdateMember2 u1 t1 (a, (a, def))
-          (_, b'') = pdpUpdateMember2 u2 t2 (a', b')
+    where (a', b') = pdp_UpdateMember2 u1 t1 (a, (a, def))
+          (_, b'') = pdp_UpdateMember2 u2 t2 (a', b')
 
 mu_laws = describe "monetary unit laws" $ do
     it "bp settle idempotency" $ property bp_settle_idempotency
@@ -59,8 +59,8 @@ bp_monoid_identity (a :: TesBasicParticle) = a == a <> mempty && a == mempty <> 
 bp_monoid_assoc (a :: TesBasicParticle) b c = (a <> b) <> c == a <> (b <> c)
 uidx_monoid_identity (a :: TestUniversalIndex) = a == a <> mempty && a == mempty <> a
 uidx_monoid_assoc (a :: TestUniversalIndex) b c = (a <> b) <> c == a <> (b <> c)
-pdidx_monoid_identity (a :: TestPDPoolIndex) = a == a <> mempty && a == mempty <> a
-pdidx_monoid_assoc (a :: TestPDPoolIndex) b c = (a <> b) <> c == a <> (b <> c)
+pdidx_monoid_identity (a :: TestPDP_Index) = a == a <> mempty && a == mempty <> a
+pdidx_monoid_assoc (a :: TestPDP_Index) b c = (a <> b) <> c == a <> (b <> c)
 
 mp_monoid_laws = describe "monetary particles monoidal laws" $ do
     it "bp monoid identity law" $ property bp_monoid_identity
@@ -95,18 +95,18 @@ one2one_tests = describe "1to1 2-primitives" $ do
 --------------------------------------------------------------------------------
 
 updp_u1_f1_u1_f2 f1 f2 t1 u1 t2 {- f1 -} t3 {- f2 -} t4 u2 t5 =
-    pdidx_total_units b'' == u2 &&
+    pdpi_total_units b'' == u2 &&
     0 == rtb a'' t5 + rtb (b'', b1') t5
-    where (a, (b, b1)) = pdpUpdateMember2 u1 t1 (mempty :: TestUniversalIndex, (mempty :: TestPDPoolIndex, def))
+    where (a, (b, b1)) = pdp_UpdateMember2 u1 t1 (mempty :: TestUniversalIndex, (mempty :: TestPDP_Index, def))
           (a', b') = f2 t3 (f1 t2 (a, b))
-          (a'', (b'', b1')) = pdpUpdateMember2 u2 t4 (a', (b', b1))
+          (a'', (b'', b1')) = pdp_UpdateMember2 u2 t4 (a', (b', b1))
 
 updp_u1_f1_u2_f2 f1 f2 t1 u1 t2 {- f1 -} t3 u2 t4 {- f2 -} t5 =
-    pdidx_total_units b''' == u1 + u2 &&
+    pdpi_total_units b''' == u1 + u2 &&
     0 == rtb a''' t5 + rtb (b''', b1) t5 + rtb (b''', b2) t5
-    where (a, (b, b1)) = pdpUpdateMember2 u1 t1 (mempty :: TestUniversalIndex, (mempty :: TestPDPoolIndex, def))
+    where (a, (b, b1)) = pdp_UpdateMember2 u1 t1 (mempty :: TestUniversalIndex, (mempty :: TestPDP_Index, def))
           (a', b') = f1 t2 (a, b)
-          (a'', (b'', b2)) = pdpUpdateMember2 u2 t3 (a', (b', def :: TestPDPoolMember))
+          (a'', (b'', b2)) = pdp_UpdateMember2 u2 t3 (a', (b', def :: TestPDP_Member))
           (a''', b''') = f2 t4 (a'', b'')
 
 updp_u1_shift2_u1_shift2 x1 x2 = updp_u1_f1_u1_f2 (shift2 x1) (shift2 x2)
@@ -141,7 +141,7 @@ updp_flow2 (a :: TestUniversalIndex) t1 r1 t2 r2 t3 =
     flowRate b'' == r2 && flowRate a'' == -r2 &&
     flowRate (b'', b1') == r2 &&
     r1 `mt_v_mul_t` (t2 - t1) + r2 `mt_v_mul_t` (t3 - t2) == rtb (b'', b1') t3 - rtb (b', b1') t1
-    where (a', (b', b1')) = pdpUpdateMember2 1 t1 (a, (mempty :: TestPDPoolIndex, def))
+    where (a', (b', b1')) = pdp_UpdateMember2 1 t1 (a, (mempty :: TestPDP_Index, def))
           (a'', b'') = flow2 r2 t2 (flow2 r1 t1 (a', b'))
 
 uu_shiftFlow2a (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
@@ -166,7 +166,7 @@ updp_shiftFlow2b (a :: TestUniversalIndex) t1 r1 t2 r2 t3 =
     rtb (b'', b1') t3 - rtb (b', b1') t3 == rtb a' t3 - rtb a'' t3 &&
     -- ditto
     r1 `mt_v_mul_t` (t2 - t1) + (r1 + r2) `mt_v_mul_t` (t3 - t2) == rtb (b'', b1') t3 - rtb (b', b1') t3
-    where (a', (b', b1')) = pdpUpdateMember2 1 t1 (a, (mempty :: TestPDPoolIndex, def))
+    where (a', (b', b1')) = pdp_UpdateMember2 1 t1 (a, (mempty :: TestPDP_Index, def))
           (a'', b'') = shiftFlow2b r2 t2 (shiftFlow2b r1 t1 (a', b'))
 
 flow2_tests = describe "flow2 tests" $ do

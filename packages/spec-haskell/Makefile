@@ -32,7 +32,7 @@ build:
 build-test:
 	$(CABAL_TEST) v2-build all
 
-build-wasm: 
+build-wasm:
 	$(CABAL_WASM) v2-build -v --with-compiler wasm32-wasi-ghc --with-hc-pkg wasm32-wasi-ghc-pkg semantic-money
 	wasm32-wasi-ghc \
 		-odir $(PWD)/$(WASM_BUILDDIR)/wasm -hidir $(PWD)/$(WASM_BUILDDIR)/wasm -stubdir $(PWD)/$(WASM_BUILDDIR)/wasm \
@@ -56,6 +56,10 @@ clean:
 #
 test:
 	$(CABAL_TEST) v2-test all --enable-tests \
+		$(TEST_OPTIONS)
+
+test-sm:
+	$(CABAL_TEST) v2-test semantic-money --enable-tests \
 		$(TEST_OPTIONS)
 
 test-coverage:
