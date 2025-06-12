@@ -16,6 +16,7 @@ CABAL_DOCS     = $(CABAL) --builddir=$(DOCS_BUILDDIR)
 CABAL_WASM     = $(CABAL) --builddir=$(WASM_BUILDDIR)
 
 TEST_OPTIONS = \
+	-O0 \
 	--test-show-details=$(TEST_SHOW_DETAILS_MODE) \
 	--test-options="--maximum-generated-tests=$(TEST_PROP_NUM_RUNS)"
 
@@ -148,6 +149,7 @@ dev:
 	nodemon \
 		-e lhs,hs,cabal \
 		-i dist-newstyle/ -i "$(TEST_BUILDDIR)/" -i "$(TEST_COVERAGE_BUILDDIR)/" \
+		-i "#*" -i "flycheck_*.hs" \
 		-x "make $(DEV_TARGETS) || exit 1"
 
 freeze:

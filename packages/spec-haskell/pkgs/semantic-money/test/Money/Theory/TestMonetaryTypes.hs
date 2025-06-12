@@ -35,27 +35,19 @@ type TesBasicParticle = BasicParticle TestMonetaryTypes
 instance Arbitrary TesBasicParticle where
     arbitrary = BasicParticle <$> arbitrary <*> arbitrary <*> arbitrary
 
--- TesBasicParticle
+-- TestUniversalIndex
 --
-type TestUniversalIndex = UniversalIndex TestMonetaryTypes TesBasicParticle
-deriving instance Show TestUniversalIndex
-instance Arbitrary TestUniversalIndex where
-    arbitrary = UniversalIndex <$> arbitrary
+type TestUniversalIndex = TesBasicParticle
 
--- PDP_Index
+-- TestPDP_Index, TestPDP_Member, TestPDP_MemberMU
 --
 type TestPDP_Index = PDP_Index TestMonetaryTypes TesBasicParticle
 deriving instance Show TestPDP_Index
-deriving instance Eq TestPDP_Index
 instance Arbitrary TestPDP_Index where
     arbitrary = PDP_Index <$> arbitrary <*> arbitrary
 
--- PDP_Member
---
-
 type TestPDP_Member = PDP_Member TestMonetaryTypes TesBasicParticle
 deriving instance Show TestPDP_Member
-deriving instance Eq TestPDP_Member
 instance Arbitrary TestPDP_Member where
     arbitrary = PDP_Member <$> arbitrary <*> arbitrary <*> arbitrary
 

@@ -24,6 +24,7 @@ library
     exposed-modules:
         Money.Theory.MonetaryTypes
         Money.Theory.SemanticMoney
+        Money.Theory.TokenModel
     -- other-modules:
     -- other-extensions:
     build-depends:

@@ -79,10 +79,10 @@ uu_f1_f2 f1 f2 t1 {- f1 -} t2 {- f2 -} t3 =
     where (a, b) = (mempty :: TestUniversalIndex, mempty :: TestUniversalIndex)
           (a', b') = f2 t2 (f1 t1 (a, b))
 
-uu_shift2_shift2 x1 x2 = uu_f1_f2 (shift2 x1) (shift2 x2)
-uu_flow2_flow2 r1 r2 = uu_f1_f2 (flow2 r1) (flow2 r2)
-uu_shift2_flow2 x r = uu_f1_f2 (shift2 x) (flow2 r)
-uu_flow2_shift2 r x = uu_f1_f2 (flow2 r) (shift2 x)
+uu_shift2_shift2 x1 x2 = uu_f1_f2 (shift2b x1) (shift2b x2)
+uu_flow2_flow2 r1 r2 = uu_f1_f2 (flow2b r1) (flow2b r2)
+uu_shift2_flow2 x r = uu_f1_f2 (shift2b x) (flow2b r)
+uu_flow2_shift2 r x = uu_f1_f2 (flow2b r) (shift2b x)
 
 one2one_tests = describe "1to1 2-primitives" $ do
     it "uidx:uidx shift2 shift2" $ property uu_shift2_shift2
@@ -109,72 +109,65 @@ updp_u1_f1_u2_f2 f1 f2 t1 u1 t2 {- f1 -} t3 u2 t4 {- f2 -} t5 =
           (a'', (b'', b2)) = pdp_UpdateMember2 u2 t3 (a', (b', def :: TestPDP_Member))
           (a''', b''') = f2 t4 (a'', b'')
 
-updp_u1_shift2_u1_shift2 x1 x2 = updp_u1_f1_u1_f2 (shift2 x1) (shift2 x2)
-updp_u1_flow2_u1_flow2 r1 r2 = updp_u1_f1_u1_f2 (flow2 r1) (flow2 r2)
-updp_u1_shift2_u1_flow2 x r = updp_u1_f1_u1_f2 (shift2 x) (flow2 r)
-updp_u1_flow2_u1_shift2 r x = updp_u1_f1_u1_f2 (shift2 r) (flow2 x)
-updp_u1_shift2_u2_shift2 x1 x2 = updp_u1_f1_u2_f2 (shift2 x1) (shift2 x2)
-updp_u1_flow2_u2_flow2 r1 r2 = updp_u1_f1_u2_f2 (flow2 r1) (flow2 r2)
-updp_u1_flow2_u2_shift2 r x = updp_u1_f1_u2_f2 (flow2 r) (shift2 x)
-updp_u1_shift2_u2_flow2 x r = updp_u1_f1_u2_f2 (shift2 x) (flow2 r)
+updp_u1_shift2_u1_shift2 x1 x2 = updp_u1_f1_u1_f2 (shift2b x1) (shift2b x2)
+updp_u1_flow2_u1_flow2 r1 r2 = updp_u1_f1_u1_f2 (flow2a r1) (flow2a r2)
+updp_u1_shift2_u1_flow2 x r = updp_u1_f1_u1_f2 (shift2b x) (flow2a r)
+updp_u1_flow2_u1_shift2 r x = updp_u1_f1_u1_f2 (shift2b r) (flow2a x)
+updp_u1_shift2_u2_shift2 x1 x2 = updp_u1_f1_u2_f2 (shift2b x1) (shift2b x2)
+updp_u1_flow2_u2_flow2 r1 r2 = updp_u1_f1_u2_f2 (flow2a r1) (flow2a r2)
+updp_u1_flow2_u2_shift2 r x = updp_u1_f1_u2_f2 (flow2a r) (shift2b x)
+updp_u1_shift2_u2_flow2 x r = updp_u1_f1_u2_f2 (shift2b x) (flow2a r)
 
 one2n_pd_tests = describe "1toN proportional distribution 2-primitives" $ do
-    it "uidx:pdidx u1 shift2 u1 shift2" $ property updp_u1_shift2_u1_shift2
-    it "uidx:pdidx u1 flow2  u1 flow2"  $ property updp_u1_flow2_u1_flow2
-    it "uidx:pdidx u1 shift2 u1 flow2"  $ property updp_u1_shift2_u1_flow2
-    it "uidx:pdidx u1 flow2  u1 shift2" $ property updp_u1_flow2_u1_shift2
-    it "uidx:pdidx u1 shift2 u2 shift2" $ property updp_u1_shift2_u2_shift2
-    it "uidx:pdidx u1 flow2  u2 flow2"  $ property updp_u1_flow2_u2_flow2
-    it "uidx:pdidx u1 flow2  u2 shift2" $ property updp_u1_flow2_u2_shift2
-    it "uidx:pdidx u1 shift2 u2 flow2"  $ property updp_u1_shift2_u2_flow2
+    it "uidx:pdp u1 shift2 u1 shift2" $ property updp_u1_shift2_u1_shift2
+    it "uidx:pdp u1 flow2  u1 flow2"  $ property updp_u1_flow2_u1_flow2
+    it "uidx:pdp u1 shift2 u1 flow2"  $ property updp_u1_shift2_u1_flow2
+    it "uidx:pdp u1 flow2  u1 shift2" $ property updp_u1_flow2_u1_shift2
+    it "uidx:pdp u1 shift2 u2 shift2" $ property updp_u1_shift2_u2_shift2
+    it "uidx:pdp u1 flow2  u2 flow2"  $ property updp_u1_flow2_u2_flow2
+    it "uidx:pdp u1 flow2  u2 shift2" $ property updp_u1_flow2_u2_shift2
+    it "uidx:pdp u1 shift2 u2 flow2"  $ property updp_u1_shift2_u2_flow2
 
 --------------------------------------------------------------------------------
 -- (Constant Rate) Flow 2-Primitive
 --------------------------------------------------------------------------------
 
-uu_flow2 (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
-    flowRate b' == r2 && flowRate a' == -r2 &&
-    r1 `mt_v_mul_t` (t2 - t1) + r2 `mt_v_mul_t` (t3 - t2) == rtb b' t3 - rtb b t1
-    where (a', b') = flow2 r2 t2 (flow2 r1 t1 (a, b))
-
-updp_flow2 (a :: TestUniversalIndex) t1 r1 t2 r2 t3 =
-    flowRate b'' == r2 && flowRate a'' == -r2 &&
-    flowRate (b'', b1') == r2 &&
-    r1 `mt_v_mul_t` (t2 - t1) + r2 `mt_v_mul_t` (t3 - t2) == rtb (b'', b1') t3 - rtb (b', b1') t1
-    where (a', (b', b1')) = pdp_UpdateMember2 1 t1 (a, (mempty :: TestPDP_Index, def))
-          (a'', b'') = flow2 r2 t2 (flow2 r1 t1 (a', b'))
-
-uu_shiftFlow2a (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
+uu_flow2a (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
     flowRate b' - flowRate b == r1 + r2 && flowRate a' - flowRate a == -r1 -r2 &&
     rtb b' t3 - rtb b t3 == rtb a t3 - rtb a' t3 &&
     -- for shift flow semantics: rtb b' t3 - (rtb b t3 - rtb b t1) - rtb b t1 == rtb b' t3 - rtb b t3
     r1 `mt_v_mul_t` (t2 - t1) + (r1 + r2) `mt_v_mul_t` (t3 - t2) == rtb b' t3 - rtb b t3
-    where (a', b') = shiftFlow2a r2 t2 (shiftFlow2a r1 t1 (a, b))
+    where (a', b') = flow2a r2 t2 (flow2a r1 t1 (a, b))
 
-uu_shiftFlow2b (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
+uu_flow2b (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
     flowRate b' - flowRate b == r1 + r2 && flowRate a' - flowRate a == -r1 -r2 &&
     rtb b' t3 - rtb b t3 == rtb a t3 - rtb a' t3 &&
     -- ditto
     r1 `mt_v_mul_t` (t2 - t1) + (r1 + r2) `mt_v_mul_t` (t3 - t2) == rtb b' t3 - rtb b t3
-    where (a', b') = shiftFlow2b r2 t2 (shiftFlow2b r1 t1 (a, b))
+    where (a', b') = flow2b r2 t2 (flow2b r1 t1 (a, b))
 
--- NOTE: updp_shiftFlow2a is an invalid property due to right side biansed error term adjustment.
+-- NOTE: updp_flow2a is an invalid property due to right side biased error term adjustment.
 
-updp_shiftFlow2b (a :: TestUniversalIndex) t1 r1 t2 r2 t3 =
+-- updp_flow2a (a :: TestUniversalIndex) t1 r1 t2 r2 t3 =
+--     flowRate b'' == r2 && flowRate a'' == -r2 &&
+--     flowRate (b'', b1') == r2 &&
+--     r1 `mt_v_mul_t` (t2 - t1) + r2 `mt_v_mul_t` (t3 - t2) == rtb (b'', b1') t3 - rtb (b', b1') t1
+--     where (a', (b', b1')) = pdp_UpdateMember2 1 t1 (a, (mempty :: TestPDP_Index, def))
+--           (a'', b'') = flow2a r2 t2 (flow2a r1 t1 (a', b'))
+
+updp_flow2b (a :: TestUniversalIndex) t1 r1 t2 r2 t3 =
     flowRate b'' - flowRate b' == r1 + r2 && flowRate a'' - flowRate a' == -r1 -r2 &&
     flowRate (b'', b1') == r1 + r2 &&
     rtb (b'', b1') t3 - rtb (b', b1') t3 == rtb a' t3 - rtb a'' t3 &&
     -- ditto
     r1 `mt_v_mul_t` (t2 - t1) + (r1 + r2) `mt_v_mul_t` (t3 - t2) == rtb (b'', b1') t3 - rtb (b', b1') t3
     where (a', (b', b1')) = pdp_UpdateMember2 1 t1 (a, (mempty :: TestPDP_Index, def))
-          (a'', b'') = shiftFlow2b r2 t2 (shiftFlow2b r1 t1 (a', b'))
+          (a'', b'') = flow2b r2 t2 (flow2b r1 t1 (a', b'))
 
 flow2_tests = describe "flow2 tests" $ do
-    it "uidx:uidx flow2" $ property uu_flow2
-    it "uidx:pdidx flow2" $ property updp_flow2
-    it "uidx:uidx shiftFlow2a" $ property uu_shiftFlow2a
-    it "uidx:uidx shiftFlow2b" $ property uu_shiftFlow2b
-    it "uidx:pdidx shiftFlow2b" $ property updp_shiftFlow2b
+    it "uidx:uidx flow2a" $ property uu_flow2a
+    it "uidx:uidx flow2b" $ property uu_flow2b
+    it "uidx:pdp flow2b" $ property updp_flow2b
 
 tests = describe "Semantic money properties" $ do
     mu_laws

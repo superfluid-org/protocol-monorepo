@@ -1,6 +1,13 @@
 {-# LANGUAGE DefaultSignatures      #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
-module Money.Theory.MonetaryTypes where
+module Money.Theory.MonetaryTypes
+    ( MonetaryTypes
+      ( MT_TIME, MT_VALUE, MT_UNIT
+      , mt_v_mul_t, mt_v_mul_u, mt_v_div_u, mt_v_mul_u_qr_u
+      )
+    , MonetaryTypes'tv, MonetaryTypes'tvu
+    ) where
 -- base
 import           Data.Kind (Type)
 
@@ -42,4 +49,7 @@ class ( Eq (MT_TIME mt), Ord (MT_TIME mt), Num (MT_TIME mt)
     type family MT_TIME  mt = (t :: Type) | t -> mt
     type family MT_VALUE mt = (v :: Type) | v -> mt
     type family MT_UNIT  mt = (u :: Type) | u -> mt
-    -- TODO: Do we need FlowRate type?
+    -- TODO: type family MT_FLOWRATE mt = (fr :: Type) | fr -> mt
+
+type MonetaryTypes'tv mt t v = (MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt)
+type MonetaryTypes'tvu mt t v u = (MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt)
