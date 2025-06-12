@@ -4,8 +4,8 @@ import           Money.Theory.SemanticMoney
 
 
 data TokenEvent mt acc where
-    TransferEvent :: forall mt acc {t} {v} {u}.
-        MonetaryTypes'tvu mt t v u =>
+    TransferEvent :: forall mt acc {t} {v}.
+        MonetaryTypes'tv mt t v =>
         t -> acc -> acc -> v -> TokenEvent mt acc
     -- UpdateFlowEvent :: forall mt acc {t} {v} {u}.
     --     MonetaryTypes'tvu mt t v u =>

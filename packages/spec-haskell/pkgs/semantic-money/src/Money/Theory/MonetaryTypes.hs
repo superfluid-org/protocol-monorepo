@@ -3,10 +3,12 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 module Money.Theory.MonetaryTypes
     ( MonetaryTypes
-      ( MT_TIME, MT_VALUE, MT_UNIT
-      , mt_v_mul_t, mt_v_mul_u, mt_v_div_u, mt_v_mul_u_qr_u
+      ( MT_TIME, MT_VALUE, MT_FLOWRATE, MT_UNIT
+      , mt_fr_mul_t
+      , mt_v_mul_u, mt_v_div_u, mt_v_mul_u_qr_u
+      , mt_fr_mul_u, mt_fr_div_u, mt_fr_mul_u_qr_u
       )
-    , MonetaryTypes'tv, MonetaryTypes'tvu
+    , MonetaryTypes'tv, MonetaryTypes'tvr, MonetaryTypes'tvru
     ) where
 -- base
 import           Data.Kind (Type)
@@ -19,14 +21,15 @@ import           Data.Kind (Type)
 --   * Use type family dependencies to make these types to the index type injective.
 class ( Eq (MT_TIME mt), Ord (MT_TIME mt), Num (MT_TIME mt)
       , Eq (MT_VALUE mt), Ord (MT_VALUE mt), Num (MT_VALUE mt)
+      , Eq (MT_FLOWRATE mt), Ord (MT_FLOWRATE mt), Num (MT_FLOWRATE mt)
       , Eq (MT_UNIT mt), Ord (MT_UNIT mt), Num (MT_UNIT mt)
       ) =>
       MonetaryTypes mt where
-    mt_v_mul_t :: MT_VALUE mt -> MT_TIME mt -> MT_VALUE mt
-    default mt_v_mul_t ::
-        Integral (MT_TIME mt) =>
-        MT_VALUE mt -> MT_TIME mt -> MT_VALUE mt
-    mt_v_mul_t v t = v * (fromInteger . toInteger) t
+    mt_fr_mul_t :: MT_FLOWRATE mt -> MT_TIME mt -> MT_VALUE mt
+    default mt_fr_mul_t ::
+        (Integral (MT_TIME mt), Integral (MT_FLOWRATE mt))=>
+        MT_FLOWRATE mt -> MT_TIME mt -> MT_VALUE mt
+    mt_fr_mul_t fr t = fromInteger (toInteger fr * toInteger t)
 
     mt_v_mul_u :: MT_VALUE mt -> MT_UNIT mt -> MT_VALUE mt
     default mt_v_mul_u ::
@@ -46,10 +49,29 @@ class ( Eq (MT_TIME mt), Ord (MT_TIME mt), Num (MT_TIME mt)
         MT_VALUE mt -> (MT_UNIT mt, MT_UNIT mt) -> (MT_VALUE mt, MT_VALUE mt)
     mt_v_mul_u_qr_u v (u1, u2) = (v * (fromInteger . toInteger) u1) `quotRem` (fromInteger . toInteger) u2
 
+    mt_fr_mul_u :: MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
+    default mt_fr_mul_u ::
+        Integral (MT_UNIT mt) =>
+        MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
+    mt_fr_mul_u fr u = fr * (fromInteger . toInteger) u
+
+    mt_fr_div_u :: MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
+    default mt_fr_div_u ::
+        (Integral (MT_FLOWRATE mt), Integral (MT_UNIT mt)) =>
+        MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
+    mt_fr_div_u fr u = let u' = (fromInteger . toInteger) u in fr `div` u'
+
+    mt_fr_mul_u_qr_u :: MT_FLOWRATE mt -> (MT_UNIT mt, MT_UNIT mt) -> (MT_FLOWRATE mt, MT_FLOWRATE mt)
+    default mt_fr_mul_u_qr_u ::
+        (Integral (MT_FLOWRATE mt), Integral (MT_UNIT mt)) =>
+        MT_FLOWRATE mt -> (MT_UNIT mt, MT_UNIT mt) -> (MT_FLOWRATE mt, MT_FLOWRATE mt)
+    mt_fr_mul_u_qr_u fr (u1, u2) = (fr * (fromInteger . toInteger) u1) `quotRem` (fromInteger . toInteger) u2
+
     type family MT_TIME  mt = (t :: Type) | t -> mt
     type family MT_VALUE mt = (v :: Type) | v -> mt
+    type family MT_FLOWRATE mt = (fr :: Type) | fr -> mt
     type family MT_UNIT  mt = (u :: Type) | u -> mt
-    -- TODO: type family MT_FLOWRATE mt = (fr :: Type) | fr -> mt
 
 type MonetaryTypes'tv mt t v = (MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt)
-type MonetaryTypes'tvu mt t v u = (MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt)
+type MonetaryTypes'tvr mt t v fr = (MonetaryTypes'tv mt t v, fr ~ MT_FLOWRATE mt)
+type MonetaryTypes'tvru mt t v fr u = (MonetaryTypes'tvr mt t v fr, u ~ MT_UNIT mt)

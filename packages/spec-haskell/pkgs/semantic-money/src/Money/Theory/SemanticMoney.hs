@@ -24,18 +24,18 @@ import           Money.Theory.MonetaryTypes
 ------------------------------------------------------------------------------------------------------------------------
 
 -- | A monetary unit and its operators.
-class MonetaryTypes'tv mt t v =>
-      MonetaryUnit mt t v mu | mu -> mt where
+class (MonetaryTypes'tvr mt t v fr, Eq mu) =>
+      MonetaryUnit mt t v fr mu | mu -> mt where
     settle    :: t -> mu -> mu
     settledAt :: mu -> t
-    flowRate  :: mu -> v
+    flowRate  :: mu -> fr
     rtb       :: mu -> t -> v
 
 -- | An indexed monetary value and its 1-primitive operators.
-class (MonetaryUnit mt t v iv, u ~ MT_UNIT mt, Monoid iv, Eq iv) =>
-      IndexedValue mt t v u iv | iv -> mt where
+class (MonetaryUnit mt t v fr iv, u ~ MT_UNIT mt, Monoid iv, Eq iv) =>
+      IndexedValue mt t v fr u iv | iv -> mt where
     shift1 :: v -> iv -> (iv, v)
-    flow1  :: v -> iv -> (iv, v)
+    flow1  :: fr -> iv -> (iv, fr)
 
 --
 -- polymorphic 2-primitives for indexed values
@@ -43,7 +43,7 @@ class (MonetaryUnit mt t v iv, u ~ MT_UNIT mt, Monoid iv, Eq iv) =>
 
 -- | Shift value for the left side (a) or right side (b).
 shift2a, shift2b ::
-    (IndexedValue mt t v u a, IndexedValue mt t v u b) =>
+    (IndexedValue mt t v fr u a, IndexedValue mt t v fr u b) =>
     v -> t -> (a, b) -> (a, b)
 shift2a v t (a, b) =
     let (a', v') = shift1 v (settle t a)
@@ -54,8 +54,8 @@ shift2b v t (a, b) = swap (shift2a (-v) t (b, a))
 
 -- | Shifting flow for the left side (a) or right side (b).
 flow2a, flow2b ::
-    (IndexedValue mt t v u a, IndexedValue mt t v u b) =>
-    v -> t -> (a, b) -> (a, b)
+    (IndexedValue mt t v fr u a, IndexedValue mt t v fr u b) =>
+    fr -> t -> (a, b) -> (a, b)
 flow2a dfr t (a, b) =
     let (b1, fr_a) = flow1 (flowRate a) (settle t mempty)
         (b2, fr_a') = flow1 (-fr_a + dfr) (settle t mempty)
@@ -69,11 +69,11 @@ flow2b dfr t (a, b) = swap (flow2a (-dfr) t (b, a))
 --   1) Left side produces error term with which right side is adjusted accordingly, and vice versa.
 --   2) The adjustment must not produce new error term, or otherwise it would require recursive adjustments.
 align2a, align2b ::
-    (IndexedValue mt t v u a, IndexedValue mt t v u b) =>
+    (IndexedValue mt t v fr u a, IndexedValue mt t v fr u b) =>
     MT_UNIT mt -> MT_UNIT mt -> (a, b) -> (a, b)
 align2a u u' (a, b) = (a', b')
     where fr = flowRate a
-          (fr', e) = if u' == 0 then (0, fr `mt_v_mul_u` u) else fr `mt_v_mul_u_qr_u` (u, u')
+          (fr', e) = if u' == 0 then (0, fr `mt_fr_mul_u` u) else fr `mt_fr_mul_u_qr_u` (u, u')
           a' = fst (flow1 fr' a)
           b' = fst (flow1 (e + flowRate b) b)
 align2b u u' (a, b) = swap (align2a u u' (b, a))
@@ -83,9 +83,9 @@ align2b u u' (a, b) = swap (align2a u u' (b, a))
 ------------------------------------------------------------------------------------------------------------------------
 
 data BasicParticle mt = BasicParticle
-    { bp_settled_at    :: MT_TIME  mt
+    { bp_settled_at    :: MT_TIME mt
     , bp_settled_value :: MT_VALUE mt
-    , bp_flow_rate     :: MT_VALUE mt
+    , bp_flow_rate     :: MT_FLOWRATE mt
     }
 
 deriving instance MonetaryTypes mt => Eq (BasicParticle mt)
@@ -101,17 +101,17 @@ instance MonetaryTypes mt => Semigroup (BasicParticle mt) where
 instance MonetaryTypes mt => Monoid (BasicParticle mt) where
     mempty = BasicParticle 0 0 0
 
-instance MonetaryTypes'tv mt t v =>
-         MonetaryUnit mt t v (BasicParticle mt) where
+instance MonetaryTypes'tvr mt t v fr =>
+         MonetaryUnit mt t v fr (BasicParticle mt) where
     settle t' a = a { bp_settled_at = t'
                     , bp_settled_value = rtb a t'
                     }
     settledAt = bp_settled_at
     flowRate = bp_flow_rate
-    rtb (BasicParticle t s r) t' = r `mt_v_mul_t` (t' - t) + s
+    rtb (BasicParticle t s r) t' = r `mt_fr_mul_t` (t' - t) + s
 
-instance MonetaryTypes'tvu mt t v u =>
-         IndexedValue mt t v u (BasicParticle mt) where
+instance MonetaryTypes'tvru mt t v fr u =>
+         IndexedValue mt t v fr u (BasicParticle mt) where
     shift1 x a = (a { bp_settled_value = bp_settled_value a + x }, x)
     flow1 r' a = (a { bp_flow_rate = r' }, r')
 
@@ -133,8 +133,8 @@ data PDP_Member mt wp = PDP_Member
 type PDP_MemberMU mt wp = (PDP_Index mt wp, PDP_Member mt wp)
 
 pdp_UpdateMember2 ::
-    ( IndexedValue mt t v u a
-    , IndexedValue mt t v u wp
+    ( IndexedValue mt t v fr u a
+    , IndexedValue mt t v fr u wp
     , mu ~ PDP_MemberMU mt wp
     ) =>
     u -> t -> (a, mu) -> (a, mu)
@@ -160,20 +160,20 @@ instance (MonetaryTypes mt, Semigroup wp) => Semigroup (PDP_Index mt wp) where
 instance (MonetaryTypes mt, Monoid wp) => Monoid (PDP_Index mt wp) where
     mempty = PDP_Index 0 mempty
 
-instance MonetaryUnit mt t v wp =>
-         MonetaryUnit mt t v (PDP_Index mt wp) where
+instance MonetaryUnit mt t v fr wp =>
+         MonetaryUnit mt t v fr (PDP_Index mt wp) where
     settle t' a@(PDP_Index _ mpi) = a { pdpi_wp = settle t' mpi }
     settledAt (PDP_Index _ mpi) = settledAt mpi
     flowRate (PDP_Index _ mpi) = flowRate mpi
     rtb (PDP_Index _ mpi) = rtb mpi
 
-instance IndexedValue mt t v u wp =>
-         IndexedValue mt t v u (PDP_Index mt wp) where
+instance IndexedValue mt t v fr u wp =>
+         IndexedValue mt t v fr u (PDP_Index mt wp) where
     shift1 x a@(PDP_Index tu mpi) = (a { pdpi_wp = mpi' }, x' `mt_v_mul_u` tu)
         where (mpi', x') = if tu == 0 then (mpi, 0) else shift1 (x `mt_v_div_u` tu) mpi
 
-    flow1 r' a@(PDP_Index tu mpi) = (a { pdpi_wp = mpi' }, r'' `mt_v_mul_u` tu)
-        where (mpi', r'') = if tu == 0 then flow1 0 mpi else flow1 (r' `mt_v_div_u` tu) mpi
+    flow1 r' a@(PDP_Index tu mpi) = (a { pdpi_wp = mpi' }, r'' `mt_fr_mul_u` tu)
+        where (mpi', r'') = if tu == 0 then flow1 0 mpi else flow1 (r' `mt_fr_div_u` tu) mpi
 
 --
 -- PDP_Member
@@ -189,8 +189,8 @@ deriving instance (MonetaryTypes mt, Eq wp) => Eq (PDP_Member mt wp)
 -- PDP_MemberMU as MonetaryUnit
 --
 
-instance MonetaryUnit mt t v wp =>
-         MonetaryUnit mt t v (PDP_MemberMU mt wp) where
+instance MonetaryUnit mt t v fr wp =>
+         MonetaryUnit mt t v fr (PDP_MemberMU mt wp) where
     settle t' (pix, pm) = (pix', pm')
         where sv' = rtb (pix, pm) t'
               pix'@(PDP_Index _ mpi') = settle t' pix
@@ -198,7 +198,7 @@ instance MonetaryUnit mt t v wp =>
 
     settledAt (_, PDP_Member _ _ mps) = settledAt mps
 
-    flowRate (PDP_Index _ mpi, PDP_Member u _ _) = flowRate mpi `mt_v_mul_u` u
+    flowRate (PDP_Index _ mpi, PDP_Member u _ _) = flowRate mpi `mt_fr_mul_u` u
 
     rtb (PDP_Index _ mpi, PDP_Member u sv mps) t' = sv +
         -- let ti = bp_settled_at mpi

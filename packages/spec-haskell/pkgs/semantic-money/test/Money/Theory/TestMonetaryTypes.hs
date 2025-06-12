@@ -12,20 +12,25 @@ import           Money.Theory.SemanticMoney
 
 newtype TestTime = TestTime Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestTime where
-    arbitrary = TestTime <$> arbitrary
+    arbitrary = TestTime <$> arbitrary -- choose (0, 2 ^ (32 :: Integer))
 
 newtype TestMValue = TestMValue Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMValue where
-    arbitrary = TestMValue <$> arbitrary
+    arbitrary = TestMValue <$> arbitrary -- choose (0, 2 ^ (32 :: Integer))
+
+newtype TestMFlowRate = TestMFlowRate Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
+instance Arbitrary TestMFlowRate where
+    arbitrary = TestMFlowRate <$> arbitrary -- choose (0, 2 ^ (32 :: Integer))
 
 newtype TestMUnit = TestMUnit Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMUnit where
-    arbitrary = TestMUnit <$> arbitrary
+    arbitrary = TestMUnit <$> arbitrary -- choose (0, 2 ^ (32 :: Integer))
 
 data TestMonetaryTypes
 instance MonetaryTypes TestMonetaryTypes where
     type MT_TIME  TestMonetaryTypes = TestTime
     type MT_VALUE TestMonetaryTypes = TestMValue
+    type MT_FLOWRATE TestMonetaryTypes = TestMFlowRate
     type MT_UNIT  TestMonetaryTypes = TestMUnit
 deriving instance Show (BasicParticle TestMonetaryTypes)
 
