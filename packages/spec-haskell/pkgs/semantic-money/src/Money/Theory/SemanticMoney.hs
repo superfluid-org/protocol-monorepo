@@ -3,7 +3,7 @@ module Money.Theory.SemanticMoney
     ( -- * Semantic Money Classes & Primitives
         MonetaryUnit (settle, settledAt, flowRate, rtb)
     , IndexedValue (shift1, flow1)
-    , shift2b, flow2a, flow2b, align2a, align2b
+    , shift2a, shift2b, flow2a, flow2b, align2a, align2b
       -- * Semantic Money Instances
     , BasicParticle (..)
     , PDP_Index (..), PDP_Member (..), PDP_MemberMU, pdp_UpdateMember2

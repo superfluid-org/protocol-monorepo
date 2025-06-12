@@ -8,7 +8,7 @@ module Money.Theory.MonetaryTypes
       , mt_v_mul_u, mt_v_div_u, mt_v_mul_u_qr_u
       , mt_fr_mul_u, mt_fr_div_u, mt_fr_mul_u_qr_u
       )
-    , MonetaryTypes'tv, MonetaryTypes'tvr, MonetaryTypes'tvru
+    , MonetaryTypes'tv, MonetaryTypes'tr, MonetaryTypes'tvr, MonetaryTypes'tvru
     ) where
 -- base
 import           Data.Kind (Type)
@@ -73,5 +73,6 @@ class ( Eq (MT_TIME mt), Ord (MT_TIME mt), Num (MT_TIME mt)
     type family MT_UNIT  mt = (u :: Type) | u -> mt
 
 type MonetaryTypes'tv mt t v = (MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt)
-type MonetaryTypes'tvr mt t v fr = (MonetaryTypes'tv mt t v, fr ~ MT_FLOWRATE mt)
+type MonetaryTypes'tr mt t fr = (MonetaryTypes mt, t ~ MT_TIME mt, fr ~ MT_FLOWRATE mt)
+type MonetaryTypes'tvr mt t v fr = (MonetaryTypes'tv mt t v, MonetaryTypes'tr mt t fr)
 type MonetaryTypes'tvru mt t v fr u = (MonetaryTypes'tvr mt t v fr, u ~ MT_UNIT mt)

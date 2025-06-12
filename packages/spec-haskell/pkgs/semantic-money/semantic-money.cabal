@@ -29,6 +29,7 @@ library
     -- other-extensions:
     build-depends:
         base >=4.16.0.0 && <5,
+        containers >= 0.8,
         data-default
 
 test-suite semantic-money-test-suite
