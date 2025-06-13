@@ -399,6 +399,26 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         return true;
     }
 
+    /// @inheritdoc ISuperfluidPool
+    function increaseMemberUnits(address memberAddr, uint128 addedUnits) external override returns (bool) {
+        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+
+        _updateMemberUnits(memberAddr, _getUnits(memberAddr) + addedUnits);
+        emit Transfer(address(0), memberAddr, addedUnits);
+
+        return true;
+    }
+
+    /// @inheritdoc ISuperfluidPool
+    function decreaseMemberUnits(address memberAddr, uint128 subtractedUnits) external override returns (bool) {
+        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+
+        _updateMemberUnits(memberAddr, _getUnits(memberAddr) - subtractedUnits);
+        emit Transfer(memberAddr, address(0), subtractedUnits);
+
+        return true;
+    }
+
     /**
      * @notice Checks whether or not the NFT hook can be called.
      * @dev A staticcall, so `POOL_MEMBER_NFT` must be a view otherwise the assumption is that it reverts

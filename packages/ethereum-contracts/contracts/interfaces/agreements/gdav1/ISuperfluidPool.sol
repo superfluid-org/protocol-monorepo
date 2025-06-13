@@ -89,6 +89,16 @@ interface ISuperfluidPool is IERC20, IERC20Metadata {
     /// @param newUnits The new units for the member
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool);
 
+    /// @notice Increases `memberAddr` ownedUnits by `addedUnits`
+    /// @param memberAddr The address of the member
+    /// @param addedUnits The additional units for the member
+    function increaseMemberUnits(address memberAddr, uint128 addedUnits) external returns (bool);
+
+    /// @notice Decreases `memberAddr` ownedUnits by `subtractedUnits`
+    /// @param memberAddr The address of the member
+    /// @param subtractedUnits The units subtracted for the member
+    function decreaseMemberUnits(address memberAddr, uint128 subtractedUnits) external returns (bool);
+
     /// @notice Claims the claimable balance for `memberAddr` at `block.timestamp`
     /// @param memberAddr The address of the member
     function claimAll(address memberAddr) external returns (bool);
