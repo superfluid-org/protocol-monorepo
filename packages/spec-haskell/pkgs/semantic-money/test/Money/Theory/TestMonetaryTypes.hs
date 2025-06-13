@@ -1,5 +1,4 @@
 {-# LANGUAGE TypeFamilies #-}
-
 module Money.Theory.TestMonetaryTypes where
 -- quickcheck
 import           Test.QuickCheck

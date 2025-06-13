@@ -1,7 +1,8 @@
-{-# LANGUAGE LambdaCase #-}
-module Money.Theory.TokenModel where
--- containers
-import qualified Data.IntMap                as IntMap
+{-# LANGUAGE FunctionalDependencies #-}
+module Money.Theory.TokenModel
+    ( TokenEvent (..)
+    , TokenModel (initToken, tokenAccounts, processOneTokenEvent, processTokenEvents, isTokenSolvent)
+    ) where
 --
 import           Money.Theory.SemanticMoney
 
@@ -14,42 +15,16 @@ data TokenEvent mt acc where
         MonetaryTypes'tr mt t fr =>
         t -> acc -> acc -> fr -> TokenEvent mt acc
 
-type Account = Int
+class MonetaryUnit mt mu =>
+      TokenModel mt mu acc token | token -> mu acc where
+    initToken :: token
 
-------------------------------------------------------------------------------------------------------------------------
--- NaiveTokenModel
-------------------------------------------------------------------------------------------------------------------------
+    tokenAccounts :: token -> [mu]
 
-data NaiveTokenModel mt acc = MkNaiveTokenModel
-    { accounts :: IntMap.IntMap (BasicParticle mt) -- ^ accounts indexed by Int
-    , pools    :: IntMap.IntMap (PDP_Index mt (BasicParticle mt)) -- ^ pools indexed by Int
-    }
+    processOneTokenEvent :: token -> TokenEvent mt acc -> token
 
-naiveProcessOneEvent ::
-    MonetaryTypes mt =>
-    NaiveTokenModel mt Account ->
-    TokenEvent mt Account ->
-    NaiveTokenModel mt Account
-naiveProcessOneEvent (MkNaiveTokenModel accs pools) = \case
-    TransferEvent t from to amount -> go2 from to (shift2a amount t)
-    UpdateFlowEvent t from to rate -> go2 from to (flow2a rate t)
-    where go2 from to op =
-              let sender = IntMap.findWithDefault mempty from accs
-                  receiver = IntMap.findWithDefault mempty from accs
-                  (sender', receiver') = op (sender, receiver)
-                  accs' = IntMap.insert from sender'
-                          $ IntMap.insert to receiver'
-                          $ accs
-              in MkNaiveTokenModel accs' pools
+    processTokenEvents :: token -> [TokenEvent mt acc] -> token
+    processTokenEvents = foldl' processOneTokenEvent
 
-naiveProcessEvents ::
-    MonetaryTypes mt =>
-    [TokenEvent mt Account] ->
-    NaiveTokenModel mt Account
-naiveProcessEvents = foldl' naiveProcessOneEvent (MkNaiveTokenModel IntMap.empty IntMap.empty)
-
-naiveSystemSnapshot ::
-    MonetaryTypes'tv mt t v =>
-    NaiveTokenModel mt Account ->
-    IntMap.IntMap (t -> v)
-naiveSystemSnapshot = (rtb <$>) . accounts
+    isTokenSolvent :: token -> Bool
+    isTokenSolvent = (== 0) . length . (rtb <$>) . tokenAccounts

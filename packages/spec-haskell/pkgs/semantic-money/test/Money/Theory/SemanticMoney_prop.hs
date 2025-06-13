@@ -16,12 +16,12 @@ import           Money.Theory.TestMonetaryTypes
 -- Monetary Units Laws: settle-idempotency, constant-rtb
 --------------------------------------------------------------------------------
 
-mu_settle_idempotency :: MonetaryUnit mt t v fr mu => mu -> t -> Bool
+mu_settle_idempotency :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> Bool
 mu_settle_idempotency a t =
     settledAt (settle t a) == t &&
     settle t a == settle t (settle t a)
 
-mu_constant_rtb :: MonetaryUnit mt t v fr mu => mu -> t -> t -> t -> Bool
+mu_constant_rtb :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> t -> t -> Bool
 mu_constant_rtb a t1 t2 t3 =
     rtb (settle t1 a) t3 == rtb a t3 &&
     rtb (settle t2 a) t3 == rtb a t3 &&
