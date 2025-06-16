@@ -464,7 +464,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
         // @note normally we keep the sanitization in the external functions, but here
         // this is used in both updateMemberUnits and transfer
-        if (GDA.isPool(superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
+        if (_isPool(superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
         if (memberAddr == address(0)) revert SUPERFLUID_POOL_NO_ZERO_ADDRESS();
 
         uint32 time = uint32(ISuperfluid(superToken.getHost()).getNow());
@@ -496,6 +496,18 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
 
         _handlePoolMemberNFT(memberAddr, newUnits);
+    }
+
+    // copy of GDAv1._isPool which eliminates unnecessary gas cost (less external calls)
+    function _isPool(ISuperfluidToken token, address account) internal view returns (bool exists) {
+        // @note see createPool, we retrieve the isPool bit from
+        // UniversalIndex for this pool to determine whether the account
+        // is a pool
+        exists = (
+            // solhint-disable max-line-length
+            (uint256(token.getAgreementStateSlot(address(this), account, 0 /*_UNIVERSAL_INDEX_STATE_SLOT_ID*/, 1)[0]) << 224)
+                >> 224
+        ) & 1 == 1;
     }
 
     function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {
