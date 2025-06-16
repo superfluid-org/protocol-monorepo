@@ -382,7 +382,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool) {
-        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+        _enforceChangeMemberUnitsPreconditions();
 
         uint128 oldUnits = _updateMemberUnits(memberAddr, newUnits);
 
@@ -399,7 +399,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function increaseMemberUnits(address memberAddr, uint128 addedUnits) external override returns (bool) {
-        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+        _enforceChangeMemberUnitsPreconditions();
 
         _updateMemberUnits(memberAddr, _getUnits(memberAddr) + addedUnits);
         emit Transfer(address(0), memberAddr, addedUnits);
@@ -409,12 +409,16 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function decreaseMemberUnits(address memberAddr, uint128 subtractedUnits) external override returns (bool) {
-        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+        _enforceChangeMemberUnitsPreconditions();
 
         _updateMemberUnits(memberAddr, _getUnits(memberAddr) - subtractedUnits);
         emit Transfer(memberAddr, address(0), subtractedUnits);
 
         return true;
+    }
+
+    function _enforceChangeMemberUnitsPreconditions() internal view {
+        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
     }
 
     function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
