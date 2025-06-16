@@ -11,7 +11,7 @@ import           Money.Theory.SemanticMoney
 
 newtype TestTime = TestTime Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestTime where
-    arbitrary = TestTime <$> arbitrary -- choose (0, 2 ^ (32 :: Integer))
+    arbitrary = TestTime <$> choose (0, 2 ^ (32 :: Integer))
 
 newtype TestMValue = TestMValue Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMValue where

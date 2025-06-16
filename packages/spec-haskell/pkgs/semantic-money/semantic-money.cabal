@@ -26,6 +26,7 @@ library
         Money.Theory.SemanticMoney
         Money.Theory.TokenModel
         Money.Theory.TokenModel.NaiveTokenModel
+        Money.Theory.TokenModel.TwoPhaseTokenModel
     -- other-modules:
     -- other-extensions:
     build-depends:

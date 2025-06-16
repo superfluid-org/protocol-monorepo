@@ -132,14 +132,14 @@ one2n_pd_tests = describe "1toN proportional distribution 2-primitives" $ do
 --------------------------------------------------------------------------------
 
 uu_flow2a (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
-    flowRate b' - flowRate b == r1 + r2 && flowRate a' - flowRate a == -r1 -r2 &&
+    flowRate b' t3 - flowRate b t3 == r1 + r2 && flowRate a' t3 - flowRate a t3 == -r1 -r2 &&
     rtb b' t3 - rtb b t3 == rtb a t3 - rtb a' t3 &&
     -- for shift flow semantics: rtb b' t3 - (rtb b t3 - rtb b t1) - rtb b t1 == rtb b' t3 - rtb b t3
     r1 `mt_fr_mul_t` (t2 - t1) + (r1 + r2) `mt_fr_mul_t` (t3 - t2) == rtb b' t3 - rtb b t3
     where (a', b') = flow2a r2 t2 (flow2a r1 t1 (a, b))
 
 uu_flow2b (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
-    flowRate b' - flowRate b == r1 + r2 && flowRate a' - flowRate a == -r1 -r2 &&
+    flowRate b' t3 - flowRate b t3 == r1 + r2 && flowRate a' t3 - flowRate a t3 == -r1 -r2 &&
     rtb b' t3 - rtb b t3 == rtb a t3 - rtb a' t3 &&
     -- ditto
     r1 `mt_fr_mul_t` (t2 - t1) + (r1 + r2) `mt_fr_mul_t` (t3 - t2) == rtb b' t3 - rtb b t3
@@ -157,9 +157,9 @@ uu_flow2b (a :: TestUniversalIndex) (b :: TestUniversalIndex) t1 r1 t2 r2 t3 =
 updp_flow2b (a :: TestUniversalIndex) t1 r1 t2 r2 t3 =
     rtb (b'', b1') t3 - rtb (b', b1') t3 == rtb a' t3 - rtb a'' t3 &&
     rtb (b'', b1') t3 - rtb (b', b1') t3 == r1 `mt_fr_mul_t` (t2 - t1) + (r1 + r2) `mt_fr_mul_t` (t3 - t2) &&
-    flowRate a'' - flowRate a' == -(r1 + r2) &&
-    flowRate b'' - flowRate b' == r1 + r2 &&
-    flowRate (b'', b1') == r1 + r2
+    flowRate a'' t3 - flowRate a' t3 == -(r1 + r2) &&
+    flowRate b'' t3 - flowRate b' t3 == r1 + r2 &&
+    flowRate (b'', b1') t3 == r1 + r2
     where (a', (b', b1')) = pdp_UpdateMember2 1 t1 (a, (mempty :: TestPDP_Index, def))
           (a'', b'') = flow2b r2 t2 (flow2b r1 t1 (a', b'))
 

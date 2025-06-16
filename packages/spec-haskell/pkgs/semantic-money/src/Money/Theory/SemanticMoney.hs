@@ -28,11 +28,11 @@ class (MonetaryTypes mt, Eq mu) =>
       MonetaryUnit mt mu | mu -> mt where
     settle    :: t ~ MT_TIME mt => t -> mu -> mu
     settledAt :: t ~ MT_TIME mt => mu -> t
-    flowRate  :: fr ~ MT_FLOWRATE mt => mu -> fr
+    flowRate  :: MonetaryTypes'tr mt t fr => mu -> t -> fr
     rtb       :: MonetaryTypes'tvr mt t v fr => mu -> t -> v
 
 -- | An indexed monetary value and its operators (1-primitives).
-class (MonetaryUnit mt iv, Monoid iv, Eq iv) =>
+class (MonetaryUnit mt iv, Monoid iv) =>
       IndexedValue mt iv | iv -> mt where
     shift1 :: v ~ MT_VALUE mt => v -> iv -> (iv, v)
     flow1  :: fr ~ MT_FLOWRATE mt => fr -> iv -> (iv, fr)
@@ -57,7 +57,7 @@ flow2a, flow2b ::
     (MonetaryTypes'tr mt t fr, IndexedValue mt a, IndexedValue mt b) =>
     fr -> t -> (a, b) -> (a, b)
 flow2a dfr t (a, b) =
-    let (b1, fr_a) = flow1 (flowRate a) (settle t mempty)
+    let (b1, fr_a) = flow1 (flowRate a t) (settle t mempty)
         (b2, fr_a') = flow1 (-fr_a + dfr) (settle t mempty)
         (a', fr_a'') = flow1 (-fr_a') (settle t a)
     in assert (fr_a' == -fr_a'') (a', b <> b1 <> b2)
@@ -70,13 +70,13 @@ flow2b dfr t (a, b) = swap (flow2a (-dfr) t (b, a))
 --   2) The adjustment must not produce new error term, or otherwise it would require recursive adjustments.
 align2a, align2b ::
     (IndexedValue mt a, IndexedValue mt b) =>
-    MT_UNIT mt -> MT_UNIT mt -> (a, b) -> (a, b)
-align2a u u' (a, b) = (a', b')
-    where fr = flowRate a
+    MT_UNIT mt -> MT_UNIT mt -> MT_TIME mt -> (a, b) -> (a, b)
+align2a u u' t (a, b) = (a', b')
+    where fr = flowRate a t
           (fr', e) = if u' == 0 then (0, fr `mt_fr_mul_u` u) else fr `mt_fr_mul_u_qr_u` (u, u')
           a' = fst (flow1 fr' a)
-          b' = fst (flow1 (e + flowRate b) b)
-align2b u u' (a, b) = swap (align2a u u' (b, a))
+          b' = fst (flow1 (e + flowRate b t) b)
+align2b u u' t (a, b) = swap (align2a u u' t (b, a))
 
 ------------------------------------------------------------------------------------------------------------------------
 -- Basic Particle: building block for indexes
@@ -94,7 +94,7 @@ instance MonetaryTypes mt => Semigroup (BasicParticle mt) where
     a@(BasicParticle t1 _ _) <> b@(BasicParticle t2 _ _) = BasicParticle t' (sv1 + sv2) (r1 + r2)
         -- The binary operator supports negative time values while abiding the monoidal laws.
         -- The practical semantics of values of mixed-sign is not of the concern of this specification.
-        where t' | t1 == 0 = t2 | t2 == 0 = t1 | otherwise = max t1 t2
+        where t' = max t1 t2
               (BasicParticle _ sv1 r1) = settle t' a
               (BasicParticle _ sv2 r2) = settle t' b
 
@@ -107,7 +107,7 @@ instance MonetaryTypes mt =>
                     , bp_settled_value = rtb a t'
                     }
     settledAt = bp_settled_at
-    flowRate = bp_flow_rate
+    flowRate = const . bp_flow_rate
     rtb (BasicParticle t s r) t' = r `mt_fr_mul_t` (t' - t) + s
 
 instance MonetaryTypes mt =>
@@ -142,7 +142,7 @@ pdp_UpdateMember2 ::
 pdp_UpdateMember2 u' t' (a, (b, pm)) = (a'', (b'', pm''))
     where (PDP_Index tu mpi, pm'@(PDP_Member u _ _)) = settle t' (b, pm)
           tu' = tu + u' - u
-          (mpi', a'') = align2b tu tu' (mpi, settle t' a)
+          (mpi', a'') = align2b tu tu' t' (mpi, settle t' a)
           b''  = PDP_Index tu' mpi'
           pm'' = pm' { pdpm_owned_unit = u', pdpm_synced_wp = mpi' }
 
@@ -199,7 +199,7 @@ instance MonetaryUnit mt wp =>
 
     settledAt (_, PDP_Member _ _ mps) = settledAt mps
 
-    flowRate (PDP_Index _ mpi, PDP_Member u _ _) = flowRate mpi `mt_fr_mul_u` u
+    flowRate (PDP_Index _ mpi, PDP_Member u _ _) t = flowRate mpi t `mt_fr_mul_u` u
 
     rtb (PDP_Index _ mpi, PDP_Member u sv mps) t' = sv +
         -- let ti = bp_settled_at mpi
