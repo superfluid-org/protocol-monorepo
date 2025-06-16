@@ -136,4 +136,24 @@ contract PoolMemberNFT is PoolNFTBase, IPoolMemberNFT {
         // emit burn of pool member token with tokenId
         emit Transfer(owner, address(0), tokenId);
     }
+
+    /// This was added after deprecating the PoolMemberNFT.
+    /// It allows owners of such tokens to get rid of them
+    /// in case it bothers them (e.g. cluttering the wallet).
+    function burn(uint256 tokenId) external {
+        address owner = _ownerOf(tokenId);
+        if (msg.sender != owner) {
+            revert POOL_MEMBER_NFT_ONLY_OWNER();
+        }
+
+        PoolMemberNFTData storage data = _poolMemberDataByTokenId[tokenId];
+
+        super._burn(tokenId);
+
+        // remove previous tokenId flow data mapping
+        delete _poolMemberDataByTokenId[tokenId];
+
+        // emit burn of pool member token with tokenId
+        emit Transfer(owner, address(0), tokenId);
+    }
 }
