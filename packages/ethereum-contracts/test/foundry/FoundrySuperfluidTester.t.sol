@@ -16,7 +16,6 @@ import {
 } from "../../contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { IPoolNFTBase } from "../../contracts/interfaces/agreements/gdav1/IPoolNFTBase.sol";
 import { IPoolAdminNFT } from "../../contracts/interfaces/agreements/gdav1/IPoolAdminNFT.sol";
-import { IPoolMemberNFT } from "../../contracts/interfaces/agreements/gdav1/IPoolMemberNFT.sol";
 import { ISuperfluidToken } from "../../contracts/interfaces/superfluid/ISuperfluidToken.sol";
 import { ISETH } from "../../contracts/interfaces/tokens/ISETH.sol";
 import { UUPSProxy } from "../../contracts/upgradability/UUPSProxy.sol";
@@ -1271,9 +1270,6 @@ contract FoundrySuperfluidTester is Test {
             );
         }
 
-        // Assert Pool Member NFT is minted/burned
-        _assertPoolMemberNFT(poolSuperToken, pool_, member_, newUnits_);
-
         // Assert RTB for all users
         // _assertRealTimeBalances(ISuperToken(address(poolSuperToken)));
     }
@@ -1799,28 +1795,5 @@ contract FoundrySuperfluidTester is Test {
         internal view
     {
         assertEq(_pool.allowance(owner, spender), expectedAllowance, "_assertPoolAllowance: allowance mismatch");
-    }
-
-    function _assertPoolMemberNFT(
-        ISuperfluidToken _superToken,
-        ISuperfluidPool _pool,
-        address _member,
-        uint128 _newUnits
-    ) internal {
-        IPoolMemberNFT poolMemberNFT = SuperToken(address(_superToken)).POOL_MEMBER_NFT();
-        uint256 tokenId = poolMemberNFT.getTokenId(address(_pool), address(_member));
-        if (_newUnits > 0) {
-            // Assert Pool Member NFT owner
-            assertEq(poolMemberNFT.ownerOf(tokenId), _member, "_assertPoolMemberNFT: member doesn't own NFT");
-
-            // Assert Pool Member NFT data
-            IPoolMemberNFT.PoolMemberNFTData memory poolMemberData = poolMemberNFT.poolMemberDataByTokenId(tokenId);
-            assertEq(poolMemberData.pool, address(_pool), "_assertPoolMemberNFT: Pool Member NFT pool mismatch");
-            assertEq(poolMemberData.member, _member, "_assertPoolMemberNFT: Pool Member NFT member mismatch");
-            assertEq(poolMemberData.units, _newUnits, "_assertPoolMemberNFT: Pool Member NFT units mismatch");
-        } else {
-            vm.expectRevert(IPoolNFTBase.POOL_NFT_INVALID_TOKEN_ID.selector);
-            poolMemberNFT.ownerOf(tokenId);
-        }
     }
 }

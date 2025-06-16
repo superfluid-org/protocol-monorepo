@@ -16,7 +16,6 @@ import { ISuperfluidToken } from "../../../../contracts/interfaces/superfluid/IS
 import { ISuperfluidPool, SuperfluidPool } from "../../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { IPoolNFTBase } from "../../../../contracts/interfaces/agreements/gdav1/IPoolNFTBase.sol";
 import { IPoolAdminNFT } from "../../../../contracts/interfaces/agreements/gdav1/IPoolAdminNFT.sol";
-import { IPoolMemberNFT } from "../../../../contracts/interfaces/agreements/gdav1/IPoolMemberNFT.sol";
 import { SuperfluidPoolStorageLayoutMock } from "./SuperfluidPoolUpgradabilityMock.t.sol";
 
 /// @title GeneralDistributionAgreementV1 Integration Tests

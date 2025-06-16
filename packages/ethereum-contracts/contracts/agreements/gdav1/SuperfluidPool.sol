@@ -452,14 +452,15 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
     }
 
-    // copy of GDAv1._isPool which eliminates unnecessary gas cost (less external calls)
+    // replicates GDAv1._isPool in order to eliminate unnecessary gas cost (less external calls)
     function _isPool(ISuperfluidToken token, address account) internal view returns (bool exists) {
+        // solhint-disable var-name-mixedcase
+        uint256 _UNIVERSAL_INDEX_STATE_SLOT_ID = 0;
         // @note see createPool, we retrieve the isPool bit from
         // UniversalIndex for this pool to determine whether the account
         // is a pool
         exists = (
-            // solhint-disable max-line-length
-            (uint256(token.getAgreementStateSlot(address(this), account, 0 /*_UNIVERSAL_INDEX_STATE_SLOT_ID*/, 1)[0]) << 224)
+            (uint256(token.getAgreementStateSlot(address(GDA), account, _UNIVERSAL_INDEX_STATE_SLOT_ID, 1)[0]) << 224)
                 >> 224
         ) & 1 == 1;
     }
