@@ -8,6 +8,7 @@ import { IGeneralDistributionAgreementV1, ISuperfluid } from "../../interfaces/s
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
 
+/// DEPRECATED - the update hooks are no longer invoked.
 contract PoolMemberNFT is PoolNFTBase, IPoolMemberNFT {
     //// Storage Variables ////
 
