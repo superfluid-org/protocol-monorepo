@@ -146,8 +146,6 @@ contract PoolMemberNFT is PoolNFTBase, IPoolMemberNFT {
             revert POOL_MEMBER_NFT_ONLY_OWNER();
         }
 
-        PoolMemberNFTData storage data = _poolMemberDataByTokenId[tokenId];
-
         super._burn(tokenId);
 
         // remove previous tokenId flow data mapping
