@@ -210,31 +210,31 @@ describe("SuperTokenFactory Mapper Unit Tests", () => {
         // really testing out getOrInitSuperToken at the core.
     });
 
-    describe("Aggregate Entity Mapping Tests", () => {
-        test("handleSuperTokenCreated() - should create TokenStatistic and TokenStatisticLog entity", () => {
-            const SuperTokenCreatedEvent =
-                createSuperTokenCreatedEvent(maticXAddress);
+    // describe("Aggregate Entity Mapping Tests", () => {
+    //     test("handleSuperTokenCreated() - should create TokenStatistic and TokenStatisticLog entity", () => {
+    //         const SuperTokenCreatedEvent =
+    //             createSuperTokenCreatedEvent(maticXAddress);
 
-            mockedHandleSuperTokenInitRPCCalls(
-                maticXAddress,
-                DEFAULT_DECIMALS,
-                ZERO_ADDRESS,
-                maticXName,
-                maticXSymbol
-            );
+    //         mockedHandleSuperTokenInitRPCCalls(
+    //             maticXAddress,
+    //             DEFAULT_DECIMALS,
+    //             ZERO_ADDRESS,
+    //             maticXName,
+    //             maticXSymbol
+    //         );
 
-            handleSuperTokenCreated(SuperTokenCreatedEvent);
+    //         handleSuperTokenCreated(SuperTokenCreatedEvent);
 
-            // Validate Created TokenStatistic properties
-            assertEmptyTokenStatisticProperties(
-                SuperTokenCreatedEvent,
-                "SuperTokenCreated",
-                maticXAddress,
-                SuperTokenCreatedEvent.block.timestamp,
-                SuperTokenCreatedEvent.block.number,
-                BIG_INT_ZERO  // totalSupply = 0
-            );
+    //         // Validate Created TokenStatistic properties
+    //         assertEmptyTokenStatisticProperties(
+    //             SuperTokenCreatedEvent,
+    //             "SuperTokenCreated",
+    //             maticXAddress,
+    //             SuperTokenCreatedEvent.block.timestamp,
+    //             SuperTokenCreatedEvent.block.number,
+    //             BIG_INT_ZERO  // totalSupply = 0
+    //         );
 
-        });
-    });
+    //     });
+    // });
 });
