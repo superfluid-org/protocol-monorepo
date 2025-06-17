@@ -888,6 +888,8 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         uint120 decreaseAmount
     ) public {
         vm.assume(increaseAmount >= decreaseAmount);
+        vm.assume(member != address(0));
+        vm.assume(member != address(freePool));
 
         vm.startPrank(alice);
 
