@@ -20,8 +20,8 @@ on:
       SUBGRAPH_URL_TEMPLATE:
         description: "Subgraph endpoint url template"
         required: false
-      SATSUMA_DEPLOY_KEY:
-        description: "Satsuma deploy key"
+      ALCHEMY_DEPLOY_KEY:
+        description: "Alchemy deploy key"
         required: false
       THE_GRAPH_ACCESS_TOKEN:
         description: "The Graph access token for deploying subgraphs"
@@ -118,7 +118,7 @@ jobs:
           SUBGRAPH_URL_TEMPLATE: ${{ secrets.SUBGRAPH_URL_TEMPLATE }}
           SUPERFLUID_IPFS_API: ${{ secrets.SUPERFLUID_IPFS_API }}
           THE_GRAPH_ACCESS_TOKEN: ${{ secrets.THE_GRAPH_ACCESS_TOKEN }}
-          SATSUMA_DEPLOY_KEY: ${{ secrets.SATSUMA_DEPLOY_KEY }}
+          ALCHEMY_DEPLOY_KEY: ${{ secrets.ALCHEMY_DEPLOY_KEY }}
           GOLDSKY_API_KEY: ${{ secrets.GOLDSKY_API_KEY }}
           AIRSTACK_API_KEY: ${{ secrets.AIRSTACK_API_KEY }}
           COMMIT_HASH: ${{ github.sha }}

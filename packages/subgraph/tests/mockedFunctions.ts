@@ -110,7 +110,7 @@ export function mockedHandleFlowUpdatedRPCCalls(
 
     mockedResolverGet(resolverAddress, "supertokens.v1." + tokenSymbol, ZERO_ADDRESS.toHexString());
 
-    // updateATSStreamedAndBalanceUntilUpdatedAt => updateATSBalanceAndUpdatedAt => try_realtimeBalanceOf(sender)
+    // updateATSStreamedAndBalanceUntilUpdatedAt => updateATSBalanceAndUpdatedAt => try_realtimeBalanceOfNow(sender)
     mockedRealtimeBalanceOf(
         superToken,
         sender,
@@ -119,7 +119,7 @@ export function mockedHandleFlowUpdatedRPCCalls(
         flowRate,
         BIG_INT_ZERO
     );
-    // updateATSStreamedAndBalanceUntilUpdatedAt => updateATSBalanceAndUpdatedAt => try_realtimeBalanceOf(receiver)
+    // updateATSStreamedAndBalanceUntilUpdatedAt => updateATSBalanceAndUpdatedAt => try_realtimeBalanceOfNow(receiver)
     mockedRealtimeBalanceOf(
         superToken,
         receiver,
@@ -274,17 +274,17 @@ export function mockedRealtimeBalanceOf(
 ): void {
     createMockedFunction(
         Address.fromString(superTokenAddress),
-        "realtimeBalanceOf",
-        "realtimeBalanceOf(address,uint256):(int256,uint256,uint256)"
+        "realtimeBalanceOfNow",
+        "realtimeBalanceOfNow(address):(int256,uint256,uint256,uint256)"
     )
         .withArgs([
-            getETHAddress(accountAddress),
-            getETHUnsignedBigInt(timestamp),
+            getETHAddress(accountAddress)
         ])
         .returns([
             getETHSignedBigInt(expectedAvailableBalance),
             getETHUnsignedBigInt(expectedDeposit),
             getETHUnsignedBigInt(expectedOwedDeposit),
+            getETHUnsignedBigInt(timestamp)
         ]);
 }
 

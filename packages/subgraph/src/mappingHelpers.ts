@@ -513,7 +513,7 @@ export function updatePoolParticleAndTotalAmountFlowedAndDistributed(
         pool.totalAmountDistributedUntilUpdatedAt.plus(
             amountFlowedSinceLastUpdate
         );
-    
+
     settlePoolParticle(pool, event.block);
 
     pool.save();
@@ -587,6 +587,7 @@ export function getOrInitPoolDistributor(
 
     return poolDistributor;
 }
+
 export function updatePoolDistributorTotalAmountFlowedAndDistributed(
     event: ethereum.Event,
     poolDistributor: PoolDistributor
@@ -625,7 +626,7 @@ export function getOrInitAccountTokenSnapshot(
     const atsId = getAccountTokenSnapshotID(accountAddress, tokenAddress);
     let accountTokenSnapshot = AccountTokenSnapshot.load(atsId);
 
-if (accountTokenSnapshot == null) {
+    if (accountTokenSnapshot == null) {
         accountTokenSnapshot = new AccountTokenSnapshot(atsId);
         accountTokenSnapshot.createdAtTimestamp = block.timestamp;
         accountTokenSnapshot.createdAtBlockNumber = block.number;
@@ -800,6 +801,9 @@ export function _createTokenStatisticLogEntity(
     tokenAddress: Address,
     eventName: string
 ): void {
+    // Note: we decided to deprecate TokenStatisticLogs based on high entity count and non-existent usage.
+    return;
+
     const tokenStatistic = getOrInitTokenStatistic(tokenAddress, event.block);
     const tokenStatisticLog = new TokenStatisticLog(
         createLogID("TSLog", tokenStatistic.id, event)
@@ -858,7 +862,7 @@ export function _createTokenStatisticLogEntity(
     tokenStatisticLog.totalSupply = tokenStatistic.totalSupply;
     tokenStatisticLog.token = tokenStatistic.token;
     tokenStatisticLog.totalNumberOfAccounts = tokenStatistic.totalNumberOfAccounts;
-    tokenStatisticLog.totalNumberOfHolders  = tokenStatistic.totalNumberOfHolders;
+    tokenStatisticLog.totalNumberOfHolders = tokenStatistic.totalNumberOfHolders;
     tokenStatisticLog.tokenStatistic = tokenStatistic.id;
     tokenStatisticLog.save();
 }
@@ -875,9 +879,11 @@ export function updateAccountUpdatedAt(
     block: ethereum.Block
 ): void {
     const account = getOrInitAccount(accountAddress, block);
-    account.updatedAtTimestamp = block.timestamp;
-    account.updatedAtBlockNumber = block.number;
-    account.save();
+    if (account.updatedAtTimestamp != block.timestamp) {
+        account.updatedAtTimestamp = block.timestamp;
+        account.updatedAtBlockNumber = block.number;
+        account.save();
+    }
 }
 
 /**************************************************************************
@@ -905,14 +911,14 @@ export function updateAggregateDistributionAgreementData(
             ? -1
             : // we only increment if the subscription does not exist and we are incrementing
             isIncrementingSubWithUnits && !subscriptionWithUnitsExists
-            ? 1
-            : 0;
+                ? 1
+                : 0;
 
     const totalApprovedSubscriptionsDelta = isApproving
         ? 1
         : isRevokingSubscription && subscriptionApproved
-        ? -1
-        : 0;
+            ? -1
+            : 0;
 
     // update ATS Subscription data
     const accountTokenSnapshot = getOrInitAccountTokenSnapshot(
@@ -977,72 +983,76 @@ export function updateAggregateDistributionAgreementData(
  */
 function updateATSBalanceAndUpdatedAt(
     accountTokenSnapshot: AccountTokenSnapshot,
-    block: ethereum.Block,
+    event: ethereum.Event,
     balanceDelta: BigInt | null
 ): AccountTokenSnapshot {
+    const block = event.block;
+
     const superTokenContract = SuperToken.bind(
         Address.fromString(accountTokenSnapshot.token)
     );
 
     // If the balance has been updated from RPC in this block then no need to update it again.
     // The RPC call gets the final balance from that block.
-    if (accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber !== block.number) {
+    if (accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber !== null && accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber!.equals(block.number)) {
+        return accountTokenSnapshot as AccountTokenSnapshot;
+    }
 
-        // "Unpredictable" would mean an account receiving GDA distributions, IDA distributions or GDA adjustment flow.
-        // The reason they are "unpredictable" is that it would be unscalable to perfectly keep track of them with subgraph.
-        // What makes it unscalable is that the distribution events happen on the side of the distributor, not the receiver.
-        // We can't iterate all the receivers when a distribution is made.
-        const isAccountWithOnlyVeryPredictableBalanceSources = 
-            !accountTokenSnapshot.isLiquidationEstimateOptimistic // Covers GDA and IDA
-            && accountTokenSnapshot.activeGDAOutgoingStreamCount === 0
-            && accountTokenSnapshot.totalInflowRate === BIG_INT_ZERO
-            && accountTokenSnapshot.totalOutflowRate === BIG_INT_ZERO;
+    // "Unpredictable" would mean an account receiving GDA distributions, IDA distributions or GDA adjustment flow.
+    // The reason they are "unpredictable" is that it would be unscalable to perfectly keep track of them with subgraph.
+    // What makes it unscalable is that the distribution events happen on the side of the distributor, not the receiver.
+    // We can't iterate all the receivers when a distribution is made.
+    const isAccountWithOnlyVeryPredictableBalanceSources =
+        !accountTokenSnapshot.isLiquidationEstimateOptimistic // Covers GDA and IDA
+        && accountTokenSnapshot.activeGDAOutgoingStreamCount === 0
+        && accountTokenSnapshot.totalInflowRate === BIG_INT_ZERO
+        && accountTokenSnapshot.totalOutflowRate === BIG_INT_ZERO;
 
-        // If the balance has been updated in this block without an RPC, it's better to be safe than sorry and just get the final accurate state from the RPC.
-        const hasBalanceBeenUpdatedInThisBlock = accountTokenSnapshot.updatedAtBlockNumber === block.number;
+    // If the balance has been updated in this block without an RPC, it's better to be safe than sorry and just get the final accurate state from the RPC.
+    const hasBalanceBeenUpdatedInThisBlock = accountTokenSnapshot.updatedAtBlockNumber === block.number;
 
-        if (balanceDelta && isAccountWithOnlyVeryPredictableBalanceSources && !hasBalanceBeenUpdatedInThisBlock) {
-            accountTokenSnapshot.balanceUntilUpdatedAt = accountTokenSnapshot.balanceUntilUpdatedAt.plus(balanceDelta);
+    if (balanceDelta !== null && isAccountWithOnlyVeryPredictableBalanceSources && !hasBalanceBeenUpdatedInThisBlock) {
+        accountTokenSnapshot.balanceUntilUpdatedAt = accountTokenSnapshot.balanceUntilUpdatedAt.plus(balanceDelta);
+    } else {
+        // if the account has any subscriptions with units we assume that
+        // the balance data requires a RPC call for balance because we did not
+        // have claim events there and we do not count distributions
+        // for subscribers
+        const newBalanceResult = superTokenContract.try_realtimeBalanceOfNow(
+            Address.fromString(accountTokenSnapshot.account)
+        );
+
+        const balanceBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+        let balanceFromRpc = balanceBeforeUpdate;
+        if (!newBalanceResult.reverted) {
+            balanceFromRpc = newBalanceResult.value.value0;
+            accountTokenSnapshot.balanceUntilUpdatedAt = balanceFromRpc;
+            accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber = block.number;
         } else {
-            // if the account has any subscriptions with units we assume that
-            // the balance data requires a RPC call for balance because we did not
-            // have claim events there and we do not count distributions
-            // for subscribers
-            const newBalanceResult = superTokenContract.try_realtimeBalanceOf(
-                Address.fromString(accountTokenSnapshot.account),
-                block.timestamp
-            );
+            log.warning("Fetching balance from RPC failed.", []);
+        }
 
-            const balanceBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
-            let balanceFromRpc = balanceBeforeUpdate;
-            if (!newBalanceResult.reverted) {
-                balanceFromRpc = newBalanceResult.value.value0;
-                accountTokenSnapshot.balanceUntilUpdatedAt = balanceFromRpc;
-                accountTokenSnapshot.balanceLastUpdatedFromRpcBlocknumber = block.number;
-            } else {
-                log.warning("Fetching balance from RPC failed.", []);
-            }
-            
-            if (balanceDelta && !accountTokenSnapshot.isLiquidationEstimateOptimistic) {
-                const balanceFromDelta = balanceBeforeUpdate.plus(balanceDelta);
-                if (!balanceFromRpc.equals(balanceFromDelta)) {
-                    log.debug(
-                        "Balance would have been different if we used balance delta over an RPC call. Block: {}, Timestamp: {}, Account: {}, Token: {}, Balance from RPC: {}, Balance from delta: {}, Balance delta: {}, Outgoing stream count: {}, Incoming stream count: {}", 
-                        [
-                            block.number.toString(), 
-                            block.timestamp.toString(),
-                            accountTokenSnapshot.account.toString(),
-                            accountTokenSnapshot.token.toString(),
-                            balanceFromRpc.toString(),
-                            balanceFromDelta.toString(),
-                            balanceDelta.toString(),
-                            accountTokenSnapshot.activeOutgoingStreamCount.toString(),
-                            accountTokenSnapshot.activeIncomingStreamCount.toString()
-                        ]
-                    );
-                }
+        const enableLogging = false; // Enable if you want...
+        if (enableLogging && balanceDelta !== null && !accountTokenSnapshot.isLiquidationEstimateOptimistic) {
+            const balanceFromDelta = balanceBeforeUpdate.plus(balanceDelta);
+            if (!balanceFromRpc.equals(balanceFromDelta)) {
+                log.debug(
+                    "Balance would have been different if we used balance delta over an RPC call. Block: {}, Timestamp: {}, Account: {}, Token: {}, Balance from RPC: {}, Balance from delta: {}, Balance delta: {}, Outgoing stream count: {}, Incoming stream count: {}",
+                    [
+                        block.number.toString(),
+                        block.timestamp.toString(),
+                        accountTokenSnapshot.account.toString(),
+                        accountTokenSnapshot.token.toString(),
+                        balanceFromRpc.toString(),
+                        balanceFromDelta.toString(),
+                        balanceDelta.toString(),
+                        accountTokenSnapshot.activeOutgoingStreamCount.toString(),
+                        accountTokenSnapshot.activeIncomingStreamCount.toString()
+                    ]
+                );
             }
         }
+
     }
 
     accountTokenSnapshot.updatedAtTimestamp = block.timestamp;
@@ -1069,95 +1079,111 @@ function updateATSBalanceAndUpdatedAt(
 export function updateATSStreamedAndBalanceUntilUpdatedAt(
     accountAddress: Address,
     tokenAddress: Address,
-    block: ethereum.Block,
-    balanceDelta: BigInt | null
+    event: ethereum.Event,
+    balanceDelta: BigInt | null,
+    eventName: string
 ): void {
-    let accountTokenSnapshot = getOrInitAccountTokenSnapshot(
+    const block = event.block;
+
+    let ats = getOrInitAccountTokenSnapshot(
         accountAddress,
         tokenAddress,
         block
     );
 
-    const balanceUntilUpdatedAtBeforeUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+    const totalInflowRateBeforeUpdate = ats.totalInflowRate;
+    const totalNetflowRateBeforeUpdate = ats.totalNetFlowRate;
+    const totalOutflowRateBeforeUpdate = ats.totalOutflowRate;
+    const balanceUntilUpdatedAtBeforeUpdate = ats.balanceUntilUpdatedAt;
+    const blockNumberBeforeUpdate = ats.updatedAtBlockNumber;
+    const updatedAtTimestampBeforeUpdate = ats.updatedAtTimestamp;
+    const totalCFANetflowRateBeforeUpdate = ats.totalCFANetFlowRate;
+    const totalCFAOutflowRateBeforeUpdate = ats.totalCFAOutflowRate;
+
+    // update the balance via external call if account has any subscription with more than 0 units
+    // or uses the balance delta (which includes amount streamed) and saves the entity
+    // we always add the amount streamed in this function
+    ats = updateATSBalanceAndUpdatedAt(
+        ats,
+        event,
+        balanceDelta
+    );
+
+    const balanceUntilUpdatedAtAfterUpdate = ats.balanceUntilUpdatedAt;
+
+    if (ats.createdAtBlockNumber !== block.number && // if the ATS is not new
+        blockNumberBeforeUpdate === block.number 
+        && balanceUntilUpdatedAtBeforeUpdate.equals(balanceUntilUpdatedAtAfterUpdate)
+    ) {
+        // ATS has already been updated in the block and no new balance change discovered. It's safe to return early.
+        return;
+    }
 
     //////////////// CFA + GDA streamed amounts ////////////////
     const totalAmountStreamedSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalNetFlowRate
+            updatedAtTimestampBeforeUpdate,
+            totalNetflowRateBeforeUpdate
         );
     const totalAmountStreamedInSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalInflowRate
+            updatedAtTimestampBeforeUpdate,
+            totalInflowRateBeforeUpdate
         );
     const totalAmountStreamedOutSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalOutflowRate
+            updatedAtTimestampBeforeUpdate,
+            totalOutflowRateBeforeUpdate
         );
 
     // update the totalStreamedUntilUpdatedAt (net)
-    accountTokenSnapshot.totalAmountStreamedUntilUpdatedAt =
-        accountTokenSnapshot.totalAmountStreamedUntilUpdatedAt.plus(
+    ats.totalAmountStreamedUntilUpdatedAt =
+        ats.totalAmountStreamedUntilUpdatedAt.plus(
             totalAmountStreamedSinceLastUpdatedAt
         );
 
     // update the totalStreamedUntilUpdatedAt (in)
-    accountTokenSnapshot.totalAmountStreamedInUntilUpdatedAt =
-        accountTokenSnapshot.totalAmountStreamedInUntilUpdatedAt.plus(
+    ats.totalAmountStreamedInUntilUpdatedAt =
+        ats.totalAmountStreamedInUntilUpdatedAt.plus(
             totalAmountStreamedInSinceLastUpdatedAt
         );
 
     // update the totalStreamedUntilUpdatedAt (out)
-    accountTokenSnapshot.totalAmountStreamedOutUntilUpdatedAt =
-        accountTokenSnapshot.totalAmountStreamedOutUntilUpdatedAt.plus(
+    ats.totalAmountStreamedOutUntilUpdatedAt =
+        ats.totalAmountStreamedOutUntilUpdatedAt.plus(
             totalAmountStreamedOutSinceLastUpdatedAt
         );
-
-    // update the balance via external call if account has any subscription with more than 0 units
-    // or uses the balance delta (which includes amount streamed) and saves the entity
-    // we always add the amount streamed in this function
-    accountTokenSnapshot = updateATSBalanceAndUpdatedAt(
-        accountTokenSnapshot,
-        block,
-        balanceDelta
-            ? balanceDelta.plus(totalAmountStreamedSinceLastUpdatedAt)
-            : balanceDelta
-    );
 
     //////////////// CFA streamed amounts ////////////////
     const totalCFAAmountStreamedSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalCFANetFlowRate
+            updatedAtTimestampBeforeUpdate,
+            totalCFANetflowRateBeforeUpdate
         );
     const totalCFAAmountStreamedOutSinceLastUpdatedAt =
         getAmountStreamedSinceLastUpdatedAt(
             block.timestamp,
-            accountTokenSnapshot.updatedAtTimestamp,
-            accountTokenSnapshot.totalCFAOutflowRate
+            updatedAtTimestampBeforeUpdate,
+            totalCFAOutflowRateBeforeUpdate
         );
 
     // update the totalCFAStreamedUntilUpdatedAt (net)
-    accountTokenSnapshot.totalCFAAmountStreamedUntilUpdatedAt =
-        accountTokenSnapshot.totalCFAAmountStreamedUntilUpdatedAt.plus(
+    ats.totalCFAAmountStreamedUntilUpdatedAt =
+        ats.totalCFAAmountStreamedUntilUpdatedAt.plus(
             totalCFAAmountStreamedSinceLastUpdatedAt
         );
 
     // update the totalCFAStreamedUntilUpdatedAt (out)
-    accountTokenSnapshot.totalCFAAmountStreamedOutUntilUpdatedAt =
-        accountTokenSnapshot.totalCFAAmountStreamedOutUntilUpdatedAt.plus(
+    ats.totalCFAAmountStreamedOutUntilUpdatedAt =
+        ats.totalCFAAmountStreamedOutUntilUpdatedAt.plus(
             totalCFAAmountStreamedOutSinceLastUpdatedAt
         );
 
-    accountTokenSnapshot.save();
-
-    const balanceUntilUpdatedAtAfterUpdate = accountTokenSnapshot.balanceUntilUpdatedAt;
+    ats.save();
 
     if (
         balanceUntilUpdatedAtBeforeUpdate.equals(BIG_INT_ZERO) &&
@@ -1181,9 +1207,15 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
         tokenStatistic.save();
     }
 
-
     // update the updatedAt property of the account that just made an update
     updateAccountUpdatedAt(accountAddress, block);
+
+    _createAccountTokenSnapshotLogEntity(
+        event,
+        accountAddress,
+        tokenAddress,
+        eventName
+    );
 }
 
 /**
@@ -1195,8 +1227,11 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
  */
 export function updateTokenStatsStreamedUntilUpdatedAt(
     tokenAddress: Address,
-    block: ethereum.Block
+    event: ethereum.Event,
+    eventName: string
 ): void {
+    const block = event.block;
+
     const tokenStats = getOrInitTokenStatistic(tokenAddress, block);
 
     //// CFA + GDA streamed amounts ////
@@ -1223,9 +1258,16 @@ export function updateTokenStatsStreamedUntilUpdatedAt(
             cfaAmountStreamedSinceLastUpdatedAt
         );
 
+    if (tokenStats.updatedAtBlockNumber === block.number && amountStreamedSinceLastUpdatedAt.equals(BigInt.fromI32(0))) {
+        // TS has already been updated in the block and no new balance change discovered. It's safe to return early.
+        return;
+    }
+
     tokenStats.updatedAtTimestamp = block.timestamp;
     tokenStats.updatedAtBlockNumber = block.number;
     tokenStats.save();
+
+    _createTokenStatisticLogEntity(event, event.address, eventName);
 }
 
 export function updateTokenStatisticStreamData(
@@ -1468,7 +1510,7 @@ export function updateReceiverATSStreamData(
     receiverATS.totalCFANumberOfActiveStreams =
         receiverATS.totalCFANumberOfActiveStreams +
         totalNumberOfActiveStreamsDelta;
-        totalNumberOfClosedStreamsDelta;
+    totalNumberOfClosedStreamsDelta;
 
     receiverATS.totalCFANumberOfClosedStreams =
         receiverATS.totalCFANumberOfClosedStreams +
@@ -1504,7 +1546,6 @@ export function updateAggregateEntitiesTransferData(
     tokenStatistic.save();
 }
 
-
 export function particleRTB(
     perUnitSettledValue: BigInt,
     perUnitFlowRate: BigInt,
@@ -1524,7 +1565,7 @@ export function monetaryUnitPoolMemberRTB(pool: Pool, poolMember: PoolMember, cu
     );
     const poolMemberPerUnitRTB = particleRTB(
         poolMember.syncedPerUnitSettledValue,
-        poolMember.syncedPerUnitFlowRate,
+        BigInt.fromI32(0),
         currentTimestamp,
         poolMember.updatedAtTimestamp
     );
@@ -1554,19 +1595,6 @@ export function settlePoolParticle(pool: Pool, block: ethereum.Block): Pool {
     return pool;
 }
 
-export function settlePoolMemberParticle(poolMember: PoolMember, block: ethereum.Block): PoolMember {
-    poolMember.syncedPerUnitSettledValue = particleRTB(
-        poolMember.syncedPerUnitSettledValue,
-        poolMember.syncedPerUnitFlowRate,
-        block.timestamp,
-        poolMember.updatedAtTimestamp
-    );
-    poolMember.updatedAtTimestamp = block.timestamp;
-    poolMember.updatedAtBlockNumber = block.number;
-
-    return poolMember;
-}
-
 export function syncPoolMemberParticle(pool: Pool, poolMember: PoolMember): PoolMember {
     poolMember.syncedPerUnitSettledValue = pool.perUnitSettledValue;
     poolMember.syncedPerUnitFlowRate = pool.perUnitFlowRate;
@@ -1578,5 +1606,6 @@ export function syncPoolMemberParticle(pool: Pool, poolMember: PoolMember): Pool
 
 export function settlePDPoolMemberMU(pool: Pool, poolMember: PoolMember, block: ethereum.Block): void {
     poolMember.totalAmountReceivedUntilUpdatedAt = monetaryUnitPoolMemberRTB(pool, poolMember, block.timestamp);
+    poolMember.poolTotalAmountDistributedUntilUpdatedAt = pool.totalAmountDistributedUntilUpdatedAt;
     poolMember = syncPoolMemberParticle(pool, poolMember);
 }
