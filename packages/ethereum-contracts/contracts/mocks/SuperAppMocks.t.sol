@@ -52,9 +52,9 @@ contract SuperAppMock is ISuperApp {
 
     constructor(ISuperfluid host, uint256 configWord, bool doubleRegistration) {
         _host = host;
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
         if (doubleRegistration) {
-            _host.registerAppWithKey(configWord, "");
+            _host.registerApp(configWord);
         }
         _aux = new SuperAppMockAux();
     }
@@ -472,7 +472,7 @@ contract SuperAppMockReturningEmptyCtx {
 
     constructor(ISuperfluid host) {
         _host = host;
-        _host.registerAppWithKey(SuperAppDefinitions.APP_LEVEL_FINAL, "");
+        _host.registerApp(SuperAppDefinitions.APP_LEVEL_FINAL);
     }
 
     function beforeAgreementCreated(
@@ -533,7 +533,7 @@ contract SuperAppMockReturningInvalidCtx {
 
     constructor(ISuperfluid host) {
         _host = host;
-        _host.registerAppWithKey(SuperAppDefinitions.APP_LEVEL_FINAL, "");
+        _host.registerApp(SuperAppDefinitions.APP_LEVEL_FINAL);
     }
 
     function afterAgreementCreated(
@@ -574,7 +574,7 @@ contract SuperAppMock2ndLevel {
 
     constructor(ISuperfluid host, SuperAppMock app, AgreementMock agreement) {
         _host = host;
-        _host.registerAppWithKey(SuperAppDefinitions.APP_LEVEL_SECOND, "");
+        _host.registerApp(SuperAppDefinitions.APP_LEVEL_SECOND);
         _app = app;
         _agreement = agreement;
     }
@@ -630,6 +630,6 @@ contract SuperAppMockNotSelfRegistering { }
 // Factory which allows anybody to deploy arbitrary contracts as app (do NOT allow this in a real factory!)
 contract SuperAppFactoryMock {
     function registerAppWithHost(ISuperfluid host, ISuperApp app, uint256 configWord) external {
-        host.registerAppByFactory(app, configWord);
+        host.registerApp(app, configWord);
     }
 }

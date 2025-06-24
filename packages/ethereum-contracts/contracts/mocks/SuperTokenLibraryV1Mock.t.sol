@@ -384,7 +384,7 @@ contract SuperTokenLibraryCFASuperAppMock is SuperAppBase {
             SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP |
             SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
 
-        host.registerAppWithKey(configWord, "");
+        host.registerApp(configWord);
     }
 
     function createFlow(ISuperToken token) external {

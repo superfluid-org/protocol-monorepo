@@ -33,7 +33,7 @@ contract StreamRedirector is SuperAppBase {
         token = _token;
         receiver = _receiver;
 
-        host.registerAppWithKey(configWord, "");
+        host.registerApp(configWord);
     }
 
     /**
