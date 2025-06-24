@@ -6,8 +6,10 @@ import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.so
 import { SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { ISuperAgreement } from "../../../contracts/interfaces/superfluid/ISuperAgreement.sol";
-import { ISuperfluid } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { ISuperfluid, SuperAppDefinitions } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { ISuperApp } from "../../../contracts/interfaces/superfluid/ISuperApp.sol";
 import { AgreementMock } from "../../../contracts/mocks/AgreementMock.t.sol";
+import { AllowList } from "../../../contracts/utils/AllowList.sol";
 
 contract SuperfluidIntegrationTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for SuperToken;
@@ -82,5 +84,38 @@ contract SuperfluidIntegrationTest is FoundrySuperfluidTester {
         vm.expectRevert(ISuperfluid.HOST_ONLY_GOVERNANCE.selector);
         sf.host.changeSuperTokenAdmin(superToken, newAdmin);
         vm.stopPrank();
+    }
+
+    function testSuperAppRegistrationViaAllowList() public {
+        AllowList allowList = new AllowList();
+        Superfluid hostWithAllowList = new Superfluid(
+            true, true, 3_000_000, address(0), address(0), address(allowList)
+        );
+        hostWithAllowList.initialize(sf.governance);
+
+        // first, give permission to alice
+        address allowlistAddress = address(hostWithAllowList.getSuperAppRegistrationAllowlist());
+        // get allowlist owner
+        address allowListOwner = AllowList(allowlistAddress).owner();
+
+        // give permission to alice
+        vm.startPrank(allowListOwner);
+        AllowList(allowlistAddress).givePermission(alice);
+        vm.stopPrank();
+
+        // any address which is a contract is ok for the purpose of this test
+        ISuperApp mockSuperApp = ISuperApp(address(this));
+
+        // as bob, try to register a superapp - should revert
+        vm.startPrank(bob);
+        vm.expectRevert(ISuperfluid.HOST_NO_APP_REGISTRATION_PERMISSION.selector);
+        hostWithAllowList.registerApp(mockSuperApp, SuperAppDefinitions.APP_LEVEL_FINAL);
+        vm.stopPrank();
+
+        // as alice, try to register a superapp - should succeed
+        vm.startPrank(alice);
+        hostWithAllowList.registerApp(mockSuperApp, SuperAppDefinitions.APP_LEVEL_FINAL);
+        vm.stopPrank();
+        vm.assertTrue(hostWithAllowList.isApp(mockSuperApp));
     }
 }

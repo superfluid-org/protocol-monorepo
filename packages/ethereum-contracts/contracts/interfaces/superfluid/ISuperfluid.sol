@@ -658,6 +658,12 @@ interface ISuperfluid {
     // solhint-disable func-name-mixedcase
     function getERC2771Forwarder() external view returns(address);
 
+    /**
+     * @dev returns the address of the allowlist contract used for permissioning superapp registration.
+     * @return address of the allowlist contract
+     */
+    function getSuperAppRegistrationAllowlist() external view returns(address);
+
     /**************************************************************************
      * Function modifiers for access control and parameter validations
      *

@@ -25,6 +25,7 @@ import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { BaseRelayRecipient } from "../libs/BaseRelayRecipient.sol";
 import { SimpleForwarder } from "../utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
+import { AllowList } from "../utils/AllowList.sol";
 
 /**
  * @dev The Superfluid host implementation.
@@ -58,6 +59,9 @@ contract Superfluid is
     // simple forwarder contract used to relay arbitrary calls for batch operations
     SimpleForwarder immutable public SIMPLE_FORWARDER;
     ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
+
+    // Allowlist for superapp registration
+    AllowList immutable internal _SUPERAPP_REGISTRATION_ALLOWLIST;
 
     /**
      * @dev Maximum number of level of apps can be composed together
@@ -105,13 +109,15 @@ contract Superfluid is
         bool appWhiteListingEnabled,
         uint64 callbackGasLimit,
         address simpleForwarderAddress,
-        address erc2771ForwarderAddress
+        address erc2771ForwarderAddress,
+        address superappRegistrationAllowlistAddress
     ) {
         NON_UPGRADABLE_DEPLOYMENT = nonUpgradable;
         APP_WHITE_LISTING_ENABLED = appWhiteListingEnabled;
         CALLBACK_GAS_LIMIT = callbackGasLimit;
         SIMPLE_FORWARDER = SimpleForwarder(simpleForwarderAddress);
         _ERC2771_FORWARDER = ERC2771Forwarder(erc2771ForwarderAddress);
+        _SUPERAPP_REGISTRATION_ALLOWLIST = AllowList(superappRegistrationAllowlistAddress);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -375,8 +381,16 @@ contract Superfluid is
         _registerApp(ISuperApp(msg.sender), configWord);
     }
 
-    // internally we keep using the gov config method with key
+    // Checks if the deployer account has permission to register SuperApps, reverts if not.
+    // New method: lookup in the dedicated allowlist contract.
+    // Legacy/fallback method: lookup in the governance contract.
     function _enforceAppRegistrationPermissioning(string memory registrationKey, address deployer) internal view {
+        // new method: check if the deployer is in the allowlist
+        if (_SUPERAPP_REGISTRATION_ALLOWLIST.hasPermission(deployer)) {
+            return;
+        }
+
+        // legacy/fallback method: check if permission is given by gov
         bytes32 configKey = SuperfluidGovernanceConfigs.getAppRegistrationConfigKey(
             // solhint-disable-next-line avoid-tx-origin
             deployer,
@@ -956,6 +970,10 @@ contract Superfluid is
 
     function getERC2771Forwarder() external view override returns(address) {
         return address(_ERC2771_FORWARDER);
+    }
+
+    function getSuperAppRegistrationAllowlist() external view override returns(address) {
+        return address(_SUPERAPP_REGISTRATION_ALLOWLIST);
     }
 
     /**************************************************************************
