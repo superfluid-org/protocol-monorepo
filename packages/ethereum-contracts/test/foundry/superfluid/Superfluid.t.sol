@@ -117,5 +117,16 @@ contract SuperfluidIntegrationTest is FoundrySuperfluidTester {
         hostWithAllowList.registerApp(mockSuperApp, SuperAppDefinitions.APP_LEVEL_FINAL);
         vm.stopPrank();
         vm.assertTrue(hostWithAllowList.isApp(mockSuperApp));
+
+        // revoke permission from alice
+        vm.startPrank(allowListOwner);
+        AllowList(allowlistAddress).revokePermission(alice);
+        vm.stopPrank();
+
+        // as alice, try to register a superapp - should revert
+        vm.startPrank(alice);
+        vm.expectRevert(ISuperfluid.HOST_NO_APP_REGISTRATION_PERMISSION.selector);
+        hostWithAllowList.registerApp(mockSuperApp, SuperAppDefinitions.APP_LEVEL_FINAL);
+        vm.stopPrank();
     }
 }
