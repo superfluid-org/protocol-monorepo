@@ -995,9 +995,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
                 address u4 = TEST_ACCOUNTS[1 + (s.v % N_MEMBERS)];
                 emit log_named_string("action", "claimAll");
                 emit log_named_address("claim for", u4);
-                vm.startPrank(user);
-                assert(freePool.claimAll(u4));
-                vm.stopPrank();
+                _helperClaimAll(freePool, user, u4);
             } else if (action == 3) {
                 bool doConnect = s.v % 2 == 0 ? false : true;
                 emit log_named_string("action", "doConnectPool");
