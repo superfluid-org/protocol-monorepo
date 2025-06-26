@@ -161,7 +161,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                     _getPoolMemberData(token, account, ISuperfluidPool(pool));
                 assert(exist);
                 assert(poolMemberData.pool == pool);
-                fromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
+                fromPools += SuperfluidPool(pool).getUnsettledValue(account, uint32(time));
             }
         }
         rtb += fromPools;
