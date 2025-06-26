@@ -374,12 +374,9 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function getClaimable(address memberAddr, uint32 time) public view override returns (int256) {
-        Time t = Time.wrap(time);
-        PDPoolIndex memory pdPoolIndex = poolIndexDataToPDPoolIndex(_index);
-        PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(_membersData[memberAddr]);
-        return Value.unwrap(
-            PDPoolMemberMU(pdPoolIndex, pdPoolMember).rtb(t) - Value.wrap(_membersData[memberAddr].claimedValue)
-        );
+        return GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr)
+             ? int256(0)
+             : getUnsettledValue(memberAddr, time);
     }
 
     /// @inheritdoc ISuperfluidPool
@@ -478,10 +475,23 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         _handlePoolMemberNFT(memberAddr, newUnits);
     }
 
-    function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {
-        amount = getClaimable(memberAddr, time);
+    function _settle(address memberAddr, int256 amount) internal {
         assert(GDA.poolSettleClaim(superToken, memberAddr, (amount)));
         _membersData[memberAddr].claimedValue += amount;
+    }
+
+    function getUnsettledValue(address memberAddr, uint32 time) public view returns (int256) {
+        Time t = Time.wrap(time);
+        PDPoolIndex memory pdPoolIndex = poolIndexDataToPDPoolIndex(_index);
+        PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(_membersData[memberAddr]);
+        return Value.unwrap(
+            PDPoolMemberMU(pdPoolIndex, pdPoolMember).rtb(t) - Value.wrap(_membersData[memberAddr].claimedValue)
+        );
+    }
+
+    function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {
+        amount = getClaimable(memberAddr, time);
+        _settle(memberAddr, amount);
 
         emit DistributionClaimed(superToken, memberAddr, amount, _membersData[memberAddr].claimedValue);
     }
@@ -511,10 +521,11 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     // WARNING for operators: it is undefined behavior if member is already connected or disconnected
     function operatorConnectMember(address memberAddr, bool doConnect, uint32 time) external onlyGDA returns (bool) {
-        int256 claimedAmount = _claimAll(memberAddr, time);
+        int256 settleAmount = getUnsettledValue(memberAddr, time);
+        _settle(memberAddr, settleAmount);
         int128 units = uint256(_getUnits(memberAddr)).toInt256().toInt128();
         if (doConnect) {
-            _shiftDisconnectedUnits(Unit.wrap(-units), Value.wrap(claimedAmount), Time.wrap(time));
+            _shiftDisconnectedUnits(Unit.wrap(-units), Value.wrap(settleAmount), Time.wrap(time));
         } else {
             _shiftDisconnectedUnits(Unit.wrap(units), Value.wrap(0), Time.wrap(time));
         }
