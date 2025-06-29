@@ -463,8 +463,13 @@ export function getOrInitSubscription(
 }
 
 export function getOrInitPool(event: ethereum.Event, poolId: string): Pool {
-    // get existing pool
-    let pool = Pool.load(poolId);
+    // get existing pool from block including in memory updates
+    let pool = Pool.loadInBlock(poolId);
+
+    if (pool == null) {
+    // get existing pool from store
+      pool = Pool.load(poolId);
+    }
 
     // init new pool if non-existent
     if (pool == null) {
