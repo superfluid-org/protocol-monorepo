@@ -21,8 +21,10 @@ import { ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
 import {
-    GeneralDistributionAgreementV1, _isPool } from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
+    GeneralDistributionAgreementV1, _isPool, _isMemberConnected }
+from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import { BeaconProxiable } from "../../upgradability/BeaconProxiable.sol";
+import "forge-std/console.sol";
 
 using SafeCast for uint256;
 using SafeCast for int256;
@@ -437,10 +439,23 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
         PDPoolMemberMU memory mu = PDPoolMemberMU(pdPoolIndex, pdPoolMember);
 
+        // // TODO: inline
+        // bool wasConnected = _isMemberConnected(GDA, superToken, address(this), memberAddr);
+        // // TODO: do we need the claimAll?
+        // if (!wasConnected && oldUnits == 0 && newUnits > 0) {
+        //     GDA.setConnectionByPool(memberAddr, true);
+        //     // disconnected units was and remains zero
+        // } else if (wasConnected && oldUnits > 0 && newUnits == 0) {
+        //     GDA.setConnectionByPool(memberAddr, false);
+        //     // disconnected units was and remains zero
+        // }
+
         // update pool's disconnected units
+        // note that this can still be the case with auto-connect if no free slot was available
         if (!GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr)) {
             _shiftDisconnectedUnits(wrappedUnits - mu.m.owned_units, Value.wrap(0), t);
         }
+        // console.log("shiftDisconnectedUnits done");
 
         // update pool member's units
         {

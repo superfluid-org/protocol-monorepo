@@ -29,11 +29,26 @@ library SlotsBitmapLibrary {
         public
         returns (uint32 slotId)
     {
+        slotId = tryFindEmptySlotAndFill(token, account, bitmapStateSlotId, dataStateSlotIDStart, data, _MAX_NUM_SLOTS);
+        require(slotId < _MAX_NUM_SLOTS, "SlotBitmap out of bound");
+    }
+
+    function tryFindEmptySlotAndFill(
+        ISuperfluidToken token,
+        address account,
+        uint256 bitmapStateSlotId,
+        uint256 dataStateSlotIDStart,
+        bytes32 data,
+        uint32 maxSlots
+    )
+        public
+        returns (uint32 slotId)
+    {
         uint256 subsBitmap = uint256(token.getAgreementStateSlot(
             address(this),
             account,
             bitmapStateSlotId, 1)[0]);
-        for (slotId = 0; slotId < _MAX_NUM_SLOTS; ++slotId) {
+        for (slotId = 0; slotId < maxSlots; ++slotId) {
             if ((uint256(subsBitmap >> slotId) & 1) == 0) {
                 // update slot data
                 bytes32[] memory slotData = new bytes32[](1);
@@ -52,7 +67,9 @@ library SlotsBitmapLibrary {
                 break;
             }
         }
-        require(slotId < _MAX_NUM_SLOTS, "SlotBitmap out of bound");
+        if (slotId == maxSlots) {
+            slotId = type(uint32).max;
+        }
     }
 
     function clearSlot(

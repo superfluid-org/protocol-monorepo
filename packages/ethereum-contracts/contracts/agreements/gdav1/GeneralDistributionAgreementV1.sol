@@ -31,6 +31,7 @@ import { SolvencyHelperLibrary } from "../../libs/SolvencyHelperLibrary.sol";
 import { AgreementBase } from "../AgreementBase.sol";
 import { AgreementLibrary } from "../AgreementLibrary.sol";
 
+import "forge-std/console.sol";
 
 /// @dev Universal Index state slot id for storing universal index data
 function _universalIndexStateSlotId() pure returns (uint256) {
@@ -51,6 +52,52 @@ function _isPool(
         (uint256(token.getAgreementStateSlot(address(gda), account, _universalIndexStateSlotId(), 1)[0]) << 224)
             >> 224
     ) & 1 == 1;
+}
+
+struct PoolMemberData {
+    address pool;
+    uint32 poolID; // the slot id in the pool's subs bitmap
+}
+
+function _encodePoolMemberData(PoolMemberData memory poolMemberData)
+    pure
+    returns (bytes32[] memory data)
+{
+    data = new bytes32[](1);
+    data[0] = bytes32((uint256(uint32(poolMemberData.poolID)) << 160) | uint256(uint160(poolMemberData.pool)));
+}
+
+function _clearPoolConnectionsBitmap(ISuperfluidToken token, address poolMember, uint32 slotId) {
+    SlotsBitmapLibrary.clearSlot(token, poolMember, 1/*_POOL_SUBS_BITMAP_STATE_SLOT_ID*/, slotId);
+}
+
+function _isMemberConnected(IGeneralDistributionAgreementV1 gda, ISuperfluidToken token, address pool, address member) view returns (bool) {
+    (bool exist,) = _getPoolMemberData(gda, token, member, ISuperfluidPool(pool));
+    return exist;
+}
+
+function _getPoolMemberData(IGeneralDistributionAgreementV1 gda, ISuperfluidToken token, address poolMember, ISuperfluidPool pool)
+    view
+    returns (bool exist, PoolMemberData memory poolMemberData)
+{
+    (exist, poolMemberData) = _decodePoolMemberData(
+        uint256(token.getAgreementData(address(gda), _getPoolMemberHash(poolMember, pool), 1)[0])
+    );
+}
+
+function _getPoolMemberHash(address poolMember, ISuperfluidPool pool) view returns (bytes32) {
+    return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
+}
+
+function _decodePoolMemberData(uint256 data)
+    pure
+    returns (bool exist, PoolMemberData memory poolMemberData)
+{
+    exist = data > 0;
+    if (exist) {
+        poolMemberData.pool = address(uint160(data & uint256(type(uint160).max)));
+        poolMemberData.poolID = uint32(data >> 160);
+    }
 }
 
 /**
@@ -109,10 +156,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int256 settledValue;
     }
 
-    struct PoolMemberData {
-        address pool;
-        uint32 poolID; // the slot id in the pool's subs bitmap
-    }
+    // struct PoolMemberData {
+    //     address pool;
+    //     uint32 poolID; // the slot id in the pool's subs bitmap
+    // }
 
     struct FlowDistributionData {
         uint32 lastUpdated;
@@ -158,7 +205,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
                 (bool exist, PoolMemberData memory poolMemberData) =
-                    _getPoolMemberData(token, account, ISuperfluidPool(pool));
+                    _getPoolMemberData(this, token, account, ISuperfluidPool(pool));
                 assert(exist);
                 assert(poolMemberData.pool == pool);
                 fromPools += SuperfluidPool(pool).getUnsettledValue(account, uint32(time));
@@ -371,60 +418,140 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, true, ctx);
+        ISuperfluidToken token = pool.superToken();
+        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
+        newCtx = ctx;
+        _setPoolConnection(pool, token, currentContext.msgSender, true, true, currentContext);
+    }
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx) 
+        external
+        override
+        returns (bool success, bytes memory newCtx)
+    {
+        ISuperfluidToken token = pool.superToken();
+        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
+        // Only the pool admin is allowed to do this
+        if (currentContext.msgSender != pool.admin()) {
+            revert GDA_NOT_POOL_ADMIN();
+        }
+        newCtx = ctx;
+        success = _setPoolConnection(pool, token, memberAddr, true, false, currentContext);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, false, ctx);
-    }
-
-    // @note setPoolConnection function naming
-    function connectPool(ISuperfluidPool pool, bool doConnect, bytes calldata ctx)
-        public
-        returns (bytes memory newCtx)
-    {
         ISuperfluidToken token = pool.superToken();
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
-        address msgSender = currentContext.msgSender;
         newCtx = ctx;
-        bool isConnected = _isMemberConnected(token, address(pool), msgSender);
-        if (doConnect != isConnected) {
-            assert(
-                SuperfluidPool(address(pool)).operatorConnectMember(
-                    msgSender, doConnect, uint32(currentContext.timestamp)
-                )
-            );
+        _setPoolConnection(pool, token, currentContext.msgSender, false, true /* ignored */, currentContext);
+    }
 
+    // solhint-disable-next-line contract-name-camelcase
+    struct _StackVars_SetPoolConnection {
+        ISuperfluidToken token;
+        ISuperfluid.Context currentContext;
+        bool isConnected;
+    }
+    // @note setPoolConnection function naming
+    function _setPoolConnection(ISuperfluidPool pool, ISuperfluidToken token,address memberAddr, bool doConnect, bool useAllSlots, ISuperfluid.Context memory currentContext)
+        internal
+        returns (bool success)
+    {
+        // _StackVars_SetPoolConnection memory vars;
+        // {
+        //     vars.token = pool.superToken();
+        //     vars.currentContext = AgreementLibrary.authorizeTokenAccess(vars.token, ctx);
+        //     vars.isConnected = _isMemberConnected(this, vars.token, address(pool), memberAddr);
+        // }
+        bool isConnected = _isMemberConnected(this, token, address(pool), memberAddr);
+
+        if (doConnect != isConnected) {
             if (doConnect) {
-                uint32 poolSlotID =
-                    _findAndFillPoolConnectionsBitmap(token, msgSender, bytes32(uint256(uint160(address(pool)))));
+                uint32 poolSlotID = useAllSlots
+                    ? _findAndFillPoolConnectionsBitmap(token, memberAddr, bytes32(uint256(uint160(address(pool)))))
+                    // TODO: immutable for the limit
+                    : _tryFindAndFillPoolConnectionsBitmap(token, memberAddr, bytes32(uint256(uint160(address(pool)))), uint32(2));
+                
+                // only if we operate with limited slots, can it fail without revert.
+                if (poolSlotID == type(uint32).max) {
+                    return false;
+                }
 
                 // malicious token can reenter here
                 // external call to untrusted contract
                 // what sort of boundary can we trust
                 token.createAgreement(
-                    _getPoolMemberHash(msgSender, pool),
+                    _getPoolMemberHash(memberAddr, pool),
                     _encodePoolMemberData(PoolMemberData({ poolID: poolSlotID, pool: address(pool) }))
                 );
             } else {
-                (, PoolMemberData memory poolMemberData) = _getPoolMemberData(token, msgSender, pool);
-                token.terminateAgreement(_getPoolMemberHash(msgSender, pool), 1);
+                (, PoolMemberData memory poolMemberData) = _getPoolMemberData(this, token, memberAddr, pool);
+                token.terminateAgreement(_getPoolMemberHash(memberAddr, pool), 1);
 
-                _clearPoolConnectionsBitmap(token, msgSender, poolMemberData.poolID);
+                _clearPoolConnectionsBitmap(token, memberAddr, poolMemberData.poolID);
             }
 
-            emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);
+            assert(
+                SuperfluidPool(address(pool)).operatorConnectMember(
+                    memberAddr, doConnect, uint32(currentContext.timestamp)
+                )
+            );
+
+            emit PoolConnectionUpdated(token, pool, memberAddr, doConnect, currentContext.userData);
         }
     }
 
-    function _isMemberConnected(ISuperfluidToken token, address pool, address member) internal view returns (bool) {
-        (bool exist,) = _getPoolMemberData(token, member, ISuperfluidPool(pool));
-        return exist;
-    }
+    // // internal variant without ctx, authorization and pool.operatorConnectMember
+    // function setConnectionByPool(address member, bool doConnect) public returns (bool success) {
+    //     ISuperfluidPool pool = ISuperfluidPool(msg.sender);
+    //     if (_isPool(this, pool.superToken(), msg.sender) == false) {
+    //         revert GDA_ONLY_SUPER_TOKEN_POOL();
+    //     }
+
+    //     ISuperfluidToken token = pool.superToken();
+    //     bool isConnected = _isMemberConnected(this, token, address(pool), member);
+    //     if (doConnect != isConnected) {
+    //         if (doConnect) {
+    //             console.log("doConnect");
+    //             uint32 poolSlotID =
+    //                 _tryFindAndFillPoolConnectionsBitmap(token, member, bytes32(uint256(uint160(address(pool)))), uint32(2));
+    //                 //_findAndFillPoolConnectionsBitmap(token, member, bytes32(uint256(uint160(address(pool)))));
+    //             console.log("poolSlotID", poolSlotID);
+    //             if (poolSlotID == type(uint32).max) {
+    //                 return false;
+    //             }
+
+    //             // malicious token can reenter here
+    //             // external call to untrusted contract
+    //             // what sort of boundary can we trust
+    //             token.createAgreement(
+    //                 _getPoolMemberHash(member, pool),
+    //                 _encodePoolMemberData(PoolMemberData({ poolID: poolSlotID, pool: address(pool) }))
+    //             );
+    //         } else {
+    //             console.log("doDisconnect");
+    //             (, PoolMemberData memory poolMemberData) = _getPoolMemberData(this, token, member, pool);
+    //             token.terminateAgreement(_getPoolMemberHash(member, pool), 1);
+    //             console.log("agreement terminated");
+
+    //             _clearPoolConnectionsBitmap(token, member, poolMemberData.poolID);
+    //             console.log("pool connections bitmap cleared");
+    //         }
+
+    //         emit PoolConnectionUpdated(token, pool, member, doConnect, new bytes(0));
+    //     }
+    //     return true;
+    // }
+
+    // function _isMemberConnected(ISuperfluidToken token, address pool, address member) internal view returns (bool) {
+    //     (bool exist,) = _getPoolMemberData(token, member, ISuperfluidPool(pool));
+    //     return exist;
+    // }
 
     function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
-        return _isMemberConnected(pool.superToken(), address(pool), member);
+        return _isMemberConnected(this, pool.superToken(), address(pool), member);
     }
 
     function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t) external returns (bool) {
@@ -777,9 +904,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     // Hash Getters
 
-    function _getPoolMemberHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
-        return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
-    }
+    // function _getPoolMemberHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
+    //     return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
+    // }
 
     function _getFlowDistributionHash(address from, ISuperfluidPool to) internal view returns (bytes32) {
         return keccak256(abi.encode(block.chainid, "distributionFlow", from, to));
@@ -1059,36 +1186,36 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     //         |    64    |   32   |     160     |
     // -------- ---------- -------- -------------
 
-    function _encodePoolMemberData(PoolMemberData memory poolMemberData)
-        internal
-        pure
-        returns (bytes32[] memory data)
-    {
-        data = new bytes32[](1);
-        data[0] = bytes32((uint256(uint32(poolMemberData.poolID)) << 160) | uint256(uint160(poolMemberData.pool)));
-    }
+    // function _encodePoolMemberData(PoolMemberData memory poolMemberData)
+    //     internal
+    //     pure
+    //     returns (bytes32[] memory data)
+    // {
+    //     data = new bytes32[](1);
+    //     data[0] = bytes32((uint256(uint32(poolMemberData.poolID)) << 160) | uint256(uint160(poolMemberData.pool)));
+    // }
 
-    function _decodePoolMemberData(uint256 data)
-        internal
-        pure
-        returns (bool exist, PoolMemberData memory poolMemberData)
-    {
-        exist = data > 0;
-        if (exist) {
-            poolMemberData.pool = address(uint160(data & uint256(type(uint160).max)));
-            poolMemberData.poolID = uint32(data >> 160);
-        }
-    }
+    // function _decodePoolMemberData(uint256 data)
+    //     internal
+    //     pure
+    //     returns (bool exist, PoolMemberData memory poolMemberData)
+    // {
+    //     exist = data > 0;
+    //     if (exist) {
+    //         poolMemberData.pool = address(uint160(data & uint256(type(uint160).max)));
+    //         poolMemberData.poolID = uint32(data >> 160);
+    //     }
+    // }
 
-    function _getPoolMemberData(ISuperfluidToken token, address poolMember, ISuperfluidPool pool)
-        internal
-        view
-        returns (bool exist, PoolMemberData memory poolMemberData)
-    {
-        (exist, poolMemberData) = _decodePoolMemberData(
-            uint256(token.getAgreementData(address(this), _getPoolMemberHash(poolMember, pool), 1)[0])
-        );
-    }
+    // function _getPoolMemberData(ISuperfluidToken token, address poolMember, ISuperfluidPool pool)
+    //     internal
+    //     view
+    //     returns (bool exist, PoolMemberData memory poolMemberData)
+    // {
+    //     (exist, poolMemberData) = _decodePoolMemberData(
+    //         uint256(token.getAgreementData(address(this), _getPoolMemberHash(poolMember, pool), 1)[0])
+    //     );
+    // }
 
     // SlotsBitmap Pool Data:
     function _findAndFillPoolConnectionsBitmap(ISuperfluidToken token, address poolMember, bytes32 poolID)
@@ -1100,9 +1227,20 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         );
     }
 
-    function _clearPoolConnectionsBitmap(ISuperfluidToken token, address poolMember, uint32 slotId) private {
-        SlotsBitmapLibrary.clearSlot(token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, slotId);
+    // SlotsBitmap Pool Data with custom slot nr limit - returns type(uint32).max if no slot is found
+    function _tryFindAndFillPoolConnectionsBitmap(ISuperfluidToken token, address poolMember, bytes32 poolID, uint32 maxSlots)
+        private
+        returns (uint32 slotId)
+    {
+        return SlotsBitmapLibrary.tryFindEmptySlotAndFill(
+            // TODO
+            token, poolMember, 1/*_POOL_SUBS_BITMAP_STATE_SLOT_ID*/, 1 << 128 /*_POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START*/, poolID, maxSlots
+        );
     }
+
+    // function _clearPoolConnectionsBitmap(ISuperfluidToken token, address poolMember, uint32 slotId) private {
+    //     SlotsBitmapLibrary.clearSlot(token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, slotId);
+    // }
 
     function _listPoolConnectionIds(ISuperfluidToken token, address subscriber)
         private

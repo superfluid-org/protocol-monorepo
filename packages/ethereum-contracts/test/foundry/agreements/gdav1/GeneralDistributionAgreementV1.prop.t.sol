@@ -12,7 +12,7 @@ import { SuperfluidUpgradeableBeacon } from "../../../../contracts/upgradability
 import { ISuperToken, SuperToken } from "../../../../contracts/superfluid/SuperToken.sol";
 import { ISuperAgreement } from "../../../../contracts/interfaces/superfluid/ISuperAgreement.sol";
 import {
-    GeneralDistributionAgreementV1, ISuperfluid, ISuperfluidPool
+    GeneralDistributionAgreementV1, ISuperfluid, ISuperfluidPool, _getPoolMemberData, _getPoolMemberHash, PoolMemberData, _encodePoolMemberData, _decodePoolMemberData
 } from "../../../../contracts/agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import {
     IGeneralDistributionAgreementV1,
@@ -158,7 +158,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         );
         vm.stopPrank();
 
-        (bool exist, PoolMemberData memory setPoolMemberData) = _getPoolMemberData(superToken, poolMember, _pool);
+        (bool exist, PoolMemberData memory setPoolMemberData) = _getPoolMemberData(sf.gda, superToken, poolMember, _pool);
 
         assertEq(true, exist, "pool member data does not exist");
         assertEq(poolID, setPoolMemberData.poolID, "poolID not equal");

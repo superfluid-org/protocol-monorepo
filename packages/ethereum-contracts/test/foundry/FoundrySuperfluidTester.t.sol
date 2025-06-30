@@ -87,7 +87,7 @@ contract FoundrySuperfluidTester is Test {
     }
 
     struct ExpectedPoolMemberData {
-        bool isConnected;
+        bool wasConnected;
         uint128 ownedUnits;
         int96 flowRate;
         int96 netFlowRate;
@@ -488,6 +488,12 @@ contract FoundrySuperfluidTester is Test {
         for (uint256 i = 0; i < accounts.length; ++i) {
             (int256 availableBalance, uint256 deposit, uint256 owedDeposit,) =
                 superToken_.realtimeBalanceOfNow(accounts[i]);
+
+            console.log("    acc %s", accounts[i]);
+            console.log("    avb %s", availableBalance);
+            console.log("    dep %s", deposit);
+            console.log("    owed %s", owedDeposit);
+            //console.log("  acc ", accounts[i], "  avb ", availableBalance, "  dep ", deposit, "  owed ", owedDeposit);
 
             // FIXME: correct formula
             // liquiditySum += availableBalance + int256(deposit) - int256(owedDeposit);
@@ -1207,30 +1213,36 @@ contract FoundrySuperfluidTester is Test {
         vm.assume(newUnits_ < type(uint72).max);
         ISuperToken poolSuperToken = ISuperToken(address(pool_.superToken()));
 
-        (bool isConnected, int256 oldUnits,) = _helperGetMemberPoolState(pool_, member_);
+        (bool wasConnected, int256 oldUnits,) = _helperGetMemberPoolState(pool_, member_);
 
         PoolUnitData memory poolUnitDataBefore = _helperGetPoolUnitsData(pool_);
 
         (int256 balanceBefore,,,) = poolSuperToken.realtimeBalanceOfNow(member_);
+        console.log("before pool unit update to", newUnits_);
         {
             _updateMemberUnits(pool_, poolSuperToken, caller_, member_, newUnits_, useBools_);
         }
         PoolUnitData memory poolUnitDataAfter = _helperGetPoolUnitsData(pool_);
-
+        console.log("after pool unit update");
         {
             _helperTakeBalanceSnapshot(ISuperToken(address(poolSuperToken)), member_);
         }
+        console.log("after pool balance snapshot");
 
         assertEq(pool_.getUnits(member_), newUnits_, "GDAv1.t: Members' units incorrectly set");
 
-        // Assert that pending balance didn't change if user is disconnected
-        if (!isConnected) {
+        // Determine the new connection status after the update
+        bool isConnectedAfter = sf.gda.isMemberConnected(pool_, member_);
+
+        console.log("before pool balance check");
+        // Assert that pending balance didn't change if user was and remains disconnected
+        if (!wasConnected && !isConnectedAfter) {
             (int256 balanceAfter,,,) = poolSuperToken.realtimeBalanceOfNow(member_);
             assertEq(
                 balanceAfter, balanceBefore, "_helperUpdateMemberUnits: Pending balance changed"
             );
         }
-
+        console.log("after pool balance check");
         // Assert that the flow rate for a member is updated accordingly
         {
             uint128 totalUnits = pool_.getTotalUnits();
@@ -1242,6 +1254,7 @@ contract FoundrySuperfluidTester is Test {
             );
         }
 
+        console.log("before pool total units check");
         // Update Expected Member Data
         if (newUnits_ > 0) {
             // @note You are only considered a member if you are given units
@@ -1256,15 +1269,47 @@ contract FoundrySuperfluidTester is Test {
                 poolUnitDataAfter.totalUnits,
                 "_helperUpdateMemberUnits: Pool total units incorrect"
             );
+            
+            // Calculate expected connected units change based on new behavior
+            int256 expectedConnectedUnitsDelta;
+            if (wasConnected && isConnectedAfter) {
+                // Member was connected and remains connected - units delta applies to connected
+                expectedConnectedUnitsDelta = unitsDelta;
+            } else if (!wasConnected && isConnectedAfter) {
+                // Member was disconnected and is now connected - all new units go to connected
+                expectedConnectedUnitsDelta = uint256(newUnits_).toInt256();
+            } else if (wasConnected && !isConnectedAfter) {
+                // Member was connected and is now disconnected - all old units move to disconnected
+                expectedConnectedUnitsDelta = -oldUnits;
+            } else {
+                // Member was disconnected and remains disconnected - units delta applies to disconnected
+                expectedConnectedUnitsDelta = 0;
+            }
+            
             assertEq(
-                uint256(uint256(poolUnitDataBefore.connectedUnits).toInt256() + (isConnected ? unitsDelta : int128(0))),
+                uint256(uint256(poolUnitDataBefore.connectedUnits).toInt256() + expectedConnectedUnitsDelta),
                 poolUnitDataAfter.connectedUnits,
                 "_helperUpdateMemberUnits: Pool connected units incorrect"
             );
+            
+            // Calculate expected disconnected units change based on new behavior
+            int256 expectedDisconnectedUnitsDelta;
+            if (wasConnected && isConnectedAfter) {
+                // Member was connected and remains connected - no change to disconnected
+                expectedDisconnectedUnitsDelta = 0;
+            } else if (!wasConnected && isConnectedAfter) {
+                // Member was disconnected and is now connected - all old units move from disconnected to connected
+                expectedDisconnectedUnitsDelta = -oldUnits;
+            } else if (wasConnected && !isConnectedAfter) {
+                // Member was connected and is now disconnected - all new units go to disconnected
+                expectedDisconnectedUnitsDelta = uint256(newUnits_).toInt256();
+            } else {
+                // Member was disconnected and remains disconnected - units delta applies to disconnected
+                expectedDisconnectedUnitsDelta = unitsDelta;
+            }
+            
             assertEq(
-                uint256(
-                    uint256(poolUnitDataBefore.disconnectedUnits).toInt256() + (isConnected ? int128(0) : unitsDelta)
-                ),
+                uint256(uint256(poolUnitDataBefore.disconnectedUnits).toInt256() + expectedDisconnectedUnitsDelta),
                 poolUnitDataAfter.disconnectedUnits,
                 "_helperUpdateMemberUnits: Pool disconnected units incorrect"
             );
@@ -1693,10 +1738,10 @@ contract FoundrySuperfluidTester is Test {
     function _helperGetMemberPoolState(ISuperfluidPool pool_, address member_)
         internal
         view
-        returns (bool isConnected, int256 units, int96 flowRate)
+        returns (bool wasConnected, int256 units, int96 flowRate)
     {
         units = uint256(pool_.getUnits(member_)).toInt256();
-        isConnected = sf.gda.isMemberConnected(pool_, member_);
+        wasConnected = sf.gda.isMemberConnected(pool_, member_);
         flowRate = pool_.getMemberFlowRate(member_);
     }
 
