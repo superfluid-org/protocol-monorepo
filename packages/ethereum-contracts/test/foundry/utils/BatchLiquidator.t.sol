@@ -5,10 +5,7 @@ import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperflu
 import {
     ISuperfluid,
     ISuperToken,
-    IConstantOutflowNFT,
-    IConstantInflowNFT,
     IPoolAdminNFT,
-    IPoolMemberNFT,
     SuperToken
 } from "../../../contracts/superfluid/SuperToken.sol";
 import { ISuperfluidPool } from "../../../contracts/interfaces/agreements/gdav1/ISuperfluidPool.sol";
@@ -20,10 +17,7 @@ contract NonTransferableST is SuperToken {
     constructor(ISuperfluid host)
         SuperToken(
             host,
-            IConstantOutflowNFT(address(0)),
-            IConstantInflowNFT(address(0)),
-            IPoolAdminNFT(address(0)),
-            IPoolMemberNFT(address(0))
+            IPoolAdminNFT(address(0))
         ) // solhint-disable-next-line
             // no-empty-blocks
     { }

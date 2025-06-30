@@ -9,8 +9,7 @@ import {
     ISuperfluid,
     ISuperToken,
     IERC20,
-    IPoolAdminNFT,
-    IPoolMemberNFT
+    IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
@@ -22,11 +21,10 @@ import { IERC777Sender } from "@openzeppelin/contracts/token/ERC777/IERC777Sende
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-// placeholder types needed as an intermediate step before complete removal of FlowNFTs
+
+// placeholder type needed as an intermediate step before complete removal
 // solhint-disable-next-line no-empty-blocks
-interface IConstantOutflowNFT {}
-// solhint-disable-next-line no-empty-blocks
-interface IConstantInflowNFT {}
+interface IPoolMemberNFT {}
 
 /**
  * @title Superfluid's super token implementation
@@ -56,16 +54,9 @@ contract SuperToken is
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
     string constant private _EIP712_VERSION = "1";
-
-    // solhint-disable-next-line var-name-mixedcase
-    IConstantOutflowNFT immutable public CONSTANT_OUTFLOW_NFT;
-
-    // solhint-disable-next-line var-name-mixedcase
-    IConstantInflowNFT immutable public CONSTANT_INFLOW_NFT;
-
     // solhint-disable-next-line var-name-mixedcase
     IPoolMemberNFT immutable public POOL_MEMBER_NFT;
-
+    
     // solhint-disable-next-line var-name-mixedcase
     IPoolAdminNFT immutable public POOL_ADMIN_NFT;
 
@@ -117,10 +108,7 @@ contract SuperToken is
 
     constructor(
         ISuperfluid host,
-        IConstantOutflowNFT constantOutflowNFT,
-        IConstantInflowNFT constantInflowNFT,
-        IPoolAdminNFT poolAdminNFT,
-        IPoolMemberNFT poolMemberNFT
+        IPoolAdminNFT poolAdminNFT
     )
         SuperfluidToken(host)
         // solhint-disable-next-line no-empty-blocks
@@ -128,15 +116,10 @@ contract SuperToken is
         // @note This constructor is only run for the initial
         // deployment of the logic contract.
 
-        // set the immutable canonical NFT proxy addresses
-        CONSTANT_OUTFLOW_NFT = constantOutflowNFT;
-        CONSTANT_INFLOW_NFT = constantInflowNFT;
-
+        // set the immutable canonical NFT proxy address
         POOL_ADMIN_NFT = poolAdminNFT;
-        POOL_MEMBER_NFT = poolMemberNFT;
 
         emit PoolAdminNFTCreated(poolAdminNFT);
-        emit PoolMemberNFTCreated(poolMemberNFT);
     }
 
     /// @dev Initialize the Super Token proxy

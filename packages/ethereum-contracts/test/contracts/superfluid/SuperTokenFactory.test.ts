@@ -65,30 +65,21 @@ describe("SuperTokenFactory Contract", function () {
 
     describe("#1 upgradability", () => {
         it("#1.1 storage layout", async () => {
-            const {
-                poolAdminNFTProxy,
-                poolMemberNFTProxy,
-                paNFTLogicAddress,
-                pmNFTLogicAddress,
-            } = await t.deployNFTContracts();
+            const {poolAdminNFTProxy, paNFTLogicAddress} =
+                await t.deployNFTContracts();
             const superTokenLogic = await t.deployContract<SuperTokenMock>(
                 "SuperTokenMock",
                 superfluid.address,
                 "0",
-                t.constants.ZERO_ADDRESS,
-                t.constants.ZERO_ADDRESS,
-                poolAdminNFTProxy.address,
-                poolMemberNFTProxy.address
+                poolAdminNFTProxy.address
             );
             const tester =
                 await t.deployContract<SuperTokenFactoryStorageLayoutTester>(
                     "SuperTokenFactoryStorageLayoutTester",
                     superfluid.address,
                     superTokenLogic.address,
-                    t.constants.ZERO_ADDRESS,
-                    t.constants.ZERO_ADDRESS,
                     paNFTLogicAddress,
-                    pmNFTLogicAddress
+                    ZERO_ADDRESS
                 );
             await tester.validateStorageLayout();
         });
@@ -148,30 +139,21 @@ describe("SuperTokenFactory Contract", function () {
     describe("#2 createERC20Wrapper", () => {
         context("#2.a Mock factory", () => {
             async function updateSuperTokenFactory() {
-                const {
-                    poolAdminNFTProxy,
-                    poolMemberNFTProxy,
-                    paNFTLogicAddress,
-                    pmNFTLogicAddress,
-                } = await t.deployNFTContracts();
+                const {poolAdminNFTProxy, paNFTLogicAddress} =
+                    await t.deployNFTContracts();
                 const superTokenLogic = await t.deployContract<SuperTokenMock>(
                     "SuperTokenMock",
                     superfluid.address,
                     42,
-                    t.constants.ZERO_ADDRESS,
-                    t.constants.ZERO_ADDRESS,
-                    poolAdminNFTProxy.address,
-                    poolMemberNFTProxy.address
+                    poolAdminNFTProxy.address
                 );
                 const factory2Logic =
                     await t.deployContract<SuperTokenFactoryMock42>(
                         "SuperTokenFactoryMock42",
                         superfluid.address,
                         superTokenLogic.address,
-                        t.constants.ZERO_ADDRESS,
-                        t.constants.ZERO_ADDRESS,
                         paNFTLogicAddress,
-                        pmNFTLogicAddress
+                        ZERO_ADDRESS
                     );
                 await governance.updateContracts(
                     superfluid.address,
@@ -279,16 +261,12 @@ describe("SuperTokenFactory Contract", function () {
                 await updateSuperTokenFactory();
                 assert.equal((await superToken1.waterMark()).toString(), "0");
 
-                const {poolAdminNFTProxy, poolMemberNFTProxy} =
-                    await t.deployNFTContracts();
+                const {poolAdminNFTProxy} = await t.deployNFTContracts();
                 const superTokenLogic = await t.deployContract<SuperTokenMock>(
                     "SuperTokenMock",
                     superfluid.address,
                     69,
-                    t.constants.ZERO_ADDRESS,
-                    t.constants.ZERO_ADDRESS,
-                    poolAdminNFTProxy.address,
-                    poolMemberNFTProxy.address
+                    poolAdminNFTProxy.address
                 );
 
                 await governance[
@@ -304,29 +282,20 @@ describe("SuperTokenFactory Contract", function () {
 
         context("#2.b Production Factory", () => {
             it("#2.b.1 use production factory to create different super tokens", async () => {
-                const {
-                    poolAdminNFTProxy,
-                    poolMemberNFTProxy,
-                    paNFTLogicAddress,
-                    pmNFTLogicAddress,
-                } = await t.deployNFTContracts();
+                const {poolAdminNFTProxy, paNFTLogicAddress} =
+                    await t.deployNFTContracts();
                 const superTokenLogic = await t.deployContract<SuperToken>(
                     "SuperToken",
                     superfluid.address,
-                    t.constants.ZERO_ADDRESS,
-                    t.constants.ZERO_ADDRESS,
-                    poolAdminNFTProxy.address,
-                    poolMemberNFTProxy.address
+                    poolAdminNFTProxy.address
                 );
                 const factory2Logic =
                     await t.deployContract<SuperTokenFactoryMock42>(
                         "SuperTokenFactoryMock42",
                         superfluid.address,
                         superTokenLogic.address,
-                        t.constants.ZERO_ADDRESS,
-                        t.constants.ZERO_ADDRESS,
                         paNFTLogicAddress,
-                        pmNFTLogicAddress
+                        ZERO_ADDRESS
                     );
                 await governance.updateContracts(
                     superfluid.address,

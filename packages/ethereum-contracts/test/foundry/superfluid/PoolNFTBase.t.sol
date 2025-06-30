@@ -6,13 +6,11 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import {
     PoolNFTBaseStorageLayoutMock,
-    PoolAdminNFTStorageLayoutMock,
-    PoolMemberNFTStorageLayoutMock
+    PoolAdminNFTStorageLayoutMock
 } from "./PoolNFTUpgradabilityMock.t.sol";
 import { IPoolNFTBase, PoolNFTBase } from "../../../contracts/agreements/gdav1/PoolNFTBase.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
-import { PoolMemberNFT, IPoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
 import { PoolNFTBaseMock } from "./PoolNFTMock.t.sol";
 import { ISuperfluidPool } from "../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { ERC721IntegrationTest } from "./ERC721.t.sol";
@@ -285,10 +283,6 @@ abstract contract PoolNFTBaseIntegrationTest is ERC721IntegrationTest {
         return poolAdminNFT.getTokenId(_pool, _poolAdmin);
     }
 
-    function _helperGetPoolMemberNftId(address _pool, address _poolMember) internal view returns (uint256) {
-        return poolMemberNFT.getTokenId(_pool, _poolMember);
-    }
-
     /*//////////////////////////////////////////////////////////////////////////
                                     Assertion Helpers
     //////////////////////////////////////////////////////////////////////////*/
@@ -322,13 +316,6 @@ contract PoolNFTUpgradabilityTest is PoolNFTBaseIntegrationTest {
         poolNFTBaseStorageLayoutMock.validateStorageLayout();
     }
 
-    function testPoolMemberNFTStorageLayout() public {
-        PoolMemberNFTStorageLayoutMock poolMemberNFTStorageLayoutMock =
-            new PoolMemberNFTStorageLayoutMock(sf.host, sf.gda);
-
-        poolMemberNFTStorageLayoutMock.validateStorageLayout();
-    }
-
     function testPoolAdminNFTStorageLayout() public {
         PoolAdminNFTStorageLayoutMock poolAdminNFTStorageLayoutMock = new PoolAdminNFTStorageLayoutMock(sf.host, sf.gda);
 
@@ -344,11 +331,6 @@ contract PoolNFTUpgradabilityTest is PoolNFTBaseIntegrationTest {
         vm.expectRevert(IPoolNFTBase.POOL_NFT_ONLY_SUPER_TOKEN_FACTORY.selector);
         vm.prank(notSuperTokenFactory);
         poolAdminNFT.updateCode(address(newPoolAdminNFT));
-
-        PoolMemberNFT newPoolMemberNFT = new PoolMemberNFT(sf.host, sf.gda);
-        vm.expectRevert(IPoolNFTBase.POOL_NFT_ONLY_SUPER_TOKEN_FACTORY.selector);
-        vm.prank(notSuperTokenFactory);
-        poolMemberNFT.updateCode(address(newPoolMemberNFT));
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -358,10 +340,6 @@ contract PoolNFTUpgradabilityTest is PoolNFTBaseIntegrationTest {
         PoolAdminNFT newPoolAdminNFT = new PoolAdminNFT(sf.host, sf.gda);
         vm.prank(address(sf.superTokenFactory));
         poolAdminNFT.updateCode(address(newPoolAdminNFT));
-
-        PoolMemberNFT newPoolMemberNFT = new PoolMemberNFT(sf.host, sf.gda);
-        vm.prank(address(sf.superTokenFactory));
-        poolMemberNFT.updateCode(address(newPoolMemberNFT));
     }
 }
 
