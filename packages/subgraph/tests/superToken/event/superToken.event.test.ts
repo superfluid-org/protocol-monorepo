@@ -516,6 +516,26 @@ describe("SuperToken Mapper Unit Tests", () => {
                 to,
                 value
             );
+            transferEvent.block.timestamp = BigInt.fromI32(1);
+            transferEvent.block.number = BigInt.fromI32(1);
+
+            mockedRealtimeBalanceOf(
+                transferEvent.address.toHex(),
+                from,
+                transferEvent.block.timestamp,
+                value,
+                BIG_INT_ZERO,
+                BIG_INT_ZERO
+            );
+
+            mockedRealtimeBalanceOf(
+                transferEvent.address.toHex(),
+                to,
+                transferEvent.block.timestamp,
+                value,
+                BIG_INT_ZERO,
+                BIG_INT_ZERO
+            );
 
             handleTransfer(transferEvent);
 
@@ -564,12 +584,23 @@ describe("SuperToken Mapper Unit Tests", () => {
                 to,
                 value
             );
+            secondTransferEvent.block.timestamp = BigInt.fromI32(2);
+            secondTransferEvent.block.number = BigInt.fromI32(2);
 
             mockedRealtimeBalanceOf(
                 secondTransferEvent.address.toHex(),
                 from,
                 secondTransferEvent.block.timestamp,
                 BIG_INT_ZERO,
+                BIG_INT_ZERO,
+                BIG_INT_ZERO
+            );
+
+            mockedRealtimeBalanceOf(
+                secondTransferEvent.address.toHex(),
+                to,
+                secondTransferEvent.block.timestamp,
+                value.times(BigInt.fromI32(2)),
                 BIG_INT_ZERO,
                 BIG_INT_ZERO
             );

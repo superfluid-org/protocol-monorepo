@@ -55,7 +55,7 @@ jobs:
       vendor: ${{ github.event.inputs.vendor }}
     secrets:
       THE_GRAPH_ACCESS_TOKEN: ${{ secrets.THE_GRAPH_ACCESS_TOKEN }}
-      SATSUMA_DEPLOY_KEY: ${{ secrets.SATSUMA_DEPLOY_KEY }}
+      ALCHEMY_DEPLOY_KEY: ${{ secrets.ALCHEMY_DEPLOY_KEY }}
       SUBGRAPH_URL_TEMPLATE: ${{ secrets.SUBGRAPH_URL_TEMPLATE }}
       SUPERFLUID_IPFS_API: ${{ secrets.SUPERFLUID_IPFS_API }}
       GOLDSKY_API_KEY: ${{ secrets.GOLDSKY_API_KEY }}

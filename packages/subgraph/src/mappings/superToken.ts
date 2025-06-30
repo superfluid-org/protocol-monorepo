@@ -30,8 +30,6 @@ import {
     ZERO_ADDRESS,
 } from "../utils";
 import {
-    _createAccountTokenSnapshotLogEntity,
-    _createTokenStatisticLogEntity,
     getOrInitAccount,
     getOrInitFlowOperator,
     getOrInitSuperToken,
@@ -97,22 +95,18 @@ export function handleTokenUpgraded(event: TokenUpgraded): void {
 
     getOrInitAccount(event.params.account, event.block);
 
-    getOrInitSuperToken(event, event.address, "TokenUpgraded");
+    const eventName = "TokenUpgraded";
+
+    getOrInitSuperToken(event, event.address, eventName);
 
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.account,
         event.address,
-        event.block,
-        event.params.amount
-    );
-    updateTokenStatsStreamedUntilUpdatedAt(event.address, event.block);
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.account,
-        event.address,
-        "TokenUpgraded"
+        event.params.amount,
+        eventName
     );
-    _createTokenStatisticLogEntity(event, event.address, "TokenUpgraded");
+    updateTokenStatsStreamedUntilUpdatedAt(event.address, event, eventName);
 }
 
 export function handleTokenDowngraded(event: TokenDowngraded): void {
@@ -126,22 +120,18 @@ export function handleTokenDowngraded(event: TokenDowngraded): void {
 
     getOrInitAccount(event.params.account, event.block);
 
-    getOrInitSuperToken(event, event.address, "TokenDowngraded");
+    const eventName = "TokenDowngraded";
+
+    getOrInitSuperToken(event, event.address, eventName);
 
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.account,
         event.address,
-        event.block,
-        event.params.amount.times(BigInt.fromI32(-1))
-    );
-    updateTokenStatsStreamedUntilUpdatedAt(event.address, event.block);
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.account,
-        event.address,
-        "TokenDowngraded"
+        event.params.amount.times(BigInt.fromI32(-1)),
+        eventName
     );
-    _createTokenStatisticLogEntity(event, event.address, "TokenDowngraded");
+    updateTokenStatsStreamedUntilUpdatedAt(event.address, event, eventName);
 }
 
 export function handleTransfer(event: Transfer): void {
@@ -154,22 +144,24 @@ export function handleTransfer(event: Transfer): void {
     _createTransferEventEntity(event);
 
     let tokenId = event.address;
-
-    getOrInitSuperToken(event, event.address, "Transfer");
+    const eventName = "Transfer";
+    getOrInitSuperToken(event, event.address, eventName);
 
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.to,
         event.address,
-        event.block,
-        event.params.value
+        event,
+        event.params.value,
+        eventName
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.from,
         event.address,
-        event.block,
-        event.params.value.times(BigInt.fromI32(-1))
+        event,
+        event.params.value.times(BigInt.fromI32(-1)),
+        eventName
     );
-    updateTokenStatsStreamedUntilUpdatedAt(tokenId, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(tokenId, event, eventName);
 
     updateAggregateEntitiesTransferData(
         event.params.from,
@@ -180,19 +172,6 @@ export function handleTransfer(event: Transfer): void {
 
     if (event.params.to.equals(ZERO_ADDRESS)) return;
     if (event.params.from.equals(ZERO_ADDRESS)) return; // Ignoring downgrade and upgrade transfer event logs.
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.to,
-        event.address,
-        "Transfer"
-    );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.from,
-        event.address,
-        "Transfer"
-    );
-    _createTokenStatisticLogEntity(event, event.address, "Transfer");
 }
 
 export function handleSent(event: Sent): void {
@@ -248,41 +227,25 @@ function updateHOLEntitiesForLiquidation(
     updateATSStreamedAndBalanceUntilUpdatedAt(
         liquidatorAccount,
         event.address,
-        event.block,
-        null // will always do RPC - don't want to leak liquidation logic here
+        event,
+        null, // will always do RPC - don't want to leak liquidation logic here
+        eventName
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         targetAccount,
         event.address,
-        event.block,
-        null // will always do RPC - don't want to leak liquidation logic here
+        event,
+        null, // will always do RPC - don't want to leak liquidation logic here
+        eventName
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         bondAccount,
         event.address,
-        event.block,
-        null // will always do RPC - don't want to leak liquidation logic here
-    );
-    updateTokenStatsStreamedUntilUpdatedAt(event.address, event.block);
-    _createAccountTokenSnapshotLogEntity(
         event,
-        targetAccount,
-        event.address,
+        null, // will always do RPC - don't want to leak liquidation logic here
         eventName
     );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        liquidatorAccount,
-        event.address,
-        eventName
-    );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        bondAccount,
-        event.address,
-        eventName
-    );
-    _createTokenStatisticLogEntity(event, event.address, eventName);
+    updateTokenStatsStreamedUntilUpdatedAt(event.address, event, eventName);
 }
 
 /****************************************

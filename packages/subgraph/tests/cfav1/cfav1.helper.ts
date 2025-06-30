@@ -6,7 +6,7 @@ import {
     FlowOperatorUpdated,
 } from "../../generated/ConstantFlowAgreementV1/IConstantFlowAgreementV1";
 import { handleFlowUpdated } from "../../src/mappings/cfav1";
-import { getStreamID, ZERO_ADDRESS } from "../../src/utils";
+import { getStreamID, ZERO_ADDRESS, getAccountTokenSnapshotID } from "../../src/utils";
 import { assertEventBaseProperties } from "../assertionHelpers";
 import { DEFAULT_DECIMALS, LIQUIDATION_PERIOD } from "../constants";
 import {
@@ -76,6 +76,65 @@ export function createFlowOperatorUpdatedEvent(
 }
 
 // Misc Helper Functions
+/**
+ * Creates a flow updated event without handling it
+ * @param superToken
+ * @param tokenName
+ * @param tokenSymbol
+ * @param sender
+ * @param receiver
+ * @param underlyingToken
+ * @param flowRate
+ * @param previousSenderFlowRate
+ * @param previousReceiverFlowRate
+ * @param stringUserData
+ * @param deposit
+ * @param expectedOwedDeposit
+ * @returns FlowUpdated event
+ */
+export function createFlowUpdatedEventWithMocks(
+    superToken: string,
+    tokenName: string,
+    tokenSymbol: string,
+    sender: string,
+    receiver: string,
+    underlyingToken: Address,
+    flowRate: BigInt,
+    previousSenderFlowRate: BigInt,
+    previousReceiverFlowRate: BigInt,
+    stringUserData: string,
+    deposit: BigInt,
+    expectedOwedDeposit: BigInt
+): FlowUpdated {
+    const flowRateDelta = flowRate.minus(previousSenderFlowRate);
+    const totalSenderFlowRate = previousSenderFlowRate.minus(flowRateDelta);
+    const totalReceiverFlowRate = previousReceiverFlowRate.plus(flowRateDelta);
+    const userData = stringToBytes(stringUserData);
+
+    const flowUpdatedEvent = createFlowUpdatedEvent(
+        superToken,
+        sender,
+        receiver,
+        flowRate,
+        totalSenderFlowRate,
+        totalReceiverFlowRate,
+        userData
+    );
+
+    mockedHandleFlowUpdatedRPCCalls(
+        flowUpdatedEvent,
+        superToken,
+        DEFAULT_DECIMALS,
+        tokenName,
+        tokenSymbol,
+        underlyingToken,
+        deposit,
+        expectedOwedDeposit
+    );
+
+    return flowUpdatedEvent;
+}
+
 /**
  * Create a flowUpdated event and assert the properties were created correctly
  * @param superToken
@@ -159,6 +218,18 @@ export function createFlowOperatorUpdatedEvent(
     assert.fieldEquals("FlowUpdatedEvent", id, "oldFlowRate", oldFlowRate.toString());
     assert.fieldEquals("FlowUpdatedEvent", id, "type", expectedType);
     assert.fieldEquals("FlowUpdatedEvent", id, "stream", streamId);
+
+    // Assert account token snapshots were created for sender and receiver
+    const senderAtsId = getAccountTokenSnapshotID(Address.fromString(sender), Address.fromString(superToken));
+    const receiverAtsId = getAccountTokenSnapshotID(Address.fromString(receiver), Address.fromString(superToken));
+    
+    // Assert sender AccountTokenSnapshot exists and has expected properties
+    assert.fieldEquals("AccountTokenSnapshot", senderAtsId, "account", sender);
+    assert.fieldEquals("AccountTokenSnapshot", senderAtsId, "token", superToken);
+    
+    // Assert receiver AccountTokenSnapshot exists and has expected properties  
+    assert.fieldEquals("AccountTokenSnapshot", receiverAtsId, "account", receiver);
+    assert.fieldEquals("AccountTokenSnapshot", receiverAtsId, "token", superToken);
 
     return flowUpdatedEvent;
 }

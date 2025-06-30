@@ -15,8 +15,6 @@ import {
 } from "../../generated/schema";
 import { SuperfluidPool as SuperfluidPoolTemplate } from "../../generated/templates";
 import {
-    _createAccountTokenSnapshotLogEntity,
-    _createTokenStatisticLogEntity,
     getOrInitPool,
     getOrInitPoolDistributor,
     getOrInitOrUpdatePoolMember,
@@ -30,6 +28,7 @@ import {
     updateTokenStatisticStreamData,
     updateTokenStatsStreamedUntilUpdatedAt,
     getOrInitAccountTokenSnapshot,
+    _createTokenStatisticLogEntity,
 } from "../mappingHelpers";
 import {
     BIG_INT_ZERO,
@@ -53,7 +52,7 @@ export function handlePoolCreated(event: PoolCreated): void {
     // template data source events.
     SuperfluidPoolTemplate.create(event.params.pool);
 
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     const tokenStatistic = getOrInitTokenStatistic(
         event.params.token,
@@ -65,8 +64,9 @@ export function handlePoolCreated(event: PoolCreated): void {
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.admin,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        eventName
     );
 
     const accountTokenSnapshot = getOrInitAccountTokenSnapshot(
@@ -77,14 +77,6 @@ export function handlePoolCreated(event: PoolCreated): void {
     accountTokenSnapshot.adminOfPoolCount = accountTokenSnapshot.adminOfPoolCount + 1;
     accountTokenSnapshot.save();
 
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.admin,
-        event.params.token,
-        eventName
-    );
-
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
     // Create Event Entity
     _createPoolCreatedEntity(event);
 }
@@ -137,15 +129,18 @@ export function handlePoolConnectionUpdated(
             }
         }
     }
+
+    const eventName = "PoolConnectionUpdated";
     
     // Update Token Stats Streamed Until Updated At
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
     // Update ATS Balance and Streamed Until Updated At
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.account,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        eventName
     );
 
     pool.save();
@@ -172,17 +167,6 @@ export function handlePoolConnectionUpdated(
 
     // Create Event Entity
     _createPoolConnectionUpdatedEntity(event, poolMember.id);
-
-    // Create ATS and Token Statistic Log Entities
-    const eventName = "PoolConnectionUpdated";
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.account,
-        event.params.token,
-        eventName
-    );
-
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 }
 
 export function handleBufferAdjusted(event: BufferAdjusted): void {
@@ -235,15 +219,21 @@ export function handleFlowDistributionUpdated(
     poolDistributor.flowRate = event.params.newDistributorToPoolFlowRate;
     poolDistributor.save();
 
+    
     // Update Pool
     let pool = getOrInitPool(event, event.params.pool.toHex());
 
     // @note that we are duplicating update of updatedAtTimestamp/BlockNumber here
     // in the two functions
     pool = updatePoolParticleAndTotalAmountFlowedAndDistributed(event, pool);
-    pool.perUnitFlowRate = divideOrZero(event.params.newDistributorToPoolFlowRate, pool.totalUnits);
+    const previousTotalAmountDistributed = pool.totalAmountDistributedUntilUpdatedAt;
+
     pool.flowRate = event.params.newTotalDistributionFlowRate;
-    pool.adjustmentFlowRate = event.params.adjustmentFlowRate;
+    pool.perUnitFlowRate = divideOrZero(pool.flowRate, pool.totalUnits);
+
+    const newEffectivePoolFlowRate = pool.perUnitFlowRate.times(pool.totalUnits);
+    pool.adjustmentFlowRate = pool.flowRate.minus(newEffectivePoolFlowRate);
+
     pool.save();
 
     const flowRateDelta = event.params.newDistributorToPoolFlowRate.minus(
@@ -255,9 +245,17 @@ export function handleFlowDistributionUpdated(
         event.params.newDistributorToPoolFlowRate.equals(BIG_INT_ZERO);
 
     // Update Token Statistics
+    const tokenStatistic = getOrInitTokenStatistic(
+        event.params.token,
+        event.block
+    );
+    if (previousTotalAmountDistributed.equals(BIG_INT_ZERO) && pool.totalAmountDistributedUntilUpdatedAt.gt(BIG_INT_ZERO)) {
+        tokenStatistic.totalNumberOfActivePools = tokenStatistic.totalNumberOfActivePools + 1;
+    }
+    tokenStatistic.save();
+
     const eventName = "FlowDistributionUpdated";
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
     updateTokenStatisticStreamData(
         event.params.token,
         event.params.newDistributorToPoolFlowRate,
@@ -268,18 +266,12 @@ export function handleFlowDistributionUpdated(
         false,
         event.block
     );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.distributor,
         event.params.token,
-        event.block,
-        null
-    );
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.distributor,
-        event.params.token,
+        null,
         eventName
     );
 
@@ -325,14 +317,16 @@ export function handleInstantDistributionUpdated(
 
     // Update Pool
     let pool = getOrInitPool(event, event.params.pool.toHex());
+    const previousTotalAmountDistributed = pool.totalAmountDistributedUntilUpdatedAt;
 
     // @note that we are duplicating update of updatedAtTimestamp/BlockNumber here
     // in the two functions
     pool = updatePoolParticleAndTotalAmountFlowedAndDistributed(event, pool);
+
     // @note a speculations on what needs to be done
-    pool.perUnitSettledValue = pool.perUnitSettledValue.plus(divideOrZero(event.params.actualAmount, pool.totalUnits));
-    const previousTotalAmountDistributed =
-        pool.totalAmountDistributedUntilUpdatedAt;
+    const perUnitSettledValueDelta = divideOrZero(event.params.actualAmount, pool.totalUnits);
+    pool.perUnitSettledValue = pool.perUnitSettledValue.plus(perUnitSettledValueDelta);
+        
     pool.totalAmountInstantlyDistributedUntilUpdatedAt =
         pool.totalAmountInstantlyDistributedUntilUpdatedAt.plus(
             event.params.actualAmount
@@ -348,12 +342,9 @@ export function handleInstantDistributionUpdated(
         event.params.token,
         event.block
     );
-
-    if (previousTotalAmountDistributed.equals(BIG_INT_ZERO)) {
-        tokenStatistic.totalNumberOfActivePools =
-            tokenStatistic.totalNumberOfActivePools + 1;
+    if (previousTotalAmountDistributed.equals(BIG_INT_ZERO) && pool.totalAmountDistributedUntilUpdatedAt.gt(BIG_INT_ZERO)) {
+        tokenStatistic.totalNumberOfActivePools = tokenStatistic.totalNumberOfActivePools + 1;
     }
-
     tokenStatistic.totalAmountDistributedUntilUpdatedAt =
         tokenStatistic.totalAmountDistributedUntilUpdatedAt.plus(
             event.params.actualAmount
@@ -361,21 +352,14 @@ export function handleInstantDistributionUpdated(
     tokenStatistic.save();
 
     const eventName = "InstantDistributionUpdated";
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     // Update ATS
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.distributor,
         event.params.token,
-        event.block,
-        null
-    );
-
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.distributor,
-        event.params.token,
+        null,
         eventName
     );
 
