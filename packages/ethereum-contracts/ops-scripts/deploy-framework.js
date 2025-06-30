@@ -1198,7 +1198,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
 
                 // initialize the proxy contracts with the nft names
                 await poolAdminNFT.initialize("Pool Admin NFT", "PA");
-                await poolMemberNFT.initialize("Pool Member NFT", "PM");
+                await poolMemberNFT.initialize("Pool Member NFT (deprecated)", "PM");
 
                 // set the nft proxy addresses (to be consumed by the super token logic constructor)
                 poolAdminNFTProxyAddress = poolAdminNFTProxy.address;
