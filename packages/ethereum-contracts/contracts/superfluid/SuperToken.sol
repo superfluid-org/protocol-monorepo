@@ -56,7 +56,7 @@ contract SuperToken is
     string constant private _EIP712_VERSION = "1";
     // solhint-disable-next-line var-name-mixedcase
     IPoolMemberNFT immutable public POOL_MEMBER_NFT;
-    
+
     // solhint-disable-next-line var-name-mixedcase
     IPoolAdminNFT immutable public POOL_ADMIN_NFT;
 
