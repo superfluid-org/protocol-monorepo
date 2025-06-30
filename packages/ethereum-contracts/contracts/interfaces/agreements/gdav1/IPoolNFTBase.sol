@@ -23,6 +23,6 @@ interface IPoolNFTBase is IERC721Metadata {
     function triggerMetadataUpdate(uint256 tokenId) external;
 
     /// @notice Gets the token id
-    /// @dev For PoolAdminNFT, `account` is admin and for PoolMemberNFT, `account` is member
+    /// @dev For PoolAdminNFT, `account` is admin
     function getTokenId(address pool, address account) external view returns (uint256 tokenId);
 }

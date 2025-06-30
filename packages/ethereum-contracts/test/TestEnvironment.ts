@@ -10,7 +10,6 @@ import {
     ISuperToken,
     ISuperToken__factory,
     PoolAdminNFT__factory,
-    PoolMemberNFT__factory,
     SuperTokenMock,
     TestToken,
 } from "../typechain-types";
@@ -591,25 +590,16 @@ export default class TestEnvironment {
         );
 
         const poolAdminNFTProxyAddress = await superTokenLogic.POOL_ADMIN_NFT();
-        const poolMemberNFTProxyAddress =
-            await superTokenLogic.POOL_MEMBER_NFT();
 
         const poolAdminNFT = PoolAdminNFT__factory.connect(
             poolAdminNFTProxyAddress,
             await ethers.getSigner(this.aliases.admin)
         );
-        const poolMemberNFT = PoolMemberNFT__factory.connect(
-            poolMemberNFTProxyAddress,
-            await ethers.getSigner(this.aliases.admin)
-        );
         const paNFTLogicAddress = await poolAdminNFT.getCodeAddress();
-        const pmNFTLogicAddress = await poolMemberNFT.getCodeAddress();
 
         return {
             poolAdminNFTProxy: poolAdminNFT,
-            poolMemberNFTProxy: poolMemberNFT,
             paNFTLogicAddress,
-            pmNFTLogicAddress,
         };
     };
 
