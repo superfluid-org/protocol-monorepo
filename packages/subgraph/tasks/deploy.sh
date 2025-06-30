@@ -6,8 +6,7 @@ set -eux
 GRAPH_CLI="npx --package=@graphprotocol/graph-cli --yes -- graph"
 # shellcheck disable=SC2207
 GOLDSKY_CLI="npx --package=@goldskycom/cli --yes -- goldsky"
-SUPPORTED_VENDORS=( "graph" "satsuma" "superfluid" "goldsky" "airstack" )
-
+SUPPORTED_VENDORS=( "graph" "alchemy" "superfluid" "goldsky" "airstack" )
 
 VENDOR=""
 NETWORK=""
@@ -15,7 +14,7 @@ DEPLOYMENT_ENV=""
 VERSION_LABEL=""
 
 print_usage_and_exit() {
-    echo "Usage: $0 -o graph|satsuma|superfluid|goldsky|airstack -n <network_name> -r <deployment_env> -v <version_label>"
+    echo "Usage: $0 -o graph|alchemy|superfluid|goldsky|airstack -n <network_name> -r <deployment_env> -v <version_label>"
     exit 1
 }
 
@@ -74,39 +73,52 @@ prepare_deployment() {
 deploy_to_graph() {
     local network="$1"
 
-    # name mapping for subgraphs created before introducing canonical names
-    local -A legacyNetworkNames=(
-        ["xdai-mainnet"]="xdai"
-        ["polygon-mainnet"]="matic"
+    local -A networkToSubgraphNames=(
+        ["xdai-mainnet"]="superfluid-v1-gnosis"
+        ["polygon-mainnet"]="superfluid-v1-polygon"
+        ["optimism-mainnet"]="superfluid-v1-optimism"
+        ["arbitrum-one"]="superfluid-v1-arbitrum"
+        ["eth-mainnet"]="superfluid-v1-ethereum"
+        ["avalanche-c"]="superfluid-v1-avalanche"
+        ["scroll-mainnet"]="superfluid-v1-scroll"
+        ["bsc-mainnet"]="superfluid-v1-bnb"
+        ["celo-mainnet"]="superfluid-v1-celo"
+        ["base-mainnet"]="superfluid-v1-base"
     )
 
-    local graphNetwork="${legacyNetworkNames[$network]:-$network}"
-    local subgraphName="protocol-$DEPLOYMENT_ENV-$graphNetwork"
+    local subgraphName="${SUBGRAPH_NAME:-${networkToSubgraphNames[$network]}}"
 
-    echo "********* Deploying $network subgraph $subgraphName to The Graph (hosted service). **********"
+    echo "********* Deploying $network subgraph $subgraphName to The Graph Network. **********"
 
-    if ! $GRAPH_CLI deploy --studio "$subgraphName" --deploy-key "$THE_GRAPH_ACCESS_TOKEN" --version-label "$VERSION_LABEL"; then
-        echo "Error: Deployment to The Graph (hosted service) failed for $network"
+    if ! $GRAPH_CLI deploy "$subgraphName" --deploy-key "$THE_GRAPH_ACCESS_TOKEN" --version-label "$VERSION_LABEL"; then
+        echo "Error: Deployment to The Graph Network failed for $network"
         exit 1
     fi
 }
 
-deploy_to_satsuma() {
+deploy_to_alchemy() {
     local network="$1"
 
     # name mapping for subgraphs (no excuse here for not having canonical names)
     local -A legacyNetworkNames=(
         ["xdai-mainnet"]="xdai"
         ["polygon-mainnet"]="matic"
+        ["degenchain"]="degen-mainnet"
     )
 
-    local satsumaNetwork="${legacyNetworkNames[$network]:-$network}"
+    local alchemyNetwork="${legacyNetworkNames[$network]:-$network}"
 
-    echo "********* Deploying $network subgraph to Satsuma. **********"
-    $GRAPH_CLI deploy "$satsumaNetwork" \
+    # If network needs to be replaced in subgraph.yaml
+    if [[ -n "${legacyNetworkNames[$network]}" ]]; then
+        echo "Replacing network name in subgraph.yaml for $network to ${legacyNetworkNames[$network]}"
+        sed -i "s/^\([[:space:]]*network:\)[[:space:]]*[^[:space:]]*/\1 ${legacyNetworkNames[$network]}/" ./subgraph.yaml
+    fi
+
+    echo "********* Deploying $network ($alchemyNetwork) subgraph to Alchemy. **********"
+    $GRAPH_CLI deploy "$alchemyNetwork" \
         --version-label "$VERSION_LABEL" \
         --node https://subgraphs.alchemy.com/api/subgraphs/deploy \
-        --deploy-key "$SATSUMA_DEPLOY_KEY" \
+        --deploy-key "$ALCHEMY_DEPLOY_KEY" \
         --ipfs https://ipfs.satsuma.xyz
 }
 
@@ -186,8 +198,8 @@ deploy_to() {
     graph)
         deploy_to_graph "$network"
         ;;
-    satsuma)
-        deploy_to_satsuma "$network"
+    alchemy)
+        deploy_to_alchemy "$network"
         ;;
     superfluid)
         deploy_to_superfluid "$network"

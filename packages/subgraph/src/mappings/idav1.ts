@@ -32,8 +32,6 @@ import {
     tokenHasValidHost,
 } from "../utils";
 import {
-    _createAccountTokenSnapshotLogEntity,
-    _createTokenStatisticLogEntity,
     getOrInitIndex,
     getOrInitSubscription,
     getOrInitTokenStatistic,
@@ -66,7 +64,7 @@ export function handleIndexCreated(event: IndexCreated): void {
     index.save();
 
     // update streamed until updated at field
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     const tokenStatistic = getOrInitTokenStatistic(
         event.params.token,
@@ -80,17 +78,11 @@ export function handleIndexCreated(event: IndexCreated): void {
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0) // will do RPC if any units exist anyways (balance isn't impacted by index creation)
-    );
-
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.publisher,
-        event.params.token,
+        BigInt.fromI32(0), // will do RPC if any units exist anyways (balance isn't impacted by index creation)
         eventName
     );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
+
     _createIndexCreatedEventEntity(event, eventName, index.id);
 }
 
@@ -140,7 +132,7 @@ export function handleIndexUpdated(event: IndexUpdated): void {
         previousTotalAmountDistributed.plus(distributionDelta);
     index.save();
 
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     const tokenStatistic = getOrInitTokenStatistic(
         event.params.token,
@@ -164,16 +156,11 @@ export function handleIndexUpdated(event: IndexUpdated): void {
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
-        event.block,
-        null // will do RPC if any units exist anyways
-    );
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.publisher,
-        event.params.token,
+        null, // will do RPC if any units exist anyways
         eventName
     );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
+
     _createIndexUpdatedEventEntity(event, eventName, index.id);
 }
 
@@ -261,8 +248,9 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
-        event.block,
-        balanceDelta
+        event,
+        balanceDelta,
+        eventName
     );
 
     if (hasSubscriptionWithUnits) {
@@ -279,20 +267,15 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
         updateATSStreamedAndBalanceUntilUpdatedAt(
             event.params.publisher,
             event.params.token,
-            event.block,
-            BigInt.fromI32(0)
-        );
-        _createAccountTokenSnapshotLogEntity(
             event,
-            event.params.publisher,
-            event.params.token,
+            BigInt.fromI32(0),
             eventName
         );
     }
 
     subscription.save();
 
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     // we only want to increment approved here ALWAYS
     updateAggregateDistributionAgreementData(
@@ -310,13 +293,6 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
     index.save();
 
     _createSubscriptionApprovedEventEntity(event, eventName, subscription.id);
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.subscriber,
-        event.params.token,
-        eventName
-    );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 }
 
 export function handleSubscriptionDistributionClaimed(
@@ -359,33 +335,22 @@ export function handleSubscriptionDistributionClaimed(
     );
 
     // // update streamed until updated at field
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        eventName
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
-        event.block,
-        event.params.amount
-    );
-    _createAccountTokenSnapshotLogEntity(
         event,
-        event.params.publisher,
-        event.params.token,
+        event.params.amount,
         eventName
     );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.subscriber,
-        event.params.token,
-        eventName
-    );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 }
 
 /**
@@ -444,11 +409,12 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
-        event.block,
-        balanceDelta
+        event,
+        balanceDelta,
+        eventName
     );
 
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     updateAggregateDistributionAgreementData(
         event.params.subscriber,
@@ -466,8 +432,9 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        eventName
     );
 
     // occurs on revoke or delete
@@ -479,19 +446,6 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
     subscription.save();
 
     _createSubscriptionRevokedEventEntity(event, eventName, subscription.id);
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.subscriber,
-        event.params.token,
-        eventName
-    );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.publisher,
-        event.params.token,
-        eventName
-    );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 }
 
 /**
@@ -562,17 +516,19 @@ export function handleSubscriptionUnitsUpdated(
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
-        event.block,
-        BigInt.fromI32(0)
+        event,
+        BigInt.fromI32(0),
+        eventName
     );
     updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
-        event.block,
-        balanceDelta
+        event,
+        balanceDelta,
+        eventName
     );
 
-    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event.block);
+    updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     // when units are set to 0, the graph marks this as a deletion
     // and therefore subtracts the number of totalSubscriptionWithUnits and
@@ -628,19 +584,6 @@ export function handleSubscriptionUnitsUpdated(
         subscription.id,
         oldUnits
     );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.publisher,
-        event.params.token,
-        eventName
-    );
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        event.params.subscriber,
-        event.params.token,
-        eventName
-    );
-    _createTokenStatisticLogEntity(event, event.params.token, eventName);
 }
 
 /****************************************

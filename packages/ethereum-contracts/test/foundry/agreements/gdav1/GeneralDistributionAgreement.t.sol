@@ -16,7 +16,6 @@ import { ISuperfluidToken } from "../../../../contracts/interfaces/superfluid/IS
 import { ISuperfluidPool, SuperfluidPool } from "../../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { IPoolNFTBase } from "../../../../contracts/interfaces/agreements/gdav1/IPoolNFTBase.sol";
 import { IPoolAdminNFT } from "../../../../contracts/interfaces/agreements/gdav1/IPoolAdminNFT.sol";
-import { IPoolMemberNFT } from "../../../../contracts/interfaces/agreements/gdav1/IPoolMemberNFT.sol";
 import { SuperfluidPoolStorageLayoutMock } from "./SuperfluidPoolUpgradabilityMock.t.sol";
 
 /// @title GeneralDistributionAgreementV1 Integration Tests
@@ -270,10 +269,17 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.stopPrank();
     }
 
-    function testRevertIfNotAdminOrGDAUpdatesMemberUnitsViaPool() public {
+    function testRevertIfNotAdminOrGDAChangesMemberUnitsViaPool() public {
         vm.startPrank(bob);
         vm.expectRevert(ISuperfluidPool.SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA.selector);
         freePool.updateMemberUnits(bob, 69);
+
+        vm.expectRevert(ISuperfluidPool.SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA.selector);
+        freePool.increaseMemberUnits(bob, 69);
+
+        vm.expectRevert(ISuperfluidPool.SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA.selector);
+        freePool.decreaseMemberUnits(bob, 69);
+
         vm.stopPrank();
     }
 
@@ -874,6 +880,34 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         } else {
             _helperSuperfluidPoolUnitsTransfer(freePool, from, to, uint256(uint128(transferAmount)));
         }
+    }
+
+    function testIncreaseDecreaseMemberUnits(
+        address member,
+        uint120 increaseAmount,
+        uint120 decreaseAmount
+    ) public {
+        vm.assume(increaseAmount >= decreaseAmount);
+        vm.assume(member != address(0));
+        vm.assume(member != address(freePool));
+
+        vm.startPrank(alice);
+
+        freePool.increaseMemberUnits(member, increaseAmount);
+        assertEq(freePool.getUnits(member), increaseAmount);
+
+        freePool.decreaseMemberUnits(member, decreaseAmount);
+        assertEq(freePool.getUnits(member), increaseAmount - decreaseAmount);
+
+        // explicitly test for overflow and underflow behaviour
+        freePool.updateMemberUnits(member, 10);
+        vm.expectRevert(stdError.arithmeticError);
+        freePool.increaseMemberUnits(member, type(uint128).max);
+
+        vm.expectRevert(stdError.arithmeticError);
+        freePool.decreaseMemberUnits(member, 11);
+
+        vm.stopPrank();
     }
 
     function testApproveAndTransferFrom(
