@@ -307,28 +307,6 @@ abstract contract PoolNFTBaseIntegrationTest is ERC721IntegrationTest {
             poolAdminNFT, _tokenId, _expectedAdmin, "PoolAdminNFT: owner of pool admin nft not as expected"
         );
     }
-
-    function _assertPoolMemberNftStateIsExpected(
-        uint256 _tokenId,
-        address _expectedPool,
-        address _expectedMember,
-        uint128 _expectedUnits
-    ) public view {
-        PoolMemberNFT.PoolMemberNFTData memory poolMemberNFTData = poolMemberNFT.poolMemberDataByTokenId(_tokenId);
-
-        assertEq(poolMemberNFTData.pool, _expectedPool, "PoolMemberNFT: pool address not as expected");
-
-        // assert member is equal to expected member
-        assertEq(poolMemberNFTData.member, _expectedMember, "PoolMemberNFT: member address not as expected");
-
-        // assert units is equal to expected units
-        assertEq(poolMemberNFTData.units, _expectedUnits, "PoolMemberNFT: units not as expected");
-
-        // assert owner of pool member nft equal to expected member
-        _assertOwnerOfIsExpected(
-            poolAdminNFT, _tokenId, _expectedMember, "PoolMemberNFT: owner of pool member nft not as expected"
-        );
-    }
 }
 
 /// @title PoolNFTUpgradabilityTest

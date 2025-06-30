@@ -19,11 +19,10 @@ import {
 } from "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
 import { ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
-import { ISuperToken } from "../../interfaces/superfluid/ISuperToken.sol";
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
-import { GeneralDistributionAgreementV1 } from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
+import {
+    GeneralDistributionAgreementV1, _isPool } from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import { BeaconProxiable } from "../../upgradability/BeaconProxiable.sol";
-import { IPoolMemberNFT } from "../../interfaces/agreements/gdav1/IPoolMemberNFT.sol";
 
 using SafeCast for uint256;
 using SafeCast for int256;
@@ -384,7 +383,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool) {
-        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+        _enforceChangeMemberUnitsPreconditions();
 
         uint128 oldUnits = _updateMemberUnits(memberAddr, newUnits);
 
@@ -399,52 +398,34 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         return true;
     }
 
-    /**
-     * @notice Checks whether or not the NFT hook can be called.
-     * @dev A staticcall, so `POOL_MEMBER_NFT` must be a view otherwise the assumption is that it reverts
-     * @param token the super token that is being streamed
-     * @return poolMemberNFT the address returned by low level call
-     */
-    function _canCallNFTHook(ISuperfluidToken token) internal view returns (address poolMemberNFT) {
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory data) =
-            address(token).staticcall(abi.encodeWithSelector(ISuperToken.POOL_MEMBER_NFT.selector));
+    /// @inheritdoc ISuperfluidPool
+    function increaseMemberUnits(address memberAddr, uint128 addedUnits) external override returns (bool) {
+        _enforceChangeMemberUnitsPreconditions();
 
-        if (success) {
-            // @note We are aware this may revert if a Custom SuperToken's
-            // POOL_MEMBER_NFT does not return data that can be
-            // decoded to an address. This would mean it was intentionally
-            // done by the creator of the Custom SuperToken logic and is
-            // fully expected to revert in that case as the author desired.
-            poolMemberNFT = abi.decode(data, (address));
-        }
+        _updateMemberUnits(memberAddr, _getUnits(memberAddr) + addedUnits);
+        emit Transfer(address(0), memberAddr, addedUnits);
+
+        return true;
     }
 
-    function _handlePoolMemberNFT(address memberAddr, uint128 newUnits) internal {
-        // Pool Member NFT Logic
-        IPoolMemberNFT poolMemberNFT = IPoolMemberNFT(_canCallNFTHook(superToken));
-        if (address(poolMemberNFT) != address(0)) {
-            uint256 tokenId = poolMemberNFT.getTokenId(address(this), memberAddr);
-            if (newUnits == 0) {
-                if (poolMemberNFT.poolMemberDataByTokenId(tokenId).member != address(0)) {
-                    poolMemberNFT.onDelete(address(this), memberAddr);
-                }
-            } else {
-                // if not minted, we mint a new pool member nft
-                if (poolMemberNFT.poolMemberDataByTokenId(tokenId).member == address(0)) {
-                    poolMemberNFT.onCreate(address(this), memberAddr);
-                } else {
-                    // if minted, we update the pool member nft
-                    poolMemberNFT.onUpdate(address(this), memberAddr);
-                }
-            }
-        }
+    /// @inheritdoc ISuperfluidPool
+    function decreaseMemberUnits(address memberAddr, uint128 subtractedUnits) external override returns (bool) {
+        _enforceChangeMemberUnitsPreconditions();
+
+        _updateMemberUnits(memberAddr, _getUnits(memberAddr) - subtractedUnits);
+        emit Transfer(memberAddr, address(0), subtractedUnits);
+
+        return true;
+    }
+
+    function _enforceChangeMemberUnitsPreconditions() internal view {
+        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
     }
 
     function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
         // @note normally we keep the sanitization in the external functions, but here
         // this is used in both updateMemberUnits and transfer
-        if (GDA.isPool(superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
+        if (_isPool(GDA, superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
         if (memberAddr == address(0)) revert SUPERFLUID_POOL_NO_ZERO_ADDRESS();
 
         uint32 time = uint32(ISuperfluid(superToken.getHost()).getNow());
@@ -474,8 +455,6 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
             assert(GDA.appendIndexUpdateByPool(superToken, p, t));
         }
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
-
-        _handlePoolMemberNFT(memberAddr, newUnits);
     }
 
     function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {

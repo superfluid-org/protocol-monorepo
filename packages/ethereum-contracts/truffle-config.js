@@ -221,6 +221,8 @@ const E = (module.exports = {
         "optimism-sepolia": {
             ...createNetworkDefaultConfiguration("optimism-sepolia"),
             network_id: 11155420,
+            maxPriorityFeePerGas: 1e6, // 0.001 gwei
+            maxFeePerGas: 1e9, // 1 gwei
         },
 
         //
@@ -272,6 +274,8 @@ const E = (module.exports = {
         "base-sepolia": {
             ...createNetworkDefaultConfiguration("base-sepolia"),
             network_id: 84532,
+            maxPriorityFeePerGas: 1e6, // 0.001 gwei - even 0 may do
+            maxFeePerGas: 1e9, // 1 gwei
         },
 
         //

@@ -24,12 +24,16 @@ interface IPoolMemberNFT is IPoolNFTBase {
     error POOL_MEMBER_NFT_NO_ZERO_MEMBER();
     error POOL_MEMBER_NFT_NO_UNITS();
     error POOL_MEMBER_NFT_HAS_UNITS();
+    error POOL_MEMBER_NFT_ONLY_OWNER();
 
     function onCreate(address pool, address member) external;
 
     function onUpdate(address pool, address member) external;
 
     function onDelete(address pool, address member) external;
+
+    /// Allows the owner to burn their token
+    function burn(uint256 tokenId) external;
 
     /// View Functions ///
 

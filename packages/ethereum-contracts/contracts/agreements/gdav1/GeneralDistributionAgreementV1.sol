@@ -32,6 +32,27 @@ import { AgreementBase } from "../AgreementBase.sol";
 import { AgreementLibrary } from "../AgreementLibrary.sol";
 
 
+/// @dev Universal Index state slot id for storing universal index data
+function _universalIndexStateSlotId() pure returns (uint256) {
+    return 0;
+}
+
+/// @dev returns true if the account is a pool
+function _isPool(
+    IGeneralDistributionAgreementV1 gda,
+    ISuperfluidToken token,
+    address account
+) view returns (bool exists) {
+    // solhint-disable var-name-mixedcase
+    // @note see createPool, we retrieve the isPool bit from
+    // UniversalIndex for this pool to determine whether the account
+    // is a pool
+    exists = (
+        (uint256(token.getAgreementStateSlot(address(gda), account, _universalIndexStateSlotId(), 1)[0]) << 224)
+            >> 224
+    ) & 1 == 1;
+}
+
 /**
  * @title General Distribution Agreement
  * @author Superfluid
@@ -41,7 +62,7 @@ import { AgreementLibrary } from "../AgreementLibrary.sol";
  * Agreement State
  *
  * Universal Index Data
- * slotId           = _UNIVERSAL_INDEX_STATE_SLOT_ID or 0
+ * slotId           = _universalIndexStateSlotId() or 0
  * msg.sender       = address of GDAv1
  * account          = context.msgSender
  * Universal Index Data stores a Basic Particle for an account as well as the total buffer and
@@ -103,8 +124,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     address public constant SUPERFLUID_POOL_DEPLOYER_ADDRESS = address(SuperfluidPoolDeployerLibrary);
 
-    /// @dev Universal Index state slot id for storing universal index data
-    uint256 private constant _UNIVERSAL_INDEX_STATE_SLOT_ID = 0;
     /// @dev Pool member state slot id for storing subs bitmap
     uint256 private constant _POOL_SUBS_BITMAP_STATE_SLOT_ID = 1;
     /// @dev Pool member state slot id starting point for pool connections
@@ -127,7 +146,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         UniversalIndexData memory universalIndexData = _getUIndexData(abi.encode(token), account);
 
-        if (_isPool(token, account)) {
+        if (_isPool(this, token, account)) {
             rtb = ISuperfluidPool(account).getDisconnectedBalance(uint32(time));
         } else {
             rtb = Value.unwrap(_getBasicParticleFromUIndex(universalIndexData).rtb(Time.wrap(uint32(time))));
@@ -165,7 +184,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function getNetFlow(ISuperfluidToken token, address account) external view override returns (int96 netFlowRate) {
         netFlowRate = int256(FlowRate.unwrap(_getUIndex(abi.encode(token), account).flow_rate())).toInt96();
 
-        if (_isPool(token, account)) {
+        if (_isPool(this, token, account)) {
             netFlowRate += ISuperfluidPool(account).getTotalDisconnectedFlowRate();
         }
 
@@ -274,7 +293,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     ) internal returns (ISuperfluidPool pool) {
         // @note ensure if token and admin are the same that nothing funky happens with echidna
         if (admin == address(0)) revert GDA_NO_ZERO_ADDRESS_ADMIN();
-        if (_isPool(token, admin)) revert GDA_ADMIN_CANNOT_BE_POOL();
+        if (_isPool(this, token, admin)) revert GDA_ADMIN_CANNOT_BE_POOL();
 
         pool = ISuperfluidPool(
             address(
@@ -288,7 +307,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         // to store whether an account is a pool or not
         bytes32[] memory data = new bytes32[](1);
         data[0] = bytes32(uint256(1));
-        token.updateAgreementStateSlot(address(pool), _UNIVERSAL_INDEX_STATE_SLOT_ID, data);
+        token.updateAgreementStateSlot(address(pool), _universalIndexStateSlotId(), data);
 
         IPoolAdminNFT poolAdminNFT = IPoolAdminNFT(_getPoolAdminNFTAddress(token));
 
@@ -409,7 +428,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t) external returns (bool) {
-        if (_isPool(token, msg.sender) == false) {
+        if (_isPool(this, token, msg.sender) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
         bytes memory eff = abi.encode(token);
@@ -422,7 +441,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         external
         returns (bool)
     {
-        if (_isPool(superToken, msg.sender) == false) {
+        if (_isPool(this, superToken, msg.sender) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
 
@@ -443,7 +462,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         newCtx = ctx;
 
-        if (_isPool(token, address(pool)) == false ||
+        if (_isPool(this, token, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
             pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
@@ -509,7 +528,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int96 requestedFlowRate,
         bytes calldata ctx
     ) external override returns (bytes memory newCtx) {
-        if (_isPool(token, address(pool)) == false ||
+        if (_isPool(this, token, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
             pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
@@ -708,7 +727,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         // new buffer
          (universalIndexData.totalBuffer.toInt256() + Value.unwrap(bufferDelta)).toUint256();
         ISuperfluidToken(token).updateAgreementStateSlot(
-            from, _UNIVERSAL_INDEX_STATE_SLOT_ID, _encodeUniversalIndexData(universalIndexData)
+            from, _universalIndexStateSlotId(), _encodeUniversalIndexData(universalIndexData)
         );
 
         {
@@ -837,7 +856,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         (, universalIndexData) = _decodeUniversalIndexData(
             ISuperfluidToken(abi.decode(eff, (address))).getAgreementStateSlot(
-                address(this), owner, _UNIVERSAL_INDEX_STATE_SLOT_ID, 2
+                address(this), owner, _universalIndexStateSlotId(), 2
             )
         );
     }
@@ -856,7 +875,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function _getUIndex(bytes memory eff, address owner) internal view override returns (BasicParticle memory uIndex) {
         (, UniversalIndexData memory universalIndexData) = _decodeUniversalIndexData(
             ISuperfluidToken(abi.decode(eff, (address))).getAgreementStateSlot(
-                address(this), owner, _UNIVERSAL_INDEX_STATE_SLOT_ID, 2
+                address(this), owner, _universalIndexStateSlotId(), 2
             )
         );
         uIndex = _getBasicParticleFromUIndex(universalIndexData);
@@ -871,7 +890,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         ISuperfluidToken(abi.decode(eff, (address))).updateAgreementStateSlot(
             owner,
-            _UNIVERSAL_INDEX_STATE_SLOT_ID,
+            _universalIndexStateSlotId(),
             _encodeUniversalIndexData(p, universalIndexData.totalBuffer, universalIndexData.isPool)
         );
 
@@ -989,17 +1008,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function isPool(ISuperfluidToken token, address account) external view override returns (bool) {
-        return _isPool(token, account);
-    }
-
-    function _isPool(ISuperfluidToken token, address account) internal view returns (bool exists) {
-        // @note see createPool, we retrieve the isPool bit from
-        // UniversalIndex for this pool to determine whether the account
-        // is a pool
-        exists = (
-            (uint256(token.getAgreementStateSlot(address(this), account, _UNIVERSAL_INDEX_STATE_SLOT_ID, 1)[0]) << 224)
-                >> 224
-        ) & 1 == 1;
+        return _isPool(this, token, account);
     }
 
     // FlowDistributionData data packing:
