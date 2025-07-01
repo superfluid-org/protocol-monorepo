@@ -322,13 +322,13 @@ library SuperfluidHostDeployerLibrary {
         uint64 callbackGasLimit,
         address simpleForwarderAddress,
         address erc2771ForwarderAddress,
-        address allowListAddress
+        address simpleAclAddress
     )
         external returns (Superfluid)
     {
         return new Superfluid(
             _nonUpgradable, _appWhiteListingEnabled, callbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress,
-            allowListAddress
+            simpleAclAddress
         );
     }
 }

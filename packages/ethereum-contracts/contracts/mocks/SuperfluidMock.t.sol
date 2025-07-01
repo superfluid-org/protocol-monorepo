@@ -136,11 +136,11 @@ contract SuperfluidMock is Superfluid {
         uint64 callbackGasLimit,
         address simpleForwarderAddress,
         address erc2771ForwarderAddress,
-        address allowListAddress
+        address simpleAclAddress
     )
         Superfluid(
             nonUpgradable, appWhiteListingEnabled, callbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress,
-            allowListAddress
+            simpleAclAddress
         )
     // solhint-disable-next-line no-empty-blocks
     {

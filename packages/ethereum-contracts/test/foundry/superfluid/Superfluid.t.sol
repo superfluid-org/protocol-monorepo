@@ -100,11 +100,8 @@ contract SuperfluidIntegrationTest is FoundrySuperfluidTester {
         hostWithSimpleACL.initialize(sf.governance);
 
         bytes32 aclSuperAppRegRole = hostWithSimpleACL.ACL_SUPERAPP_REGISTRATION_ROLE();
-        bytes32 aclAdminRole = simpleAcl.DEFAULT_ADMIN_ROLE();
 
         // first, give permission to alice
-        address aclAddress = address(hostWithSimpleACL.getSimpleACL());
-
         simpleAcl.grantRole(aclSuperAppRegRole, alice);
 
         // as bob, try to register a superapp - should revert
