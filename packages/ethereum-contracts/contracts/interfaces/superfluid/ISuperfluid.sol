@@ -658,11 +658,19 @@ interface ISuperfluid {
     // solhint-disable func-name-mixedcase
     function getERC2771Forwarder() external view returns(address);
 
+    // solhint-disable max-line-length
     /**
-     * @dev returns the address of the ACL contract used for granular permissioning.
-     * @return address of the ACL contract
+     * @dev returns the address of the SimpleACL contract (currently used for SuperApp registration permissioning).
+     * That contract implements the interface [IAccessControl](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl),
+     * which provides the following functions:
+     * - [hasRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-hasRole-bytes32-address-)
+     * - [getRoleAdmin(role)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-getRoleAdmin-bytes32-)
+     * - [grantRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-grantRole-bytes32-address-)
+     * - [revokeRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-revokeRole-bytes32-address-)
+     * - [renounceRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-renounceRole-bytes32-address-)
+     * @return address of the SimpleACL contract
      */
-    function getACL() external view returns(address);
+    function getSimpleACL() external view returns(address);
 
     /**************************************************************************
      * Function modifiers for access control and parameter validations

@@ -10,7 +10,7 @@ import { ISuperfluid, SuperAppDefinitions } from "../../../contracts/interfaces/
 import { ISuperApp } from "../../../contracts/interfaces/superfluid/ISuperApp.sol";
 import { AgreementMock } from "../../../contracts/mocks/AgreementMock.t.sol";
 import { SuperAppMockNotSelfRegistering } from "../../../contracts/mocks/SuperAppMocks.t.sol";
-import { ACL } from "../../../contracts/utils/ACL.sol";
+import { SimpleACL } from "../../../contracts/utils/SimpleACL.sol";
 
 contract SuperfluidIntegrationTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for SuperToken;
@@ -89,68 +89,68 @@ contract SuperfluidIntegrationTest is FoundrySuperfluidTester {
         vm.stopPrank();
     }
 
-    function testSuperAppRegistrationViaACL() public {
-        ACL acl = new ACL();
-        Superfluid hostWithACL = new Superfluid(
-            true, true, 3_000_000, address(0), address(0), address(acl)
+    function testSuperAppRegistrationViaSimpleACL() public {
+        SimpleACL simpleAcl = new SimpleACL();
+        Superfluid hostWithSimpleACL = new Superfluid(
+            true, true, 3_000_000, address(0), address(0), address(simpleAcl)
         );
         ISuperApp mockSuperApp1 = ISuperApp(address(new SuperAppMockNotSelfRegistering()));
         ISuperApp mockSuperApp2 = ISuperApp(address(new SuperAppMockNotSelfRegistering()));
 
-        hostWithACL.initialize(sf.governance);
+        hostWithSimpleACL.initialize(sf.governance);
 
-        bytes32 aclSuperAppRegRole = hostWithACL.ACL_SUPERAPP_REGISTRATION_ROLE();
-        bytes32 aclAdminRole = acl.DEFAULT_ADMIN_ROLE();
+        bytes32 aclSuperAppRegRole = hostWithSimpleACL.ACL_SUPERAPP_REGISTRATION_ROLE();
+        bytes32 aclAdminRole = simpleAcl.DEFAULT_ADMIN_ROLE();
 
         // first, give permission to alice
-        address aclAddress = address(hostWithACL.getACL());
+        address aclAddress = address(hostWithSimpleACL.getSimpleACL());
 
-        acl.grantRole(aclSuperAppRegRole, alice);
+        simpleAcl.grantRole(aclSuperAppRegRole, alice);
 
         // as bob, try to register a superapp - should revert
         vm.startPrank(bob);
         vm.expectRevert();
-        hostWithACL.registerApp(mockSuperApp1, SuperAppDefinitions.APP_LEVEL_FINAL);
+        hostWithSimpleACL.registerApp(mockSuperApp1, SuperAppDefinitions.APP_LEVEL_FINAL);
 
         // as alice, try to register a superapp - should succeed
         vm.startPrank(alice);
-        hostWithACL.registerApp(mockSuperApp1, SuperAppDefinitions.APP_LEVEL_FINAL);
+        hostWithSimpleACL.registerApp(mockSuperApp1, SuperAppDefinitions.APP_LEVEL_FINAL);
         vm.stopPrank();
-        vm.assertTrue(hostWithACL.isApp(mockSuperApp1));
+        vm.assertTrue(hostWithSimpleACL.isApp(mockSuperApp1));
 
         // revoke permission from alice
-        acl.revokeRole(aclSuperAppRegRole, alice);
+        simpleAcl.revokeRole(aclSuperAppRegRole, alice);
 
         // as alice, try to register a superapp - should revert
         vm.startPrank(alice);
         vm.expectRevert();
-        hostWithACL.registerApp(mockSuperApp2, SuperAppDefinitions.APP_LEVEL_FINAL);
+        hostWithSimpleACL.registerApp(mockSuperApp2, SuperAppDefinitions.APP_LEVEL_FINAL);
         vm.stopPrank();
 
         // nobody else can grant permission to register superapps
         vm.startPrank(eve);
         vm.expectRevert();
-        acl.grantRole(aclSuperAppRegRole, bob);
+        simpleAcl.grantRole(aclSuperAppRegRole, bob);
         vm.stopPrank();
 
         // nobody can define admin roles ...
         bytes32 dedicatedAdminRole = keccak256("SUPER_APP_REGISTRATION_ADMIN");
         vm.startPrank(eve);
         vm.expectRevert();
-        acl.setRoleAdmin(aclSuperAppRegRole, dedicatedAdminRole);
+        simpleAcl.setRoleAdmin(aclSuperAppRegRole, dedicatedAdminRole);
         vm.stopPrank();
 
         // ... except the default admin
         // (This is to be done in a possible future where we start using this ACL for other purposes too
         // and want to have a more sophisticated permissioning scheme.)
-        acl.setRoleAdmin(aclSuperAppRegRole, dedicatedAdminRole);
+        simpleAcl.setRoleAdmin(aclSuperAppRegRole, dedicatedAdminRole);
 
         // grant heidi the new admin role
-        acl.grantRole(dedicatedAdminRole, heidi);
+        simpleAcl.grantRole(dedicatedAdminRole, heidi);
 
         // now heidi can manage permissions for superapp deployers
         vm.startPrank(heidi);
-        acl.grantRole(aclSuperAppRegRole, bob);
+        simpleAcl.grantRole(aclSuperAppRegRole, bob);
         vm.stopPrank();
     }
 }

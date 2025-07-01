@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract ACL is AccessControl {
+contract SimpleACL is AccessControl {
     constructor() {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }

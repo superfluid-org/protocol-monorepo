@@ -22,5 +22,5 @@
     "IResolver", "Resolver", "TestResolver",
     "SuperfluidLoader",
     "IUserDefinedMacro",
-    "ACL"
+    "SimpleACL"
 ]

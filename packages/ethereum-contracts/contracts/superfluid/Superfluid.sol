@@ -25,7 +25,7 @@ import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { BaseRelayRecipient } from "../libs/BaseRelayRecipient.sol";
 import { SimpleForwarder } from "../utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
-import { ACL } from "../utils/ACL.sol";
+import { SimpleACL } from "../utils/SimpleACL.sol";
 
 /**
  * @dev The Superfluid host implementation.
@@ -61,7 +61,7 @@ contract Superfluid is
     ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
 
     // ACL (for superapp registration)
-    ACL immutable internal _ACL;
+    SimpleACL immutable internal _SIMPLE_ACL;
 
     /**
      * @dev Maximum number of level of apps can be composed together
@@ -112,14 +112,14 @@ contract Superfluid is
         uint64 callbackGasLimit,
         address simpleForwarderAddress,
         address erc2771ForwarderAddress,
-        address aclAddress
+        address simpleAclAddress
     ) {
         NON_UPGRADABLE_DEPLOYMENT = nonUpgradable;
         APP_WHITE_LISTING_ENABLED = appWhiteListingEnabled;
         CALLBACK_GAS_LIMIT = callbackGasLimit;
         SIMPLE_FORWARDER = SimpleForwarder(simpleForwarderAddress);
         _ERC2771_FORWARDER = ERC2771Forwarder(erc2771ForwarderAddress);
-        _ACL = ACL(aclAddress);
+        _SIMPLE_ACL = SimpleACL(simpleAclAddress);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -384,11 +384,11 @@ contract Superfluid is
     }
 
     // Checks if the deployer account has permission to register SuperApps, reverts if not.
-    // New method: lookup in the ACL contract.
+    // New method: lookup in the SimpleACL contract.
     // Legacy/fallback method: lookup in the governance contract.
     function _enforceAppRegistrationPermissioning(string memory registrationKey, address deployer) internal view {
         // new method: check if the deployer is granted permission in the ACL
-        if (_ACL.hasRole(ACL_SUPERAPP_REGISTRATION_ROLE, deployer)) {
+        if (_SIMPLE_ACL.hasRole(ACL_SUPERAPP_REGISTRATION_ROLE, deployer)) {
             return;
         }
 
@@ -974,8 +974,8 @@ contract Superfluid is
         return address(_ERC2771_FORWARDER);
     }
 
-    function getACL() external view override returns(address) {
-        return address(_ACL);
+    function getSimpleACL() external view override returns(address) {
+        return address(_SIMPLE_ACL);
     }
 
     /**************************************************************************
