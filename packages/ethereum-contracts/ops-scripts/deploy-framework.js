@@ -866,6 +866,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             () => superfluid.getSimpleACL(),
             "SIMPLE_ACL"
         );
+        console.log("SimpleACL address", simpleAclAddress);
 
         // get previous callback gas limit, make sure we don't decrease it
         const prevCallbackGasLimit = await superfluid.CALLBACK_GAS_LIMIT();
