@@ -25,7 +25,7 @@ import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { BaseRelayRecipient } from "../libs/BaseRelayRecipient.sol";
 import { SimpleForwarder } from "../utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
-import { AllowList } from "../utils/AllowList.sol";
+import { ACL } from "../utils/ACL.sol";
 
 /**
  * @dev The Superfluid host implementation.
@@ -60,8 +60,8 @@ contract Superfluid is
     SimpleForwarder immutable public SIMPLE_FORWARDER;
     ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
 
-    // Allowlist for superapp registration
-    AllowList immutable internal _SUPERAPP_REGISTRATION_ALLOWLIST;
+    // ACL (for superapp registration)
+    ACL immutable internal _ACL;
 
     /**
      * @dev Maximum number of level of apps can be composed together
@@ -74,6 +74,8 @@ contract Superfluid is
     uint constant public MAX_APP_CALLBACK_LEVEL = 1;
 
     uint32 constant public MAX_NUM_AGREEMENTS = 256;
+
+    bytes32 constant public ACL_SUPERAPP_REGISTRATION_ROLE = keccak256("ACL_SUPERAPP_REGISTRATION_ROLE");
 
     /* WARNING: NEVER RE-ORDER VARIABLES! Always double-check that new
        variables are added APPEND-ONLY. Re-ordering variables can
@@ -110,14 +112,14 @@ contract Superfluid is
         uint64 callbackGasLimit,
         address simpleForwarderAddress,
         address erc2771ForwarderAddress,
-        address superappRegistrationAllowlistAddress
+        address aclAddress
     ) {
         NON_UPGRADABLE_DEPLOYMENT = nonUpgradable;
         APP_WHITE_LISTING_ENABLED = appWhiteListingEnabled;
         CALLBACK_GAS_LIMIT = callbackGasLimit;
         SIMPLE_FORWARDER = SimpleForwarder(simpleForwarderAddress);
         _ERC2771_FORWARDER = ERC2771Forwarder(erc2771ForwarderAddress);
-        _SUPERAPP_REGISTRATION_ALLOWLIST = AllowList(superappRegistrationAllowlistAddress);
+        _ACL = ACL(aclAddress);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -382,11 +384,11 @@ contract Superfluid is
     }
 
     // Checks if the deployer account has permission to register SuperApps, reverts if not.
-    // New method: lookup in the dedicated allowlist contract.
+    // New method: lookup in the ACL contract.
     // Legacy/fallback method: lookup in the governance contract.
     function _enforceAppRegistrationPermissioning(string memory registrationKey, address deployer) internal view {
-        // new method: check if the deployer is in the allowlist
-        if (_SUPERAPP_REGISTRATION_ALLOWLIST.hasPermission(deployer)) {
+        // new method: check if the deployer is granted permission in the ACL
+        if (_ACL.hasRole(ACL_SUPERAPP_REGISTRATION_ROLE, deployer)) {
             return;
         }
 
@@ -972,8 +974,8 @@ contract Superfluid is
         return address(_ERC2771_FORWARDER);
     }
 
-    function getSuperAppRegistrationAllowlist() external view override returns(address) {
-        return address(_SUPERAPP_REGISTRATION_ALLOWLIST);
+    function getACL() external view override returns(address) {
+        return address(_ACL);
     }
 
     /**************************************************************************

@@ -234,7 +234,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         "IAccessControlEnumerable",
         "SimpleForwarder",
         "ERC2771Forwarder",
-        "AllowList",
+        "ACL",
     ];
     const mockContracts = [
         "SuperfluidMock",
@@ -274,7 +274,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         IAccessControlEnumerable,
         SimpleForwarder,
         ERC2771Forwarder,
-        AllowList,
+        ACL,
     } = await SuperfluidSDK.loadContracts({
         ...extractWeb3Options(options),
         additionalContracts: contracts.concat(useMocks ? mockContracts : []),
@@ -363,15 +363,15 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             console.log("ERC2771Forwarder address:", erc2771Forwarder.address);
             output += `ERC2771_FORWARDER=${erc2771Forwarder.address}\n`;
 
-            const allowList = await web3tx(AllowList.new, "AllowList.new")();
-            console.log("AllowList address:", allowList.address);
-            output += `SUPERAPP_REGISTRATION_ALLOWLIST=${allowList.address}\n`;
+            const acl = await web3tx(ACL.new, "ACL.new")();
+            console.log("ACL address:", acl.address);
+            output += `ACL=${acl.address}\n`;
 
             let superfluidAddress;
             const superfluidLogic = await web3tx(
                 SuperfluidLogic.new,
                 "SuperfluidLogic.new"
-            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarder.address, erc2771Forwarder.address, allowList.address);
+            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarder.address, erc2771Forwarder.address, acl.address);
             console.log(
                 `Superfluid new code address ${superfluidLogic.address}`
             );
@@ -861,10 +861,10 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             "ERC2771_FORWARDER"
         );
 
-        const allowListAddress = await getOrDeployHelper(
-            AllowList,
-            () => superfluid.getSuperAppRegistrationAllowlist(),
-            "SUPERAPP_REGISTRATION_ALLOWLIST"
+        const aclAddress = await getOrDeployHelper(
+            ACL,
+            () => superfluid.getACL(),
+            "ACL"
         );
 
         // get previous callback gas limit, make sure we don't decrease it
@@ -887,14 +887,14 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 const superfluidLogic = await web3tx(
                     SuperfluidLogic.new,
                     "SuperfluidLogic.new"
-                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress, allowListAddress);
+                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress, aclAddress);
                 output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
                 return superfluidLogic.address;
             },
             [
                 ap(erc2771ForwarderAddress),
                 ap(simpleForwarderAddress),
-                ap(allowListAddress),
+                ap(aclAddress),
                 appCallbackGasLimit.toString(16).padStart(64, "0")
             ],
         );

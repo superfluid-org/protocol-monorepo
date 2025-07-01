@@ -659,10 +659,10 @@ interface ISuperfluid {
     function getERC2771Forwarder() external view returns(address);
 
     /**
-     * @dev returns the address of the allowlist contract used for permissioning superapp registration.
-     * @return address of the allowlist contract
+     * @dev returns the address of the ACL contract used for granular permissioning.
+     * @return address of the ACL contract
      */
-    function getSuperAppRegistrationAllowlist() external view returns(address);
+    function getACL() external view returns(address);
 
     /**************************************************************************
      * Function modifiers for access control and parameter validations
