@@ -18,6 +18,7 @@ import {
 /// Note: CustomSuperTokenBase is not included for people building CustomSuperToken.
 import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC777 } from "@openzeppelin/contracts/token/ERC777/IERC777.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { ISuperfluidToken } from "./ISuperfluidToken.sol";
 import { ISuperToken } from "./ISuperToken.sol";
 import { ISuperTokenFactory } from "./ISuperTokenFactory.sol";
@@ -29,10 +30,10 @@ import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
 import { ISuperAgreement } from "./ISuperAgreement.sol";
 import { IConstantFlowAgreementV1 } from "../agreements/IConstantFlowAgreementV1.sol";
 import { IInstantDistributionAgreementV1 } from "../agreements/IInstantDistributionAgreementV1.sol";
-import { 
-    IGeneralDistributionAgreementV1, 
-    PoolConfig, 
-    PoolERC20Metadata 
+import {
+    IGeneralDistributionAgreementV1,
+    PoolConfig,
+    PoolERC20Metadata
 } from "../agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { ISuperfluidPool } from "../agreements/gdav1/ISuperfluidPool.sol";
 /// Superfluid App interfaces:
@@ -660,7 +661,7 @@ interface ISuperfluid {
 
     // solhint-disable max-line-length
     /**
-     * @dev returns the address of the SimpleACL contract (currently used for SuperApp registration permissioning).
+     * @dev returns the SimpleACL contract (currently used for SuperApp registration permissioning).
      * That contract implements the interface [IAccessControl](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl),
      * which provides the following functions:
      * - [hasRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-hasRole-bytes32-address-)
@@ -668,9 +669,8 @@ interface ISuperfluid {
      * - [grantRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-grantRole-bytes32-address-)
      * - [revokeRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-revokeRole-bytes32-address-)
      * - [renounceRole(role, account)](https://docs.openzeppelin.com/contracts/4.x/api/access#IAccessControl-renounceRole-bytes32-address-)
-     * @return address of the SimpleACL contract
      */
-    function getSimpleACL() external view returns(address);
+    function getSimpleACL() external view returns(IAccessControl);
 
     /**************************************************************************
      * Function modifiers for access control and parameter validations

@@ -16,7 +16,8 @@ import {
     SuperfluidGovernanceConfigs,
     ISuperfluidToken,
     ISuperToken,
-    ISuperTokenFactory
+    ISuperTokenFactory,
+    IAccessControl
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { GeneralDistributionAgreementV1 } from "../agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import { SuperfluidUpgradeableBeacon } from "../upgradability/SuperfluidUpgradeableBeacon.sol";
@@ -974,8 +975,8 @@ contract Superfluid is
         return address(_ERC2771_FORWARDER);
     }
 
-    function getSimpleACL() external view override returns(address) {
-        return address(_SIMPLE_ACL);
+    function getSimpleACL() external view override returns(IAccessControl) {
+        return _SIMPLE_ACL;
     }
 
     /**************************************************************************
