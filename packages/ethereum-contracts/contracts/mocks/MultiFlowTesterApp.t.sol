@@ -41,7 +41,7 @@ contract MultiFlowTesterApp is SuperAppBase {
             SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP |
             SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
 
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
     }
 
     function _parseUserData(
