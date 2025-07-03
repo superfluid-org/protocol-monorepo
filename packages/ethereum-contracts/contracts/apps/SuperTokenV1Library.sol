@@ -47,7 +47,7 @@ import {
  * `expectRevert` expects a revert in the next call.
  * If a revert is triggered by library code itself (vs by a call), `expectRevert` will thus not _see_ that.
  * Possible mitigations:
- * - avoid higher-level library methods which can themselves trigger reverts in tests where this is is an issue
+ * - avoid higher-level library methods which can themselves trigger reverts in tests where this is an issue
  * - wrap the method invocation into an external helper method which you then invoke with `this.helperMethod()`,
  *   which makes it an external call
  * Also be aware of other limitations, see

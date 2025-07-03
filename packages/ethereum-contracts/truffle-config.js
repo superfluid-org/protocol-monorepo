@@ -275,7 +275,7 @@ const E = (module.exports = {
             ...createNetworkDefaultConfiguration("base-sepolia"),
             network_id: 84532,
             maxPriorityFeePerGas: 1e6, // 0.001 gwei - even 0 may do
-            maxFeePerGas: 1e9, // 1 gwei
+            maxFeePerGas: 1e8, // 0.1 gwei
         },
 
         //

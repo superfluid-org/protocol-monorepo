@@ -9,6 +9,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `SuperToken` now implements [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) (permit extension for EIP-20 signed approvals).
 - `SuperfluidPool` now has additional methods `increaseMemberUnits` and `decreaseMemberUnits` which allow the pool admin to change member units parameterized with delta amounts.
 
+### Changed
+- Curation of the SuperApp registration allowlist can now be delegated by governance to a newly added `ACL` contract.
+
 ### Breaking
 - `SuperfluidPool` does no longer mint and burn EIP-721 tokens (NFTs) on member unit updates. The gas overhead of this operation caused friction for integrations with other protocols (e.g. Uniswap V4).
 

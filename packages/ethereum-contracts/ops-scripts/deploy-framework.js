@@ -234,6 +234,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         "IAccessControlEnumerable",
         "SimpleForwarder",
         "ERC2771Forwarder",
+        "SimpleACL",
     ];
     const mockContracts = [
         "SuperfluidMock",
@@ -273,6 +274,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         IAccessControlEnumerable,
         SimpleForwarder,
         ERC2771Forwarder,
+        SimpleACL,
     } = await SuperfluidSDK.loadContracts({
         ...extractWeb3Options(options),
         additionalContracts: contracts.concat(useMocks ? mockContracts : []),
@@ -361,11 +363,15 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             console.log("ERC2771Forwarder address:", erc2771Forwarder.address);
             output += `ERC2771_FORWARDER=${erc2771Forwarder.address}\n`;
 
+            const simpleAcl = await web3tx(SimpleACL.new, "SimpleACL.new")();
+            console.log("SimpleACL address:", simpleAcl.address);
+            output += `SIMPLE_ACL=${simpleAcl.address}\n`;
+
             let superfluidAddress;
             const superfluidLogic = await web3tx(
                 SuperfluidLogic.new,
                 "SuperfluidLogic.new"
-            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarder.address, erc2771Forwarder.address);
+            )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarder.address, erc2771Forwarder.address, simpleAcl.address);
             console.log(
                 `Superfluid new code address ${superfluidLogic.address}`
             );
@@ -803,17 +809,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 return ZERO_ADDRESS;
             });
 
-            if (prevAddr !== ZERO_ADDRESS) {
-                // TEMPORARY FIX - can be removed after applied
-                // we found a previous deployment. Now verify it has the host as owner.
-                // the first mainnet deployment didn't have this for SimpleForwarder, thus needs a redeployment.
-                const ownerAddr = await (await Ownable.at(prevAddr)).owner();
-                if (ownerAddr != superfluid.address) {
-                    console.log(`  !!! ${outputKey} has wrong owner, needs re-deployment`);
-                    prevAddr = ZERO_ADDRESS; // by setting zero, we force a re-deployment
-                }
-            }
-
             const newAddress = await deployContractIfCodeChanged(
                 web3,
                 ForwarderContract,
@@ -833,6 +828,25 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             return newAddress !== ZERO_ADDRESS ? newAddress : prevAddr;
         }
 
+        async function getOrDeployHelper(
+            Contract,
+            getPrevAddrFn,
+            outputKey
+        ) {
+            let prevAddr = await getPrevAddrFn().catch(_err => {
+                console.error(`### Error getting ${Contract.contractName} address, likely not yet deployed`);
+                return ZERO_ADDRESS;
+            });
+
+            if (prevAddr !== ZERO_ADDRESS) {
+                return prevAddr;
+            }
+
+            const instance = await web3tx(Contract.new, `${Contract.contractName}.new`)();
+            output += `${outputKey}=${instance.address}\n`;
+            return instance.address;
+        }
+
         const simpleForwarderAddress = await getOrDeployForwarder(
             superfluid,
             SimpleForwarder,
@@ -846,6 +860,13 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             () => superfluid.getERC2771Forwarder(),
             "ERC2771_FORWARDER"
         );
+
+        const simpleAclAddress = await getOrDeployHelper(
+            SimpleACL,
+            () => superfluid.getSimpleACL(),
+            "SIMPLE_ACL"
+        );
+        console.log("SimpleACL address", simpleAclAddress);
 
         // get previous callback gas limit, make sure we don't decrease it
         const prevCallbackGasLimit = await superfluid.CALLBACK_GAS_LIMIT();
@@ -867,13 +888,14 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 const superfluidLogic = await web3tx(
                     SuperfluidLogic.new,
                     "SuperfluidLogic.new"
-                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress);
+                )(nonUpgradable, appWhiteListing, appCallbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress, simpleAclAddress);
                 output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
                 return superfluidLogic.address;
             },
             [
                 ap(erc2771ForwarderAddress),
                 ap(simpleForwarderAddress),
+                ap(simpleAclAddress),
                 appCallbackGasLimit.toString(16).padStart(64, "0")
             ],
         );

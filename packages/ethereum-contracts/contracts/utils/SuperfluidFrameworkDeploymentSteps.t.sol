@@ -31,6 +31,7 @@ import { TOGA } from "./TOGA.sol";
 import { IResolver } from "../interfaces/utils/IResolver.sol";
 import { SimpleForwarder } from "../utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
+import { SimpleACL } from "../utils/SimpleACL.sol";
 import { MacroForwarder } from "../utils/MacroForwarder.sol";
 
 /// @title Superfluid Framework Deployment Steps
@@ -143,10 +144,11 @@ contract SuperfluidFrameworkDeploymentSteps {
         } else if (step == 1) { // CORE CONTRACT: Superfluid (Host)
             SimpleForwarder simpleForwarder = new SimpleForwarder();
             ERC2771Forwarder erc2771Forwarder = new ERC2771Forwarder();
+            SimpleACL simpleAcl = new SimpleACL();
             // Deploy Host and initialize the test governance.
             // 3_000_000 is the min callback gas limit used in a prod deployment
             host = SuperfluidHostDeployerLibrary.deploy(
-                true, false, 3_000_000, address(simpleForwarder), address(erc2771Forwarder)
+                true, false, 3_000_000, address(simpleForwarder), address(erc2771Forwarder), address(simpleAcl)
             );
             simpleForwarder.transferOwnership(address(host));
             erc2771Forwarder.transferOwnership(address(host));
@@ -319,12 +321,14 @@ library SuperfluidHostDeployerLibrary {
         bool _appWhiteListingEnabled,
         uint64 callbackGasLimit,
         address simpleForwarderAddress,
-        address erc2771ForwarderAddress
+        address erc2771ForwarderAddress,
+        address simpleAclAddress
     )
         external returns (Superfluid)
     {
         return new Superfluid(
-            _nonUpgradable, _appWhiteListingEnabled, callbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress
+            _nonUpgradable, _appWhiteListingEnabled, callbackGasLimit, simpleForwarderAddress, erc2771ForwarderAddress,
+            simpleAclAddress
         );
     }
 }
