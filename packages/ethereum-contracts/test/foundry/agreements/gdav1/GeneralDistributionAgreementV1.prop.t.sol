@@ -12,14 +12,14 @@ import { SuperfluidUpgradeableBeacon } from "../../../../contracts/upgradability
 import { ISuperToken, SuperToken } from "../../../../contracts/superfluid/SuperToken.sol";
 import { ISuperAgreement } from "../../../../contracts/interfaces/superfluid/ISuperAgreement.sol";
 import {
-    GeneralDistributionAgreementV1, ISuperfluid, ISuperfluidPool
+    GeneralDistributionAgreementV1,
+    PoolConfig,
+    ISuperfluid, ISuperfluidPool, ISuperToken
 } from "../../../../contracts/agreements/gdav1/GeneralDistributionAgreementV1.sol";
-import {
-    IGeneralDistributionAgreementV1,
-    PoolConfig
-} from "../../../../contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
+import { GDAv1StorageReader } from "../../../../contracts/agreements/gdav1/GDAv1StorageLayout.sol";
 import { ISuperfluidPool, SuperfluidPool } from "../../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { SuperTokenV1Library } from "../../../../contracts/apps/SuperTokenV1Library.sol";
+
 
 /// @title GeneralDistributionAgreementV1 Property Tests
 /// @author Superfluid
@@ -28,6 +28,7 @@ import { SuperTokenV1Library } from "../../../../contracts/apps/SuperTokenV1Libr
 /// the expected output for a range of inputs.
 contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreementV1, Test {
     using SuperTokenV1Library for ISuperToken;
+    using GDAv1StorageReader for ISuperToken;
 
     SuperfluidFrameworkDeployer internal immutable sfDeployer;
     SuperfluidFrameworkDeployer.Framework internal sf;
@@ -91,13 +92,13 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
             _settled_value: Value.wrap(settledValue)
         });
         _setUIndex(eff, owner, p);
-        GeneralDistributionAgreementV1.UniversalIndexData memory setUIndexData = _getUIndexData(eff, owner);
+        GDAv1StorageReader.AccountData memory accountData = superToken.getAccountData(this, owner);
 
-        assertEq(settledAt, setUIndexData.settledAt, "settledAt not equal");
-        assertEq(flowRate, setUIndexData.flowRate, "flowRate not equal");
-        assertEq(settledValue, setUIndexData.settledValue, "settledValue not equal");
-        assertEq(0, setUIndexData.totalBuffer, "totalBuffer not equal");
-        assertEq(false, setUIndexData.isPool, "isPool not equal");
+        assertEq(settledAt, accountData.settledAt, "settledAt not equal");
+        assertEq(flowRate, accountData.flowRate, "flowRate not equal");
+        assertEq(settledValue, accountData.settledValue, "settledValue not equal");
+        assertEq(0, accountData.totalBuffer, "totalBuffer not equal");
+        assertEq(false, accountData.isPool, "isPool not equal");
     }
 
     // Flow Distribution Data Setters/Getters
@@ -271,55 +272,68 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     //     );
     // }
 
-    function testEncodeDecodeParticleInputUniversalIndexData(
+    function testEncodeUpdatedUniversalIndex(
         int96 flowRate,
         uint32 settledAt,
         int256 settledValue,
         uint96 totalBuffer,
-        bool isPool_
-    ) public pure {
-        BasicParticle memory particle = BasicParticle({
-            _flow_rate: FlowRate.wrap(flowRate),
-            _settled_at: Time.wrap(settledAt),
-            _settled_value: Value.wrap(settledValue)
-        });
-        bytes32[] memory encoded = _encodeUniversalIndexData(particle, totalBuffer, isPool_);
-        (, UniversalIndexData memory decoded) = _decodeUniversalIndexData(encoded);
+        bool isPool
+    ) pure public
+    {
+        GDAv1StorageReader.AccountData memory accountData =
+            GDAv1StorageReader.AccountData({
+                flowRate: 0,
+                settledAt: 0,
+                settledValue: 0,
+                totalBuffer: totalBuffer,
+                isPool: isPool
+            });
+        BasicParticle memory uIndex =
+            BasicParticle({
+                _flow_rate: FlowRate.wrap(flowRate),
+                _settled_at: Time.wrap(settledAt),
+                _settled_value: Value.wrap(settledValue)
+            });
+
+        bytes32[] memory encoded = GDAv1StorageReader.encodeUpdatedUniversalIndex(accountData, uIndex);
+        GDAv1StorageReader.AccountData memory decoded = GDAv1StorageReader.decodeAccountData(encoded);
 
         assertEq(flowRate, decoded.flowRate, "flowRate not equal");
         assertEq(settledAt, decoded.settledAt, "settledAt not equal");
         assertEq(settledValue, decoded.settledValue, "settledValue not equal");
         assertEq(totalBuffer, decoded.totalBuffer, "totalBuffer not equal");
-        assertEq(isPool_, decoded.isPool, "isPool not equal");
+        assertEq(isPool, decoded.isPool, "isPool not equal");
     }
 
-    function testEncodeDecodeUIDataInputeUniversalIndexData(
+    function testEncodeUpdatedTotalBuffer(
         int96 flowRate,
         uint32 settledAt,
-        int256 settledValue,
         uint96 totalBuffer,
-        bool isPool_
-    ) public pure {
-        UniversalIndexData memory data = UniversalIndexData({
-            flowRate: flowRate,
-            settledAt: settledAt,
-            settledValue: settledValue,
-            totalBuffer: totalBuffer,
-            isPool: isPool_
-        });
-
-        bytes32[] memory encoded = _encodeUniversalIndexData(data);
-        (, UniversalIndexData memory decoded) = _decodeUniversalIndexData(encoded);
+        bool isPool
+    ) public pure
+    {
+        GDAv1StorageReader.AccountData memory accountData =
+            GDAv1StorageReader.AccountData({
+                flowRate: flowRate,
+                settledAt: settledAt,
+                settledValue: 0,
+                totalBuffer: 0,
+                isPool: isPool
+            });
+        bytes32[] memory encoded = GDAv1StorageReader.encodeUpdatedTotalBuffer(accountData, totalBuffer);
+        GDAv1StorageReader.AccountData memory decoded = GDAv1StorageReader.decodeAccountData(encoded);
 
         assertEq(flowRate, decoded.flowRate, "flowRate not equal");
         assertEq(settledAt, decoded.settledAt, "settledAt not equal");
-        assertEq(settledValue, decoded.settledValue, "settledValue not equal");
         assertEq(totalBuffer, decoded.totalBuffer, "totalBuffer not equal");
-        assertEq(isPool_, decoded.isPool, "isPool not equal");
+        assertEq(isPool, decoded.isPool, "isPool not equal");
     }
 
-    function testGetBasicParticleFromUIndex(UniversalIndexData memory data) public pure {
-        BasicParticle memory particle = _getBasicParticleFromUIndex(data);
+    function testDecodeAccountData(GDAv1StorageReader.AccountData memory data)
+        pure
+        public
+    {
+        BasicParticle memory particle = GDAv1StorageReader.getUniversalIndexFromAccountData(data);
         assertEq(data.flowRate, int96(FlowRate.unwrap(particle._flow_rate)), "flowRate not equal");
         assertEq(data.settledAt, Time.unwrap(particle._settled_at), "settledAt not equal");
         assertEq(data.settledValue, Value.unwrap(particle._settled_value), "settledValue not equal");
