@@ -5,8 +5,8 @@ module Money.Theory.MonetaryTypes
     ( MonetaryTypes
       ( MT_TIME, MT_VALUE, MT_FLOWRATE, MT_UNIT
       , mt_fr_mul_t
-      , mt_v_mul_u, mt_v_div_u, mt_v_mul_u_qr_u
-      , mt_fr_mul_u, mt_fr_div_u, mt_fr_mul_u_qr_u
+      , mt_v_mul_u, mt_v_quot_u, mt_v_mul_u_qr_u
+      , mt_fr_mul_u, mt_fr_quot_u, mt_fr_mul_u_qr_u
       )
     , MonetaryTypes'tv, MonetaryTypes'tr, MonetaryTypes'tvr, MonetaryTypes'tvru
     ) where
@@ -37,11 +37,11 @@ class ( Eq (MT_TIME mt), Ord (MT_TIME mt), Num (MT_TIME mt)
         MT_VALUE mt -> MT_UNIT mt -> MT_VALUE mt
     mt_v_mul_u v u = v * (fromInteger . toInteger) u
 
-    mt_v_div_u :: MT_VALUE mt -> MT_UNIT mt -> MT_VALUE mt
-    default mt_v_div_u ::
+    mt_v_quot_u :: MT_VALUE mt -> MT_UNIT mt -> MT_VALUE mt
+    default mt_v_quot_u ::
         (Integral (MT_VALUE mt), Integral (MT_UNIT mt)) =>
         MT_VALUE mt -> MT_UNIT mt -> MT_VALUE mt
-    mt_v_div_u v u = let u' = (fromInteger . toInteger) u in v `div` u'
+    mt_v_quot_u v u = let u' = (fromInteger . toInteger) u in v `quot` u'
 
     mt_v_mul_u_qr_u :: MT_VALUE mt -> (MT_UNIT mt, MT_UNIT mt) -> (MT_VALUE mt, MT_VALUE mt)
     default mt_v_mul_u_qr_u ::
@@ -55,11 +55,11 @@ class ( Eq (MT_TIME mt), Ord (MT_TIME mt), Num (MT_TIME mt)
         MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
     mt_fr_mul_u fr u = fr * (fromInteger . toInteger) u
 
-    mt_fr_div_u :: MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
-    default mt_fr_div_u ::
+    mt_fr_quot_u :: MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
+    default mt_fr_quot_u ::
         (Integral (MT_FLOWRATE mt), Integral (MT_UNIT mt)) =>
         MT_FLOWRATE mt -> MT_UNIT mt -> MT_FLOWRATE mt
-    mt_fr_div_u fr u = let u' = (fromInteger . toInteger) u in fr `div` u'
+    mt_fr_quot_u fr u = let u' = (fromInteger . toInteger) u in fr `quot` u'
 
     mt_fr_mul_u_qr_u :: MT_FLOWRATE mt -> (MT_UNIT mt, MT_UNIT mt) -> (MT_FLOWRATE mt, MT_FLOWRATE mt)
     default mt_fr_mul_u_qr_u ::

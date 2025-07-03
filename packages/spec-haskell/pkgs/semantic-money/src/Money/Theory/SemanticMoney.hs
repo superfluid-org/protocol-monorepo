@@ -1,8 +1,10 @@
 {-# LANGUAGE FunctionalDependencies #-}
 module Money.Theory.SemanticMoney
     ( -- * Semantic Money Classes & Primitives
-        MonetaryUnit (settle, settledAt, flowRate, rtb)
-    , IndexedValue (shift1, flow1)
+      MonetaryUnit (settle, settledAt, flowRate, rtb)
+    , any_mu_settle_idempotency, any_mu_constant_rtb
+    , MonetaryParticle (shift1, flow1)
+    , any_mp_shift1_reversible, any_mp_flow1_reversible
     , shift2a, shift2b, flow2a, flow2b, align2a, align2b
       -- * Semantic Money Instances
     , BasicParticle (..)
@@ -23,27 +25,70 @@ import           Money.Theory.MonetaryTypes
 -- General Payment Primitives
 ------------------------------------------------------------------------------------------------------------------------
 
--- | A monetary unit and its operators (0-primitives).
+--
+-- Monetary value and its laws.
+--
+
+-- | A monetary unit and its operators.
 class (MonetaryTypes mt, Eq mu) =>
       MonetaryUnit mt mu | mu -> mt where
+    -- | Settle the monetary unit @mu@ at time @t@.
     settle    :: t ~ MT_TIME mt => t -> mu -> mu
+    -- | Get the settled time of the monetary unit @mu@.
     settledAt :: t ~ MT_TIME mt => mu -> t
+    -- | Get the flow rate of the monetary unit @mu@ at time @t@.
     flowRate  :: MonetaryTypes'tr mt t fr => mu -> t -> fr
+    -- | Get the real-time balance of the monetary unit @mu@ at time @t@.
     rtb       :: MonetaryTypes'tvr mt t v fr => mu -> t -> v
 
--- | An indexed monetary value and its operators (1-primitives).
-class (MonetaryUnit mt iv, Monoid iv) =>
-      IndexedValue mt iv | iv -> mt where
-    shift1 :: v ~ MT_VALUE mt => v -> iv -> (iv, v)
-    flow1  :: fr ~ MT_FLOWRATE mt => fr -> iv -> (iv, fr)
+any_mu_settle_idempotency :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> Bool
+any_mu_settle_idempotency a t =
+    settledAt (settle t a) == t &&
+    settle t a == settle t (settle t a)
+
+any_mu_constant_rtb :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> t -> t -> Bool
+any_mu_constant_rtb a t1 t2 t3 =
+    rtb (settle t1 a) t3 == rtb a t3 &&
+    rtb (settle t2 a) t3 == rtb a t3 &&
+    rtb (settle t2 (settle t1 a)) t3 == rtb a t3
 
 --
--- polymorphic 2-primitives for indexed values.
+-- Monetary particle, and its polymorphic 2-primitives.
 --
+
+-- | A monetary particle and its operators (1-primitives).
+class (MonetaryUnit mt mp, Monoid mp) =>
+      MonetaryParticle mt mp | mp -> mt where
+    shift1 :: v ~ MT_VALUE mt => v -> mp -> (mp, v)
+    flow1  :: fr ~ MT_FLOWRATE mt => fr -> mp -> (mp, fr)
+
+any_mp_shift1_reversible :: (MonetaryParticle mt mp, t ~ MT_TIME mt, v ~ MT_VALUE mt) => mp -> v -> Bool
+any_mp_shift1_reversible a v =
+    rtb a t + v' == rtb a' t &&
+    a'' == a &&
+    v'' == -v'
+    where t = settledAt a
+          (a', v') = shift1 v a
+          (a'', v'') = shift1 (-v') a'
+
+any_mp_flow1_reversible :: (MonetaryParticle mt mp, t ~ MT_TIME mt, fr ~ MT_FLOWRATE mt) => mp -> fr -> Bool
+any_mp_flow1_reversible a fr =
+    fr' == flowRate a' t &&
+    a'' == a &&
+    fr'' == flowRate a t
+    where t = settledAt a
+          (a', fr') = flow1 fr a
+          (a'', fr'') = flow1 (flowRate a t) a'
+
+-- $SideBiasedOps
+--
+-- == Note on side-biased operations:
+--   1) Left side produces error term with which right side is adjusted accordingly, and vice versa.
+--   2) The adjustment must not produce new error term, or otherwise it would require recursive adjustments.
 
 -- | Shift value for the left side (a) or right side (b).
 shift2a, shift2b ::
-    (MonetaryTypes'tv mt t v, IndexedValue mt a, IndexedValue mt b) =>
+    (MonetaryTypes'tv mt t v, MonetaryParticle mt a, MonetaryParticle mt b) =>
     v -> t -> (a, b) -> (a, b)
 shift2a v t (a, b) =
     let (a', v') = shift1 v (settle t a)
@@ -54,7 +99,7 @@ shift2b v t (a, b) = swap (shift2a (-v) t (b, a))
 
 -- | Shifting flow for the left side (a) or right side (b).
 flow2a, flow2b ::
-    (MonetaryTypes'tr mt t fr, IndexedValue mt a, IndexedValue mt b) =>
+    (MonetaryTypes'tr mt t fr, MonetaryParticle mt a, MonetaryParticle mt b) =>
     fr -> t -> (a, b) -> (a, b)
 flow2a dfr t (a, b) =
     let (b1, fr_a) = flow1 (flowRate a t) (settle t mempty)
@@ -63,13 +108,9 @@ flow2a dfr t (a, b) =
     in assert (fr_a' == -fr_a'') (a', b <> b1 <> b2)
 flow2b dfr t (a, b) = swap (flow2a (-dfr) t (b, a))
 
--- | Value alignment 2-primitive, left-biased (a) or right-biased (b).
---
--- Note on side-biased operations:
---   1) Left side produces error term with which right side is adjusted accordingly, and vice versa.
---   2) The adjustment must not produce new error term, or otherwise it would require recursive adjustments.
+-- | Flow rates alignment on unit changes for the left side (a) or right side (b).
 align2a, align2b ::
-    (IndexedValue mt a, IndexedValue mt b) =>
+    (MonetaryParticle mt a, MonetaryParticle mt b) =>
     MT_UNIT mt -> MT_UNIT mt -> MT_TIME mt -> (a, b) -> (a, b)
 align2a u u' t (a, b) = (a', b')
     where fr = flowRate a t
@@ -94,7 +135,7 @@ instance MonetaryTypes mt => Semigroup (BasicParticle mt) where
     a@(BasicParticle t1 _ _) <> b@(BasicParticle t2 _ _) = BasicParticle t' (sv1 + sv2) (r1 + r2)
         -- The binary operator supports negative time values while abiding the monoidal laws.
         -- The practical semantics of values of mixed-sign is not of the concern of this specification.
-        where t' = max t1 t2
+        where t' = if (abs t2) > (abs t1) then t2 else t1
               (BasicParticle _ sv1 r1) = settle t' a
               (BasicParticle _ sv2 r2) = settle t' b
 
@@ -111,7 +152,7 @@ instance MonetaryTypes mt =>
     rtb (BasicParticle t s r) t' = r `mt_fr_mul_t` (t' - t) + s
 
 instance MonetaryTypes mt =>
-         IndexedValue mt (BasicParticle mt) where
+         MonetaryParticle mt (BasicParticle mt) where
     shift1 x a = (a { bp_settled_value = bp_settled_value a + x }, x)
     flow1 r' a = (a { bp_flow_rate = r' }, r')
 
@@ -134,8 +175,8 @@ type PDP_MemberMU mt wp = (PDP_Index mt wp, PDP_Member mt wp)
 
 pdp_UpdateMember2 ::
     ( u ~ MT_UNIT mt, t ~ MT_TIME mt
-    , IndexedValue mt a
-    , IndexedValue mt wp
+    , MonetaryParticle mt a
+    , MonetaryParticle mt wp
     , mu ~ PDP_MemberMU mt wp
     ) =>
     u -> t -> (a, mu) -> (a, mu)
@@ -165,16 +206,16 @@ instance MonetaryUnit mt wp =>
          MonetaryUnit mt (PDP_Index mt wp) where
     settle t' a@(PDP_Index _ mpi) = a { pdpi_wp = settle t' mpi }
     settledAt (PDP_Index _ mpi) = settledAt mpi
-    flowRate (PDP_Index _ mpi) = flowRate mpi
-    rtb (PDP_Index _ mpi) = rtb mpi
+    flowRate (PDP_Index tu mpi) t = flowRate mpi t `mt_fr_mul_u` tu
+    rtb (PDP_Index tu mpi) t = rtb mpi t `mt_v_mul_u` tu
 
-instance IndexedValue mt wp =>
-         IndexedValue mt (PDP_Index mt wp) where
+instance MonetaryParticle mt wp =>
+         MonetaryParticle mt (PDP_Index mt wp) where
     shift1 x a@(PDP_Index tu mpi) = (a { pdpi_wp = mpi' }, x' `mt_v_mul_u` tu)
-        where (mpi', x') = if tu == 0 then (mpi, 0) else shift1 (x `mt_v_div_u` tu) mpi
+        where (mpi', x') = if tu == 0 then (mpi, 0) else shift1 (x `mt_v_quot_u` tu) mpi
 
     flow1 r' a@(PDP_Index tu mpi) = (a { pdpi_wp = mpi' }, r'' `mt_fr_mul_u` tu)
-        where (mpi', r'') = if tu == 0 then flow1 0 mpi else flow1 (r' `mt_fr_div_u` tu) mpi
+        where (mpi', r'') = if tu == 0 then flow1 0 mpi else flow1 (r' `mt_fr_quot_u` tu) mpi
 
 --
 -- PDP_Member
