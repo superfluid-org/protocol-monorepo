@@ -110,7 +110,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     ) public {
         uint256 lastUpdated = block.timestamp;
 
-        bytes32 flowHash = _getFlowDistributionHash(from, to);
+        bytes32 flowHash = GDAv1StorageReader.getFlowDistributionHash(from, to);
 
         _setFlowInfo(
             abi.encode(superToken),
@@ -122,11 +122,8 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         );
 
         vm.warp(1000);
-
-        (bool exist, FlowDistributionData memory setFlowDistributionData) =
-            _getFlowDistributionData(superToken, flowHash);
-
-        assertEq(true, exist, "flow distribution data does not exist");
+        GDAv1StorageReader.FlowDistributionData memory setFlowDistributionData =
+            superToken.getFlowDistributionDataWithKnownHash(this, flowHash);
 
         assertEq(int96(uint96(newFlowRate)), setFlowDistributionData.flowRate, "flowRate not equal");
 
@@ -342,10 +339,15 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     function testEncodeDecodeFlowDistributionData(int96 flowRate, uint96 buffer) public view {
         vm.assume(flowRate >= 0);
         vm.assume(buffer >= 0);
-        FlowDistributionData memory original =
-            FlowDistributionData({ flowRate: flowRate, lastUpdated: uint32(block.timestamp), buffer: buffer });
-        bytes32[] memory encoded = _encodeFlowDistributionData(original);
-        (, FlowDistributionData memory decoded) = _decodeFlowDistributionData(uint256(encoded[0]));
+        GDAv1StorageReader.FlowDistributionData memory original =
+            GDAv1StorageReader.FlowDistributionData({
+                flowRate: flowRate,
+                lastUpdated: uint32(block.timestamp),
+                buffer: buffer
+            });
+        bytes32[] memory encoded = GDAv1StorageReader.encodeFlowDistributionData(original);
+        GDAv1StorageReader.FlowDistributionData memory decoded =
+            GDAv1StorageReader.decodeFlowDistributionData(uint256(encoded[0]));
 
         assertEq(original.flowRate, decoded.flowRate, "flowRate not equal");
         assertEq(original.buffer, decoded.buffer, "buffer not equal");

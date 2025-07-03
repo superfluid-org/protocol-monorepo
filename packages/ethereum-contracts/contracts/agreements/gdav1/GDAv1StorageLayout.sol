@@ -59,7 +59,6 @@ import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPo
  * PoolMemberId stores PoolMemberData for a member at a pool.
  */
 library GDAv1StorageReader {
-    uint256 internal constant ACCOUNT_DATA_STATE_SLOT_ID = 0;
 
     // # Account Data Operations
     //
@@ -78,10 +77,12 @@ library GDAv1StorageReader {
     //         |                                    256b                                   |
     // --------+------------------+------------------+------------------+------------------+
 
+    uint256 internal constant ACCOUNT_DATA_STATE_SLOT_ID = 0;
+
     struct AccountData {
         int96 flowRate;
         uint32 settledAt;
-        uint256 totalBuffer;
+        uint256 totalBuffer; // stored as uint96
         bool isPool;
         int256 settledValue;
     }
@@ -165,6 +166,70 @@ library GDAv1StorageReader {
         uIndex._settled_at = Time.wrap(accountData.settledAt);
         uIndex._settled_value = Value.wrap(accountData.settledValue);
     }
+
+    // FlowDistributionData data packing:
+    // --------+----------+-------------+----------+--------+
+    // WORD A: | reserved | lastUpdated | flowRate | buffer |
+    // --------+----------+-------------+----------+--------+
+    //         |    32    |      32     |    96    |   96   |
+    // --------+----------+-------------+----------+--------+
+
+    struct FlowDistributionData {
+        uint32 lastUpdated;
+        int96 flowRate;
+        uint256 buffer; // stored as uint96
+    }
+
+    function getFlowDistributionHash(address from, ISuperfluidPool to) internal view returns (bytes32) {
+        return keccak256(abi.encode(block.chainid, "distributionFlow", from, to));
+    }
+
+    function encodeFlowDistributionData(FlowDistributionData memory flowDistributionData)
+        internal pure
+        returns (bytes32[] memory data)
+    {
+        data = new bytes32[](1);
+        data[0] = bytes32(
+            (uint256(uint32(flowDistributionData.lastUpdated)) << 192) |
+            (uint256(uint96(flowDistributionData.flowRate)) << 96) |
+            uint256(flowDistributionData.buffer)
+        );
+    }
+
+    function decodeFlowDistributionData(uint256 data)
+        internal pure
+        returns (FlowDistributionData memory flowDistributionData)
+    {
+        if (data > 0) {
+            flowDistributionData.lastUpdated = uint32((data >> 192) & uint256(type(uint32).max));
+            flowDistributionData.flowRate = int96(int256(data >> 96));
+            flowDistributionData.buffer = uint96(data & uint256(type(uint96).max));
+        }
+    }
+
+    function getFlowDistributionDataWithKnownHash(
+        ISuperfluidToken token,
+        IGeneralDistributionAgreementV1 gda,
+        bytes32 flowDistributionHash
+    )
+        internal view
+        returns (FlowDistributionData memory flowDistributionData)
+    {
+        uint256 data = uint256(token.getAgreementData(address(gda), flowDistributionHash, 1)[0]);
+        return decodeFlowDistributionData(data);
+    }
+
+    function getFlowDistributionData(
+        ISuperfluidToken token,
+        IGeneralDistributionAgreementV1 gda,
+        address from,
+        ISuperfluidPool to
+    )
+        internal view
+        returns (FlowDistributionData memory flowDistributionData)
+    {
+        return getFlowDistributionDataWithKnownHash(token, gda, getFlowDistributionHash(from, to));
+    }
 }
 
 
@@ -187,7 +252,7 @@ library GDAv1StorageWriter {
         );
     }
 
-    function setPool(ISuperfluidToken token, ISuperfluidPool pool)
+    function setIsPoolFlag(ISuperfluidToken token, ISuperfluidPool pool)
         internal
     {
         bytes32[] memory data = new bytes32[](1);
