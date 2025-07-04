@@ -306,6 +306,19 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return connectPool(pool, false, ctx);
     }
 
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
+        return _isMemberConnected(pool.superToken(), pool, member);
+    }
+
+    function _isMemberConnected(ISuperfluidToken token, ISuperfluidPool pool, address member)
+        internal view
+        returns (bool)
+    {
+        (bool exist,) = token.getPoolMemberData(this,member, pool);
+        return exist;
+    }
+
     // @note setPoolConnection function naming
     function connectPool(ISuperfluidPool pool, bool doConnect, bytes calldata ctx)
         public
@@ -315,7 +328,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address msgSender = currentContext.msgSender;
         newCtx = ctx;
-        bool isConnected = _isMemberConnected(token, address(pool), msgSender);
+        bool isConnected = _isMemberConnected(token, pool, msgSender);
         if (doConnect != isConnected) {
             assert(
                 SuperfluidPool(address(pool)).operatorConnectMember(
@@ -340,38 +353,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
             emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);
         }
-    }
-
-    function _isMemberConnected(ISuperfluidToken token, address pool, address member) internal view returns (bool) {
-        (bool exist,) = token.getPoolMemberData(this,member, ISuperfluidPool(pool));
-        return exist;
-    }
-
-    function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
-        return _isMemberConnected(pool.superToken(), address(pool), member);
-    }
-
-    function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t) external returns (bool) {
-        if (token.isPool(this, msg.sender) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
-        bytes memory eff = abi.encode(token);
-        _setUIndex(eff, msg.sender, _getUIndex(eff, msg.sender).mappend(p));
-        _setPoolAdjustmentFlowRate(eff, msg.sender, true, /* doShift? */ p.flow_rate(), t);
-        return true;
-    }
-
-    function poolSettleClaim(ISuperfluidToken superToken, address claimRecipient, int256 amount)
-        external
-        returns (bool)
-    {
-        if (superToken.isPool(this, msg.sender) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
-
-        // _poolSettleClaim()
-        _doShift(abi.encode(superToken), msg.sender, claimRecipient, Value.wrap(amount));
-        return true;
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -737,6 +718,32 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             flowRate = flowRate + _getFlowRate(eff, adjustmentFlowHash);
         }
         return _doFlow(eff, pool, adjustmentRecipient, adjustmentFlowHash, flowRate, t);
+    }
+
+    //
+    // Pool operations
+    //
+
+    function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t) external returns (bool) {
+        if (token.isPool(this, msg.sender) == false) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
+        bytes memory eff = abi.encode(token);
+        _setUIndex(eff, msg.sender, _getUIndex(eff, msg.sender).mappend(p));
+        _setPoolAdjustmentFlowRate(eff, msg.sender, true, /* doShift? */ p.flow_rate(), t);
+        return true;
+    }
+
+    function poolSettleClaim(ISuperfluidToken superToken, address claimRecipient, int256 amount)
+        external
+        returns (bool)
+    {
+        if (superToken.isPool(this, msg.sender) == false) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
+
+        _doShift(abi.encode(superToken), msg.sender, claimRecipient, Value.wrap(amount));
+        return true;
     }
 
     //
