@@ -30,7 +30,7 @@ import { SlotsBitmapLibrary } from "../../libs/SlotsBitmapLibrary.sol";
 import { SolvencyHelperLibrary } from "../../libs/SolvencyHelperLibrary.sol";
 import { AgreementBase } from "../AgreementBase.sol";
 import { AgreementLibrary } from "../AgreementLibrary.sol";
-import { GDAv1StorageReader, GDAv1StorageWriter } from "./GDAv1StorageLayout.sol";
+import { GDAv1StorageLib, GDAv1StorageReader, GDAv1StorageWriter } from "./GDAv1StorageLayout.sol";
 
 
 /**
@@ -73,12 +73,12 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (int256 rtb, uint256 buf, uint256 owedBuffer)
     {
-        GDAv1StorageReader.AccountData memory accountData = token.getAccountData(this, account);
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, account);
 
         if (token.isPool(this, account)) {
             rtb = ISuperfluidPool(account).getDisconnectedBalance(uint32(time));
         } else {
-            rtb = Value.unwrap(GDAv1StorageReader
+            rtb = Value.unwrap(GDAv1StorageLib
                                .getUniversalIndexFromAccountData(accountData)
                                .rtb(Time.wrap(uint32(time))));
         }
@@ -135,7 +135,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (int96)
     {
-        GDAv1StorageReader.FlowDistributionData memory data = token.getFlowDistributionData(this, from, to);
+        GDAv1StorageLib.FlowInfo memory data = token.getDistributionFlowInfo(this, from, to);
         return data.flowRate;
     }
 
@@ -146,7 +146,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (uint256 lastUpdated, int96 flowRate, uint256 deposit)
     {
-        GDAv1StorageReader.FlowDistributionData memory data = token.getFlowDistributionData(this, from, to);
+        GDAv1StorageLib.FlowInfo memory data = token.getDistributionFlowInfo(this, from, to);
         lastUpdated = data.lastUpdated;
         flowRate = data.flowRate;
         deposit = data.buffer;
@@ -159,7 +159,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (uint256 timestamp, int96 flowRate, uint256 deposit)
     {
-        GDAv1StorageReader.AccountData memory accountData = token.getAccountData(this, account);
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, account);
         timestamp = accountData.settledAt;
         flowRate = accountData.flowRate;
         deposit = accountData.totalBuffer;
@@ -173,7 +173,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int96 requestedFlowRate
     ) external view override returns (int96 actualFlowRate, int96 totalDistributionFlowRate) {
         bytes memory eff = abi.encode(token);
-        bytes32 distributionFlowHash = GDAv1StorageReader.getFlowDistributionHash(from, to);
+        bytes32 distributionFlowHash = GDAv1StorageLib.getFlowDistributionHash(from, to);
 
         BasicParticle memory fromUIndexData = _getUIndex(eff, from);
 
@@ -467,7 +467,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         _StackVars_DistributeFlow memory flowVars;
         {
             flowVars.currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
-            flowVars.distributionFlowHash = GDAv1StorageReader.getFlowDistributionHash(from, pool);
+            flowVars.distributionFlowHash = GDAv1StorageLib.getFlowDistributionHash(from, pool);
             flowVars.oldFlowRate = _getFlowRate(abi.encode(token), flowVars.distributionFlowHash);
         }
 
@@ -571,8 +571,8 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     function _makeLiquidationPayouts(_StackVars_Liquidation memory data) internal {
-        GDAv1StorageReader.FlowDistributionData memory flowDistributionData =
-            data.token.getFlowDistributionDataWithKnownHash(this, data.distributionFlowHash);
+        GDAv1StorageLib.FlowInfo memory flowDistributionData =
+            data.token.getFlowInfoByFlowHash(this, data.distributionFlowHash);
         int256 signedSingleDeposit = flowDistributionData.buffer.toInt256();
 
         bool isCurrentlyPatricianPeriod;
@@ -625,8 +625,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         (uint256 liquidationPeriod,) = SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), ISuperfluidToken(token));
 
-        GDAv1StorageReader.FlowDistributionData memory flowDistributionData =
-            token.getFlowDistributionDataWithKnownHash(this, flowHash);
+        GDAv1StorageLib.FlowInfo memory flowDistributionData = token.getFlowInfoByFlowHash(this, flowHash);
 
         // @note downcasting from uint256 -> uint32 for liquidation period
         Value newBufferAmount = newFlowRate.mul(Time.wrap(uint32(liquidationPeriod)));
@@ -637,19 +636,15 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         Value bufferDelta = newBufferAmount - Value.wrap(uint256(flowDistributionData.buffer).toInt256());
 
-        {
-            bytes32[] memory data = GDAv1StorageReader.encodeFlowDistributionData(
-                    GDAv1StorageReader.FlowDistributionData({
-                    lastUpdated: uint32(block.timestamp),
-                    flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
-                    buffer: uint256(Value.unwrap(newBufferAmount)) // upcast to uint256 is safe
-                 })
-            );
+        token.setFlowInfoByFlowHash(flowHash,
+                                    GDAv1StorageLib.FlowInfo({
+                                        lastUpdated: uint32(block.timestamp),
+                                        flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
+                                        buffer: uint256(Value.unwrap(newBufferAmount)) // upcast to uint256 is safe
+                                        })
+                                   );
 
-            ISuperfluidToken(token).updateAgreementData(flowHash, data);
-        }
-
-        GDAv1StorageReader.AccountData memory accountData = token.getAccountData(this, from);
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, from);
         // new buffer
         accountData.totalBuffer = (accountData.totalBuffer.toInt256() + Value.unwrap(bufferDelta)).toUint256();
         token.setTotalBuffer(from, accountData.totalBuffer);
@@ -729,7 +724,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         // pool admin is always the adjustment recipient
         adjustmentRecipient = ISuperfluidPool(pool).admin();
-        flowHash = _getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
+        flowHash = GDAv1StorageLib.getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
         return (adjustmentRecipient, flowHash, int256(FlowRate.unwrap(_getFlowRate(eff, flowHash))).toInt96());
     }
 
@@ -739,21 +734,15 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         // @note should this also always be
         address adjustmentRecipient = ISuperfluidPool(pool).admin();
-        bytes32 adjustmentFlowHash = _getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
+        bytes32 adjustmentFlowHash = GDAv1StorageLib.getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
 
         if (doShiftFlow) {
             flowRate = flowRate + _getFlowRate(eff, adjustmentFlowHash);
         }
-        eff = _doFlow(eff, pool, adjustmentRecipient, adjustmentFlowHash, flowRate, t);
-        return eff;
+        return _doFlow(eff, pool, adjustmentRecipient, adjustmentFlowHash, flowRate, t);
     }
 
     // Hash Getters
-
-    function _getPoolAdjustmentFlowHash(address from, address to) internal view returns (bytes32) {
-        // this will never be in conflict with other flow has types
-        return keccak256(abi.encode(block.chainid, "poolAdjustmentFlow", from, to));
-    }
 
     function _getPoolMemberHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
         return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
@@ -770,8 +759,8 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         returns (BasicParticle memory uIndex)
     {
         ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
-        GDAv1StorageReader.AccountData memory accountData = token.getAccountData(this, owner);
-        uIndex = GDAv1StorageReader.getUniversalIndexFromAccountData(accountData);
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, owner);
+        uIndex = GDAv1StorageLib.getUniversalIndexFromAccountData(accountData);
     }
 
     /// @inheritdoc TokenMonad
@@ -815,8 +804,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         returns (FlowRate)
     {
         ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
-        GDAv1StorageReader.FlowDistributionData memory data =
-            token.getFlowDistributionDataWithKnownHash(this, distributionFlowHash);
+        GDAv1StorageLib.FlowInfo memory data = token.getFlowInfoByFlowHash(this, distributionFlowHash);
         return FlowRate.wrap(data.flowRate);
     }
 
@@ -834,19 +822,15 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         returns (bytes memory)
     {
         ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
-        GDAv1StorageReader.FlowDistributionData memory flowDistributionData =
-            token.getFlowDistributionDataWithKnownHash(this, flowHash);
+        GDAv1StorageLib.FlowInfo memory flowDistributionData = token.getFlowInfoByFlowHash(this, flowHash);
 
-        ISuperfluidToken(token).updateAgreementData(
-            flowHash,
-            GDAv1StorageReader.encodeFlowDistributionData(
-                GDAv1StorageReader.FlowDistributionData({
-                    lastUpdated: uint32(block.timestamp),
-                    flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
-                    buffer: flowDistributionData.buffer
-                })
-            )
-        );
+        token.setFlowInfoByFlowHash(flowHash,
+                                    GDAv1StorageLib.FlowInfo({
+                                        lastUpdated: uint32(block.timestamp),
+                                        flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
+                                        buffer: flowDistributionData.buffer
+                                        })
+                                   );
 
         return eff;
     }

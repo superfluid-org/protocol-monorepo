@@ -16,7 +16,7 @@ import {
     PoolConfig,
     ISuperfluid, ISuperfluidPool, ISuperToken
 } from "../../../../contracts/agreements/gdav1/GeneralDistributionAgreementV1.sol";
-import { GDAv1StorageReader } from "../../../../contracts/agreements/gdav1/GDAv1StorageLayout.sol";
+import { GDAv1StorageLib, GDAv1StorageReader } from "../../../../contracts/agreements/gdav1/GDAv1StorageLayout.sol";
 import { ISuperfluidPool, SuperfluidPool } from "../../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { SuperTokenV1Library } from "../../../../contracts/apps/SuperTokenV1Library.sol";
 
@@ -92,7 +92,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
             _settled_value: Value.wrap(settledValue)
         });
         _setUIndex(eff, owner, p);
-        GDAv1StorageReader.AccountData memory accountData = superToken.getAccountData(this, owner);
+        GDAv1StorageLib.AccountData memory accountData = superToken.getAccountData(this, owner);
 
         assertEq(settledAt, accountData.settledAt, "settledAt not equal");
         assertEq(flowRate, accountData.flowRate, "flowRate not equal");
@@ -102,7 +102,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     }
 
     // Flow Distribution Data Setters/Getters
-    function testSetGetFlowDistributionData(
+    function testSetGetFlowInfo(
         address from,
         ISuperfluidPool to,
         uint32 newFlowRate,
@@ -110,7 +110,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     ) public {
         uint256 lastUpdated = block.timestamp;
 
-        bytes32 flowHash = GDAv1StorageReader.getFlowDistributionHash(from, to);
+        bytes32 flowHash = GDAv1StorageLib.getFlowDistributionHash(from, to);
 
         _setFlowInfo(
             abi.encode(superToken),
@@ -122,14 +122,13 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         );
 
         vm.warp(1000);
-        GDAv1StorageReader.FlowDistributionData memory setFlowDistributionData =
-            superToken.getFlowDistributionDataWithKnownHash(this, flowHash);
+        GDAv1StorageLib.FlowInfo memory setFlowInfo = superToken.getFlowInfoByFlowHash(this, flowHash);
 
-        assertEq(int96(uint96(newFlowRate)), setFlowDistributionData.flowRate, "flowRate not equal");
+        assertEq(int96(uint96(newFlowRate)), setFlowInfo.flowRate, "flowRate not equal");
 
-        assertEq(lastUpdated, setFlowDistributionData.lastUpdated, "lastUpdated not equal");
+        assertEq(lastUpdated, setFlowInfo.lastUpdated, "lastUpdated not equal");
 
-        assertEq(0, setFlowDistributionData.buffer, "buffer not equal");
+        assertEq(0, setFlowInfo.buffer, "buffer not equal");
         assertEq(
             int96(FlowRate.unwrap(_getFlowRate(abi.encode(superToken), flowHash))),
             int96(uint96(newFlowRate)),
@@ -208,8 +207,8 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         );
     }
 
-    // // Adjust Buffer => FlowDistributionData modified
-    // function testAdjustBufferUpdatesFlowDistributionData(address from, int32 oldFlowRate, int32 newFlowRate) public {
+    // // Adjust Buffer => FlowInfo modified
+    // function testAdjustBufferUpdatesFlowInfo(address from, int32 oldFlowRate, int32 newFlowRate) public {
     //     vm.assume(newFlowRate >= 0);
 
     //     bytes32 flowHash = _getFlowDistributionHash(from, currentPool);
@@ -224,8 +223,8 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     //         FlowRate.wrap(int128(newFlowRate))
     //     );
 
-    //     (bool exist, IGeneralDistributionAgreementV1.FlowDistributionData memory flowDistributionData) =
-    //         _getFlowDistributionData(superToken, flowHash);
+    //     (bool exist, IGeneralDistributionAgreementV1.FlowInfo memory flowDistributionData) =
+    //         _getFlowInfo(superToken, flowHash);
     //     assertEq(exist, true, "flow distribution data does not exist");
     //     assertEq(flowDistributionData.buffer, expectedBuffer, "buffer not equal");
     //     assertEq(flowDistributionData.flowRate, int96(newFlowRate), "buffer not equal");
@@ -277,8 +276,8 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         bool isPool
     ) pure public
     {
-        GDAv1StorageReader.AccountData memory accountData =
-            GDAv1StorageReader.AccountData({
+        GDAv1StorageLib.AccountData memory accountData =
+            GDAv1StorageLib.AccountData({
                 flowRate: 0,
                 settledAt: 0,
                 settledValue: 0,
@@ -292,8 +291,8 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
                 _settled_value: Value.wrap(settledValue)
             });
 
-        bytes32[] memory encoded = GDAv1StorageReader.encodeUpdatedUniversalIndex(accountData, uIndex);
-        GDAv1StorageReader.AccountData memory decoded = GDAv1StorageReader.decodeAccountData(encoded);
+        bytes32[] memory encoded = GDAv1StorageLib.encodeUpdatedUniversalIndex(accountData, uIndex);
+        GDAv1StorageLib.AccountData memory decoded = GDAv1StorageLib.decodeAccountData(encoded);
 
         assertEq(flowRate, decoded.flowRate, "flowRate not equal");
         assertEq(settledAt, decoded.settledAt, "settledAt not equal");
@@ -309,16 +308,16 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         bool isPool
     ) public pure
     {
-        GDAv1StorageReader.AccountData memory accountData =
-            GDAv1StorageReader.AccountData({
+        GDAv1StorageLib.AccountData memory accountData =
+            GDAv1StorageLib.AccountData({
                 flowRate: flowRate,
                 settledAt: settledAt,
                 settledValue: 0,
                 totalBuffer: 0,
                 isPool: isPool
             });
-        bytes32[] memory encoded = GDAv1StorageReader.encodeUpdatedTotalBuffer(accountData, totalBuffer);
-        GDAv1StorageReader.AccountData memory decoded = GDAv1StorageReader.decodeAccountData(encoded);
+        bytes32[] memory encoded = GDAv1StorageLib.encodeUpdatedTotalBuffer(accountData, totalBuffer);
+        GDAv1StorageLib.AccountData memory decoded = GDAv1StorageLib.decodeAccountData(encoded);
 
         assertEq(flowRate, decoded.flowRate, "flowRate not equal");
         assertEq(settledAt, decoded.settledAt, "settledAt not equal");
@@ -326,28 +325,27 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         assertEq(isPool, decoded.isPool, "isPool not equal");
     }
 
-    function testDecodeAccountData(GDAv1StorageReader.AccountData memory data)
+    function testDecodeAccountData(GDAv1StorageLib.AccountData memory data)
         pure
         public
     {
-        BasicParticle memory particle = GDAv1StorageReader.getUniversalIndexFromAccountData(data);
+        BasicParticle memory particle = GDAv1StorageLib.getUniversalIndexFromAccountData(data);
         assertEq(data.flowRate, int96(FlowRate.unwrap(particle._flow_rate)), "flowRate not equal");
         assertEq(data.settledAt, Time.unwrap(particle._settled_at), "settledAt not equal");
         assertEq(data.settledValue, Value.unwrap(particle._settled_value), "settledValue not equal");
     }
 
-    function testEncodeDecodeFlowDistributionData(int96 flowRate, uint96 buffer) public view {
+    function testEncodeDecodeFlowInfo(int96 flowRate, uint96 buffer) public view {
         vm.assume(flowRate >= 0);
         vm.assume(buffer >= 0);
-        GDAv1StorageReader.FlowDistributionData memory original =
-            GDAv1StorageReader.FlowDistributionData({
+        GDAv1StorageLib.FlowInfo memory original =
+            GDAv1StorageLib.FlowInfo({
                 flowRate: flowRate,
                 lastUpdated: uint32(block.timestamp),
                 buffer: buffer
             });
-        bytes32[] memory encoded = GDAv1StorageReader.encodeFlowDistributionData(original);
-        GDAv1StorageReader.FlowDistributionData memory decoded =
-            GDAv1StorageReader.decodeFlowDistributionData(uint256(encoded[0]));
+        bytes32[] memory encoded = GDAv1StorageLib.encodeFlowInfo(original);
+        GDAv1StorageLib.FlowInfo memory decoded = GDAv1StorageLib.decodeFlowInfo(uint256(encoded[0]));
 
         assertEq(original.flowRate, decoded.flowRate, "flowRate not equal");
         assertEq(original.buffer, decoded.buffer, "buffer not equal");
