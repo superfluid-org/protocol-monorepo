@@ -44,11 +44,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     using GDAv1StorageReader for ISuperfluidToken;
     using GDAv1StorageWriter for ISuperfluidToken;
 
-    struct PoolMemberData {
-        address pool;
-        uint32 poolID; // the slot id in the pool's subs bitmap
-    }
-
     address public constant SLOTS_BITMAP_LIBRARY_ADDRESS = address(SlotsBitmapLibrary);
 
     address public constant SUPERFLUID_POOL_DEPLOYER_ADDRESS = address(SuperfluidPoolDeployerLibrary);
@@ -83,22 +78,27 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                                .rtb(Time.wrap(uint32(time))));
         }
 
-        int256 fromPools;
+        int256 totalClaimableFromPools;
         {
             (uint32[] memory slotIds, bytes32[] memory pidList) = _listPoolConnectionIds(token, account);
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
-                (bool exist, PoolMemberData memory poolMemberData) =
-                    _getPoolMemberData(token, account, ISuperfluidPool(pool));
-                assert(exist);
-                assert(poolMemberData.pool == pool);
-                fromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
+                _assertPoolMembership(token, account, ISuperfluidPool(pool));
+                totalClaimableFromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
             }
         }
-        rtb += fromPools;
+        rtb += totalClaimableFromPools;
 
         buf = uint256(accountData.totalBuffer.toInt256()); // upcasting to uint256 is safe
         owedBuffer = 0;
+    }
+
+    function _assertPoolMembership(ISuperfluidToken token, address account, ISuperfluidPool pool) internal view
+    {
+        (bool exist, GDAv1StorageLib.PoolMemberData memory poolMemberData) =
+            token.getPoolMemberData(this, account, ISuperfluidPool(pool));
+        assert(exist);
+        assert(poolMemberData.pool == address(pool));
     }
 
     /// @dev ISuperAgreement.realtimeBalanceOf implementation
@@ -327,16 +327,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                 uint32 poolSlotID =
                     _findAndFillPoolConnectionsBitmap(token, msgSender, bytes32(uint256(uint160(address(pool)))));
 
-                // malicious token can reenter here
-                // external call to untrusted contract
-                // what sort of boundary can we trust
-                token.createAgreement(
-                    _getPoolMemberHash(msgSender, pool),
-                    _encodePoolMemberData(PoolMemberData({ poolID: poolSlotID, pool: address(pool) }))
-                );
+                token.createPoolMembership
+                    (msgSender, pool,
+                     GDAv1StorageLib.PoolMemberData({ poolID: poolSlotID, pool: address(pool) }));
             } else {
-                (, PoolMemberData memory poolMemberData) = _getPoolMemberData(token, msgSender, pool);
-                token.terminateAgreement(_getPoolMemberHash(msgSender, pool), 1);
+                (, GDAv1StorageLib.PoolMemberData memory poolMemberData) =
+                    token.getPoolMemberData(this, msgSender, pool);
+                token.deletePoolMembership(msgSender, pool);
 
                 _clearPoolConnectionsBitmap(token, msgSender, poolMemberData.poolID);
             }
@@ -346,7 +343,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     function _isMemberConnected(ISuperfluidToken token, address pool, address member) internal view returns (bool) {
-        (bool exist,) = _getPoolMemberData(token, member, ISuperfluidPool(pool));
+        (bool exist,) = token.getPoolMemberData(this,member, ISuperfluidPool(pool));
         return exist;
     }
 
@@ -742,12 +739,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return _doFlow(eff, pool, adjustmentRecipient, adjustmentFlowHash, flowRate, t);
     }
 
-    // Hash Getters
-
-    function _getPoolMemberHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
-        return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
-    }
-
     //
     // TokenMonad virtual functions
     //
@@ -852,44 +843,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         returns (bytes memory)
     {
         return _setPoolAdjustmentFlowRate(eff, pool, false, /* doShift? */ flowRate, t);
-    }
-
-    // PoolMemberData data packing:
-    // -------- ---------- -------- -------------
-    // WORD A: | reserved | poolID | poolAddress |
-    // -------- ---------- -------- -------------
-    //         |    64    |   32   |     160     |
-    // -------- ---------- -------- -------------
-
-    function _encodePoolMemberData(PoolMemberData memory poolMemberData)
-        internal
-        pure
-        returns (bytes32[] memory data)
-    {
-        data = new bytes32[](1);
-        data[0] = bytes32((uint256(uint32(poolMemberData.poolID)) << 160) | uint256(uint160(poolMemberData.pool)));
-    }
-
-    function _decodePoolMemberData(uint256 data)
-        internal
-        pure
-        returns (bool exist, PoolMemberData memory poolMemberData)
-    {
-        exist = data > 0;
-        if (exist) {
-            poolMemberData.pool = address(uint160(data & uint256(type(uint160).max)));
-            poolMemberData.poolID = uint32(data >> 160);
-        }
-    }
-
-    function _getPoolMemberData(ISuperfluidToken token, address poolMember, ISuperfluidPool pool)
-        internal
-        view
-        returns (bool exist, PoolMemberData memory poolMemberData)
-    {
-        (exist, poolMemberData) = _decodePoolMemberData(
-            uint256(token.getAgreementData(address(this), _getPoolMemberHash(poolMember, pool), 1)[0])
-        );
     }
 
     // SlotsBitmap Pool Data:

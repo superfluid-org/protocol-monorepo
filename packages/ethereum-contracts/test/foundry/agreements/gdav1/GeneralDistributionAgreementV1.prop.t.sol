@@ -16,7 +16,9 @@ import {
     PoolConfig,
     ISuperfluid, ISuperfluidPool, ISuperToken
 } from "../../../../contracts/agreements/gdav1/GeneralDistributionAgreementV1.sol";
-import { GDAv1StorageLib, GDAv1StorageReader } from "../../../../contracts/agreements/gdav1/GDAv1StorageLayout.sol";
+import {
+    GDAv1StorageLib, GDAv1StorageReader, GDAv1StorageWriter
+} from "../../../../contracts/agreements/gdav1/GDAv1StorageLayout.sol";
 import { ISuperfluidPool, SuperfluidPool } from "../../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { SuperTokenV1Library } from "../../../../contracts/apps/SuperTokenV1Library.sol";
 
@@ -29,6 +31,7 @@ import { SuperTokenV1Library } from "../../../../contracts/apps/SuperTokenV1Libr
 contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreementV1, Test {
     using SuperTokenV1Library for ISuperToken;
     using GDAv1StorageReader for ISuperToken;
+    using GDAv1StorageWriter for ISuperToken;
 
     SuperfluidFrameworkDeployer internal immutable sfDeployer;
     SuperfluidFrameworkDeployer.Framework internal sf;
@@ -146,16 +149,20 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         vm.assume(poolID > 0);
         vm.assume(address(_pool) != address(0));
         vm.assume(address(poolMember) != address(0));
-        bytes32 poolMemberId = _getPoolMemberHash(poolMember, _pool);
 
         vm.startPrank(address(this));
-        superToken.updateAgreementData(
-            poolMemberId,
-            _encodePoolMemberData(PoolMemberData({ poolID: poolID, pool: address(_pool) }))
-        );
+        superToken.createPoolMembership
+            (poolMember,
+             _pool,
+             GDAv1StorageLib.PoolMemberData ({
+                 poolID: poolID,
+                 pool: address(_pool)
+                 })
+            );
         vm.stopPrank();
 
-        (bool exist, PoolMemberData memory setPoolMemberData) = _getPoolMemberData(superToken, poolMember, _pool);
+        (bool exist, GDAv1StorageLib.PoolMemberData memory setPoolMemberData) =
+            superToken.getPoolMemberData(this, poolMember, _pool);
 
         assertEq(true, exist, "pool member data does not exist");
         assertEq(poolID, setPoolMemberData.poolID, "poolID not equal");
@@ -354,9 +361,11 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
 
     function testEncodeDecodePoolMemberData(address pool, uint32 poolID) public pure {
         vm.assume(pool != address(0));
-        PoolMemberData memory original = PoolMemberData({ pool: pool, poolID: poolID });
-        bytes32[] memory encoded = _encodePoolMemberData(original);
-        (, PoolMemberData memory decoded) = _decodePoolMemberData(uint256(encoded[0]));
+        GDAv1StorageLib.PoolMemberData memory original =
+            GDAv1StorageLib.PoolMemberData({ pool: pool, poolID: poolID });
+        bytes32[] memory encoded = GDAv1StorageLib.encodePoolMemberData(original);
+        (, GDAv1StorageLib.PoolMemberData memory decoded) =
+            GDAv1StorageLib.decodePoolMemberData(uint256(encoded[0]));
 
         assertEq(original.pool, decoded.pool, "pool not equal");
         assertEq(original.poolID, decoded.poolID, "poolID not equal");
