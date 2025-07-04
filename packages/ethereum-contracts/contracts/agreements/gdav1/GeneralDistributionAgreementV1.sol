@@ -308,15 +308,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
-        return _isMemberConnected(pool.superToken(), pool, member);
-    }
-
-    function _isMemberConnected(ISuperfluidToken token, ISuperfluidPool pool, address member)
-        internal view
-        returns (bool)
-    {
-        (bool exist,) = token.getPoolMemberData(this,member, pool);
-        return exist;
+        return pool.superToken().isPoolMemberConnected(this, pool, member);
     }
 
     // @note setPoolConnection function naming
@@ -328,7 +320,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address msgSender = currentContext.msgSender;
         newCtx = ctx;
-        bool isConnected = _isMemberConnected(token, pool, msgSender);
+        bool isConnected = token.isPoolMemberConnected(this, pool, msgSender);
         if (doConnect != isConnected) {
             assert(
                 SuperfluidPool(address(pool)).operatorConnectMember(

@@ -309,6 +309,19 @@ library GDAv1StorageReader {
         uint256 data = uint256(token.getAgreementData(address(gda), dataId, 1)[0]);
         return GDAv1StorageLib.decodePoolMemberData(data);
     }
+
+    function isPoolMemberConnected
+        (ISuperfluidToken token,
+         IGeneralDistributionAgreementV1 gda,
+         ISuperfluidPool pool,
+         address member
+        )
+        internal view
+        returns (bool)
+    {
+        (bool exist,) = getPoolMemberData(token, gda, member, pool);
+        return exist;
+    }
 }
 
 
