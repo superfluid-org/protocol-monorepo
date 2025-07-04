@@ -18,10 +18,16 @@ import           Money.Theory.TestMonetaryTypes
 
 bp_settle_idempotency (a :: TestBasicParticle) = any_mu_settle_idempotency a
 bp_constant_rtb (a :: TestBasicParticle) = any_mu_constant_rtb a
+bp_constant_flow (a :: TestBasicParticle) = any_mu_constant_flow a
 pdpidx_settle_idempotency (a :: TestPDP_Index) = any_mu_settle_idempotency a
 pdpidx_constant_rtb (a :: TestPDP_Index) = any_mu_constant_rtb a
-pdmb_settle_idempotency (a :: TestPDP_MemberMU) = any_mu_settle_idempotency a
-pdmb_constant_rtb (a :: TestPDP_Index) t1 u1 t2 u2 = any_mu_constant_rtb b''
+pdpidx_constant_flow (a :: TestPDP_Index) = any_mu_constant_flow a
+pdpmb_settle_idempotency (a :: TestPDP_MemberMU) = any_mu_settle_idempotency a
+pdpmb_2m_constant_rtb (a :: TestPDP_Index) t1 u1 t2 u2 = any_mu_constant_rtb b''
+    -- adding two members to an existing index
+    where (a', b') = pdp_UpdateMember2 u1 t1 (a, (a, def))
+          (_, b'') = pdp_UpdateMember2 u2 t2 (a', b')
+pdpmb_2m_constant_flow (a :: TestPDP_Index) t1 u1 t2 u2 = any_mu_constant_flow b''
     -- adding two members to an existing index
     where (a', b') = pdp_UpdateMember2 u1 t1 (a, (a, def))
           (_, b'') = pdp_UpdateMember2 u2 t2 (a', b')
@@ -29,10 +35,13 @@ pdmb_constant_rtb (a :: TestPDP_Index) t1 u1 t2 u2 = any_mu_constant_rtb b''
 mu_laws = describe "monetary unit laws" $ do
     it "bp settle idempotency" $ property bp_settle_idempotency
     it "bp constant rtb" $ property bp_constant_rtb
+    it "bp constant flow" $ property bp_constant_flow
     it "pdpidx settle idempotency" $ property pdpidx_settle_idempotency
     it "pdpidx constant rtb" $ property pdpidx_constant_rtb
-    it "pdmb settle idempotency" $ property pdmb_settle_idempotency
-    it "pdmb contant rtb" $ property pdmb_constant_rtb
+    it "pdpidx constant flow" $ property pdpidx_constant_flow
+    it "pdmb settle idempotency" $ property pdpmb_settle_idempotency
+    it "pdmb 2-members contant rtb" $ property pdpmb_2m_constant_rtb
+    it "pdmb 2-members contant flow" $ property pdpmb_2m_constant_flow
 
 --------------------------------------------------------------------------------
 -- Monoidal Laws
@@ -40,14 +49,14 @@ mu_laws = describe "monetary unit laws" $ do
 
 bp_monoid_identity (a :: TestBasicParticle) = a == a <> mempty && a == mempty <> a
 bp_monoid_assoc (a :: TestBasicParticle) b c = (a <> b) <> c == a <> (b <> c)
-pdidx_monoid_identity (a :: TestPDP_Index) = a == a <> mempty && a == mempty <> a
-pdidx_monoid_assoc (a :: TestPDP_Index) b c = (a <> b) <> c == a <> (b <> c)
+pdpidx_monoid_identity (a :: TestPDP_Index) = a == a <> mempty && a == mempty <> a
+pdpidx_monoid_assoc (a :: TestPDP_Index) b c = (a <> b) <> c == a <> (b <> c)
 
 mp_monoid_laws = describe "monetary particles monoidal laws" $ do
     it "bp monoid identity law" $ property bp_monoid_identity
     it "bp monoid associativity law" $ property bp_monoid_assoc
-    it "pdidx monoid identity law" $ property pdidx_monoid_identity
-    it "pdidx monoid associativity law" $ property pdidx_monoid_assoc
+    it "pdpidx monoid identity law" $ property pdpidx_monoid_identity
+    it "pdpidx monoid associativity law" $ property pdpidx_monoid_assoc
 
 --------------------------------------------------------------------------------
 -- Monetary particle laws

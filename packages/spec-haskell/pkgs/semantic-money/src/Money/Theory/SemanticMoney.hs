@@ -2,7 +2,7 @@
 module Money.Theory.SemanticMoney
     ( -- * Semantic Money Classes & Primitives
       MonetaryUnit (settle, settledAt, flowRate, rtb)
-    , any_mu_settle_idempotency, any_mu_constant_rtb
+    , any_mu_settle_idempotency, any_mu_constant_rtb, any_mu_constant_flow
     , MonetaryParticle (shift1, flow1)
     , any_mp_shift1_reversible, any_mp_flow1_reversible
     , shift2a, shift2b, flow2a, flow2b, align2a, align2b
@@ -51,6 +51,11 @@ any_mu_constant_rtb a t1 t2 t3 =
     rtb (settle t1 a) t3 == rtb a t3 &&
     rtb (settle t2 a) t3 == rtb a t3 &&
     rtb (settle t2 (settle t1 a)) t3 == rtb a t3
+
+any_mu_constant_flow :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> Bool
+any_mu_constant_flow a dt =
+    rtb a t + flowRate a t `mt_fr_mul_t` dt == rtb a (t + dt)
+    where t = settledAt a
 
 --
 -- Monetary particle, and its polymorphic 2-primitives.
