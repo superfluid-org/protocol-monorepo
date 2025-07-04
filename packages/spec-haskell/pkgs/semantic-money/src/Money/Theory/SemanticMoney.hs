@@ -58,7 +58,7 @@ any_mu_constant_flow a dt =
     where t = settledAt a
 
 --
--- Monetary particle, and its polymorphic 2-primitives.
+-- Monetary particle and its laws.
 --
 
 -- | A monetary particle and its operators (1-primitives).
@@ -84,6 +84,10 @@ any_mp_flow1_reversible a fr =
     where t = settledAt a
           (a', fr') = flow1 fr a
           (a'', fr'') = flow1 (flowRate a t) a'
+
+--
+-- Polymorphic 2-primitives of monetary particles.
+--
 
 -- $SideBiasedOps
 --

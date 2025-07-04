@@ -19,9 +19,11 @@ import           Money.Theory.TestMonetaryTypes
 bp_settle_idempotency (a :: TestBasicParticle) = any_mu_settle_idempotency a
 bp_constant_rtb (a :: TestBasicParticle) = any_mu_constant_rtb a
 bp_constant_flow (a :: TestBasicParticle) = any_mu_constant_flow a
+
 pdpidx_settle_idempotency (a :: TestPDP_Index) = any_mu_settle_idempotency a
 pdpidx_constant_rtb (a :: TestPDP_Index) = any_mu_constant_rtb a
 pdpidx_constant_flow (a :: TestPDP_Index) = any_mu_constant_flow a
+
 pdpmb_settle_idempotency (a :: TestPDP_MemberMU) = any_mu_settle_idempotency a
 pdpmb_2m_constant_rtb (a :: TestPDP_Index) t1 u1 t2 u2 = any_mu_constant_rtb b''
     -- adding two members to an existing index
@@ -32,16 +34,27 @@ pdpmb_2m_constant_flow (a :: TestPDP_Index) t1 u1 t2 u2 = any_mu_constant_flow b
     where (a', b') = pdp_UpdateMember2 u1 t1 (a, (a, def))
           (_, b'') = pdp_UpdateMember2 u2 t2 (a', b')
 
+twopp_settle_idempotency (a :: TestTwoPhaseParticle) = any_mu_settle_idempotency a
+twopp_constant_rtb (a :: TestTwoPhaseParticle) = any_mu_constant_rtb a
+twopp_constant_flow (a :: TestTwoPhaseParticle) = any_mu_constant_flow a
+
+
 mu_laws = describe "monetary unit laws" $ do
     it "bp settle idempotency" $ property bp_settle_idempotency
     it "bp constant rtb" $ property bp_constant_rtb
     it "bp constant flow" $ property bp_constant_flow
+
     it "pdpidx settle idempotency" $ property pdpidx_settle_idempotency
     it "pdpidx constant rtb" $ property pdpidx_constant_rtb
     it "pdpidx constant flow" $ property pdpidx_constant_flow
+
     it "pdmb settle idempotency" $ property pdpmb_settle_idempotency
     it "pdmb 2-members contant rtb" $ property pdpmb_2m_constant_rtb
     it "pdmb 2-members contant flow" $ property pdpmb_2m_constant_flow
+
+    it "2pp settle idempotency" $ property twopp_settle_idempotency
+    it "2pp constant rtb" $ property twopp_constant_rtb
+    it "2pp constant flow" $ property twopp_constant_flow
 
 --------------------------------------------------------------------------------
 -- Monoidal Laws

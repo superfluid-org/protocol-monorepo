@@ -6,21 +6,20 @@ import           Money.Theory.SemanticMoney
 import           Money.Theory.TokenModel
 
 
-data TwoPhaseParticle mt = MkTwoPhaseParticle
+data TwoPhaseParticle mt = TwoPhaseParticle
     { confirmedParticle :: BasicParticle mt
     , pendingParticle   :: BasicParticle mt
     }
     deriving Eq
 
 instance MonetaryTypes mt => MonetaryUnit mt (TwoPhaseParticle mt) where
-    settle t (MkTwoPhaseParticle p_c p_p) = MkTwoPhaseParticle p_c (settle t p_p)
+    settle t (TwoPhaseParticle p_c p_p) = TwoPhaseParticle p_c (settle t p_p)
     settledAt = settledAt . pendingParticle
-    flowRate mu t =
-        flowRate (confirmedParticle mu) t +
-        if t > settledAt (confirmedParticle mu) then flowRate (pendingParticle mu) t else 0
-    rtb mu t =
-        rtb (confirmedParticle mu) t +
-        if t > settledAt (confirmedParticle mu) then rtb (pendingParticle mu) t else 0
+    flowRate mu t = flowRate (confirmedParticle mu) t + flowRate (pendingParticle mu) t
+    rtb mu t = rtb (confirmedParticle mu) t + rtb (pendingParticle mu) t
+
+syncPhase :: t ~ MT_TIME mt => TwoPhaseParticle mt -> t -> TwoPhaseParticle mt
+syncPhase = undefined
 
 type Account = Int
 

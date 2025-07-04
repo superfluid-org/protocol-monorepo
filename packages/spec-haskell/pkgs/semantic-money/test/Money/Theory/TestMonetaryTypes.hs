@@ -4,6 +4,7 @@ module Money.Theory.TestMonetaryTypes where
 import           Test.QuickCheck
 --
 import           Money.Theory.SemanticMoney
+import           Money.Theory.TokenModel.TwoPhaseTokenModel
 
 
 -- TestMonetaryTypes
@@ -11,15 +12,15 @@ import           Money.Theory.SemanticMoney
 
 newtype TestTime = TestTime Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestTime where
-    arbitrary = TestTime <$> arbitrary -- choose (0, 2 ^ (32 :: Integer))
+    arbitrary = TestTime <$> choose (-(2 ^ (32 :: Integer)), 2 ^ (32 :: Integer))
 
 newtype TestMValue = TestMValue Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMValue where
-    arbitrary = TestMValue <$> arbitrary
+    arbitrary = TestMValue <$> choose (-(2 ^ (32 :: Integer)), 2 ^ (32 :: Integer))
 
 newtype TestMFlowRate = TestMFlowRate Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMFlowRate where
-    arbitrary = TestMFlowRate <$> arbitrary
+    arbitrary = TestMFlowRate <$> choose (-(2 ^ (32 :: Integer)), 2 ^ (32 :: Integer))
 
 newtype TestMUnit = TestMUnit Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMUnit where
@@ -52,3 +53,9 @@ instance Arbitrary TestPDP_Member where
     arbitrary = PDP_Member <$> arbitrary <*> arbitrary <*> arbitrary
 
 type TestPDP_MemberMU = PDP_MemberMU TestMonetaryTypes TestBasicParticle
+
+-- TestTwoPhaseParticle
+type TestTwoPhaseParticle = TwoPhaseParticle TestMonetaryTypes
+deriving instance Show TestTwoPhaseParticle
+instance Arbitrary TestTwoPhaseParticle where
+    arbitrary = TwoPhaseParticle <$> arbitrary <*> arbitrary
