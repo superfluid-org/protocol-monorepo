@@ -28,7 +28,7 @@ import { IPoolAdminNFT } from "../../interfaces/agreements/gdav1/IPoolAdminNFT.s
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
 import { SlotsBitmapLibrary } from "../../libs/SlotsBitmapLibrary.sol";
 import { SolvencyHelperLibrary } from "../../libs/SolvencyHelperLibrary.sol";
-import { AgreementBase } from "../AgreementBase.sol";
+import { AgreementBase, ISuperAgreement } from "../AgreementBase.sol";
 import { AgreementLibrary } from "../AgreementLibrary.sol";
 import { GDAv1StorageLib, GDAv1StorageReader, GDAv1StorageWriter } from "./GDAv1StorageLayout.sol";
 
@@ -62,6 +62,11 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         superfluidPoolBeacon = superfluidPoolBeacon_;
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ISuperAgreement interface
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// @inheritdoc ISuperAgreement
     function realtimeBalanceOf(ISuperfluidToken token, address account, uint256 time)
         public
         view
@@ -101,7 +106,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         assert(poolMemberData.pool == address(pool));
     }
 
-    /// @dev ISuperAgreement.realtimeBalanceOf implementation
+    /// @dev Use block.timestamp for realtimeBalanceOf
     function realtimeBalanceOfNow(ISuperfluidToken token, address account)
         external
         view
@@ -110,6 +115,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         (availableBalance, buffer, owedBuffer) = realtimeBalanceOf(token, account, block.timestamp);
         timestamp = block.timestamp;
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // IGeneralDistributionAgreementV1 interface
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function getNetFlow(ISuperfluidToken token, address account) external view override returns (int96 netFlowRate) {
@@ -296,21 +305,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         pool.claimAll(memberAddress);
     }
 
-    /// @inheritdoc IGeneralDistributionAgreementV1
-    function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, true, ctx);
-    }
-
-    /// @inheritdoc IGeneralDistributionAgreementV1
-    function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, false, ctx);
-    }
-
-    /// @inheritdoc IGeneralDistributionAgreementV1
-    function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
-        return pool.superToken().isPoolMemberConnected(this, pool, member);
-    }
-
     // @note setPoolConnection function naming
     function connectPool(ISuperfluidPool pool, bool doConnect, bytes calldata ctx)
         public
@@ -345,6 +339,21 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
             emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);
         }
+    }
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
+        return connectPool(pool, true, ctx);
+    }
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
+        return connectPool(pool, false, ctx);
+    }
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
+        return pool.superToken().isPoolMemberConnected(this, pool, member);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -540,51 +549,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         }
     }
 
-    function _makeLiquidationPayouts(_StackVars_Liquidation memory data) internal {
-        GDAv1StorageLib.FlowInfo memory flowDistributionData =
-            data.token.getFlowInfoByFlowHash(this, data.distributionFlowHash);
-        int256 signedSingleDeposit = flowDistributionData.buffer.toInt256();
-
-        bool isCurrentlyPatricianPeriod;
-
-        {
-            (uint256 liquidationPeriod, uint256 patricianPeriod) =
-                SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), data.token);
-            isCurrentlyPatricianPeriod = SolvencyHelperLibrary.isPatricianPeriod(
-                data.availableBalance, data.signedTotalGDADeposit, liquidationPeriod, patricianPeriod
-            );
-        }
-
-        int256 totalRewardLeft = data.availableBalance + data.signedTotalGDADeposit;
-
-        // critical case
-        if (totalRewardLeft >= 0) {
-            int256 rewardAmount = (signedSingleDeposit * totalRewardLeft) / data.signedTotalGDADeposit;
-            data.token.makeLiquidationPayoutsV2(
-                data.distributionFlowHash,
-                abi.encode(2, isCurrentlyPatricianPeriod ? 0 : 1),
-                data.liquidator,
-                isCurrentlyPatricianPeriod,
-                data.sender,
-                rewardAmount.toUint256(),
-                rewardAmount * -1
-            );
-        } else {
-            int256 rewardAmount = signedSingleDeposit;
-            // bailout case
-            data.token.makeLiquidationPayoutsV2(
-                data.distributionFlowHash,
-                abi.encode(2, 2),
-                data.liquidator,
-                false,
-                data.sender,
-                rewardAmount.toUint256(),
-                totalRewardLeft * -1
-            );
-        }
-    }
-
-    function _adjustBuffer(ISuperfluidToken token, address pool, address from, bytes32 flowHash, FlowRate newFlowRate)
+    function _adjustBuffer
+        (ISuperfluidToken token,
+         address pool,
+         address from,
+         bytes32 flowHash, // cached result of: GDAv1StorageLib.getFlowDistributionHash(from, pool)
+         FlowRate newFlowRate
+        )
         internal
     {
         // not using oldFlowRate in this model
@@ -629,7 +600,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         );
     }
 
-    // Solvency Related Getters
+    //
+    // Solvency
+    //
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function isPatricianPeriodNow(ISuperfluidToken token, address account)
@@ -665,7 +638,53 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         );
     }
 
+    function _makeLiquidationPayouts(_StackVars_Liquidation memory data) internal {
+        GDAv1StorageLib.FlowInfo memory flowDistributionData =
+            data.token.getFlowInfoByFlowHash(this, data.distributionFlowHash);
+        int256 signedSingleDeposit = flowDistributionData.buffer.toInt256();
+
+        bool isCurrentlyPatricianPeriod;
+
+        {
+            (uint256 liquidationPeriod, uint256 patricianPeriod) =
+                SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), data.token);
+            isCurrentlyPatricianPeriod = SolvencyHelperLibrary.isPatricianPeriod(
+                data.availableBalance, data.signedTotalGDADeposit, liquidationPeriod, patricianPeriod
+            );
+        }
+
+        int256 totalRewardLeft = data.availableBalance + data.signedTotalGDADeposit;
+
+        // critical case
+        if (totalRewardLeft >= 0) {
+            int256 rewardAmount = (signedSingleDeposit * totalRewardLeft) / data.signedTotalGDADeposit;
+            data.token.makeLiquidationPayoutsV2(
+                data.distributionFlowHash,
+                abi.encode(2, isCurrentlyPatricianPeriod ? 0 : 1),
+                data.liquidator,
+                isCurrentlyPatricianPeriod,
+                data.sender,
+                rewardAmount.toUint256(),
+                rewardAmount * -1
+            );
+        } else {
+            int256 rewardAmount = signedSingleDeposit;
+            // bailout case
+            data.token.makeLiquidationPayoutsV2(
+                data.distributionFlowHash,
+                abi.encode(2, 2),
+                data.liquidator,
+                false,
+                data.sender,
+                rewardAmount.toUint256(),
+                totalRewardLeft * -1
+            );
+        }
+    }
+
+    //
     // pool info and operators
+    //
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function getPoolAdjustmentFlowInfo(ISuperfluidPool pool)
@@ -713,10 +732,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     //
-    // Pool operations
+    // Pool-only operations
     //
 
-    function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t) external returns (bool) {
+    function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t)
+        external
+        returns (bool)
+    {
         if (token.isPool(this, msg.sender) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -738,9 +760,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return true;
     }
 
-    //
-    // TokenMonad virtual functions
-    //
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // TokenMonad interface
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /// @inheritdoc TokenMonad
     function _getUIndex(bytes memory eff, address owner)
@@ -844,7 +866,29 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return _setPoolAdjustmentFlowRate(eff, pool, false, /* doShift? */ flowRate, t);
     }
 
-    // SlotsBitmap Pool Data:
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Pool Subscription SlotsBitmap
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /*
+     *
+     * ### SlotsBitmap Data
+     *
+     * slotId           = _POOL_SUBS_BITMAP_STATE_SLOT_ID or 1
+     * msg.sender       = address of GDAv1
+     * account          = context.msgSender
+     * Slots Bitmap Data Slot stores a bitmap of the slots that are "enabled" for a pool member.
+     *
+     * ### Pool Connections Data Slot Id Start
+     *
+     * slotId (start)   = _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START or 1 << 128
+     * msg.sender       = address of GDAv1
+     * account          = context.msgSender
+     * Pool Connections Data Slot Id Start indicates the starting slot for where we begin to store the pools that a
+     * pool member is a part of.
+     */
+
     function _findAndFillPoolConnectionsBitmap(ISuperfluidToken token, address poolMember, bytes32 poolID)
         private
         returns (uint32 slotId)

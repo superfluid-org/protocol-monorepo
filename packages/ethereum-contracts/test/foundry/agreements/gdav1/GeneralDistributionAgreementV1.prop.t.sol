@@ -214,67 +214,6 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         );
     }
 
-    // // Adjust Buffer => FlowInfo modified
-    // function testAdjustBufferUpdatesFlowInfo(address from, int32 oldFlowRate, int32 newFlowRate) public {
-    //     vm.assume(newFlowRate >= 0);
-
-    //     bytes32 flowHash = _getFlowDistributionHash(from, currentPool);
-
-    //     uint256 expectedBuffer = uint256(int256(newFlowRate)) * liquidationPeriod;
-    //     _adjustBuffer(
-    //         abi.encode(superToken),
-    //         address(currentPool),
-    //         from,
-    //         flowHash,
-    //         FlowRate.wrap(int128(oldFlowRate)),
-    //         FlowRate.wrap(int128(newFlowRate))
-    //     );
-
-    //     (bool exist, IGeneralDistributionAgreementV1.FlowInfo memory flowDistributionData) =
-    //         _getFlowInfo(superToken, flowHash);
-    //     assertEq(exist, true, "flow distribution data does not exist");
-    //     assertEq(flowDistributionData.buffer, expectedBuffer, "buffer not equal");
-    //     assertEq(flowDistributionData.flowRate, int96(newFlowRate), "buffer not equal");
-    //     assertEq(
-    //         int96(FlowRate.unwrap(_getFlowRate(abi.encode(superToken), flowHash))),
-    //         int96(newFlowRate),
-    //         "_getFlowRate: flow rate not equal"
-    //     );
-    //     assertEq(
-    //         sf.gda.getFlowRate(superToken, from, ISuperfluidPool(currentPool)),
-    //         int96(newFlowRate),
-    //         "getFlowRate: flow rate not equal"
-    //     );
-    // }
-
-    // // Adjust Buffer => UniversalIndexData modified
-    // function testAdjustBufferUpdatesUniversalIndexData(address from, int32 oldFlowRate, int32 newFlowRate) public {
-    //     vm.assume(newFlowRate >= 0);
-
-    //     uint256 bufferDelta = uint256(int256(newFlowRate)) * liquidationPeriod; // expected buffer == buffer delta
-    //         // because of fresh state
-    //     bytes32 flowHash = _getFlowDistributionHash(from, currentPool);
-    //     GeneralDistributionAgreementV1.UniversalIndexData memory fromUindexDataBefore =
-    //         _getUIndexData(abi.encode(superToken), from);
-    //     _adjustBuffer(
-    //         abi.encode(superToken),
-    //         address(currentPool),
-    //         from,
-    //         flowHash,
-    //         FlowRate.wrap(int128(oldFlowRate)),
-    //         FlowRate.wrap(int128(newFlowRate))
-    //     );
-
-    //     GeneralDistributionAgreementV1.UniversalIndexData memory fromUindexDataAfter =
-    //         _getUIndexData(abi.encode(superToken), from);
-
-    //     assertEq(
-    //         fromUindexDataBefore.totalBuffer + bufferDelta,
-    //         fromUindexDataAfter.totalBuffer,
-    //         "from total buffer not equal"
-    //     );
-    // }
-
     function testEncodeUpdatedUniversalIndex(
         int96 flowRate,
         uint32 settledAt,

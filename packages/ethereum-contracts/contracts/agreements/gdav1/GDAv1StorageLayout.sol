@@ -19,32 +19,21 @@ import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPo
 
 /* @title Storage layout library for the GDAv1.
  * @author Superfluid
- * @notice
  *
- * Storage Layout Notes
+ * @notice Storage Layout Notes
+ *
  * ## Agreement State
  *
- * Universal Index Data
- * slotId           = _universalIndexStateSlotId() or 0
+ * ### Universal Index Data
+ *
+ * slotId           = 0 (ACCOUNT_DATA_STATE_SLOT_ID)
  * msg.sender       = address of GDAv1
  * account          = context.msgSender
  * Universal Index Data stores a Basic Particle for an account as well as the total buffer and
  * whether the account is a pool or not.
  *
- * SlotsBitmap Data
- * slotId           = _POOL_SUBS_BITMAP_STATE_SLOT_ID or 1
- * msg.sender       = address of GDAv1
- * account          = context.msgSender
- * Slots Bitmap Data Slot stores a bitmap of the slots that are "enabled" for a pool member.
- *
- * Pool Connections Data Slot Id Start
- * slotId (start)   = _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START or 1 << 128 or 340282366920938463463374607431768211456
- * msg.sender       = address of GDAv1
- * account          = context.msgSender
- * Pool Connections Data Slot Id Start indicates the starting slot for where we begin to store the pools that a
- * pool member is a part of.
- *
  * ## Agreement Data
+ *
  * NOTE The Agreement Data slot is calculated with the following function:
  * keccak256(abi.encode("AgreementData", agreementClass, agreementId))
  * agreementClass       = address of GDAv1
@@ -60,7 +49,7 @@ import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPo
  */
 library GDAv1StorageLib {
 
-    // # AccountData
+    // # Account Data
     //
     // ## Data Packing
     //
@@ -79,8 +68,10 @@ library GDAv1StorageLib {
     //         |                                    256b                                   |
     // --------+------------------+------------------+------------------+------------------+
 
+    /// @dev Agreement state slot id for account data.
     uint256 internal constant ACCOUNT_DATA_STATE_SLOT_ID = 0;
 
+    /// @dev Account data struct.
     struct AccountData {
         int96 flowRate;
         uint32 settledAt;
@@ -121,6 +112,7 @@ library GDAv1StorageLib {
         );
     }
 
+    /// @dev Decode account data.
     function decodeAccountData(bytes32[] memory data)
         internal
         pure
@@ -142,6 +134,7 @@ library GDAv1StorageLib {
         }
     }
 
+    /// @dev Extract universal index from the decoded account data.
     function getUniversalIndexFromAccountData(AccountData memory accountData)
         internal
         pure
@@ -152,7 +145,7 @@ library GDAv1StorageLib {
         uIndex._settled_value = Value.wrap(accountData.settledValue);
     }
 
-    // # FlowInfo
+    // # Flow Info
     //
     // ## Data Packing
     //
@@ -162,32 +155,37 @@ library GDAv1StorageLib {
     //         |    32    |      32     |    96    |   96   |
     // --------+----------+-------------+----------+--------+
 
+    /// @dev Flow info struct, for both distribution flow and adjustment flow.
     struct FlowInfo {
         uint32 lastUpdated;
         int96 flowRate;
         uint256 buffer; // stored as uint96
     }
 
+    /// @dev Calculate flow hash for distribution flow.
     function getFlowDistributionHash(address from, ISuperfluidPool to) internal view returns (bytes32) {
         return keccak256(abi.encode(block.chainid, "distributionFlow", from, to));
     }
 
+    /// @dev Calculate flow hash for adjustment flow.
     function getPoolAdjustmentFlowHash(address from, address to) internal view returns (bytes32) {
         return keccak256(abi.encode(block.chainid, "poolAdjustmentFlow", from, to));
     }
 
-    function encodeFlowInfo(FlowInfo memory flowDistributionData)
+    /// @dev Encode flow info.
+    function encodeFlowInfo(FlowInfo memory flowInfo)
         internal pure
         returns (bytes32[] memory data)
     {
         data = new bytes32[](1);
         data[0] = bytes32(
-            (uint256(uint32(flowDistributionData.lastUpdated)) << 192) |
-            (uint256(uint96(flowDistributionData.flowRate)) << 96) |
-            uint256(flowDistributionData.buffer)
+            (uint256(uint32(flowInfo.lastUpdated)) << 192) |
+            (uint256(uint96(flowInfo.flowRate)) << 96) |
+            uint256(flowInfo.buffer)
         );
     }
 
+    /// @dev Decode flow info.
     function decodeFlowInfo(uint256 data)
         internal pure
         returns (FlowInfo memory flowDistributionData)
@@ -199,7 +197,7 @@ library GDAv1StorageLib {
         }
     }
 
-    // # PoolMemberData
+    // # Pool Member Data
     //
     // ## Data Packing
     //
@@ -209,15 +207,18 @@ library GDAv1StorageLib {
     //         |    64    |   32   |     160     |
     // --------+----------+--------+-------------+
 
+    /// @dev Pool member data struct.
     struct PoolMemberData {
         address pool;
         uint32 poolID; // the slot id in the pool's subs bitmap
     }
 
+    /// @dev Calculate pool member data hash for agreement data.
     function getPoolMemberHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
         return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
     }
 
+    /// @dev Encode pool member data.
     function encodePoolMemberData(PoolMemberData memory poolMemberData)
         internal
         pure
@@ -229,6 +230,7 @@ library GDAv1StorageLib {
            uint256(uint160(poolMemberData.pool)));
     }
 
+    /// @dev Decode pool member data.
     function decodePoolMemberData(uint256 data)
         internal
         pure
@@ -246,8 +248,9 @@ library GDAv1StorageLib {
  * @author Superfluid
  */
 library GDAv1StorageReader {
-    // AccountData
+    // Account Data
 
+    /// @dev Get account data.
     function getAccountData(ISuperfluidToken token, IGeneralDistributionAgreementV1 gda, address owner)
         internal
         view
@@ -268,8 +271,9 @@ library GDAv1StorageReader {
         return a & 1 == 1;
     }
 
-    // FlowInfo
+    // Flow Info
 
+    /// @dev Get flow info by its flow hash.
     function getFlowInfoByFlowHash
         (ISuperfluidToken token,
          IGeneralDistributionAgreementV1 gda,
@@ -282,6 +286,7 @@ library GDAv1StorageReader {
         return GDAv1StorageLib.decodeFlowInfo(data);
     }
 
+    /// @dev Get flow info of a distribution flow.
     function getDistributionFlowInfo
         (ISuperfluidToken token,
          IGeneralDistributionAgreementV1 gda,
@@ -294,8 +299,9 @@ library GDAv1StorageReader {
         return getFlowInfoByFlowHash(token, gda, GDAv1StorageLib.getFlowDistributionHash(from, to));
     }
 
-    // PoolMemberData
+    // Pool Member Data
 
+    /// @dev Get pool member data.
     function getPoolMemberData
         (ISuperfluidToken token,
          IGeneralDistributionAgreementV1 gda,
@@ -310,6 +316,7 @@ library GDAv1StorageReader {
         return GDAv1StorageLib.decodePoolMemberData(data);
     }
 
+    /// @dev Check whether a pool member is connected.
     function isPoolMemberConnected
         (ISuperfluidToken token,
          IGeneralDistributionAgreementV1 gda,
@@ -332,6 +339,7 @@ library GDAv1StorageReader {
 library GDAv1StorageWriter {
     // AccountData
 
+    /// @dev Set unviversal index of an account.
     function setUniversalIndex
         (ISuperfluidToken token,
          address owner,
@@ -349,6 +357,7 @@ library GDAv1StorageWriter {
         );
     }
 
+    /// @dev Set is pool flag for a pool.
     function setIsPoolFlag(ISuperfluidToken token, ISuperfluidPool pool)
         internal
     {
@@ -357,6 +366,7 @@ library GDAv1StorageWriter {
         token.updateAgreementStateSlot(address(pool), GDAv1StorageLib.ACCOUNT_DATA_STATE_SLOT_ID, data);
     }
 
+    /// @dev Set total buffer field of an account.
     function setTotalBuffer
         (ISuperfluidToken token,
          address owner,
@@ -374,8 +384,9 @@ library GDAv1StorageWriter {
         );
     }
 
-    // FlowInfo
+    // Flow Info
 
+    /// @dev Set flow info.
     function setFlowInfoByFlowHash
         (ISuperfluidToken token,
          bytes32 flowHash,
@@ -386,8 +397,9 @@ library GDAv1StorageWriter {
         token.updateAgreementData(flowHash, GDAv1StorageLib.encodeFlowInfo(flowInfo));
     }
 
-    // PoolMemberData
+    // Pool Member Data
 
+    /// @dev Create a pool membership.
     function createPoolMembership
         (ISuperfluidToken token,
          address poolMember,
@@ -401,6 +413,7 @@ library GDAv1StorageWriter {
              GDAv1StorageLib.encodePoolMemberData(poolMemberData));
     }
 
+    /// @dev Delete a pool membership.
     function deletePoolMembership
         (ISuperfluidToken token,
          address poolMember,
