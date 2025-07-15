@@ -202,15 +202,15 @@ library GDAv1StorageLib {
     // ## Data Packing
     //
     // --------+----------+--------+-------------+
-    // WORD A: | reserved | poolID | poolAddress |
+    // WORD A: | reserved | poolId | poolAddress |
     // --------+----------+--------+-------------+
     //         |    64    |   32   |     160     |
     // --------+----------+--------+-------------+
 
     /// @dev Pool member data struct.
     struct PoolMemberData {
+        uint32 poolId; // the slot id in the pool's subs bitmap
         address pool;
-        uint32 poolID; // the slot id in the pool's subs bitmap
     }
 
     /// @dev Calculate pool member data hash for agreement data.
@@ -226,7 +226,7 @@ library GDAv1StorageLib {
     {
         data = new bytes32[](1);
         data[0] = bytes32(
-           (uint256(uint32(poolMemberData.poolID)) << 160) |
+           (uint256(uint32(poolMemberData.poolId)) << 160) |
            uint256(uint160(poolMemberData.pool)));
     }
 
@@ -238,8 +238,8 @@ library GDAv1StorageLib {
     {
         exist = data > 0;
         if (exist) {
+            poolMemberData.poolId = uint32(data >> 160);
             poolMemberData.pool = address(uint160(data & uint256(type(uint160).max)));
-            poolMemberData.poolID = uint32(data >> 160);
         }
     }
 }

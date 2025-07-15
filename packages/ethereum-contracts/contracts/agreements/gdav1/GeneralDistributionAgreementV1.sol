@@ -323,18 +323,18 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             );
 
             if (doConnect) {
-                uint32 poolSlotID =
+                uint32 poolSlotId =
                     _findAndFillPoolConnectionsBitmap(token, msgSender, bytes32(uint256(uint160(address(pool)))));
 
                 token.createPoolMembership
                     (msgSender, pool,
-                     GDAv1StorageLib.PoolMemberData({ poolID: poolSlotID, pool: address(pool) }));
+                     GDAv1StorageLib.PoolMemberData({ poolId: poolSlotId, pool: address(pool) }));
             } else {
                 (, GDAv1StorageLib.PoolMemberData memory poolMemberData) =
                     token.getPoolMemberData(this, msgSender, pool);
                 token.deletePoolMembership(msgSender, pool);
 
-                _clearPoolConnectionsBitmap(token, msgSender, poolMemberData.poolID);
+                _clearPoolConnectionsBitmap(token, msgSender, poolMemberData.poolId);
             }
 
             emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);

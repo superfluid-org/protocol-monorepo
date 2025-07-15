@@ -145,8 +145,8 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     }
 
     // Pool Member Data Setters/Getters
-    function testSetGetPoolMemberData(address poolMember, ISuperfluidPool _pool, uint32 poolID) public {
-        vm.assume(poolID > 0);
+    function testSetGetPoolMemberData(address poolMember, ISuperfluidPool _pool, uint32 poolId) public {
+        vm.assume(poolId > 0);
         vm.assume(address(_pool) != address(0));
         vm.assume(address(poolMember) != address(0));
 
@@ -155,7 +155,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
             (poolMember,
              _pool,
              GDAv1StorageLib.PoolMemberData ({
-                 poolID: poolID,
+                 poolId: poolId,
                  pool: address(_pool)
                  })
             );
@@ -165,7 +165,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
             superToken.getPoolMemberData(this, poolMember, _pool);
 
         assertEq(true, exist, "pool member data does not exist");
-        assertEq(poolID, setPoolMemberData.poolID, "poolID not equal");
+        assertEq(poolId, setPoolMemberData.poolId, "poolId not equal");
         assertEq(address(_pool), setPoolMemberData.pool, "pool not equal");
     }
 
@@ -298,15 +298,15 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         assertEq(original.lastUpdated, decoded.lastUpdated, "lastUpdated not equal");
     }
 
-    function testEncodeDecodePoolMemberData(address pool, uint32 poolID) public pure {
+    function testEncodeDecodePoolMemberData(address pool, uint32 poolId) public pure {
         vm.assume(pool != address(0));
         GDAv1StorageLib.PoolMemberData memory original =
-            GDAv1StorageLib.PoolMemberData({ pool: pool, poolID: poolID });
+            GDAv1StorageLib.PoolMemberData({ poolId: poolId, pool: pool });
         bytes32[] memory encoded = GDAv1StorageLib.encodePoolMemberData(original);
         (, GDAv1StorageLib.PoolMemberData memory decoded) =
             GDAv1StorageLib.decodePoolMemberData(uint256(encoded[0]));
 
+        assertEq(original.poolId, decoded.poolId, "poolId not equal");
         assertEq(original.pool, decoded.pool, "pool not equal");
-        assertEq(original.poolID, decoded.poolID, "poolID not equal");
     }
 }
