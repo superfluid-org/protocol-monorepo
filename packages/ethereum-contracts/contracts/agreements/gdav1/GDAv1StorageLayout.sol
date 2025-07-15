@@ -37,15 +37,15 @@ import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPo
  * NOTE The Agreement Data slot is calculated with the following function:
  * keccak256(abi.encode("AgreementData", agreementClass, agreementId))
  * agreementClass       = address of GDAv1
- * agreementId          = DistributionFlowId | PoolMemberId
+ * agreementId          = DistributionFlowId | PoolConnectivityId
  *
  * DistributionFlowId   =
  * keccak256(abi.encode(block.chainid, "distributionFlow", from, pool))
  * DistributionFlowId stores FlowInfo between a sender (from) and pool.
  *
- * PoolMemberId         =
+ * PoolConnectivityId         =
  * keccak256(abi.encode(block.chainid, "poolMember", member, pool))
- * PoolMemberId stores PoolMemberData for a member at a pool.
+ * PoolConnectivityId stores PoolConnectivity for a member at a pool.
  */
 library GDAv1StorageLib {
 
@@ -197,7 +197,7 @@ library GDAv1StorageLib {
         }
     }
 
-    // # Pool Member Data
+    // # Pool Connectivity Data
     //
     // ## Data Packing
     //
@@ -207,19 +207,19 @@ library GDAv1StorageLib {
     //         |    64    |   32   |       160      |
     // --------+----------+--------+----------------+
 
-    /// @dev Pool member connectivity data struct.
+    /// @dev Pool connectivity data struct.
     struct PoolConnectivity {
         uint32 slotId; // the slot id in the member's subscription bitmap
         ISuperfluidPool pool;
     }
 
-    /// @dev Calculate pool member data hash for agreement data.
+    /// @dev Calculate pool connectivity data hash for agreement data.
     function getPoolConnectivityHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
         // NOTE: it is called "poolMember" for legacy reasons; !! DO NOT CHANGE THIS !!
         return keccak256(abi.encode(block.chainid, "poolMember", poolMember, pool));
     }
 
-    /// @dev Encode pool member data.
+    /// @dev Encode pool connectivity data.
     function encodePoolConnectivity(PoolConnectivity memory poolConnectivity)
         internal
         pure
@@ -231,7 +231,7 @@ library GDAv1StorageLib {
            uint256(uint160(address(poolConnectivity.pool))));
     }
 
-    /// @dev Decode pool member data.
+    /// @dev Decode pool connectivity data.
     function decodePoolConnectivity(uint256 data)
         internal
         pure

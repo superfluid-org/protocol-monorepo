@@ -144,7 +144,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         );
     }
 
-    // Pool Member Data Setters/Getters
+    // Pool Connectivity Data Setters/Getters
     function testSetGetPoolConnectivity(address poolMember, ISuperfluidPool _pool, uint32 slotId) public {
         vm.assume(slotId > 0);
         vm.assume(address(_pool) != address(0));
@@ -163,7 +163,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         (bool exist, GDAv1StorageLib.PoolConnectivity memory setPoolConnectivity) =
             superToken.getPoolConnectivity(this, poolMember, _pool);
 
-        assertEq(true, exist, "pool member data does not exist");
+        assertEq(true, exist, "pool connectivity does not exist");
         assertEq(slotId, setPoolConnectivity.slotId, "slotId not equal");
         assertEq(address(_pool), address(setPoolConnectivity.pool), "pool not equal");
     }
