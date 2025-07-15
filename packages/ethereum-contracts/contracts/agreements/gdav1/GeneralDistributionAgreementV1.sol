@@ -100,10 +100,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     function _assertPoolMembership(ISuperfluidToken token, address account, ISuperfluidPool pool) internal view
     {
-        (bool exist, GDAv1StorageLib.PoolMemberData memory poolMemberData) =
-            token.getPoolMemberData(this, account, ISuperfluidPool(pool));
+        (bool exist, GDAv1StorageLib.PoolConnectivity memory poolMemberData) =
+            token.getPoolConnectivity(this, account, ISuperfluidPool(pool));
         assert(exist);
-        assert(poolMemberData.pool == address(pool));
+        assert(poolMemberData.pool == pool);
     }
 
     /// @dev Use block.timestamp for realtimeBalanceOf
@@ -326,15 +326,14 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                 uint32 poolSlotId =
                     _findAndFillPoolConnectionsBitmap(token, msgSender, bytes32(uint256(uint160(address(pool)))));
 
-                token.createPoolMembership
-                    (msgSender, pool,
-                     GDAv1StorageLib.PoolMemberData({ poolId: poolSlotId, pool: address(pool) }));
+                token.createPoolConnectivity
+                    (msgSender, GDAv1StorageLib.PoolConnectivity({ slotId: poolSlotId, pool: pool }));
             } else {
-                (, GDAv1StorageLib.PoolMemberData memory poolMemberData) =
-                    token.getPoolMemberData(this, msgSender, pool);
+                (, GDAv1StorageLib.PoolConnectivity memory poolMemberData) =
+                    token.getPoolConnectivity(this, msgSender, pool);
                 token.deletePoolMembership(msgSender, pool);
 
-                _clearPoolConnectionsBitmap(token, msgSender, poolMemberData.poolId);
+                _clearPoolConnectionsBitmap(token, msgSender, poolMemberData.slotId);
             }
 
             emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);

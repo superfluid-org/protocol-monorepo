@@ -201,45 +201,46 @@ library GDAv1StorageLib {
     //
     // ## Data Packing
     //
-    // --------+----------+--------+-------------+
-    // WORD A: | reserved | poolId | poolAddress |
-    // --------+----------+--------+-------------+
-    //         |    64    |   32   |     160     |
-    // --------+----------+--------+-------------+
+    // --------+----------+--------+----------------+
+    // WORD A: | reserved | slotId | pool (address) |
+    // --------+----------+--------+----------------+
+    //         |    64    |   32   |       160      |
+    // --------+----------+--------+----------------+
 
-    /// @dev Pool member data struct.
-    struct PoolMemberData {
-        uint32 poolId; // the slot id in the pool's subs bitmap
-        address pool;
+    /// @dev Pool member connectivity data struct.
+    struct PoolConnectivity {
+        uint32 slotId; // the slot id in the member's subscription bitmap
+        ISuperfluidPool pool;
     }
 
     /// @dev Calculate pool member data hash for agreement data.
-    function getPoolMemberHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
-        return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
+    function getPoolConnectivityHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
+        // NOTE: it is called "poolMember" for legacy reasons; !! DO NOT CHANGE THIS !!
+        return keccak256(abi.encode(block.chainid, "poolMember", poolMember, pool));
     }
 
     /// @dev Encode pool member data.
-    function encodePoolMemberData(PoolMemberData memory poolMemberData)
+    function encodePoolConnectivity(PoolConnectivity memory poolConnectivity)
         internal
         pure
         returns (bytes32[] memory data)
     {
         data = new bytes32[](1);
         data[0] = bytes32(
-           (uint256(uint32(poolMemberData.poolId)) << 160) |
-           uint256(uint160(poolMemberData.pool)));
+           (uint256(uint32(poolConnectivity.slotId)) << 160) |
+           uint256(uint160(address(poolConnectivity.pool))));
     }
 
     /// @dev Decode pool member data.
-    function decodePoolMemberData(uint256 data)
+    function decodePoolConnectivity(uint256 data)
         internal
         pure
-        returns (bool exist, PoolMemberData memory poolMemberData)
+        returns (bool exist, PoolConnectivity memory poolConnectivity)
     {
         exist = data > 0;
         if (exist) {
-            poolMemberData.poolId = uint32(data >> 160);
-            poolMemberData.pool = address(uint160(data & uint256(type(uint160).max)));
+            poolConnectivity.slotId = uint32(data >> 160);
+            poolConnectivity.pool = ISuperfluidPool(address(uint160(data & uint256(type(uint160).max))));
         }
     }
 }
@@ -299,21 +300,21 @@ library GDAv1StorageReader {
         return getFlowInfoByFlowHash(token, gda, GDAv1StorageLib.getFlowDistributionHash(from, to));
     }
 
-    // Pool Member Data
+    // Pool Connectivity
 
-    /// @dev Get pool member data.
-    function getPoolMemberData
+    /// @dev Get pool connectivity.
+    function getPoolConnectivity
         (ISuperfluidToken token,
          IGeneralDistributionAgreementV1 gda,
          address poolMember,
          ISuperfluidPool pool
         )
         internal view
-        returns (bool exist, GDAv1StorageLib.PoolMemberData memory poolMemberData)
+        returns (bool exist, GDAv1StorageLib.PoolConnectivity memory poolConnectivity)
     {
-        bytes32 dataId = GDAv1StorageLib.getPoolMemberHash(poolMember, pool);
+        bytes32 dataId = GDAv1StorageLib.getPoolConnectivityHash(poolMember, pool);
         uint256 data = uint256(token.getAgreementData(address(gda), dataId, 1)[0]);
-        return GDAv1StorageLib.decodePoolMemberData(data);
+        return GDAv1StorageLib.decodePoolConnectivity(data);
     }
 
     /// @dev Check whether a pool member is connected.
@@ -326,7 +327,7 @@ library GDAv1StorageReader {
         internal view
         returns (bool)
     {
-        (bool exist,) = getPoolMemberData(token, gda, member, pool);
+        (bool exist,) = getPoolConnectivity(token, gda, member, pool);
         return exist;
     }
 }
@@ -397,29 +398,28 @@ library GDAv1StorageWriter {
         token.updateAgreementData(flowHash, GDAv1StorageLib.encodeFlowInfo(flowInfo));
     }
 
-    // Pool Member Data
+    // Pool Connectivity
 
-    /// @dev Create a pool membership.
-    function createPoolMembership
+    /// @dev Create a pool connectivity.
+    function createPoolConnectivity
         (ISuperfluidToken token,
          address poolMember,
-         ISuperfluidPool pool,
-         GDAv1StorageLib.PoolMemberData memory poolMemberData
+         GDAv1StorageLib.PoolConnectivity memory poolConnectivity
         )
         internal
     {
         token.createAgreement
-            (GDAv1StorageLib.getPoolMemberHash(poolMember, pool),
-             GDAv1StorageLib.encodePoolMemberData(poolMemberData));
+            (GDAv1StorageLib.getPoolConnectivityHash(poolMember, poolConnectivity.pool),
+             GDAv1StorageLib.encodePoolConnectivity(poolConnectivity));
     }
 
-    /// @dev Delete a pool membership.
+    /// @dev Delete a pool connectivity.
     function deletePoolMembership
         (ISuperfluidToken token,
          address poolMember,
          ISuperfluidPool pool)
         internal
     {
-        token.terminateAgreement(GDAv1StorageLib.getPoolMemberHash(poolMember, pool), 1);
+        token.terminateAgreement(GDAv1StorageLib.getPoolConnectivityHash(poolMember, pool), 1);
     }
 }

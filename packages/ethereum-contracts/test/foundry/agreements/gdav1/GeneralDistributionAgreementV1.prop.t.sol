@@ -145,28 +145,27 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
     }
 
     // Pool Member Data Setters/Getters
-    function testSetGetPoolMemberData(address poolMember, ISuperfluidPool _pool, uint32 poolId) public {
-        vm.assume(poolId > 0);
+    function testSetGetPoolConnectivity(address poolMember, ISuperfluidPool _pool, uint32 slotId) public {
+        vm.assume(slotId > 0);
         vm.assume(address(_pool) != address(0));
         vm.assume(address(poolMember) != address(0));
 
         vm.startPrank(address(this));
-        superToken.createPoolMembership
+        superToken.createPoolConnectivity
             (poolMember,
-             _pool,
-             GDAv1StorageLib.PoolMemberData ({
-                 poolId: poolId,
-                 pool: address(_pool)
+             GDAv1StorageLib.PoolConnectivity ({
+                 slotId: slotId,
+                 pool: _pool
                  })
             );
         vm.stopPrank();
 
-        (bool exist, GDAv1StorageLib.PoolMemberData memory setPoolMemberData) =
-            superToken.getPoolMemberData(this, poolMember, _pool);
+        (bool exist, GDAv1StorageLib.PoolConnectivity memory setPoolConnectivity) =
+            superToken.getPoolConnectivity(this, poolMember, _pool);
 
         assertEq(true, exist, "pool member data does not exist");
-        assertEq(poolId, setPoolMemberData.poolId, "poolId not equal");
-        assertEq(address(_pool), setPoolMemberData.pool, "pool not equal");
+        assertEq(slotId, setPoolConnectivity.slotId, "slotId not equal");
+        assertEq(address(_pool), address(setPoolConnectivity.pool), "pool not equal");
     }
 
     // Proportional Distribution Pool Index Setters/Getters
@@ -298,15 +297,15 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
         assertEq(original.lastUpdated, decoded.lastUpdated, "lastUpdated not equal");
     }
 
-    function testEncodeDecodePoolMemberData(address pool, uint32 poolId) public pure {
+    function testEncodeDecodePoolConnectivity(address pool, uint32 slotId) public pure {
         vm.assume(pool != address(0));
-        GDAv1StorageLib.PoolMemberData memory original =
-            GDAv1StorageLib.PoolMemberData({ poolId: poolId, pool: pool });
-        bytes32[] memory encoded = GDAv1StorageLib.encodePoolMemberData(original);
-        (, GDAv1StorageLib.PoolMemberData memory decoded) =
-            GDAv1StorageLib.decodePoolMemberData(uint256(encoded[0]));
+        GDAv1StorageLib.PoolConnectivity memory original =
+            GDAv1StorageLib.PoolConnectivity({ slotId: slotId, pool: ISuperfluidPool(pool) });
+        bytes32[] memory encoded = GDAv1StorageLib.encodePoolConnectivity(original);
+        (, GDAv1StorageLib.PoolConnectivity memory decoded) =
+            GDAv1StorageLib.decodePoolConnectivity(uint256(encoded[0]));
 
-        assertEq(original.poolId, decoded.poolId, "poolId not equal");
-        assertEq(original.pool, decoded.pool, "pool not equal");
+        assertEq(original.slotId, decoded.slotId, "slotId not equal");
+        assertEq(address(original.pool), address(decoded.pool), "pool not equal");
     }
 }
