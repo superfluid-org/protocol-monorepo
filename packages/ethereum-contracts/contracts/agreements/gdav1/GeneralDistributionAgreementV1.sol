@@ -88,7 +88,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             (uint32[] memory slotIds, bytes32[] memory pidList) = _listPoolConnectionIds(token, account);
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
-                _assertPoolMembership(token, account, ISuperfluidPool(pool));
+                _assertPoolConnectivity(token, account, ISuperfluidPool(pool));
                 totalClaimableFromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
             }
         }
@@ -98,10 +98,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         owedBuffer = 0;
     }
 
-    function _assertPoolMembership(ISuperfluidToken token, address account, ISuperfluidPool pool) internal view
+    function _assertPoolConnectivity(ISuperfluidToken token, address account, ISuperfluidPool pool) internal view
     {
         (bool exist, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
-            token.getPoolConnectivity(this, account, ISuperfluidPool(pool));
+            token.getPoolConnectivity(this, account, pool);
         assert(exist);
         assert(poolConnectivity.pool == pool);
     }
