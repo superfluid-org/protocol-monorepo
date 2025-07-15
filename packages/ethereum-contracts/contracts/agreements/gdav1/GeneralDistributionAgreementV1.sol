@@ -809,13 +809,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     /// @inheritdoc TokenMonad
-    function _getFlowRate(bytes memory eff, bytes32 distributionFlowHash)
+    function _getFlowRate(bytes memory eff, bytes32 flowHash)
         internal view
         override
         returns (FlowRate)
     {
         ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
-        GDAv1StorageLib.FlowInfo memory data = token.getFlowInfoByFlowHash(this, distributionFlowHash);
+        GDAv1StorageLib.FlowInfo memory data = token.getFlowInfoByFlowHash(this, flowHash);
         return FlowRate.wrap(data.flowRate);
     }
 
@@ -833,13 +833,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         returns (bytes memory)
     {
         ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
-        GDAv1StorageLib.FlowInfo memory flowDistributionData = token.getFlowInfoByFlowHash(this, flowHash);
+        GDAv1StorageLib.FlowInfo memory flowInfo = token.getFlowInfoByFlowHash(this, flowHash);
 
         token.setFlowInfoByFlowHash(flowHash,
                                     GDAv1StorageLib.FlowInfo({
                                         lastUpdated: uint32(block.timestamp),
                                         flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
-                                        buffer: flowDistributionData.buffer
+                                        buffer: flowInfo.buffer
                                         })
                                    );
 
