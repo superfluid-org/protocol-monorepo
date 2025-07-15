@@ -20,9 +20,10 @@ import {
 import { ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
-import {
-    GeneralDistributionAgreementV1, _isPool } from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
+import { GeneralDistributionAgreementV1 } from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
+import { GDAv1StorageReader } from "../../agreements/gdav1/GDAv1StorageLayout.sol";
 import { BeaconProxiable } from "../../upgradability/BeaconProxiable.sol";
+
 
 using SafeCast for uint256;
 using SafeCast for int256;
@@ -62,6 +63,7 @@ function poolIndexDataToPDPoolIndex(SuperfluidPool.PoolIndexData memory data)
  */
 contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     using SemanticMoney for BasicParticle;
+    using GDAv1StorageReader for ISuperfluidToken;
 
     // Structs
     struct PoolIndexData {
@@ -425,7 +427,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
         // @note normally we keep the sanitization in the external functions, but here
         // this is used in both updateMemberUnits and transfer
-        if (_isPool(GDA, superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
+        if (superToken.isPool(GDA, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
         if (memberAddr == address(0)) revert SUPERFLUID_POOL_NO_ZERO_ADDRESS();
 
         uint32 time = uint32(ISuperfluid(superToken.getHost()).getNow());
@@ -441,7 +443,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         PDPoolMemberMU memory mu = PDPoolMemberMU(pdPoolIndex, pdPoolMember);
 
         // update pool's disconnected units
-        if (!GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr)) {
+        if (!superToken.isPoolMemberConnected(GDA, ISuperfluidPool(address(this)), memberAddr)) {
             _shiftDisconnectedUnits(wrappedUnits - mu.m.owned_units, Value.wrap(0), t);
         }
 
@@ -472,7 +474,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function claimAll(address memberAddr) public returns (bool) {
-        bool isConnected = GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr);
+        bool isConnected = superToken.isPoolMemberConnected(GDA, this, memberAddr);
         uint32 time = uint32(ISuperfluid(superToken.getHost()).getNow());
         int256 claimedAmount = _claimAll(memberAddr, time);
         if (!isConnected) {
