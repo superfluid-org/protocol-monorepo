@@ -83,16 +83,16 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                                .rtb(Time.wrap(uint32(time))));
         }
 
-        int256 totalClaimableFromPools;
+        int256 totalConnectedFromPools;
         {
             (uint32[] memory slotIds, bytes32[] memory pidList) = _listPoolConnectionIds(token, account);
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
                 _assertPoolConnectivity(token, account, ISuperfluidPool(pool));
-                totalClaimableFromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
+                totalConnectedFromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
             }
         }
-        rtb += totalClaimableFromPools;
+        rtb += totalConnectedFromPools;
 
         buf = uint256(accountData.totalBuffer.toInt256()); // upcasting to uint256 is safe
         owedBuffer = 0;
@@ -331,7 +331,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             } else {
                 (, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
                     token.getPoolConnectivity(this, msgSender, pool);
-                token.deletePoolMembership(msgSender, pool);
+                token.deletePoolConnectivity(msgSender, pool);
 
                 _clearPoolConnectionsBitmap(token, msgSender, poolConnectivity.slotId);
             }

@@ -414,7 +414,7 @@ library GDAv1StorageWriter {
     }
 
     /// @dev Delete a pool connectivity.
-    function deletePoolMembership
+    function deletePoolConnectivity
         (ISuperfluidToken token,
          address poolMember,
          ISuperfluidPool pool)
