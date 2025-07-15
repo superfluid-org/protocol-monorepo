@@ -11,6 +11,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - `GDAv1StorageReader` contains getters reading agreement data from the token contract, allowing contracts to get this data without making a call to the GDA contract.
   - `GDAv1StorageWriter` contains functions for writing agreement data to the token contract. This can only be used by the GDA contract itself.
 
+### Breaking
+- PoolMemberNFT pruning: `IPoolMemberNFT` and `PoolMemberNFT` removed, `POOL_MEMBER_NFT()` removed from `ISuperToken`.
+
 ## [v1.13.0]
 
 ### Added
