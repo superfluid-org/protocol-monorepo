@@ -375,7 +375,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function getClaimable(address memberAddr, uint32 time) public view override returns (int256) {
-        return GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr)
+        return superToken.isPoolMemberConnected(GDA, ISuperfluidPool(address(this)), memberAddr)
              ? int256(0)
              : getUnsettledValue(memberAddr, time);
     }
