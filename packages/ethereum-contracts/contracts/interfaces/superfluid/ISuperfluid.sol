@@ -25,7 +25,6 @@ import { ISuperTokenFactory } from "./ISuperTokenFactory.sol";
 import { ISETH } from "../tokens/ISETH.sol";
 /// Superfluid/ERC20x NFTs
 import { IPoolAdminNFT } from "../agreements/gdav1/IPoolAdminNFT.sol";
-import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
 /// Superfluid agreement interfaces:
 import { ISuperAgreement } from "./ISuperAgreement.sol";
 import { IConstantFlowAgreementV1 } from "../agreements/IConstantFlowAgreementV1.sol";

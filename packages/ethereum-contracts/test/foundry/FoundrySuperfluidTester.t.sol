@@ -21,7 +21,7 @@ import { ISETH } from "../../contracts/interfaces/tokens/ISETH.sol";
 import { UUPSProxy } from "../../contracts/upgradability/UUPSProxy.sol";
 import { ConstantFlowAgreementV1 } from "../../contracts/agreements/ConstantFlowAgreementV1.sol";
 import { SuperTokenV1Library } from "../../contracts/apps/SuperTokenV1Library.sol";
-import { IERC20, ISuperToken, SuperToken, IConstantOutflowNFT, IConstantInflowNFT }
+import { IERC20, ISuperToken, SuperToken }
     from "../../contracts/superfluid/SuperToken.sol";
 import { SuperfluidLoader } from "../../contracts/utils/SuperfluidLoader.sol";
 import { TestResolver } from "../../contracts/utils/TestResolver.sol";
@@ -717,10 +717,7 @@ contract FoundrySuperfluidTester is Test {
     ) internal returns (SuperToken localSuperToken) {
         localSuperToken = new SuperToken(
             sf.host,
-            IConstantOutflowNFT(address(0)),
-            IConstantInflowNFT(address(0)),
-            previousSuperToken.POOL_ADMIN_NFT(),
-            previousSuperToken.POOL_MEMBER_NFT()
+            previousSuperToken.POOL_ADMIN_NFT()
         );
         localSuperToken.initializeWithAdmin(underlyingToken, underlyingDecimals, name, symbol, _admin);
     }

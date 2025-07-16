@@ -6,10 +6,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [UNRELEASED]
 
 ### Changed
-- Refactored `GeneralDistributionAgreementV1`: extracted functionality which reads and writes agreement data to from/to the token contract into dedicated libraries:
+- Refactored `GeneralDistributionAgreementV1`: extracted functionality which reads/writes agreement data from/to the token contract into dedicated libraries:
   - `GDAv1StorageLib` contains data structures and related encoders/decoders.
   - `GDAv1StorageReader` contains getters reading agreement data from the token contract, allowing contracts to get this data without making a call to the GDA contract.
   - `GDAv1StorageWriter` contains functions for writing agreement data to the token contract. This can only be used by the GDA contract itself.
+
+### Breaking
+- PoolMemberNFT pruning: `IPoolMemberNFT` and `PoolMemberNFT` removed, `POOL_MEMBER_NFT()` removed from `ISuperToken`.
 
 ## [v1.13.0]
 
