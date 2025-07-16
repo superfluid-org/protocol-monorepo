@@ -127,14 +127,14 @@ abstract contract PoolNFTBase is UUPSProxiable, IPoolNFTBase {
     }
 
     /// @notice Returns the name of the NFT
-    /// @dev Should follow the naming convention: (Pool Admin|Pool Member) NFT
+    /// @dev Should follow the naming convention: Pool Admin NFT
     /// @return name of the NFT
     function name() external view virtual override returns (string memory) {
         return _name;
     }
 
     /// @notice Returns the symbol of the NFT
-    /// @dev Should follow the naming convention: PA|PM
+    /// @dev Should follow the naming convention: PA
     /// @return symbol of the NFT
     function symbol() external view virtual override returns (string memory) {
         return _symbol;
