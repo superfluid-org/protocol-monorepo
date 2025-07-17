@@ -214,6 +214,17 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     /// @return newCtx the new context bytes
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external virtual returns (bytes memory newCtx);
 
+    /// @notice Allows the pool admin to connect a member to the pool.
+    /// @param pool The pool address
+    /// @param memberAddr The member address
+    /// @param ctx Context bytes
+    /// @return success true if the member was (or remained) connected, false otherwise
+    /// @return newCtx the new context bytes
+    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx) 
+        external
+        virtual
+        returns (bool success, bytes memory newCtx);
+
     /// @notice Disconnects `msg.sender` from `pool`.
     /// @dev This is used to disconnect a pool from the GDA.
     /// @param pool The pool address

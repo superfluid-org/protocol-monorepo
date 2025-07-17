@@ -48,6 +48,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     address public constant SUPERFLUID_POOL_DEPLOYER_ADDRESS = address(SuperfluidPoolDeployerLibrary);
 
+    // @dev The max number of slots which can be used for connecting pools on behalf of a member (per token)
+    uint32 public constant MAX_POOL_AUTO_CONNECT_SLOTS = 4;
+
     /// @dev Pool member state slot id for storing subs bitmap
     uint256 private constant _POOL_SUBS_BITMAP_STATE_SLOT_ID = 1;
     /// @dev Pool member state slot id starting point for pool connections
@@ -305,49 +308,86 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         pool.claimAll(memberAddress);
     }
 
-    // @note setPoolConnection function naming
-    function connectPool(ISuperfluidPool pool, bool doConnect, bytes calldata ctx)
-        public
-        returns (bytes memory newCtx)
-    {
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
         ISuperfluidToken token = pool.superToken();
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
-        address msgSender = currentContext.msgSender;
         newCtx = ctx;
-        bool isConnected = token.isPoolMemberConnected(this, pool, msgSender);
-        if (doConnect != isConnected) {
-            assert(
-                SuperfluidPool(address(pool)).operatorConnectMember(
-                    msgSender, doConnect, uint32(currentContext.timestamp)
-                )
-            );
-
-            if (doConnect) {
-                uint32 poolSlotId =
-                    _findAndFillPoolConnectionsBitmap(token, msgSender, bytes32(uint256(uint160(address(pool)))));
-
-                token.createPoolConnectivity
-                    (msgSender, GDAv1StorageLib.PoolConnectivity({ slotId: poolSlotId, pool: pool }));
-            } else {
-                (, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
-                    token.getPoolConnectivity(this, msgSender, pool);
-                token.deletePoolConnectivity(msgSender, pool);
-
-                _clearPoolConnectionsBitmap(token, msgSender, poolConnectivity.slotId);
-            }
-
-            emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);
-        }
+        _setPoolConnection(pool, token, currentContext.msgSender, true, true, currentContext);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, true, ctx);
+    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx) 
+        external
+        override
+        returns (bool success, bytes memory newCtx)
+    {
+        ISuperfluidToken token = pool.superToken();
+        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
+        // Only the pool admin is allowed to do this
+        if (currentContext.msgSender != pool.admin()) {
+            revert GDA_NOT_POOL_ADMIN();
+        }
+        newCtx = ctx;
+        success = _setPoolConnection(pool, token, memberAddr, true, false, currentContext);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, false, ctx);
+        ISuperfluidToken token = pool.superToken();
+        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
+        newCtx = ctx;
+        _setPoolConnection(pool, token, currentContext.msgSender, false, true /* ignored */, currentContext);
+    }
+
+
+    // @note setPoolConnection function naming
+    function _setPoolConnection(
+        ISuperfluidPool pool,
+        ISuperfluidToken token,
+        address memberAddr,
+        bool doConnect,
+        bool useAllSlots,
+        ISuperfluid.Context memory currentContext
+    )
+        internal
+        returns (bool success)
+    {
+        bool isConnected = token.isPoolMemberConnected(this, pool, memberAddr);
+
+        if (doConnect != isConnected) {
+            if (doConnect) {
+                uint32 poolSlotId = useAllSlots
+                    ? _findAndFillPoolConnectionsBitmap(token, memberAddr, bytes32(uint256(uint160(address(pool)))))
+                    : _tryFindAndFillPoolConnectionsBitmap(
+                        token, memberAddr, bytes32(uint256(uint160(address(pool)))), MAX_POOL_AUTO_CONNECT_SLOTS
+                    );
+                
+                // only if we operate with limited slots, can it fail without revert.
+                if (poolSlotId == type(uint32).max) {
+                    return false;
+                }
+
+                token.createPoolConnectivity
+                    (memberAddr, GDAv1StorageLib.PoolConnectivity({ slotId: poolSlotId, pool: pool }));
+            } else {
+                (, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
+                    token.getPoolConnectivity(this, memberAddr, pool);
+                token.deletePoolConnectivity(memberAddr, pool);
+
+                _clearPoolConnectionsBitmap(token, memberAddr, poolConnectivity.slotId);
+            }
+
+            assert(
+                SuperfluidPool(address(pool)).operatorConnectMember(
+                    memberAddr, doConnect, uint32(currentContext.timestamp)
+                )
+            );
+
+            emit PoolConnectionUpdated(token, pool, memberAddr, doConnect, currentContext.userData);
+        }
+
+        return true;
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -892,6 +932,27 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         private
         returns (uint32 slotId)
     {
+        return SlotsBitmapLibrary.findEmptySlotAndFill(
+            token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START, poolID
+        );
+    }
+
+    // allow to specify custom slot nr, return type(uint32).max if no slot is found
+    function _tryFindAndFillPoolConnectionsBitmap(
+        ISuperfluidToken token,
+        address poolMember,
+        bytes32 poolID,
+        uint32 maxSlots
+    )
+        private
+        returns (uint32 slotId)
+    {
+        (uint32[] memory slotIds, ) = SlotsBitmapLibrary.listData(
+            token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START
+        );
+        if (slotIds.length >= maxSlots) {
+            return type(uint32).max;
+        }
         return SlotsBitmapLibrary.findEmptySlotAndFill(
             token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START, poolID
         );
