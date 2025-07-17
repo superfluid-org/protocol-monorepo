@@ -376,16 +376,19 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         if (doConnect != isConnected) {
             if (doConnect) {
-                uint32 poolSlotId = useAllSlots
-                    ? _findAndFillPoolConnectionsBitmap(token, memberAddr, bytes32(uint256(uint160(address(pool)))))
-                    : _tryFindAndFillPoolConnectionsBitmap(
-                        token, memberAddr, bytes32(uint256(uint160(address(pool)))), MAX_POOL_AUTO_CONNECT_SLOTS
+                if (!useAllSlots) {
+                    // check if we're below the slot limit for autoconnect
+                    (uint32[] memory slotIds, ) = SlotsBitmapLibrary.listData(
+                        token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START
                     );
-                
-                // only if we operate with limited slots, can it fail without revert.
-                if (poolSlotId == type(uint32).max) {
-                    return false;
+                    if (slotIds.length >= MAX_POOL_AUTO_CONNECT_SLOTS) {
+                        return false;
+                    }
                 }
+
+                uint32 poolSlotId = _findAndFillPoolConnectionsBitmap(
+                    token, memberAddr, bytes32(uint256(uint160(address(pool))))
+                );
 
                 token.createPoolConnectivity
                     (memberAddr, GDAv1StorageLib.PoolConnectivity({ slotId: poolSlotId, pool: pool }));
@@ -951,27 +954,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         private
         returns (uint32 slotId)
     {
-        return SlotsBitmapLibrary.findEmptySlotAndFill(
-            token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START, poolID
-        );
-    }
-
-    // allow to specify custom slot nr, return type(uint32).max if no slot is found
-    function _tryFindAndFillPoolConnectionsBitmap(
-        ISuperfluidToken token,
-        address poolMember,
-        bytes32 poolID,
-        uint32 maxSlots
-    )
-        private
-        returns (uint32 slotId)
-    {
-        (uint32[] memory slotIds, ) = SlotsBitmapLibrary.listData(
-            token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START
-        );
-        if (slotIds.length >= maxSlots) {
-            return type(uint32).max;
-        }
         return SlotsBitmapLibrary.findEmptySlotAndFill(
             token, poolMember, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START, poolID
         );
