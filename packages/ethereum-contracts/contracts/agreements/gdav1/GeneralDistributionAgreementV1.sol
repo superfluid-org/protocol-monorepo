@@ -314,7 +314,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     /// @inheritdoc IGeneralDistributionAgreementV1
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
         newCtx = ctx;
-        _setPoolConnection(pool, address(0), true, true, ctx);
+        _setPoolConnection(pool, address(0), true, false, ctx);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -330,7 +330,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {
             success = false;
         } else {
-            success = _setPoolConnection(pool, memberAddr, true, false, ctx);
+            success = _setPoolConnection(pool, memberAddr, true, true, ctx);
         }
     }
 
