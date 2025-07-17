@@ -313,10 +313,8 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        ISuperfluidToken token = pool.superToken();
-        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
         newCtx = ctx;
-        _setPoolConnection(pool, token, currentContext.msgSender, true, true, currentContext);
+        _setPoolConnection(pool, address(0), true, true, ctx);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -325,12 +323,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (bool success, bytes memory newCtx)
     {
-        ISuperfluidToken token = pool.superToken();
-        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
-        // Only the pool admin is allowed to do this
-        if (currentContext.msgSender != pool.admin()) {
-            revert GDA_NOT_POOL_ADMIN();
-        }
         newCtx = ctx;
 
         // check if the member has opted out of autoconnect
@@ -338,7 +330,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {
             success = false;
         } else {
-            success = _setPoolConnection(pool, token, memberAddr, true, false, currentContext);
+            success = _setPoolConnection(pool, memberAddr, true, false, ctx);
         }
     }
 
@@ -353,30 +345,33 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        ISuperfluidToken token = pool.superToken();
-        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
         newCtx = ctx;
-        _setPoolConnection(pool, token, currentContext.msgSender, false, true /* ignored */, currentContext);
+        _setPoolConnection(pool, address(0), false, true /* ignored */, ctx);
     }
 
-
-    // @note setPoolConnection function naming
+    // @note memberAddr has override semantics - if set to address(0), it will be set to the msgSender
     function _setPoolConnection(
         ISuperfluidPool pool,
-        ISuperfluidToken token,
         address memberAddr,
         bool doConnect,
-        bool useAllSlots,
-        ISuperfluid.Context memory currentContext
+        bool onlyAutoConnectSlots,
+        bytes memory ctx
     )
         internal
         returns (bool success)
     {
+        ISuperfluidToken token = pool.superToken();
+        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
+
+        if (memberAddr == address(0)) {
+            memberAddr = currentContext.msgSender;
+        }
+
         bool isConnected = token.isPoolMemberConnected(this, pool, memberAddr);
 
         if (doConnect != isConnected) {
             if (doConnect) {
-                if (!useAllSlots) {
+                if (onlyAutoConnectSlots) {
                     // check if we're below the slot limit for autoconnect
                     (uint32[] memory slotIds, ) = SlotsBitmapLibrary.listData(
                         token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START

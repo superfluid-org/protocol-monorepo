@@ -989,7 +989,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         assertEq(claimableAfter2, 0, "Connected member claimable amount should be 0");
     }
 
-    function testAdminConnect(address member, uint128 units, uint64 distributionAmount) public {
+    function testAutoConnect(address member, uint128 units, uint64 distributionAmount) public {
         vm.assume(member != address(0));
         vm.assume(member != address(freePool));
         vm.assume(units > 0);
@@ -1015,10 +1015,6 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
 
         assertEq(superToken.balanceOf(member), balanceBefore + expectedAmount, "balance != distributionAmount");
         assertEq(freePool.getClaimable(member, uint32(block.timestamp)), 0, "claimable != 0");
-
-        // update units to 0, this is supposed to disconnect the pool
-        freePool.updateMemberUnits(member, 0);
-        assertEq(freePool.getUnits(member), 0);
         vm.stopPrank();
     }
 
@@ -1046,7 +1042,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         }
     }
 
-    function testConnectPermissioning() public {
+    function testAutoConnectPermissioning() public {
         vm.startPrank(bob);
         sf.gda.setConnectPermission(false);
         vm.stopPrank();
@@ -1091,8 +1087,8 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
 
     struct PoolUpdateStep {
         uint8 u; // which user
-        uint8 a; // action types: 0 update units, 1 distribute flow, 2 freePool connection, 3 freePool claim for,
-            // 4 distribute
+        uint8 a; // action types: 0 update units, 1 distribute flow, 2 freePool claim for, 3 freePool connection,
+            // 4 distribute, 5: freePool autoconnect
         uint32 v; // action param
         uint16 dt; // time delta
     }
@@ -1104,7 +1100,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
             emit log_named_string("", "");
             emit log_named_uint(">>> STEP", i);
             PoolUpdateStep memory s = steps[i];
-            uint256 action = s.a % 5;
+            uint256 action = s.a % 6;
             uint256 u = 1 + s.u % N_MEMBERS;
             address user = TEST_ACCOUNTS[u];
 
@@ -1140,6 +1136,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
                 emit log_named_string("action", "distribute");
                 emit log_named_uint("distributionAmount", s.v);
                 _helperDistributeViaGDA(superToken, user, user, freePool, uint256(s.v), useBools_.useForwarder);
+            } else if (action == 5) {
+                address u4 = TEST_ACCOUNTS[1 + (s.v % N_MEMBERS)];
+                emit log_named_string("action", "tryConnectPoolFor");
+                emit log_named_address("connect for", u4);
+                _helperConnectPoolFor(user, u4, superToken, freePool, false);
             } else {
                 assert(false);
             }

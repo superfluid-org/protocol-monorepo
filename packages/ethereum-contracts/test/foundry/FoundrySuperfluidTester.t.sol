@@ -1324,20 +1324,38 @@ contract FoundrySuperfluidTester is Test {
     function _helperConnectPool(address caller_, ISuperToken superToken_, ISuperfluidPool pool_, bool useForwarder_)
         internal
     {
-        (bool isConnectedBefore, int256 oldUnits, int96 oldFlowRate) = _helperGetMemberPoolState(pool_, caller_);
+        _helperConnectPoolFor(caller_, caller_, superToken_, pool_, useForwarder_);
+    }
+
+    function _helperConnectPoolFor(address member_, address caller_, ISuperToken superToken_, ISuperfluidPool pool_, bool useForwarder_)
+        internal
+    {
+        (bool isConnectedBefore, int256 oldUnits, int96 oldFlowRate) = _helperGetMemberPoolState(pool_, member_);
 
         PoolUnitData memory poolUnitDataBefore = _helperGetPoolUnitsData(pool_);
         PoolFlowRateData memory poolFlowRateDataBefore = _helperGetPoolFlowRatesData(pool_);
 
         vm.startPrank(caller_);
         if (useForwarder_) {
-            sf.gdaV1Forwarder.connectPool(pool_, "");
+            if (caller_ == member_) {
+                sf.gdaV1Forwarder.connectPool(pool_, "");
+            } else {
+                revert("autoconnect not supported by forwarder");
+            }
         } else {
-            sf.host.callAgreement(
-                sf.gda,
-                abi.encodeWithSelector(IGeneralDistributionAgreementV1.connectPool.selector, pool_, ""),
-                new bytes(0)
-            );
+            if (caller_ == member_) {
+                sf.host.callAgreement(
+                    sf.gda,
+                    abi.encodeWithSelector(IGeneralDistributionAgreementV1.connectPool.selector, pool_, ""),
+                    new bytes(0)
+                );
+            } else {
+                sf.host.callAgreement(
+                    sf.gda,
+                    abi.encodeWithSelector(IGeneralDistributionAgreementV1.tryConnectPoolFor.selector, pool_, member_, ""),
+                    new bytes(0)
+                );
+            }
         }
         vm.stopPrank();
 
@@ -1345,12 +1363,12 @@ contract FoundrySuperfluidTester is Test {
         PoolFlowRateData memory poolFlowRateDataAfter = _helperGetPoolFlowRatesData(pool_);
 
         {
-            _helperTakeBalanceSnapshot(superToken_, caller_);
+            _helperTakeBalanceSnapshot(superToken_, member_);
         }
 
         bool isMemberConnected = useForwarder_
-            ? sf.gdaV1Forwarder.isMemberConnected(pool_, caller_)
-            : sf.gda.isMemberConnected(pool_, caller_);
+            ? sf.gdaV1Forwarder.isMemberConnected(pool_, member_)
+            : sf.gda.isMemberConnected(pool_, member_);
         assertEq(isMemberConnected, true, "GDAv1.t: Member not connected");
 
         // Assert connected units delta for the pool
