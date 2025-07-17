@@ -760,7 +760,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
             revert ScheduleNotClaimed();
         }
 
-        // Ensure that that the claming date is after the cliff/flow date and before the claim validity date
+        // Ensure that the claming date is after the cliff/flow date and before the claim validity date
         if (schedule.cliffAndFlowDate > block.timestamp || _lteDateToExecuteCliffAndFlow(schedule) < block.timestamp) {
             revert TimeWindowInvalid();
         }
