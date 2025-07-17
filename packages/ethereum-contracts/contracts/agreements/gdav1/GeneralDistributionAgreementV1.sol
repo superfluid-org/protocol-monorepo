@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { ISuperfluid, ISuperfluidGovernance } from "../../interfaces/superfluid/ISuperfluid.sol";
+import { ISuperfluid, ISuperfluidGovernance, IAccessControl } from "../../interfaces/superfluid/ISuperfluid.sol";
 import {
     BasicParticle,
     PDPoolIndex,
@@ -50,6 +50,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     // @dev The max number of slots which can be used for connecting pools on behalf of a member (per token)
     uint32 public constant MAX_POOL_AUTO_CONNECT_SLOTS = 4;
+
+    bytes32 constant public ACL_POOL_CONNECT_EXCLUSIVE_ROLE = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE");
+    bytes32 constant public ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN");
 
     /// @dev Pool member state slot id for storing subs bitmap
     uint256 private constant _POOL_SUBS_BITMAP_STATE_SLOT_ID = 1;
@@ -329,7 +332,23 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             revert GDA_NOT_POOL_ADMIN();
         }
         newCtx = ctx;
-        success = _setPoolConnection(pool, token, memberAddr, true, false, currentContext);
+
+        // check if the member has opted out of autoconnect
+        IAccessControl simpleACL = ISuperfluid(_host).getSimpleACL();
+        if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {
+            success = false;
+        } else {
+            success = _setPoolConnection(pool, token, memberAddr, true, false, currentContext);
+        }
+    }
+
+    function setConnectPermission(bool allow) external override {
+        IAccessControl simpleACL = ISuperfluid(_host).getSimpleACL();
+        if (!allow) {
+            simpleACL.grantRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, msg.sender);
+        } else {
+            simpleACL.revokeRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, msg.sender);
+        }
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1

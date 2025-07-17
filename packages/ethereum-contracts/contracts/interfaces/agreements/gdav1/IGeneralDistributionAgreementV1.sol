@@ -214,7 +214,8 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     /// @return newCtx the new context bytes
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external virtual returns (bytes memory newCtx);
 
-    /// @notice Allows the pool admin to connect a member to the pool.
+    /// @notice Allows the pool admin to connect a member to the pool if autoconnect slots are available.
+    /// "autoconnect slots" are a subset of the slots available to pool members themselves.
     /// @param pool The pool address
     /// @param memberAddr The member address
     /// @param ctx Context bytes
@@ -224,6 +225,11 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
         external
         virtual
         returns (bool success, bytes memory newCtx);
+
+    /// @notice Lets accounts deny or allow 3rd parties to connect them to pools.
+    /// By default, this permission is given (except by accounts which are Super Apps).
+    /// @param allow true to allow, false to deny
+    function setConnectPermission(bool allow) external virtual;
 
     /// @notice Disconnects `msg.sender` from `pool`.
     /// @dev This is used to disconnect a pool from the GDA.

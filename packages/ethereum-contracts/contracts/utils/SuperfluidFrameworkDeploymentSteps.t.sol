@@ -194,6 +194,15 @@ contract SuperfluidFrameworkDeploymentSteps {
                 gdaV1Logic.superfluidPoolBeacon().upgradeTo(address(superfluidPoolLogic));
                 gdaV1Logic.superfluidPoolBeacon().transferOwnership(address(host));
             }
+
+            SimpleACL(address(host.getSimpleACL())).setRoleAdmin(
+                gdaV1.ACL_POOL_CONNECT_EXCLUSIVE_ROLE(),
+                gdaV1.ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN()
+            );
+            SimpleACL(address(host.getSimpleACL())).grantRole(
+                gdaV1.ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN(),
+                address(gdaV1)
+            );
         } else if (step == 3) {// PERIPHERAL CONTRACTS: NFT Proxy and Logic
             {
                 poolAdminNFT = PoolAdminNFT(address(ProxyDeployerLibrary.deployUUPSProxy()));

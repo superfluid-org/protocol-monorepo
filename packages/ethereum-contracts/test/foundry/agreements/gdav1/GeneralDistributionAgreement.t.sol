@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
 import "../../FoundrySuperfluidTester.t.sol";
 import {
@@ -988,7 +989,6 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         assertEq(claimableAfter2, 0, "Connected member claimable amount should be 0");
     }
 
-
     function testAdminConnect(address member, uint128 units, uint64 distributionAmount) public {
         vm.assume(member != address(0));
         vm.assume(member != address(freePool));
@@ -1019,8 +1019,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         // update units to 0, this is supposed to disconnect the pool
         freePool.updateMemberUnits(member, 0);
         assertEq(freePool.getUnits(member), 0);
-
-        //assertEq(sf.gda.isMemberConnected(freePool, member), false, "member should be (auto)disconnected");
+        vm.stopPrank();
     }
 
     function testAutoConnectSlotLimit() public {
@@ -1043,7 +1042,47 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
                 assertEq(success, false, "success != false");
                 assertEq(sf.gda.isMemberConnected(pool, bob), false, "bob should not be (auto)connected");
             }
+            vm.stopPrank();
         }
+    }
+
+    function testConnectPermissioning() public {
+        vm.startPrank(bob);
+        sf.gda.setConnectPermission(false);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        freePool.updateMemberUnits(bob, 1);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, bob, new bytes(0))),
+            new bytes(0)
+        );
+        assertEq(sf.gda.isMemberConnected(freePool, bob), false, "member should not be (auto)connected");
+
+        // alice can't revoke the opt-out
+        IAccessControl simpleACL = sf.host.getSimpleACL();
+        bytes32 aclRole = sf.gda.ACL_POOL_CONNECT_EXCLUSIVE_ROLE(); //need this ext call before the expectRevert
+        vm.expectRevert();
+        simpleACL.revokeRole(aclRole, bob);
+        vm.stopPrank();
+
+        // bob changes his mind and gives permission
+
+        vm.startPrank(bob);
+        sf.gda.setConnectPermission(true);
+        vm.stopPrank();
+
+        // now alice can connect bob
+        vm.startPrank(alice);
+        freePool.updateMemberUnits(bob, 1);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, bob, new bytes(0))),
+            new bytes(0)
+        );
+        assertEq(sf.gda.isMemberConnected(freePool, bob), true, "member should not be (auto)connected");
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////////////////

@@ -12,8 +12,8 @@ import {ISuperfluidToken} from "../interfaces/superfluid/ISuperfluidToken.sol";
  * - A data slot can be enabled or disabled with the help of bitmap.
  * - MAX_NUM_SLOTS is 256 in this implementation (using one uint256)
  * - Superfluid token storage usage:
- *   - getAgreementStateSlot(bitmapStateSlotId) stores the bitmap of enabled data slots
- *   - getAgreementStateSlot(dataStateSlotIDStart + stotId) stores the data of the slot
+ *   - updateAgreementStateSlot(bitmapStateSlotId) stores the bitmap of enabled data slots
+ *   - updateAgreementStateSlot(dataStateSlotIDStart + stotId) stores the data of the slot
  */
 library SlotsBitmapLibrary {
 
