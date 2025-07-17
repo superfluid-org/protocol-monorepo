@@ -375,7 +375,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function getClaimable(address memberAddr, uint32 time) public view override returns (int256) {
-        return superToken.isPoolMemberConnected(GDA, ISuperfluidPool(address(this)), memberAddr)
+        return superToken.isPoolMemberConnected(GDA, this, memberAddr)
              ? int256(0)
              : getUnsettledValue(memberAddr, time);
     }
@@ -440,7 +440,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         PDPoolMemberMU memory mu = PDPoolMemberMU(pdPoolIndex, pdPoolMember);
 
         // update pool's disconnected units
-        if (!superToken.isPoolMemberConnected(GDA, ISuperfluidPool(address(this)), memberAddr)) {
+        if (!superToken.isPoolMemberConnected(GDA, this, memberAddr)) {
             _shiftDisconnectedUnits(wrappedUnits - mu.m.owned_units, Value.wrap(0), t);
         }
 
@@ -473,7 +473,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {
         // For connected pool, claimable amount is zero; hence, we skip.
-        if (!superToken.isPoolMemberConnected(GDA, ISuperfluidPool(address(this)), memberAddr)) {
+        if (!superToken.isPoolMemberConnected(GDA, this, memberAddr)) {
             amount = _settle(memberAddr, time);
         }
         emit DistributionClaimed(superToken, memberAddr, amount, _membersData[memberAddr].claimedValue);
