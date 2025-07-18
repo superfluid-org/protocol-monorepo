@@ -11,8 +11,8 @@ library SuperfluidPoolDeployerLibrary {
         address beacon,
         address admin,
         ISuperfluidToken token,
-        PoolConfig memory config,
-        PoolERC20Metadata memory poolERC20Metadata
+        PoolConfig calldata config,
+        PoolERC20Metadata calldata poolERC20Metadata
     ) external returns (SuperfluidPool pool) {
         bytes memory initializeCallData = abi.encodeWithSelector(
             SuperfluidPool.initialize.selector,
