@@ -996,7 +996,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 const poolMemberNFTPAddr = await superTokenLogic.POOL_MEMBER_NFT();
                 let poolMemberNFTLAddr = ZERO_ADDRESS;
                 if (poolMemberNFTPAddr !== ZERO_ADDRESS) {
-                    const poolMemberNFTContract = await PoolMemberNFT.at(poolMemberNFTPAddr);
+                    const poolMemberNFTContract = await UUPSProxiable.at(poolMemberNFTPAddr);
                     poolMemberNFTLAddr = await poolMemberNFTContract.getCodeAddress();
                 }
 

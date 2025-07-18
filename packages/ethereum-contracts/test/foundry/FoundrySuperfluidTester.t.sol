@@ -1271,6 +1271,21 @@ contract FoundrySuperfluidTester is Test {
         // _assertRealTimeBalances(ISuperToken(address(poolSuperToken)));
     }
 
+    function _helperClaimAll(ISuperfluidPool pool_, address caller_, address member_) internal {
+        (int256 claimableBefore,) = pool_.getClaimableNow(member_);
+        (int256 balanceBefore,,,) = pool_.superToken().realtimeBalanceOfNow(member_);
+
+        vm.startPrank(caller_);
+        pool_.claimAll(member_);
+        vm.stopPrank();
+
+        (int256 claimableAfter,) = pool_.getClaimableNow(member_);
+        (int256 balanceAfter,,,) = pool_.superToken().realtimeBalanceOfNow(member_);
+
+        assertEq(claimableAfter, 0, "GDAv1.t: Member claimable amount should be 0");
+        assertEq(balanceAfter, balanceBefore + claimableBefore, "GDAv1.t: Member balance should increase by claimable amount");
+    }
+
     function _helperConnectPool(address caller_, ISuperToken superToken_, ISuperfluidPool pool_, bool useForwarder_)
         internal
     {

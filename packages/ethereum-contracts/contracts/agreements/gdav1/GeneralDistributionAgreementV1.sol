@@ -89,7 +89,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
                 _assertPoolConnectivity(token, account, ISuperfluidPool(pool));
-                totalConnectedFromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
+                totalConnectedFromPools += SuperfluidPool(pool).getUnsettledValue(account, uint32(time));
             }
         }
         rtb += totalConnectedFromPools;

@@ -940,6 +940,52 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         _helperSuperfluidPoolUnitsTransferFrom(freePool, spender, owner, spender, uint256(uint128(transferAmount)));
     }
 
+    function testGetClaimable(
+        address member,
+        uint128 units,
+        uint64 distributionAmount,
+        bool useForwarder,
+        PoolConfig memory config
+    ) public {
+        vm.assume(member != address(0));
+        vm.assume(member != address(freePool));
+        vm.assume(units > 0);
+        vm.assume(distributionAmount > 0);
+        vm.assume(units < distributionAmount);
+        vm.assume(distributionAmount < type(uint128).max);
+
+        // Create a pool for testing
+        ISuperfluidPool pool = _helperCreatePool(superToken, alice, alice, useForwarder, config);
+        _addAccount(member);
+
+        // Step 1: Assign units to disconnected member
+        _helperUpdateMemberUnits(pool, alice, member, units, _StackVars_UseBools({useForwarder: useForwarder, useGDA: false}));
+
+        (int256 balanceBefore,,,) = superToken.realtimeBalanceOfNow(member);
+        (int256 claimableBefore,) = pool.getClaimableNow(member);
+
+        // Distribute
+        _helperDistributeViaGDA(superToken, alice, alice, pool, distributionAmount, useForwarder);
+
+        // Check disconnected member: expect balance unchanged, claimable increased
+        (int256 balanceAfter1,,,) = superToken.realtimeBalanceOfNow(member);
+        (int256 claimableAfter1,) = pool.getClaimableNow(member);
+
+        assertEq(balanceAfter1, balanceBefore, "Disconnected member balance should not change");
+        assertTrue(claimableAfter1 > claimableBefore, "Disconnected member claimable amount should increase");
+
+        // Step 2: Connect member and distribute again
+        _helperConnectPool(member, superToken, pool, useForwarder);
+        _helperDistributeViaGDA(superToken, alice, alice, pool, distributionAmount, useForwarder);
+
+        (int256 balanceAfter2,,,) = superToken.realtimeBalanceOfNow(member);
+        (int256 claimableAfter2,) = pool.getClaimableNow(member);
+
+        // Check connected member: balance increased, claimable remains 0
+        assertTrue(balanceAfter2 > balanceAfter1, "Connected member balance should increase");
+        assertEq(claimableAfter2, 0, "Connected member claimable amount should be 0");
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
                                     Assertion Functions
     //////////////////////////////////////////////////////////////////////////*/
@@ -983,9 +1029,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
                 address u4 = TEST_ACCOUNTS[1 + (s.v % N_MEMBERS)];
                 emit log_named_string("action", "claimAll");
                 emit log_named_address("claim for", u4);
-                vm.startPrank(user);
-                assert(freePool.claimAll(u4));
-                vm.stopPrank();
+                _helperClaimAll(freePool, user, u4);
             } else if (action == 3) {
                 bool doConnect = s.v % 2 == 0 ? false : true;
                 emit log_named_string("action", "doConnectPool");
