@@ -448,6 +448,25 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         assertFalse(sf.host.isAppJailed(ISuperApp(superAppAddr)), "superApp is jailed");
     }
 
+    function testTryConnectPoolFor() external {
+        for (uint256 i = 0; i < sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS() * 2; ++i) {
+            ISuperfluidPool pool = superToken.createPool();
+            pool.updateMemberUnits(bob, 1);
+
+            vm.startPrank(alice);
+            bool success = superToken.tryConnectPoolFor(pool, bob);
+            vm.stopPrank();
+
+            if (i < sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS()) {
+                assertEq(success, true, "success != true");
+                assertEq(sf.gda.isMemberConnected(pool, bob), true, "bob should be (auto)connected");
+            } else {
+                assertEq(success, false, "success != false");
+                assertEq(sf.gda.isMemberConnected(pool, bob), false, "bob should not be (auto)connected");
+            }
+        }
+    }
+
     // HELPER FUNCTIONS ========================================================================================
 
     // direct use of the agreement for assertions

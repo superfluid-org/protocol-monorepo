@@ -1416,6 +1416,24 @@ library SuperTokenV1Library {
     }
 
     /**
+     * @dev Connects a pool member to `pool` (aka "autoconnect") if less than 4 connection slots are occupied.
+     * @param token The Super Token address.
+     * @param pool The Superfluid Pool to connect.
+     * @param memberAddress The address of the member to connect.
+     * @return success indicates whether the connection was successful.
+     */
+    function tryConnectPoolFor(ISuperToken token, ISuperfluidPool pool, address memberAddress)
+        internal
+        returns (bool success)
+    {
+        (ISuperfluid host, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
+        bytes memory ret = host.callAgreement(
+            gda, abi.encodeCall(gda.tryConnectPoolFor, (pool, memberAddress, new bytes(0))), new bytes(0)
+        );
+        (success, ) = abi.decode(ret, (bool, bytes));
+    }
+
+    /**
      * @dev Disconnects a pool member from `pool`.
      * @param token The Super Token address.
      * @param pool The Superfluid Pool to disconnect.
