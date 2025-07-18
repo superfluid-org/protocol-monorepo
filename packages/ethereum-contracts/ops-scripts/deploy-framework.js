@@ -947,6 +947,31 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         if (gdaNewLogicAddress !== ZERO_ADDRESS) {
             agreementsToUpdate.push(gdaNewLogicAddress);
         }
+
+        // check/set ACL role admins
+        const simpleAcl = await SimpleACL.at(simpleAclAddress);
+
+        const aclSuperappRegistrationRoleAdmin = web3.utils.sha3("ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN");
+        const aclSuperappRegistrationRole = web3.utils.sha3("ACL_SUPERAPP_REGISTRATION_ROLE");
+        if (! await simpleAcl.hasRole(aclSuperappRegistrationRoleAdmin, deployerAddr)) {
+            await simpleAcl.setRoleAdmin(aclSuperappRegistrationRole, aclSuperappRegistrationRoleAdmin);
+            console.log("Set ACL_SUPERAPP_REGISTRATION_ROLE admin to ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN");
+            await simpleAcl.grantRole(aclSuperappRegistrationRoleAdmin, deployerAddr);
+            console.log("Granted ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN to deployerAddr");
+        } else {
+            console.log("ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN already granted to deployerAddr");
+        }
+
+        const aclPoolConnectExclusiveRole = web3.utils.sha3("ACL_POOL_CONNECT_EXCLUSIVE_ROLE");
+        const aclPoolConnectExclusiveRoleAdmin = web3.utils.sha3("ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN");
+        if (! await simpleAcl.hasRole(aclPoolConnectExclusiveRoleAdmin, gdaProxyAddr)) {
+            await simpleAcl.setRoleAdmin(aclPoolConnectExclusiveRole, aclPoolConnectExclusiveRoleAdmin);
+            console.log("Set ACL_POOL_CONNECT_EXCLUSIVE_ROLE admin to ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN");
+            await simpleAcl.grantRole(aclPoolConnectExclusiveRoleAdmin, gdaProxyAddr);
+            console.log("Granted ACL_POOL_CONNECT_EXCLUSIVE_ROLE to GDA");
+        } else {
+            console.log("ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN already granted to GDA");
+        }
     }
 
     // deploy new super token factory logic (depends on SuperToken logic, which links to nft deployer library)

@@ -51,8 +51,8 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     // @dev The max number of slots which can be used for connecting pools on behalf of a member (per token)
     uint32 public constant MAX_POOL_AUTO_CONNECT_SLOTS = 4;
 
+    // @dev The ACL role owned by this contract, used to persist autoconnect permissions for accounts
     bytes32 constant public ACL_POOL_CONNECT_EXCLUSIVE_ROLE = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE");
-    bytes32 constant public ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN");
 
     /// @dev Pool member state slot id for storing subs bitmap
     uint256 private constant _POOL_SUBS_BITMAP_STATE_SLOT_ID = 1;
