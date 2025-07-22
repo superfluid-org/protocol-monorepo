@@ -318,7 +318,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx) 
+    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx)
         external
         override
         returns (bool success, bytes memory newCtx)
@@ -373,10 +373,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             if (doConnect) {
                 if (onlyAutoConnectSlots) {
                     // check if we're below the slot limit for autoconnect
-                    (uint32[] memory slotIds, ) = SlotsBitmapLibrary.listData(
-                        token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START
+                   uint256 nUsedSlots = SlotsBitmapLibrary.countUsedSlots(
+                        token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID
                     );
-                    if (slotIds.length >= MAX_POOL_AUTO_CONNECT_SLOTS) {
+                    if (nUsedSlots > MAX_POOL_AUTO_CONNECT_SLOTS) {
                         return false;
                     }
                 }
