@@ -362,7 +362,7 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
         ISuperfluidPool pool = superToken.createPool(
             address(this),
             PoolConfig({
-                transferabilityForUnitsOwner: false,    
+                transferabilityForUnitsOwner: false,
                 distributionFromAnyAddress: true
             })
         );
@@ -457,7 +457,7 @@ contract SuperTokenV1LibraryTest is FoundrySuperfluidTester {
             bool success = superToken.tryConnectPoolFor(pool, bob);
             vm.stopPrank();
 
-            if (i < sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS()) {
+            if (i <= sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS()) {
                 assertEq(success, true, "success != true");
                 assertEq(sf.gda.isMemberConnected(pool, bob), true, "bob should be (auto)connected");
             } else {
