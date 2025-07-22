@@ -1031,7 +1031,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
                 new bytes(0)
             );
             (bool success, ) = abi.decode(ret, (bool, bytes));
-            if (i < sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS()) {
+            if (i <= sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS()) {
                 assertEq(success, true, "success != true");
                 assertEq(sf.gda.isMemberConnected(pool, bob), true, "bob should be (auto)connected");
             } else {
