@@ -19,13 +19,13 @@ library SlotsBitmapLibrary {
 
     uint32 internal constant _MAX_NUM_SLOTS = 256;
 
-    function findEmptySlotAndFill(
-        ISuperfluidToken token,
-        address account,
-        uint256 bitmapStateSlotId,
-        uint256 dataStateSlotIDStart,
-        bytes32 data
-    )
+    function findEmptySlotAndFill
+        (ISuperfluidToken token,
+         address account,
+         uint256 bitmapStateSlotId,
+         uint256 dataStateSlotIDStart,
+         bytes32 data
+        )
         public
         returns (uint32 slotId)
     {
@@ -55,12 +55,12 @@ library SlotsBitmapLibrary {
         require(slotId < _MAX_NUM_SLOTS, "SlotBitmap out of bound");
     }
 
-    function clearSlot(
-        ISuperfluidToken token,
-        address account,
-        uint256 bitmapStateSlotId,
-        uint32 slotId
-    )
+    function clearSlot
+        (ISuperfluidToken token,
+         address account,
+         uint256 bitmapStateSlotId,
+         uint32 slotId
+        )
         public
     {
         uint256 subsBitmap = uint256(token.getAgreementStateSlot(
@@ -78,16 +78,16 @@ library SlotsBitmapLibrary {
             slotData);
     }
 
-    function listData(
-       ISuperfluidToken token,
-       address account,
-       uint256 bitmapStateSlotId,
-       uint256 dataStateSlotIDStart
-    )
+    function listData
+        (ISuperfluidToken token,
+         address account,
+         uint256 bitmapStateSlotId,
+         uint256 dataStateSlotIDStart
+        )
         public view
-        returns (
-            uint32[] memory slotIds,
-            bytes32[] memory dataList)
+        returns (uint32[] memory slotIds,
+                 bytes32[] memory dataList
+                )
     {
         uint256 subsBitmap = uint256(token.getAgreementStateSlot(
             address(this),
@@ -111,6 +111,25 @@ library SlotsBitmapLibrary {
         assembly {
             mstore(slotIds, nSlots)
             mstore(dataList, nSlots)
+        }
+    }
+
+    function countUsedSlots
+        (ISuperfluidToken token,
+         address account,
+         uint256 bitmapStateSlotId
+        )
+        public view
+        returns (uint256 nUsedSlots)
+    {
+        uint256 subsBitmap = uint256(token.getAgreementStateSlot(
+            address(this),
+            account,
+            bitmapStateSlotId, 1)[0]);
+
+        for (uint32 slotId = 0; slotId < _MAX_NUM_SLOTS; ++slotId) {
+            if ((uint256(subsBitmap >> slotId) & 1) == 0) continue;
+            ++nUsedSlots;
         }
     }
 }
