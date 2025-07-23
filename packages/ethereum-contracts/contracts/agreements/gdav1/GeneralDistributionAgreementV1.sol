@@ -376,7 +376,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                    uint256 nUsedSlots = SlotsBitmapLibrary.countUsedSlots(
                         token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID
                     );
-                    if (nUsedSlots > MAX_POOL_AUTO_CONNECT_SLOTS) {
+                    if (nUsedSlots >= MAX_POOL_AUTO_CONNECT_SLOTS) {
                         return false;
                     }
                 }
