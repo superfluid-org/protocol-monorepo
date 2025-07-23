@@ -226,7 +226,7 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
         virtual
         returns (bool success, bytes memory newCtx);
 
-    /// @notice Lets accounts deny or allow 3rd parties to connect them to pools. The default is to allow.
+    /// @notice Allows accounts to control whether third parties can connect them to pools. By default, they can.
     /// @param allow true to allow (only has an effect if it was previously denied), false to deny
     function setConnectPermission(bool allow) external virtual;
 

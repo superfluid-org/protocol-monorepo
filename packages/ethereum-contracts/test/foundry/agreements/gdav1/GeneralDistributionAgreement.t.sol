@@ -950,6 +950,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
     ) public {
         vm.assume(member != address(0));
         vm.assume(member != address(freePool));
+        vm.assume(member != alice); // alice is the test distributor
         vm.assume(units > 0);
         vm.assume(distributionAmount > 0);
         vm.assume(units < distributionAmount);
@@ -992,6 +993,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
     function testAutoConnect(address member, uint128 units, uint64 distributionAmount) public {
         vm.assume(member != address(0));
         vm.assume(member != address(freePool));
+        vm.assume(member != alice); // alice is the test distributor
         vm.assume(units > 0);
         vm.assume(units < distributionAmount);
 

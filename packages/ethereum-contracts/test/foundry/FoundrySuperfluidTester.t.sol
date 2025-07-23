@@ -128,6 +128,8 @@ contract FoundrySuperfluidTester is Test {
     address internal constant ivan = address(0x429);
     address[] internal TEST_ACCOUNTS = [admin, alice, bob, carol, dan, eve, frank, grace, heidi, ivan];
 
+    address internal constant MAX_TESTER_ADDRESS = address(0x4ff);
+
     /// @dev Other account addresses added that aren't testers (pools, super apps, smart contracts)
     EnumerableSet.AddressSet internal OTHER_ACCOUNTS;
 
