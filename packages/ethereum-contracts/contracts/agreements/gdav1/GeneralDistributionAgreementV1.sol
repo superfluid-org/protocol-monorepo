@@ -314,7 +314,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     /// @inheritdoc IGeneralDistributionAgreementV1
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
         newCtx = ctx;
-        _setPoolConnection(pool, address(0), true, false, ctx);
+        _setPoolConnection(pool, address(0), true /* doConnect */, ctx);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -330,7 +330,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {
             success = false;
         } else {
-            success = _setPoolConnection(pool, memberAddr, true, true, ctx);
+            success = _setPoolConnection(pool, memberAddr, true /* doConnect */, ctx);
         }
     }
 
@@ -346,7 +346,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     /// @inheritdoc IGeneralDistributionAgreementV1
     function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
         newCtx = ctx;
-        _setPoolConnection(pool, address(0), false, true /* ignored */, ctx);
+        _setPoolConnection(pool, address(0), false /* doConnect */, ctx);
     }
 
     // @note memberAddr has override semantics - if set to address(0), it will be set to the msgSender
@@ -354,7 +354,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluidPool pool,
         address memberAddr,
         bool doConnect,
-        bool onlyAutoConnectSlots,
         bytes memory ctx
     )
         internal
@@ -363,15 +362,18 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluidToken token = pool.superToken();
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
 
+        bool autoConnectForOtherMember = false;
         if (memberAddr == address(0)) {
             memberAddr = currentContext.msgSender;
+        } else {
+            autoConnectForOtherMember = true;
         }
 
         bool isConnected = token.isPoolMemberConnected(this, pool, memberAddr);
 
         if (doConnect != isConnected) {
             if (doConnect) {
-                if (onlyAutoConnectSlots) {
+                if (autoConnectForOtherMember) {
                     // check if we're below the slot limit for autoconnect
                    uint256 nUsedSlots = SlotsBitmapLibrary.countUsedSlots(
                         token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID
