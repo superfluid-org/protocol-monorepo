@@ -5,7 +5,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     foundry = {
-      url = "github:shazow/foundry.nix/cefa65c";
+      url = "github:shazow/foundry.nix/stable";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -34,7 +34,7 @@
       system:
       let
         minDevSolcVer = "solc_0_8_11"; # minimum solidity version used for external development
-        solcVer = "solc_0_8_26";
+        solcVer = "solc_0_8_30";
         ghcVer92 = "ghc928";
         ghcVer94 = "ghc948";
 
