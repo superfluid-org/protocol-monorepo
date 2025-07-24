@@ -200,7 +200,7 @@ contract VestingSchedulerV2Tests is FoundrySuperfluidTester {
         address superToken,
         address sender,
         address receiver
-    ) public {
+    ) public view {
         VestingSchedulerV2.VestingSchedule memory schedule = vestingScheduler.getVestingSchedule(superToken, sender, receiver);
         VestingSchedulerV2.VestingSchedule memory deletedSchedule;
 

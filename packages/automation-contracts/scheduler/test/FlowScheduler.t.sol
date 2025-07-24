@@ -232,7 +232,7 @@ contract FlowSchedulerTest is FoundrySuperfluidTester {
             superToken, alice, defaultStartDate, uint32(1000), int96(1000), defaultStartAmount, defaultStartDate + uint32(3600), "", ""
         );
 
-        vm.expectRevert(0xa3eab6ac); // error CFA_ACL_OPERATOR_NO_CREATE_PERMISSIONS() -> 0xa3eab6ac
+        vm.expectRevert(bytes4(0xa3eab6ac)); // error CFA_ACL_OPERATOR_NO_CREATE_PERMISSIONS() -> 0xa3eab6ac
         vm.warp(defaultStartDate + 1000);
         vm.prank(admin);
         flowScheduler.executeCreateFlow(superToken, bob,alice,"");
