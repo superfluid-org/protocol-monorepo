@@ -325,6 +325,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         newCtx = ctx;
 
+        if (pool.superToken().isPool(this, memberAddr)) {
+            revert GDA_CANNOT_CONNECT_POOL();
+        }
+
         // check if the member has opted out of autoconnect
         IAccessControl simpleACL = ISuperfluid(_host).getSimpleACL();
         if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {

@@ -1081,6 +1081,18 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         );
         assertEq(sf.gda.isMemberConnected(freePool, bob), true, "member should not be (auto)connected");
         vm.stopPrank();
+
+
+        // cannot connect a pool
+        ISuperfluidPool anotherPool = _helperCreatePool(superToken, alice, alice, false, PoolConfig({ transferabilityForUnitsOwner: false, distributionFromAnyAddress: true }));
+        vm.startPrank(alice);
+        vm.expectRevert(IGeneralDistributionAgreementV1.GDA_CANNOT_CONNECT_POOL.selector);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, address(anotherPool), new bytes(0))),
+            new bytes(0)
+        );
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////////////////

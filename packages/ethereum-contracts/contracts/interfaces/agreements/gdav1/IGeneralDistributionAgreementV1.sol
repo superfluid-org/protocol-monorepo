@@ -37,6 +37,7 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     error GDA_NOT_POOL_ADMIN();                             // 0x3a87e565
     error GDA_NO_ZERO_ADDRESS_ADMIN();                      // 0x82c5d837
     error GDA_ONLY_SUPER_TOKEN_POOL();                      // 0x90028c37
+    error GDA_CANNOT_CONNECT_POOL();                        // 0x83d98e4c
 
 
     // Events
