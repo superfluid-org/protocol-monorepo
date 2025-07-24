@@ -314,7 +314,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     /// @inheritdoc IGeneralDistributionAgreementV1
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
         newCtx = ctx;
-        _setPoolConnection(pool, address(0), true /* doConnect */, ctx);
+        _setPoolConnectionFor(pool, address(0), true /* doConnect */, ctx);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -330,7 +330,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {
             success = false;
         } else {
-            success = _setPoolConnection(pool, memberAddr, true /* doConnect */, ctx);
+            success = _setPoolConnectionFor(pool, memberAddr, true /* doConnect */, ctx);
         }
     }
 
@@ -346,11 +346,11 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     /// @inheritdoc IGeneralDistributionAgreementV1
     function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
         newCtx = ctx;
-        _setPoolConnection(pool, address(0), false /* doConnect */, ctx);
+        _setPoolConnectionFor(pool, address(0), false /* doConnect */, ctx);
     }
 
     // @note memberAddr has override semantics - if set to address(0), it will be set to the msgSender
-    function _setPoolConnection(
+    function _setPoolConnectionFor(
         ISuperfluidPool pool,
         address memberAddr,
         bool doConnect,
