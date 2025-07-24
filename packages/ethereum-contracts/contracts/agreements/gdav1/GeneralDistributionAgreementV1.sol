@@ -234,7 +234,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function _createPool(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory config,
+        PoolConfig calldata config,
         PoolERC20Metadata memory poolERC20Metadata
     ) internal returns (ISuperfluidPool pool) {
         // @note ensure if token and admin are the same that nothing funky happens with echidna
@@ -261,7 +261,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function createPool(ISuperfluidToken token, address admin, PoolConfig memory config)
+    function createPool(ISuperfluidToken token, address admin, PoolConfig calldata config)
         external
         override
         returns (ISuperfluidPool pool)
@@ -278,7 +278,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function createPoolWithCustomERC20Metadata(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory config,
+        PoolConfig calldata config,
         PoolERC20Metadata memory poolERC20Metadata
     ) external override returns (ISuperfluidPool pool) {
         return _createPool(token, admin, config, poolERC20Metadata);

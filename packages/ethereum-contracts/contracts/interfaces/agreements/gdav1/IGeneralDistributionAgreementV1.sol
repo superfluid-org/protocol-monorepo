@@ -180,7 +180,7 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     /// @param token The token address
     /// @param admin The admin of the pool
     /// @param poolConfig The pool configuration (see PoolConfig struct)
-    function createPool(ISuperfluidToken token, address admin, PoolConfig memory poolConfig)
+    function createPool(ISuperfluidToken token, address admin, PoolConfig calldata poolConfig)
         external
         virtual
         returns (ISuperfluidPool pool);
@@ -194,7 +194,7 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     function createPoolWithCustomERC20Metadata(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory poolConfig,
+        PoolConfig calldata poolConfig,
         PoolERC20Metadata memory poolERC20Metadata
     ) external virtual returns (ISuperfluidPool pool);
 
