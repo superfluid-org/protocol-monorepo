@@ -32,7 +32,7 @@ using SuperTokenV1Library for ISuperToken;
  * The contract uses ERC-20 allowance and Superfluid ACL flow operator permissions
  * to automate the vesting on behalf of the sender.
  * The contract is designed to be used with an off-chain automation to execute the vesting start and end.
- * The start and end executions are permisionless.
+ * The start and end executions are permissionless.
  * Execution delays are handled with token transfer compensations, but watch out for complete expiries!
  * @custom:metadata The official addresses and subgraphs can be found from @superfluid-finance/metadata package.
  */
@@ -760,7 +760,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
             revert ScheduleNotClaimed();
         }
 
-        // Ensure that the claming date is after the cliff/flow date and before the claim validity date
+        // Ensure that the claiming date is after the cliff/flow date and before the claim validity date
         if (schedule.cliffAndFlowDate > block.timestamp || _lteDateToExecuteCliffAndFlow(schedule) < block.timestamp) {
             revert TimeWindowInvalid();
         }
