@@ -21,6 +21,9 @@ const vendorCliNameExceptions: Record<string, Record<string, string>> = {
     "goldsky": {
         "xdai-mainnet": "xdai",
         "avalanche-fuji": "avalanche-testnet"
+    },
+    "superfluid": {
+        "avalanche-fuji": "avalanche-fuji"
     }
 }
 
