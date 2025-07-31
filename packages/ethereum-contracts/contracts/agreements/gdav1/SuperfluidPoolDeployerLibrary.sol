@@ -4,10 +4,11 @@ pragma solidity ^0.8.23;
 import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
 import { SuperfluidPool } from "./SuperfluidPool.sol";
-import { PoolConfig } from "../../interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
+import { PoolConfig, PoolERC20Metadata } from "../../interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { ISuperToken } from "../../interfaces/superfluid/ISuperToken.sol";
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
 import { IPoolAdminNFT } from "../../interfaces/agreements/gdav1/IPoolAdminNFT.sol";
+
 
 library SuperfluidPoolDeployerLibrary {
     function deploy(
@@ -15,9 +16,7 @@ library SuperfluidPoolDeployerLibrary {
         address admin,
         ISuperfluidToken token,
         PoolConfig calldata config,
-        string calldata name,
-        string calldata symbol,
-        uint8 decimals
+        PoolERC20Metadata calldata poolERC20Metadata
     ) external returns (SuperfluidPool pool) {
         bytes memory initializeCallData = abi.encodeWithSelector(
             SuperfluidPool.initialize.selector,
@@ -25,9 +24,9 @@ library SuperfluidPoolDeployerLibrary {
             token,
             config.transferabilityForUnitsOwner,
             config.distributionFromAnyAddress,
-            name,
-            symbol,
-            decimals
+            poolERC20Metadata.name,
+            poolERC20Metadata.symbol,
+            poolERC20Metadata.decimals
         );
         BeaconProxy superfluidPoolBeaconProxy = new BeaconProxy(
             beacon,

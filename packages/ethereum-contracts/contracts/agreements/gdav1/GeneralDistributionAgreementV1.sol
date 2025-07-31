@@ -233,9 +233,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluidToken token,
         address admin,
         PoolConfig calldata config,
-        string calldata name,
-        string calldata symbol,
-        uint8 decimals
+        PoolERC20Metadata memory poolERC20Metadata
     ) internal returns (ISuperfluidPool pool) {
         // @note ensure if token and admin are the same that nothing funky happens with echidna
         if (admin == address(0)) revert GDA_NO_ZERO_ADDRESS_ADMIN();
@@ -244,7 +242,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         pool = ISuperfluidPool(
             address(
                 SuperfluidPoolDeployerLibrary.deploy(
-                    address(superfluidPoolBeacon), admin, token, config, name, symbol, decimals
+                    address(superfluidPoolBeacon), admin, token, config, poolERC20Metadata
                 )
             )
         );
@@ -262,13 +260,12 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (ISuperfluidPool pool)
     {
-        string calldata emptyStr;
-        assembly {
-            let emptyOffset := calldatasize()
-            emptyStr.offset := emptyOffset
-            emptyStr.length := 0
-        }
-        return _createPool(token, admin, config, emptyStr, emptyStr, 0);
+        return _createPool(
+            token,
+            admin,
+            config,
+            PoolERC20Metadata("", "", 0) // use defaults specified by the implementation contract
+        );
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -276,11 +273,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluidToken token,
         address admin,
         PoolConfig calldata config,
-        PoolERC20Metadata calldata poolERC20Metadata
+        PoolERC20Metadata memory poolERC20Metadata
     ) external override returns (ISuperfluidPool pool) {
-        return _createPool(
-            token, admin, config, poolERC20Metadata.name, poolERC20Metadata.symbol, poolERC20Metadata.decimals
-        );
+        return _createPool(token, admin, config, poolERC20Metadata);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
