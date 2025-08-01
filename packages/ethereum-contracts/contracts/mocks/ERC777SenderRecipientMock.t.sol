@@ -12,7 +12,7 @@ import { IERC1820Implementer } from "@openzeppelin/contracts/interfaces/IERC1820
 import { ISuperToken } from "../superfluid/SuperToken.sol";
 
 
-// Copy of: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/contracts/utils/introspection/ERC1820Implementer.sol
+// Copy of OpenZeppelin v4.9.6: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/
 /**
  * @dev Implementation of the {IERC1820Implementer} interface.
  *

@@ -3,7 +3,7 @@
     "description": "Open contracts that allow upgrading underlying token to supertokens based on running stream",
     "version": "0.3.0",
     "devDependencies": {
-        "@openzeppelin/contracts": "^4.9.6",
+        "@openzeppelin/contracts": "^5.4.0",
         "@superfluid-finance/ethereum-contracts": "^1.13.0",
         "@superfluid-finance/metadata": "^1.6.0"
     },

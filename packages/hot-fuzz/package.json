@@ -7,7 +7,7 @@
     },
     "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
     "dependencies": {
-        "@openzeppelin/contracts": "4.9.6"
+        "@openzeppelin/contracts": "5.4.0"
     },
     "devDependencies": {
         "@superfluid-finance/ethereum-contracts": "^1.13.0"

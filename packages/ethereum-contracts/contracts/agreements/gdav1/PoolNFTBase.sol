@@ -7,7 +7,7 @@ pragma solidity ^0.8.23;
 // Notes: We use these interfaces in natspec documentation below, grep @inheritdoc
 // solhint-disable-next-line no-unused-import
 import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
-import { IERC721, IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { UUPSProxiable } from "../../upgradability/UUPSProxiable.sol";
 import { IGeneralDistributionAgreementV1, ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";
 import { ISuperTokenFactory } from "../../interfaces/superfluid/ISuperTokenFactory.sol";
