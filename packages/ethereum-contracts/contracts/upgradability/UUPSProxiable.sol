@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { UUPSUtils } from "./UUPSUtils.sol";
-import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import { Initializable } from "./Initializable.sol";
 
 /**
  * @title UUPS (Universal Upgradeable Proxy Standard) Proxiable contract.

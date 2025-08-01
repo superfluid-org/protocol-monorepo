@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { Test } from "forge-std/Test.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { SuperfluidUpgradeableBeacon } from "../../../contracts/upgradability/SuperfluidUpgradeableBeacon.sol";
 
@@ -32,7 +33,7 @@ contract SuperfluidUpgradeableBeaconTest is Test {
 
     function testRevertNonOwnerUpgrade() public {
         ProxiableBeacon proxiableBeacon = new ProxiableBeacon();
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         beacon.upgradeTo(address(proxiableBeacon));
     }
 

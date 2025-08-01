@@ -21,6 +21,8 @@ contract TestGovernance is
 {
     ISuperfluid private _host;
 
+    constructor() Ownable(_msgSender()) {}
+
     function initialize(
         ISuperfluid host,
         address rewardAddress,

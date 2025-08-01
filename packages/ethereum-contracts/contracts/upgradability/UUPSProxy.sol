@@ -10,7 +10,7 @@ import { Proxy } from "@openzeppelin/contracts/proxy/Proxy.sol";
  *
  * NOTE:
  * - Compliant with [Universal Upgradeable Proxy Standard](https://eips.ethereum.org/EIPS/eip-1822)
- * - Compiiant with [Standard Proxy Storage Slots](https://eips.ethereum.org/EIPS/eip-1967)
+ * - Compliant with [Standard Proxy Storage Slots](https://eips.ethereum.org/EIPS/eip-1967)
  * - Implements delegation of calls to other contracts, with proper forwarding of
  *   return values and bubbling of failures.
  * - It defines a fallback function that delegates all calls to the implementation.
@@ -28,10 +28,17 @@ contract UUPSProxy is Proxy {
         UUPSUtils.setImplementation(initialAddress);
     }
 
+    /**
+     * @dev Fallback function that delegates calls to the address returned by `_implementation()`. Will run if call data
+     * is empty.
+     */
+    receive() external payable virtual {
+        _fallback();
+    }
+
     /// @dev Proxy._implementation implementation
     function _implementation() internal virtual override view returns (address)
     {
         return UUPSUtils.implementation();
     }
-
 }

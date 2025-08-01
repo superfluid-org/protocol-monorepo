@@ -43,6 +43,8 @@ contract TestContract {
 contract TestContract2771 is TestContract, Ownable, BaseRelayRecipient {
     error NotOwner();
 
+    constructor() Ownable(_msgSender()) {}
+
     // Expects the msgSender to be encoded in calldata as specified by ERC-2771.
     // Will revert if relayed for anybody but the contract owner.
     function privilegedFn() public returns (bool) {
@@ -454,7 +456,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
 
         // only the owner of the forwarder shall be allowed to relay
         vm.startPrank(eve);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, eve));
         forwarder.forward2771Call(
             address(testContract),
             alice,
@@ -619,7 +621,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
 
         // eve isn't allowed to withdraw
         vm.startPrank(eve);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, eve));
         forwarder.withdrawLostNativeTokens(payable(bob));
         vm.stopPrank();
 
@@ -643,7 +645,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
 
         // eve isn't allowed to withdraw
         vm.startPrank(eve);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, eve));
         forwarder.withdrawLostNativeTokens(payable(bob));
         vm.stopPrank();
 

@@ -13,7 +13,9 @@ import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
  * IMPORTANT! Make sure the inheritance order remains in sync with the logic contract (Ownable first)!
  */
 // solhint-disable-next-line no-empty-blocks
-contract SuperfluidGovernanceIIProxy is Ownable, UUPSProxy { }
+contract SuperfluidGovernanceIIProxy is Ownable, UUPSProxy {
+    constructor() Ownable(_msgSender()) {}
+}
 
 contract SuperfluidGovernanceII is
     Ownable,
@@ -21,6 +23,9 @@ contract SuperfluidGovernanceII is
     SuperfluidGovernanceBase
 {
     error SF_GOV_II_ONLY_OWNER();
+
+    constructor() Ownable(_msgSender()) {}
+
     function _requireAuthorised() private view {
         if (owner() != _msgSender()) revert SF_GOV_II_ONLY_OWNER();
     }

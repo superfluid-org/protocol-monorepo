@@ -10,6 +10,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
  * This is necessary for security reasons if the calling account has privileged access anywhere.
  */
 contract SimpleForwarder is Ownable {
+    constructor() Ownable(_msgSender()) {}
+
     /**
      * @dev Forwards a call for which msg.sender doesn't matter
      * @param target The target contract to call

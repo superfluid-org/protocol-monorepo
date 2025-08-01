@@ -7,6 +7,8 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
  * @title Forwards calls preserving the original msg.sender according to ERC-2771
  */
 contract ERC2771Forwarder is Ownable {
+    constructor() Ownable(_msgSender()) {}
+
     /**
      * @dev Forwards a call passing along the original msg.sender encoded as specified in ERC-2771.
      * @param target The target contract to call

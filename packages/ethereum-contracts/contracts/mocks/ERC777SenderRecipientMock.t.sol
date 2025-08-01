@@ -3,16 +3,52 @@ pragma solidity ^0.8.23;
 
 import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC777 } from "@openzeppelin/contracts/token/ERC777/IERC777.sol";
-import { IERC777Sender } from "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
-import { IERC777Recipient } from "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
-import { IERC1820Registry } from "@openzeppelin/contracts/utils/introspection/IERC1820Registry.sol";
-import {
-    ERC1820Implementer, IERC1820Implementer
-} from "@openzeppelin/contracts/utils/introspection/ERC1820Implementer.sol";
+import { IERC777 } from "@openzeppelin/contracts/interfaces/IERC777.sol";
+import { IERC777Sender } from "@openzeppelin/contracts/interfaces/IERC777Sender.sol";
+import { IERC777Recipient } from "@openzeppelin/contracts/interfaces/IERC777Recipient.sol";
+import { IERC1820Registry } from "@openzeppelin/contracts/interfaces/IERC1820Registry.sol";
+import { IERC1820Implementer } from "@openzeppelin/contracts/interfaces/IERC1820Implementer.sol";
 
 import { ISuperToken } from "../superfluid/SuperToken.sol";
 
+
+// Copy of: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/contracts/utils/introspection/ERC1820Implementer.sol
+/**
+ * @dev Implementation of the {IERC1820Implementer} interface.
+ *
+ * Contracts may inherit from this and call {_registerInterfaceForAddress} to
+ * declare their willingness to be implementers.
+ * {IERC1820Registry-setInterfaceImplementer} should then be called for the
+ * registration to be complete.
+ *
+ * CAUTION: This file is deprecated as of v4.9 and will be removed in the next major release.
+ */
+contract ERC1820Implementer is IERC1820Implementer {
+    bytes32 private constant _ERC1820_ACCEPT_MAGIC = keccak256("ERC1820_ACCEPT_MAGIC");
+
+    mapping(bytes32 => mapping(address => bool)) private _supportedInterfaces;
+
+    /**
+     * @dev See {IERC1820Implementer-canImplementInterfaceForAddress}.
+     */
+    function canImplementInterfaceForAddress(
+        bytes32 interfaceHash,
+        address account
+    ) public view virtual override returns (bytes32) {
+        return _supportedInterfaces[interfaceHash][account] ? _ERC1820_ACCEPT_MAGIC : bytes32(0x00);
+    }
+
+    /**
+     * @dev Declares the contract as willing to be an implementer of
+     * `interfaceHash` for `account`.
+     *
+     * See {IERC1820Registry-setInterfaceImplementer} and
+     * {IERC1820Registry-interfaceHash}.
+     */
+    function _registerInterfaceForAddress(bytes32 interfaceHash, address account) internal virtual {
+        _supportedInterfaces[interfaceHash][account] = true;
+    }
+}
 
 contract ERC777SenderRecipientMock is Context, IERC777Sender, IERC777Recipient, ERC1820Implementer {
     event TokensToSendCalled(
