@@ -19,7 +19,7 @@ export const expectCustomError = async (
     args
         ? await expect(func)
               .to.be.revertedWithCustomError(contract, customErrorString)
-              .withArgs(args)
+              .withArgs(...args)
         : await expect(func).to.be.revertedWithCustomError(
               contract,
               customErrorString
