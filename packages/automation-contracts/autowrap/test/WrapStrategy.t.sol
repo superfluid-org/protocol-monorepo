@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ISuperToken } from "@superfluid-finance/ethereum-contracts/contracts/superfluid/SuperToken.sol";
 import { SuperTokenV1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import { FoundrySuperfluidTester } from "@superfluid-finance/ethereum-contracts/test/foundry/FoundrySuperfluidTester.t.sol";
@@ -75,7 +76,7 @@ contract WrapStrategyTests is FoundrySuperfluidTester {
     function testCannotChangeManagerContractIfNotOwner() public {
         Manager newManager = new Manager(address(sf.cfa), MIN_LOWER, MIN_UPPER);
         vm.prank(admin);
-        vm.expectRevert(bytes("Ownable: caller is not the owner"));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, admin));
         wrapStrategy.changeManager(address(newManager));
     }
 
@@ -93,14 +94,14 @@ contract WrapStrategyTests is FoundrySuperfluidTester {
 
     // SuperToken
 
-    function testSupportedSuperToken() public {
+    function testSupportedSuperToken() public view {
         assertTrue(
             wrapStrategy.isSupportedSuperToken(superToken),
             "SuperToken should be supported"
         );
     }
 
-    function testCannotNonSupportedSuperToken() public {
+    function testCannotNonSupportedSuperToken() public view {
         assertTrue(
             !wrapStrategy.isSupportedSuperToken(nativeSuperToken),
             "Native SuperToken shouldn't be supported"

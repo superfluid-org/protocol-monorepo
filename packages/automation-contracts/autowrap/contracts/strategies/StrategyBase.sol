@@ -14,6 +14,8 @@ abstract contract StrategyBase is IStrategy, Ownable {
     /// @dev IStrategy.manager implementation.
     address public override manager;
 
+    constructor() Ownable(_msgSender()) { }
+
     /// @dev IStrategy.changeManager implementation.
     function changeManager(address newManager)
         external

@@ -7,7 +7,6 @@ import {
 import { SuperAppBase } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperAppBase.sol";
 import { SuperTokenV1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import { IVestingSchedulerV2 } from "./interface/IVestingSchedulerV2.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
@@ -221,10 +220,7 @@ contract VestingSchedulerV2 is IVestingSchedulerV2, SuperAppBase {
                 remainderAmount: remainderAmount
             });
         } else {
-            uint256 cliffAmount = SafeMath.mul(
-                cliffPeriod,
-                SafeCast.toUint256(flowRate)
-            );
+            uint256 cliffAmount = cliffPeriod * SafeCast.toUint256(flowRate);
             params = ScheduleCreationParams({
                 superToken: superToken,
                 sender: sender,
