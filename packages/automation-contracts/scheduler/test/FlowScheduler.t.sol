@@ -50,7 +50,7 @@ contract FlowSchedulerTest is FoundrySuperfluidTester {
         bytes userData
     );
 
-    /// @dev This is required by solidity for using the SupertTokenV1Library in the tester
+    /// @dev This is required by solidity for using the SuperTokenV1Library in the tester
     using SuperTokenV1Library for SuperToken;
     constructor() FoundrySuperfluidTester(3) {}
     FlowScheduler internal flowScheduler;
