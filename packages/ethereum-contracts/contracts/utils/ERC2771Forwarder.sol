@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin-v5/contracts/access/Ownable.sol";
 
 /**
  * @title Forwards calls preserving the original msg.sender according to ERC-2771

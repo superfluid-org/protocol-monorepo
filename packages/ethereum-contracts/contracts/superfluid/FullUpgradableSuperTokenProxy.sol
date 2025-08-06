@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { ISuperTokenFactory } from "../interfaces/superfluid/ISuperTokenFactory.sol";
-import { Proxy } from "@openzeppelin/contracts/proxy/Proxy.sol";
+import { Proxy } from "@openzeppelin-v5/contracts/proxy/Proxy.sol";
 
 
 /**

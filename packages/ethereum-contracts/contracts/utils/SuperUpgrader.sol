@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { AccessControlEnumerable } from "@openzeppelin-v5/contracts/access/extensions/AccessControlEnumerable.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
 import {
     ISuperToken,
     IERC20

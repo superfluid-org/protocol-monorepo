@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity >=0.8.4;
 
-import { IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import { IERC721Metadata } from "@openzeppelin-v5/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 
 interface IPoolNFTBase is IERC721Metadata {
     error POOL_NFT_APPROVE_TO_CALLER();                             // 0x9212b333

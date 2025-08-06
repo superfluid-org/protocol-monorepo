@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { UUPSProxy } from "../upgradability/UUPSProxy.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin-v5/contracts/access/Ownable.sol";
 import { UUPSProxiable } from "../upgradability/UUPSProxiable.sol";
 import { SuperfluidGovernanceBase } from "./SuperfluidGovernanceBase.sol";
 import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";

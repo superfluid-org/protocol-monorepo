@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import "forge-std/Test.sol";
-import { IBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+import { IBeacon } from "@openzeppelin-v5/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
 
 import { ERC1820RegistryCompiled } from "../../../../contracts/libs/ERC1820RegistryCompiled.sol";

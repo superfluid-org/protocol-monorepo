@@ -13,11 +13,11 @@ import {
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IERC777Recipient } from "@openzeppelin/contracts/interfaces/IERC777Recipient.sol";
-import { IERC777Sender } from "@openzeppelin/contracts/interfaces/IERC777Sender.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
+import { IERC777Recipient } from "@openzeppelin-v5/contracts/interfaces/IERC777Recipient.sol";
+import { IERC777Sender } from "@openzeppelin-v5/contracts/interfaces/IERC777Sender.sol";
+import { ECDSA } from "@openzeppelin-v5/contracts/utils/cryptography/ECDSA.sol";
 
 
 // placeholder type needed as an intermediate step before complete removal

@@ -3,8 +3,8 @@ pragma solidity >=0.8.11;
 
 import "forge-std/Test.sol";
 
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
+import { EnumerableSet } from "@openzeppelin-v5/contracts/utils/structs/EnumerableSet.sol";
 import { ERC1820RegistryCompiled } from "../../contracts/libs/ERC1820RegistryCompiled.sol";
 import { SuperfluidFrameworkDeployer } from "../../contracts/utils/SuperfluidFrameworkDeployer.t.sol";
 import { Superfluid } from "../../contracts/superfluid/Superfluid.sol";

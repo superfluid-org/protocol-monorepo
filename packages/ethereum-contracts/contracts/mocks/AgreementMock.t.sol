@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 import {
     ISuperfluid,

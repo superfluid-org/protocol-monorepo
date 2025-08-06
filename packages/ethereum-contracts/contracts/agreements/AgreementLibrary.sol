@@ -9,7 +9,7 @@ import {
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { ISuperfluidToken } from "../interfaces/superfluid/ISuperfluidToken.sol";
 
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 
 /**

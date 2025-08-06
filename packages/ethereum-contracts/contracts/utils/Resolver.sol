@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11;
 
-import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import { AccessControlEnumerable } from "@openzeppelin-v5/contracts/access/extensions/AccessControlEnumerable.sol";
 import { IResolver } from "../interfaces/utils/IResolver.sol";
 
 

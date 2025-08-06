@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { Test } from "forge-std/Test.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin-v5/contracts/access/Ownable.sol";
 
 import { SuperfluidUpgradeableBeacon } from "../../../contracts/upgradability/SuperfluidUpgradeableBeacon.sol";
 
