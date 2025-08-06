@@ -350,7 +350,7 @@ contract FlowSchedulerResolverTest is FoundrySuperfluidTester {
         expectUnexecutable();
     }
 
-    function testDeleteNonExistantStreamAfterEndDate() public {
+    function testDeleteNonExistentStreamAfterEndDate() public {
         vm.startPrank(alice);
 
         uint32 defaultEndDate = defaultStartDate + uint32(3600);
