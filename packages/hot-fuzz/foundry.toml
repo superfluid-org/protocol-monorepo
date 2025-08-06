@@ -2,13 +2,13 @@
 root = '../..'
 src = 'packages/hot-fuzz/contracts'
 solc_version = "0.8.30"
-evm_version = 'shanghai'
+evm_version = 'cancun'
 optimizer = true
 optimizer_runs = 200
 remappings = [
     '@superfluid-finance/ethereum-contracts/contracts/=packages/ethereum-contracts/contracts/',
     '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
-    '@openzeppelin/=node_modules/@openzeppelin/',
+    '@openzeppelin/=lib/openzeppelin-contracts/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/']
 out = 'packages/hot-fuzz/build/foundry/out'

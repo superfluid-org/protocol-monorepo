@@ -3,7 +3,6 @@
     "description": "Open contracts that allow scheduling streams and vestings onchain",
     "version": "1.3.0",
     "devDependencies": {
-        "@openzeppelin/contracts": "^5.4.0",
         "@superfluid-finance/ethereum-contracts": "^1.13.0",
         "@superfluid-finance/metadata": "^1.6.0"
     },

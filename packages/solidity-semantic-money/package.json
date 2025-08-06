@@ -3,9 +3,6 @@
     "description": "Semantic money implementation in solidity.",
     "version": "0.1.0",
     "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
-    "dependencies": {
-        "@openzeppelin/contracts": "5.4.0"
-    },
     "directories": {
         "src": "src",
         "test": "test"
