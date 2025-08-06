@@ -89,7 +89,7 @@ contract ManagerTests is FoundrySuperfluidTester {
         new Manager(address(sf.cfa), 2, 1);
     }
 
-    function testDeploymentCheckData() public {
+    function testDeploymentCheckData() public view {
         assertEq(address(manager.cfaV1()), address(sf.cfa), "manager.cfaV1 not equal");
         assertEq(manager.owner(), admin, "manager.owner not equal");
         assertEq(manager.minLower(), MIN_LOWER, "manager.minLower not equal");
