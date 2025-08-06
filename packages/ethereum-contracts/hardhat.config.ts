@@ -7,12 +7,13 @@ import "@nomiclabs/hardhat-ethers";
 import {
     TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS,
     TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD,
+    TASK_COMPILE_GET_REMAPPINGS,
 } from "hardhat/builtin-tasks/task-names";
 import "solidity-coverage";
 import {config as dotenvConfig} from "dotenv";
 import {NetworkUserConfig} from "hardhat/types";
 import "solidity-docgen";
-import {relative} from "path";
+import {relative, resolve} from "path";
 
 try {
     dotenvConfig();
@@ -50,6 +51,33 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(
     async (_, __, runSuper) => {
         const paths = await runSuper();
         return paths.filter((p: string) => !p.includes("test/foundry"));
+    }
+);
+
+// New subtask to define remappings
+subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
+    async (_, { config }, runSuper) => {
+        console.log("=== TASK_COMPILE_GET_REMAPPINGS START ===");
+        
+        // Get default remappings (if any)
+        const remappings = await runSuper();
+        
+        console.log("Type of remappings:", typeof remappings);
+        console.log("Remappings object:", remappings);
+        
+        // Add hardcoded remapping for OpenZeppelin
+        const openzeppelinPath = "../../../lib/openzeppelin-contracts/contracts";
+        console.log("Adding OpenZeppelin remapping:", `@openzeppelin/contracts -> ${openzeppelinPath}`);
+        
+        // Return the remappings object with our custom mapping
+        const newRemappings = {
+            ...remappings,
+            "@openzeppelin/contracts/": "lib/openzeppelin-contracts/contracts/",
+        };
+
+        console.log("New remappings object:", newRemappings);
+
+        return newRemappings;
     }
 );
 
@@ -99,11 +127,15 @@ const config: HardhatUserConfig = {
                 enabled: true,
                 runs: 200,
             },
-            evmVersion: "shanghai",
+            evmVersion: "cancun",
         },
     },
     paths: {
-        artifacts: "build/hardhat",
+        root: "../../",
+        sources: "packages/ethereum-contracts/contracts",
+        artifacts: "packages/ethereum-contracts/build/hardhat",
+        tests: "packages/ethereum-contracts/test",
+        cache: "packages/ethereum-contracts/cache",
     },
     networks: {
         "bsc-mainnet": {
@@ -173,7 +205,10 @@ const config: HardhatUserConfig = {
                   )
                 : undefined,
     },
-    typechain: {target: "ethers-v5"},
+    typechain: {
+        outDir: "packages/ethereum-contracts/typechain-types",
+        target: "ethers-v5"
+    },
 };
 
 export default config;
