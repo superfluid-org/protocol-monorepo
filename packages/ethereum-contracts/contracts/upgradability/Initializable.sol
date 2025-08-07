@@ -84,6 +84,9 @@ abstract contract Initializable {
     modifier initializer() {
         bool isTopLevelCall = !_initializing;
         require(
+            // NOTE (Superfluid):
+            // The original version used `!(Address.isContract(address(this)))` here.
+            // That method is nomore available in OZ v5, thus the logic behind it (code.length check) was inlined.
             (isTopLevelCall && _initialized < 1) || (address(this).code.length == 0 && _initialized == 1),
             "Initializable: contract is already initialized"
         );
