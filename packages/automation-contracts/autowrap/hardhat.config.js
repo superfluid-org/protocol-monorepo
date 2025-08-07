@@ -4,9 +4,21 @@ require("@nomiclabs/hardhat-etherscan");
 require("hardhat-deploy");
 require("hardhat/config");
 require("./script/addStrategy");
+const {TASK_COMPILE_GET_REMAPPINGS} = require("hardhat/builtin-tasks/task-names");
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
+
+// Remapping for OpenZeppelin contracts
+subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
+    async (_, __, runSuper) => {
+        const remappings = await runSuper();
+        return {
+            ...remappings,
+            "@openzeppelin/contracts/": "@openzeppelin-v5/contracts/",
+        };
+    }
+);
 
 /**
  * @type import('hardhat/config').HardhatUserConfig

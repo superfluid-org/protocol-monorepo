@@ -7,7 +7,6 @@ import "@nomiclabs/hardhat-ethers";
 import {
     TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS,
     TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD,
-    TASK_COMPILE_GET_REMAPPINGS,
 } from "hardhat/builtin-tasks/task-names";
 import "solidity-coverage";
 import {config as dotenvConfig} from "dotenv";

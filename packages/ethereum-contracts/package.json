@@ -49,7 +49,8 @@
     "license": "AGPL-3.0-or-later OR MIT",
     "main": "./dev-scripts/index.js",
     "peerDependencies": {
-        "ethers": "^5.7.2"
+        "ethers": "^5.7.2",
+        "@openzeppelin/contracts": "^5.0.0"
     },
     "repository": {
         "type": "git",
