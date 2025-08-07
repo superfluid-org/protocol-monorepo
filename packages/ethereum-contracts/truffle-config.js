@@ -389,7 +389,7 @@ const E = (module.exports = {
                     runs: 200,
                 },
                 // see https://docs.soliditylang.org/en/latest/using-the-compiler.html#target-options
-                evmVersion: "cancun",
+                evmVersion: "shanghai",
             },
         },
     },

@@ -2,7 +2,7 @@
 root = '../..'
 src = 'packages/hot-fuzz/contracts'
 solc_version = "0.8.30"
-evm_version = 'cancun'
+evm_version = 'shanghai'
 optimizer = true
 optimizer_runs = 200
 remappings = [
