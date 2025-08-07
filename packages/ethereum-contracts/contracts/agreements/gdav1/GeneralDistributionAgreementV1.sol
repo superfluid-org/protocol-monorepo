@@ -319,7 +319,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         newCtx = ctx;
 
-        if (pool.superToken().isPool(this, memberAddr)) {
+        if (memberAddr == address(0) || pool.superToken().isPool(this, memberAddr)) {
             revert GDA_CANNOT_CONNECT_POOL();
         }
 

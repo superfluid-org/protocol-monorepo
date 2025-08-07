@@ -1093,6 +1093,16 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
             new bytes(0)
         );
         vm.stopPrank();
+
+        // cannot connect the zero address
+        vm.startPrank(alice);
+        vm.expectRevert(IGeneralDistributionAgreementV1.GDA_CANNOT_CONNECT_POOL.selector);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, address(0), new bytes(0))),
+            new bytes(0)
+        );
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////////////////
