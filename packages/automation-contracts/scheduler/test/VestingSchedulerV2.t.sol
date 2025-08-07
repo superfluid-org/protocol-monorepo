@@ -2417,7 +2417,7 @@ contract VestingSchedulerV2Tests is FoundrySuperfluidTester {
 
         uint32 newEndDate = type(uint32).max - 1234;
 
-        // Setting up a batch call. Superfluid Protocol will replace the emtpy context with data about the sender. That's where the sender is retrieved from.
+        // Setting up a batch call. Superfluid Protocol will replace the empty context with data about the sender. That's where the sender is retrieved from.
         ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_APP_ACTION,
