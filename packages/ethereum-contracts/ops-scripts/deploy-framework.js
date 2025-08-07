@@ -842,7 +842,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
 
         // SimpleACL has now been deployed on all networks.
         // It shall never be deployed in the upgrade path in order to eliminate the risk of accidental state loss.
-        const simpleAclAddress = (await superfluid.getSimpleACL()).address;
+        const simpleAclAddress = await superfluid.getSimpleACL();
         console.log("SimpleACL address", simpleAclAddress);
 
         // get previous callback gas limit, make sure we don't decrease it
