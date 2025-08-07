@@ -20,7 +20,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `ISuperfluidPool`: `getClaimable` and `getClaimableNow` could previously return non-zero values for connected pools, which was inconsistent with what `claimAll` would actually do in this situation (claim nothing).
 
 ### Breaking
-- Updated OpenZeppelin library from v.4.9.6 to v5.4.0
+- Updated OpenZeppelin library from v.4.9.6 to v5.4.0. The import path now includes the major version, making it easier for contracts integrating with this protocol to use a different major version of OpenZeppelin.
 - PoolMemberNFT pruning: `IPoolMemberNFT` and `PoolMemberNFT` removed, `POOL_MEMBER_NFT()` removed from `ISuperToken`.
 
 ## [v1.13.0]
