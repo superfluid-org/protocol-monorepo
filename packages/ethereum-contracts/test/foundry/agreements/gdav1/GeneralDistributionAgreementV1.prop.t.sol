@@ -14,7 +14,7 @@ import { ISuperAgreement } from "../../../../contracts/interfaces/superfluid/ISu
 import {
     GeneralDistributionAgreementV1,
     PoolConfig,
-    ISuperfluid, ISuperfluidPool, ISuperToken
+    ISuperfluid, ISuperfluidPool
 } from "../../../../contracts/agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import {
     GDAv1StorageLib, GDAv1StorageReader, GDAv1StorageWriter

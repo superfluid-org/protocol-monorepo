@@ -123,8 +123,8 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         ISuperfluidToken superToken_,
         bool transferabilityForUnitsOwner_,
         bool distributionFromAnyAddress_,
-        string memory erc20Name_,
-        string memory erc20Symbol_,
+        string calldata erc20Name_,
+        string calldata erc20Symbol_,
         uint8 erc20Decimals_
     ) external initializer {
         admin = admin_;

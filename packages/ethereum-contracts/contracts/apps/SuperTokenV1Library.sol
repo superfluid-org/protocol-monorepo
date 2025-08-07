@@ -47,6 +47,7 @@ import {
  * `expectRevert` expects a revert in the next call.
  * If a revert is triggered by library code itself (vs by a call), `expectRevert` will thus not _see_ that.
  * Possible mitigations:
+ * - if available, use an overloaded variant which allows to explicitly specify the sender
  * - avoid higher-level library methods which can themselves trigger reverts in tests where this is an issue
  * - wrap the method invocation into an external helper method which you then invoke with `this.helperMethod()`,
  *   which makes it an external call
@@ -1416,6 +1417,24 @@ library SuperTokenV1Library {
     }
 
     /**
+     * @dev Connects a pool member to `pool` (aka "autoconnect") if less than 4 connection slots are occupied.
+     * @param token The Super Token address.
+     * @param pool The Superfluid Pool to connect.
+     * @param memberAddress The address of the member to connect.
+     * @return success indicates whether the connection was successful.
+     */
+    function tryConnectPoolFor(ISuperToken token, ISuperfluidPool pool, address memberAddress)
+        internal
+        returns (bool success)
+    {
+        (ISuperfluid host, IGeneralDistributionAgreementV1 gda) = _getAndCacheHostAndGDA(token);
+        bytes memory ret = host.callAgreement(
+            gda, abi.encodeCall(gda.tryConnectPoolFor, (pool, memberAddress, new bytes(0))), new bytes(0)
+        );
+        (success, ) = abi.decode(ret, (bool, bytes));
+    }
+
+    /**
      * @dev Disconnects a pool member from `pool`.
      * @param token The Super Token address.
      * @param pool The Superfluid Pool to disconnect.
@@ -1444,6 +1463,9 @@ library SuperTokenV1Library {
      * @param pool The Superfluid Pool address.
      * @param requestedAmount The amount of tokens to distribute.
      * @return actualAmount The amount actually distributed, which is equal or smaller than `requestedAmount`
+     * NOTE: in foundry tests, you may unexpectedly get `GDA_DISTRIBUTE_FOR_OTHERS_NOT_ALLOWED` reverts
+     * because of the use of `address(this)` as the `from` argument. You can work around this by using
+     * `distribute(token, from, pool, requestedAmount)` instead.
      */
     function distribute(ISuperToken token, ISuperfluidPool pool, uint256 requestedAmount)
         internal
@@ -1499,6 +1521,9 @@ library SuperTokenV1Library {
      * @param requestedFlowRate The flow rate of tokens to distribute.
      * @return actualFlowRate The flowrate actually set, which is equal or smaller than `requestedFlowRate`,
      * depending on pool state - see IGeneralDistributionAgreement.estimateFlowDistributionActualFlowRate().
+     * NOTE: in foundry tests, you may unexpectedly get `GDA_DISTRIBUTE_FOR_OTHERS_NOT_ALLOWED` reverts
+     * because of the use of `address(this)` as the `from` argument. You can work around this by using
+     * `distributeFlow(token, from, pool, requestedFlowRate)` instead.
      */
     function distributeFlow(ISuperToken token, ISuperfluidPool pool, int96 requestedFlowRate)
         internal

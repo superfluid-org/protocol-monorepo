@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { ISuperfluid, ISuperfluidGovernance } from "../../interfaces/superfluid/ISuperfluid.sol";
+import { ISuperfluid, ISuperfluidGovernance, IAccessControl } from "../../interfaces/superfluid/ISuperfluid.sol";
 import {
     BasicParticle,
     PDPoolIndex,
@@ -23,8 +23,6 @@ import {
 } from "../../interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { SuperfluidUpgradeableBeacon } from "../../upgradability/SuperfluidUpgradeableBeacon.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
-import { ISuperToken } from "../../interfaces/superfluid/ISuperToken.sol";
-import { IPoolAdminNFT } from "../../interfaces/agreements/gdav1/IPoolAdminNFT.sol";
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
 import { SlotsBitmapLibrary } from "../../libs/SlotsBitmapLibrary.sol";
 import { SolvencyHelperLibrary } from "../../libs/SolvencyHelperLibrary.sol";
@@ -47,6 +45,12 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     address public constant SLOTS_BITMAP_LIBRARY_ADDRESS = address(SlotsBitmapLibrary);
 
     address public constant SUPERFLUID_POOL_DEPLOYER_ADDRESS = address(SuperfluidPoolDeployerLibrary);
+
+    // @dev The max number of slots which can be used for connecting pools on behalf of a member (per token)
+    uint32 public constant MAX_POOL_AUTO_CONNECT_SLOTS = 4;
+
+    // @dev The ACL role owned by this contract, used to persist autoconnect permissions for accounts
+    bytes32 constant public ACL_POOL_CONNECT_EXCLUSIVE_ROLE = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE");
 
     /// @dev Pool member state slot id for storing subs bitmap
     uint256 private constant _POOL_SUBS_BITMAP_STATE_SLOT_ID = 1;
@@ -228,7 +232,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function _createPool(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory config,
+        PoolConfig calldata config,
         PoolERC20Metadata memory poolERC20Metadata
     ) internal returns (ISuperfluidPool pool) {
         // @note ensure if token and admin are the same that nothing funky happens with echidna
@@ -245,17 +249,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         token.setIsPoolFlag(pool);
 
-        IPoolAdminNFT poolAdminNFT = IPoolAdminNFT(_getPoolAdminNFTAddress(token));
-
-        if (address(poolAdminNFT) != address(0)) {
-            poolAdminNFT.mint(address(pool));
-        }
+        SuperfluidPoolDeployerLibrary.mintPoolAdminNFT(token, pool);
 
         emit PoolCreated(token, admin, pool);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function createPool(ISuperfluidToken token, address admin, PoolConfig memory config)
+    function createPool(ISuperfluidToken token, address admin, PoolConfig calldata config)
         external
         override
         returns (ISuperfluidPool pool)
@@ -272,7 +272,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function createPoolWithCustomERC20Metadata(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory config,
+        PoolConfig calldata config,
         PoolERC20Metadata memory poolERC20Metadata
     ) external override returns (ISuperfluidPool pool) {
         return _createPool(token, admin, config, poolERC20Metadata);
@@ -305,49 +305,106 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         pool.claimAll(memberAddress);
     }
 
-    // @note setPoolConnection function naming
-    function connectPool(ISuperfluidPool pool, bool doConnect, bytes calldata ctx)
-        public
-        returns (bytes memory newCtx)
-    {
-        ISuperfluidToken token = pool.superToken();
-        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
-        address msgSender = currentContext.msgSender;
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
         newCtx = ctx;
-        bool isConnected = token.isPoolMemberConnected(this, pool, msgSender);
-        if (doConnect != isConnected) {
-            assert(
-                SuperfluidPool(address(pool)).operatorConnectMember(
-                    msgSender, doConnect, uint32(currentContext.timestamp)
-                )
-            );
+        _setPoolConnectionFor(pool, address(0), true /* doConnect */, ctx);
+    }
 
-            if (doConnect) {
-                uint32 poolSlotId =
-                    _findAndFillPoolConnectionsBitmap(token, msgSender, bytes32(uint256(uint160(address(pool)))));
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx)
+        external
+        override
+        returns (bool success, bytes memory newCtx)
+    {
+        newCtx = ctx;
 
-                token.createPoolConnectivity
-                    (msgSender, GDAv1StorageLib.PoolConnectivity({ slotId: poolSlotId, pool: pool }));
-            } else {
-                (, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
-                    token.getPoolConnectivity(this, msgSender, pool);
-                token.deletePoolConnectivity(msgSender, pool);
+        if (pool.superToken().isPool(this, memberAddr)) {
+            revert GDA_CANNOT_CONNECT_POOL();
+        }
 
-                _clearPoolConnectionsBitmap(token, msgSender, poolConnectivity.slotId);
-            }
+        // check if the member has opted out of autoconnect
+        IAccessControl simpleACL = ISuperfluid(_host).getSimpleACL();
+        if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {
+            success = false;
+        } else {
+            success = _setPoolConnectionFor(pool, memberAddr, true /* doConnect */, ctx);
+        }
+    }
 
-            emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);
+    function setConnectPermission(bool allow) external override {
+        IAccessControl simpleACL = ISuperfluid(_host).getSimpleACL();
+        if (!allow) {
+            simpleACL.grantRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, msg.sender);
+        } else {
+            simpleACL.revokeRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, msg.sender);
         }
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, true, ctx);
+    function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
+        newCtx = ctx;
+        _setPoolConnectionFor(pool, address(0), false /* doConnect */, ctx);
     }
 
-    /// @inheritdoc IGeneralDistributionAgreementV1
-    function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, false, ctx);
+    // @note memberAddr has override semantics - if set to address(0), it will be set to the msgSender
+    function _setPoolConnectionFor(
+        ISuperfluidPool pool,
+        address memberAddr,
+        bool doConnect,
+        bytes memory ctx
+    )
+        internal
+        returns (bool success)
+    {
+        ISuperfluidToken token = pool.superToken();
+        ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
+
+        bool autoConnectForOtherMember = false;
+        if (memberAddr == address(0)) {
+            memberAddr = currentContext.msgSender;
+        } else {
+            autoConnectForOtherMember = true;
+        }
+
+        bool isConnected = token.isPoolMemberConnected(this, pool, memberAddr);
+
+        if (doConnect != isConnected) {
+            if (doConnect) {
+                if (autoConnectForOtherMember) {
+                    // check if we're below the slot limit for autoconnect
+                   uint256 nUsedSlots = SlotsBitmapLibrary.countUsedSlots(
+                        token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID
+                    );
+                    if (nUsedSlots >= MAX_POOL_AUTO_CONNECT_SLOTS) {
+                        return false;
+                    }
+                }
+
+                uint32 poolSlotId = _findAndFillPoolConnectionsBitmap(
+                    token, memberAddr, bytes32(uint256(uint160(address(pool))))
+                );
+
+                token.createPoolConnectivity
+                    (memberAddr, GDAv1StorageLib.PoolConnectivity({ slotId: poolSlotId, pool: pool }));
+            } else {
+                (, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
+                    token.getPoolConnectivity(this, memberAddr, pool);
+                token.deletePoolConnectivity(memberAddr, pool);
+
+                _clearPoolConnectionsBitmap(token, memberAddr, poolConnectivity.slotId);
+            }
+
+            assert(
+                SuperfluidPool(address(pool)).operatorConnectMember(
+                    memberAddr, doConnect, uint32(currentContext.timestamp)
+                )
+            );
+
+            emit PoolConnectionUpdated(token, pool, memberAddr, doConnect, currentContext.userData);
+        }
+
+        return true;
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -530,21 +587,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                 adjustmentFlowRate,
                 flowVars.currentContext.userData
             );
-        }
-    }
-
-    function _getPoolAdminNFTAddress(ISuperfluidToken token) internal view returns (address poolAdminNFTAddress) {
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory data) =
-            address(token).staticcall(abi.encodeWithSelector(ISuperToken.POOL_ADMIN_NFT.selector));
-
-        if (success) {
-            // @note We are aware this may revert if a Custom SuperToken's
-            // POOL_ADMIN_NFT does not return data that can be
-            // decoded to an address. This would mean it was intentionally
-            // done by the creator of the Custom SuperToken logic and is
-            // fully expected to revert in that case as the author desired.
-            poolAdminNFTAddress = abi.decode(data, (address));
         }
     }
 
