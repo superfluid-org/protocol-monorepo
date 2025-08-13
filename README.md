@@ -2,7 +2,7 @@
 <h1>Welcome to superfluid protocol-monorepo 👋</h1>
 
 <p>
-  <a href="#superfluid-finance/ethereum-contracts" target="_blank">
+  <a href="https://www.npmjs.com/package/@superfluid-finance/ethereum-contracts" target="_blank">
     <img alt="npm" src="https://img.shields.io/npm/v/@superfluid-finance/ethereum-contracts?label=ethereum-contracts">
   </a>
   <a href="#superfluid-finance/subgraph" target="_blank">
