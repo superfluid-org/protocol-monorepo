@@ -7,7 +7,7 @@
         "path": false
     },
     "dependencies": {
-        "@superfluid-finance/metadata": "^1.6.0",
+        "@superfluid-finance/metadata": "^1.6.1",
         "@truffle/contract": "4.6.31",
         "auto-bind": "4.0.0",
         "node-fetch": "2.7.0"

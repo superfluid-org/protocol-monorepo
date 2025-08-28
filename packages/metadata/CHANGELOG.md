@@ -3,6 +3,14 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.1]
+### Changed
+- New deployment of the autowrap contracts on Base
+
+## [v1.6.0]
+### Added
+- Added `vestingSchedulerV3` to the list of contracts
+
 ## [v1.5.2]
 ### Changed
 - New (payable) MacroForwarder for all networks
