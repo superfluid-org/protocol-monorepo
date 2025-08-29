@@ -13,6 +13,7 @@ import {config as dotenvConfig} from "dotenv";
 import {NetworkUserConfig} from "hardhat/types";
 import "solidity-docgen";
 import {relative} from "path";
+import {execSync} from 'child_process';
 
 try {
     dotenvConfig();
@@ -28,14 +29,19 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(
     async (args, hre, runSuper) => {
         console.log("subtask TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD");
         if (process.env.SOLC !== undefined) {
+            const versionOutput = execSync(`${process.env.SOLC} --version`, { encoding: 'utf8' }).trim();
+            const longVersion = versionOutput.match(/Version: (.+)/)?.[1] || `${args.solcVersion}+commit.unknown.Linux.g++`;
             console.log(
                 "Using Solidity compiler set in SOLC:",
-                process.env.SOLC
+                process.env.SOLC,
+                ", longVersion:",
+                longVersion
             );
             return {
                 compilerPath: process.env.SOLC,
                 isSolcJs: false, // false for native compiler
                 version: args.solcVersion,
+                longVersion,
             };
         } else {
             // fall back to the default
