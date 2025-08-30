@@ -141,10 +141,9 @@ contract HotFuzzBase {
         address[] memory accounts = _listAccounts();
         for (uint i = 0; i < accounts.length; ++i) {
             (int256 avb, uint256 d, uint256 od, ) = superToken.realtimeBalanceOfNow(accounts[i]);
-            // FIXME: correct formula
-            // liquiditySum += avb + int256(d) - int256(od);
-            // current faulty one
-            liquiditySum += avb + (d > od ? int256(d) - int256(od) : int256(0));
+            // Sum of account availabilities adjusted by deposit (d) and owed deposit (od)
+            // Correct invariance: liquiditySum += avb + int256(d) - int256(od);
+            liquiditySum += avb + int256(d) - int256(od);
         }
         assert(int256(expectedTotalSupply) == liquiditySum);
         return int256(expectedTotalSupply) == liquiditySum;
