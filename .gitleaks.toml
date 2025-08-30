@@ -1,0 +1,21 @@
+title = "Superfluid protocol-monorepo gitleaks configuration"
+
+[allowlist]
+description = "Global allowlist to reduce noise"
+paths = [
+  "''(^|/)yarn\\.lock$''",
+  "''(^|/)package-lock\\.json$''",
+  "''(^|/)\\.pnp\\..*$''",
+  "''(^|/)\\.yarn/.*$''",
+  "''(^|/).*\\.png$''",
+  "''(^|/).*\\.jpg$''",
+  "''(^|/).*\\.jpeg$''",
+  "''(^|/).*\\.gif$''",
+  "''(^|/).*\\.svg$''",
+  "''(^|/).*\\.ico$''",
+  "''(^|/).*\\.drawio$''",
+  "''(^|/).*\\.md$''"
+]
+
+# Using built-in gitleaks rules. Add repo-specific allowlists as needed.
+
