@@ -179,6 +179,16 @@ Additionally, we use foundry's assert functions to make debugging easier by prov
 assertEq(newFlowRateAllowance, expectedFlowRateAllowance, "CFAv1 ACL: unexpected flow rate allowance");
 ```
 
+### Gas Snapshots (optional)
+
+To record and review gas costs during development, you can generate a Foundry gas snapshot:
+
+```
+yarn gas:snapshot
+```
+
+This runs `forge snapshot` through the package’s Foundry wrapper. Maintainers may use these snapshots during review to spot unexpected gas deltas. If your change intentionally affects gas, include a brief note in your PR description.
+
 ### Examples
 
 You may also want to check out some example dapps in the [examples repo](https://github.com/superfluid-finance/super-examples) instead of starting from scratch.
