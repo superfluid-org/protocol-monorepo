@@ -36,9 +36,62 @@ yarn add --dev 'https://gitpkg.now.sh/api/pkg?url=superfluid-finance/protocol-mo
 Also make sure the dependency `@superfluid-finance/ethereum-contracts` is from the latest dev branch, since it is still
 under active development.
 
-3. Make sure you use foundry and configure it properly:
+3. Make sure you use Foundry and configure it properly:
 
-(TODO.)
+Install Foundry (forge/cast/anvil):
+```
+curl -sSfL https://foundry.paradigm.xyz | bash
+# start a new shell or source your shell init, then:
+foundryup
+forge --version
+```
+
+Add a `foundry.toml` appropriate for your project. If you are working inside this monorepo, the defaults are already provided. If you are using hot-fuzz in an external project via npm/yarn, set remappings so Solidity imports resolve correctly:
+
+Example (external project):
+```
+[profile.default]
+src = 'contracts'
+solc_version = '0.8.30'
+evm_version = 'shanghai'
+optimizer = true
+optimizer_runs = 200
+remappings = [
+  '@superfluid-finance/ethereum-contracts/contracts/=node_modules/@superfluid-finance/ethereum-contracts/contracts/',
+  '@superfluid-finance/solidity-semantic-money/src/=node_modules/@superfluid-finance/solidity-semantic-money/src/',
+  '@openzeppelin/=node_modules/@openzeppelin/',
+  'ds-test/=lib/forge-std/lib/ds-test/src/',
+  'forge-std/=lib/forge-std/src/'
+]
+```
+
+Monorepo reference (already configured here):
+```
+[profile.default]
+root = '../..'
+src = 'packages/hot-fuzz/contracts'
+solc_version = '0.8.30'
+evm_version = 'shanghai'
+optimizer = true
+optimizer_runs = 200
+remappings = [
+  '@superfluid-finance/ethereum-contracts/contracts/=packages/ethereum-contracts/contracts/',
+  '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
+  '@openzeppelin/=node_modules/@openzeppelin/',
+  'ds-test/=lib/forge-std/lib/ds-test/src/',
+  'forge-std/=lib/forge-std/src/'
+]
+```
+
+Quick check:
+```
+# compile contracts with foundry
+forge build
+# run echidna with your fuzz config
+npx hot-fuzz contracts/YourAppHotFuzz.yaml
+```
+
+Note: Echidna must be installed and on PATH. See https://github.com/crytic/echidna for installation options.
 
 > :warning: there is no truffle or hardhat support at the moment
 
