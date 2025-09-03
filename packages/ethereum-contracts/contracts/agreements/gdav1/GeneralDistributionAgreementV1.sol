@@ -385,6 +385,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         returns (bytes memory newCtx)
     {
         ISuperfluidToken token = pool.superToken();
+        if (!_isPool(this, token, address(pool))) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address msgSender = currentContext.msgSender;
         newCtx = ctx;
