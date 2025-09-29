@@ -75,7 +75,7 @@ If you're interested in peeking under the hood, then check out the contracts pac
   <a href="https://www.npmjs.com/package/@superfluid-finance/metadata" target="_blank">
     <img alt="Version" src="https://img.shields.io/npm/v/@superfluid-finance/metadata.svg">
   </a>
-  <a href="#" target="_blank">
+  <a href="https://github.com/superfluid-org/protocol-monorepo/blob/dev/packages/metadata/MIT-LICENSE" target="_blank">
     <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
   </a>
 </p>
