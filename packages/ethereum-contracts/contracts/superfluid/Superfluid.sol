@@ -16,7 +16,8 @@ import {
     SuperfluidGovernanceConfigs,
     ISuperfluidToken,
     ISuperToken,
-    ISuperTokenFactory
+    ISuperTokenFactory,
+    IAccessControl
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { GeneralDistributionAgreementV1 } from "../agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import { SuperfluidUpgradeableBeacon } from "../upgradability/SuperfluidUpgradeableBeacon.sol";
@@ -25,6 +26,7 @@ import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { BaseRelayRecipient } from "../libs/BaseRelayRecipient.sol";
 import { SimpleForwarder } from "../utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
+import { SimpleACL } from "../utils/SimpleACL.sol";
 
 /**
  * @dev The Superfluid host implementation.
@@ -59,6 +61,9 @@ contract Superfluid is
     SimpleForwarder immutable public SIMPLE_FORWARDER;
     ERC2771Forwarder immutable internal _ERC2771_FORWARDER;
 
+    // ACL (for superapp registration)
+    SimpleACL immutable internal _SIMPLE_ACL;
+
     /**
      * @dev Maximum number of level of apps can be composed together
      *
@@ -70,6 +75,8 @@ contract Superfluid is
     uint constant public MAX_APP_CALLBACK_LEVEL = 1;
 
     uint32 constant public MAX_NUM_AGREEMENTS = 256;
+
+    bytes32 constant public ACL_SUPERAPP_REGISTRATION_ROLE = keccak256("ACL_SUPERAPP_REGISTRATION_ROLE");
 
     /* WARNING: NEVER RE-ORDER VARIABLES! Always double-check that new
        variables are added APPEND-ONLY. Re-ordering variables can
@@ -105,13 +112,15 @@ contract Superfluid is
         bool appWhiteListingEnabled,
         uint64 callbackGasLimit,
         address simpleForwarderAddress,
-        address erc2771ForwarderAddress
+        address erc2771ForwarderAddress,
+        address simpleAclAddress
     ) {
         NON_UPGRADABLE_DEPLOYMENT = nonUpgradable;
         APP_WHITE_LISTING_ENABLED = appWhiteListingEnabled;
         CALLBACK_GAS_LIMIT = callbackGasLimit;
         SIMPLE_FORWARDER = SimpleForwarder(simpleForwarderAddress);
         _ERC2771_FORWARDER = ERC2771Forwarder(erc2771ForwarderAddress);
+        _SIMPLE_ACL = SimpleACL(simpleAclAddress);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -375,8 +384,16 @@ contract Superfluid is
         _registerApp(ISuperApp(msg.sender), configWord);
     }
 
-    // internally we keep using the gov config method with key
+    // Checks if the deployer account has permission to register SuperApps, reverts if not.
+    // New method: lookup in the SimpleACL contract.
+    // Legacy/fallback method: lookup in the governance contract.
     function _enforceAppRegistrationPermissioning(string memory registrationKey, address deployer) internal view {
+        // new method: check if the deployer is granted permission in the ACL
+        if (_SIMPLE_ACL.hasRole(ACL_SUPERAPP_REGISTRATION_ROLE, deployer)) {
+            return;
+        }
+
+        // legacy/fallback method: check if permission is given by gov
         bytes32 configKey = SuperfluidGovernanceConfigs.getAppRegistrationConfigKey(
             // solhint-disable-next-line avoid-tx-origin
             deployer,
@@ -956,6 +973,10 @@ contract Superfluid is
 
     function getERC2771Forwarder() external view override returns(address) {
         return address(_ERC2771_FORWARDER);
+    }
+
+    function getSimpleACL() external view override returns(IAccessControl) {
+        return _SIMPLE_ACL;
     }
 
     /**************************************************************************

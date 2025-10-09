@@ -37,8 +37,8 @@ contract PoolAdminNFT is PoolNFTBase, IPoolAdminNFT {
         return _poolAdminDataByTokenId[tokenId];
     }
 
-    /// @notice Reverts - Transfer of pool member NFT is not allowed.
-    /// @dev We revert when users attempt to transfer pool member NFTs.
+    /// @notice Reverts - Transfer of NFT is not allowed.
+    /// @dev We revert when users attempt to transfer NFTs.
     function _transfer(
         address, // from,
         address, // to,

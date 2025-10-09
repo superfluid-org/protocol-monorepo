@@ -93,14 +93,14 @@ contract WrapStrategyTests is FoundrySuperfluidTester {
 
     // SuperToken
 
-    function testSupportedSuperToken() public {
+    function testSupportedSuperToken() public view {
         assertTrue(
             wrapStrategy.isSupportedSuperToken(superToken),
             "SuperToken should be supported"
         );
     }
 
-    function testCannotNonSupportedSuperToken() public {
+    function testCannotNonSupportedSuperToken() public view {
         assertTrue(
             !wrapStrategy.isSupportedSuperToken(nativeSuperToken),
             "Native SuperToken shouldn't be supported"

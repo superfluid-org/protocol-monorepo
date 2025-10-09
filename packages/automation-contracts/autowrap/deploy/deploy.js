@@ -45,13 +45,35 @@ module.exports = async function ({ deployments, getNamedAccounts }) {
         skipIfAlreadyDeployed: false,
     });
 
-    // approve strategy on manager contract
-    await hre.run("addStrategy", {
-        manager: Manager.address,
-        strategy:WrapStrategy.address,
-    });
+    // Check if this is a fresh deployment or reusing existing contracts
+    const isFreshDeployment = Manager.newlyDeployed && WrapStrategy.newlyDeployed;
 
-    // wait for 15 seconds to allow etherscan to indexed the contracts
+    if (isFreshDeployment) {
+        console.log("Fresh deployment detected - executing additional setup steps...");
+
+        // approve strategy on manager contract directly
+        console.log("Adding strategy to manager...");
+        const managerContract = await hre.ethers.getContractAt("Manager", Manager.address);
+        const addStrategyTx = await managerContract.addApprovedStrategy(WrapStrategy.address);
+        await addStrategyTx.wait();
+        console.log(`Strategy added. Tx hash: ${addStrategyTx.hash}`);
+
+        // Renounce ownership on both contracts
+        console.log("Renouncing ownership on Manager contract...");
+        const renounceManagerTx = await managerContract.renounceOwnership();
+        await renounceManagerTx.wait();
+        console.log(`Manager ownership renounced. Tx hash: ${renounceManagerTx.hash}`);
+
+        console.log("Renouncing ownership on WrapStrategy contract...");
+        const wrapStrategyContract = await hre.ethers.getContractAt("WrapStrategy", WrapStrategy.address);
+        const renounceStrategyTx = await wrapStrategyContract.renounceOwnership();
+        await renounceStrategyTx.wait();
+        console.log(`WrapStrategy ownership renounced. Tx hash: ${renounceStrategyTx.hash}`);
+    } else {
+        console.log("Reusing existing contracts - skipping additional setup steps");
+    }
+
+    console.log("Giving the explorer(s) 15 seconds to index before verification...");
     await sleep(15000);
 
     try {

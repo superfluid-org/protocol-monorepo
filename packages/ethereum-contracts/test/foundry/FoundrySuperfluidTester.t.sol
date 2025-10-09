@@ -16,13 +16,12 @@ import {
 } from "../../contracts/interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { IPoolNFTBase } from "../../contracts/interfaces/agreements/gdav1/IPoolNFTBase.sol";
 import { IPoolAdminNFT } from "../../contracts/interfaces/agreements/gdav1/IPoolAdminNFT.sol";
-import { IPoolMemberNFT } from "../../contracts/interfaces/agreements/gdav1/IPoolMemberNFT.sol";
 import { ISuperfluidToken } from "../../contracts/interfaces/superfluid/ISuperfluidToken.sol";
 import { ISETH } from "../../contracts/interfaces/tokens/ISETH.sol";
 import { UUPSProxy } from "../../contracts/upgradability/UUPSProxy.sol";
 import { ConstantFlowAgreementV1 } from "../../contracts/agreements/ConstantFlowAgreementV1.sol";
 import { SuperTokenV1Library } from "../../contracts/apps/SuperTokenV1Library.sol";
-import { IERC20, ISuperToken, SuperToken, IConstantOutflowNFT, IConstantInflowNFT }
+import { IERC20, ISuperToken, SuperToken }
     from "../../contracts/superfluid/SuperToken.sol";
 import { SuperfluidLoader } from "../../contracts/utils/SuperfluidLoader.sol";
 import { TestResolver } from "../../contracts/utils/TestResolver.sol";
@@ -88,7 +87,7 @@ contract FoundrySuperfluidTester is Test {
     }
 
     struct ExpectedPoolMemberData {
-        bool isConnected;
+        bool wasConnected;
         uint128 ownedUnits;
         int96 flowRate;
         int96 netFlowRate;
@@ -128,6 +127,8 @@ contract FoundrySuperfluidTester is Test {
     address internal constant heidi = address(0x428);
     address internal constant ivan = address(0x429);
     address[] internal TEST_ACCOUNTS = [admin, alice, bob, carol, dan, eve, frank, grace, heidi, ivan];
+
+    address internal constant MAX_TESTER_ADDRESS = address(0x4ff);
 
     /// @dev Other account addresses added that aren't testers (pools, super apps, smart contracts)
     EnumerableSet.AddressSet internal OTHER_ACCOUNTS;
@@ -718,10 +719,7 @@ contract FoundrySuperfluidTester is Test {
     ) internal returns (SuperToken localSuperToken) {
         localSuperToken = new SuperToken(
             sf.host,
-            IConstantOutflowNFT(address(0)),
-            IConstantInflowNFT(address(0)),
-            previousSuperToken.POOL_ADMIN_NFT(),
-            previousSuperToken.POOL_MEMBER_NFT()
+            previousSuperToken.POOL_ADMIN_NFT()
         );
         localSuperToken.initializeWithAdmin(underlyingToken, underlyingDecimals, name, symbol, _admin);
     }
@@ -1208,7 +1206,7 @@ contract FoundrySuperfluidTester is Test {
         vm.assume(newUnits_ < type(uint72).max);
         ISuperToken poolSuperToken = ISuperToken(address(pool_.superToken()));
 
-        (bool isConnected, int256 oldUnits,) = _helperGetMemberPoolState(pool_, member_);
+        (bool wasConnected, int256 oldUnits,) = _helperGetMemberPoolState(pool_, member_);
 
         PoolUnitData memory poolUnitDataBefore = _helperGetPoolUnitsData(pool_);
 
@@ -1224,8 +1222,11 @@ contract FoundrySuperfluidTester is Test {
 
         assertEq(pool_.getUnits(member_), newUnits_, "GDAv1.t: Members' units incorrectly set");
 
-        // Assert that pending balance didn't change if user is disconnected
-        if (!isConnected) {
+        // Determine the new connection status after the update
+        bool isConnectedAfter = sf.gda.isMemberConnected(pool_, member_);
+
+        // Assert that pending balance didn't change if user was and remains disconnected
+        if (!wasConnected && !isConnectedAfter) {
             (int256 balanceAfter,,,) = poolSuperToken.realtimeBalanceOfNow(member_);
             assertEq(
                 balanceAfter, balanceBefore, "_helperUpdateMemberUnits: Pending balance changed"
@@ -1257,44 +1258,106 @@ contract FoundrySuperfluidTester is Test {
                 poolUnitDataAfter.totalUnits,
                 "_helperUpdateMemberUnits: Pool total units incorrect"
             );
+            
+            // Calculate expected connected units change based on new behavior
+            int256 expectedConnectedUnitsDelta;
+            if (wasConnected && isConnectedAfter) {
+                // Member was connected and remains connected - units delta applies to connected
+                expectedConnectedUnitsDelta = unitsDelta;
+            } else if (!wasConnected && isConnectedAfter) {
+                // Member was disconnected and is now connected - all new units go to connected
+                expectedConnectedUnitsDelta = uint256(newUnits_).toInt256();
+            } else if (wasConnected && !isConnectedAfter) {
+                // Member was connected and is now disconnected - all old units move to disconnected
+                expectedConnectedUnitsDelta = -oldUnits;
+            } else {
+                // Member was disconnected and remains disconnected - units delta applies to disconnected
+                expectedConnectedUnitsDelta = 0;
+            }
+            
             assertEq(
-                uint256(uint256(poolUnitDataBefore.connectedUnits).toInt256() + (isConnected ? unitsDelta : int128(0))),
+                uint256(uint256(poolUnitDataBefore.connectedUnits).toInt256() + expectedConnectedUnitsDelta),
                 poolUnitDataAfter.connectedUnits,
                 "_helperUpdateMemberUnits: Pool connected units incorrect"
             );
+            
+            // Calculate expected disconnected units change based on new behavior
+            int256 expectedDisconnectedUnitsDelta;
+            if (wasConnected && isConnectedAfter) {
+                // Member was connected and remains connected - no change to disconnected
+                expectedDisconnectedUnitsDelta = 0;
+            } else if (!wasConnected && isConnectedAfter) {
+                // Member was disconnected and is now connected - all old units move from disconnected to connected
+                expectedDisconnectedUnitsDelta = -oldUnits;
+            } else if (wasConnected && !isConnectedAfter) {
+                // Member was connected and is now disconnected - all new units go to disconnected
+                expectedDisconnectedUnitsDelta = uint256(newUnits_).toInt256();
+            } else {
+                // Member was disconnected and remains disconnected - units delta applies to disconnected
+                expectedDisconnectedUnitsDelta = unitsDelta;
+            }
+            
             assertEq(
-                uint256(
-                    uint256(poolUnitDataBefore.disconnectedUnits).toInt256() + (isConnected ? int128(0) : unitsDelta)
-                ),
+                uint256(uint256(poolUnitDataBefore.disconnectedUnits).toInt256() + expectedDisconnectedUnitsDelta),
                 poolUnitDataAfter.disconnectedUnits,
                 "_helperUpdateMemberUnits: Pool disconnected units incorrect"
             );
         }
 
-        // Assert Pool Member NFT is minted/burned
-        _assertPoolMemberNFT(poolSuperToken, pool_, member_, newUnits_);
-
         // Assert RTB for all users
         // _assertRealTimeBalances(ISuperToken(address(poolSuperToken)));
+    }
+
+    function _helperClaimAll(ISuperfluidPool pool_, address caller_, address member_) internal {
+        (int256 claimableBefore,) = pool_.getClaimableNow(member_);
+        (int256 balanceBefore,,,) = pool_.superToken().realtimeBalanceOfNow(member_);
+
+        vm.startPrank(caller_);
+        pool_.claimAll(member_);
+        vm.stopPrank();
+
+        (int256 claimableAfter,) = pool_.getClaimableNow(member_);
+        (int256 balanceAfter,,,) = pool_.superToken().realtimeBalanceOfNow(member_);
+
+        assertEq(claimableAfter, 0, "GDAv1.t: Member claimable amount should be 0");
+        assertEq(balanceAfter, balanceBefore + claimableBefore, "GDAv1.t: Member balance should increase by claimable amount");
     }
 
     function _helperConnectPool(address caller_, ISuperToken superToken_, ISuperfluidPool pool_, bool useForwarder_)
         internal
     {
-        (bool isConnectedBefore, int256 oldUnits, int96 oldFlowRate) = _helperGetMemberPoolState(pool_, caller_);
+        _helperConnectPoolFor(caller_, caller_, superToken_, pool_, useForwarder_);
+    }
+
+    function _helperConnectPoolFor(address member_, address caller_, ISuperToken superToken_, ISuperfluidPool pool_, bool useForwarder_)
+        internal
+    {
+        (bool isConnectedBefore, int256 oldUnits, int96 oldFlowRate) = _helperGetMemberPoolState(pool_, member_);
 
         PoolUnitData memory poolUnitDataBefore = _helperGetPoolUnitsData(pool_);
         PoolFlowRateData memory poolFlowRateDataBefore = _helperGetPoolFlowRatesData(pool_);
 
         vm.startPrank(caller_);
         if (useForwarder_) {
-            sf.gdaV1Forwarder.connectPool(pool_, "");
+            if (caller_ == member_) {
+                sf.gdaV1Forwarder.connectPool(pool_, "");
+            } else {
+                revert("autoconnect not supported by forwarder");
+            }
         } else {
-            sf.host.callAgreement(
-                sf.gda,
-                abi.encodeWithSelector(IGeneralDistributionAgreementV1.connectPool.selector, pool_, ""),
-                new bytes(0)
-            );
+            if (caller_ == member_) {
+                sf.host.callAgreement(
+                    sf.gda,
+                    abi.encodeWithSelector(IGeneralDistributionAgreementV1.connectPool.selector, pool_, ""),
+                    new bytes(0)
+                );
+            } else {
+                sf.host.callAgreement(
+                    sf.gda,
+                    abi.encodeWithSelector(IGeneralDistributionAgreementV1.tryConnectPoolFor.selector, pool_, member_, ""),
+                    new bytes(0)
+                );
+            }
         }
         vm.stopPrank();
 
@@ -1302,12 +1365,12 @@ contract FoundrySuperfluidTester is Test {
         PoolFlowRateData memory poolFlowRateDataAfter = _helperGetPoolFlowRatesData(pool_);
 
         {
-            _helperTakeBalanceSnapshot(superToken_, caller_);
+            _helperTakeBalanceSnapshot(superToken_, member_);
         }
 
         bool isMemberConnected = useForwarder_
-            ? sf.gdaV1Forwarder.isMemberConnected(pool_, caller_)
-            : sf.gda.isMemberConnected(pool_, caller_);
+            ? sf.gdaV1Forwarder.isMemberConnected(pool_, member_)
+            : sf.gda.isMemberConnected(pool_, member_);
         assertEq(isMemberConnected, true, "GDAv1.t: Member not connected");
 
         // Assert connected units delta for the pool
@@ -1682,10 +1745,10 @@ contract FoundrySuperfluidTester is Test {
     function _helperGetMemberPoolState(ISuperfluidPool pool_, address member_)
         internal
         view
-        returns (bool isConnected, int256 units, int96 flowRate)
+        returns (bool wasConnected, int256 units, int96 flowRate)
     {
         units = uint256(pool_.getUnits(member_)).toInt256();
-        isConnected = sf.gda.isMemberConnected(pool_, member_);
+        wasConnected = sf.gda.isMemberConnected(pool_, member_);
         flowRate = pool_.getMemberFlowRate(member_);
     }
 
@@ -1799,28 +1862,5 @@ contract FoundrySuperfluidTester is Test {
         internal view
     {
         assertEq(_pool.allowance(owner, spender), expectedAllowance, "_assertPoolAllowance: allowance mismatch");
-    }
-
-    function _assertPoolMemberNFT(
-        ISuperfluidToken _superToken,
-        ISuperfluidPool _pool,
-        address _member,
-        uint128 _newUnits
-    ) internal {
-        IPoolMemberNFT poolMemberNFT = SuperToken(address(_superToken)).POOL_MEMBER_NFT();
-        uint256 tokenId = poolMemberNFT.getTokenId(address(_pool), address(_member));
-        if (_newUnits > 0) {
-            // Assert Pool Member NFT owner
-            assertEq(poolMemberNFT.ownerOf(tokenId), _member, "_assertPoolMemberNFT: member doesn't own NFT");
-
-            // Assert Pool Member NFT data
-            IPoolMemberNFT.PoolMemberNFTData memory poolMemberData = poolMemberNFT.poolMemberDataByTokenId(tokenId);
-            assertEq(poolMemberData.pool, address(_pool), "_assertPoolMemberNFT: Pool Member NFT pool mismatch");
-            assertEq(poolMemberData.member, _member, "_assertPoolMemberNFT: Pool Member NFT member mismatch");
-            assertEq(poolMemberData.units, _newUnits, "_assertPoolMemberNFT: Pool Member NFT units mismatch");
-        } else {
-            vm.expectRevert(IPoolNFTBase.POOL_NFT_INVALID_TOKEN_ID.selector);
-            poolMemberNFT.ownerOf(tokenId);
-        }
     }
 }

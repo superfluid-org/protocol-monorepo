@@ -706,8 +706,8 @@
             "vestingSchedulerV2": "0x7b77A34b8B76B66E97a5Ae01aD052205d5cbe257",
             "vestingSchedulerV3": "0x6Bf35A170056eDf9aEba159dce4a640cfCef9312",
             "autowrap": {
-                "manager": "0x5D0acD0864Ad07ba4E1E0474AE69Da87482e14A9",
-                "wrapStrategy": "0xB29005319B0caB24cF6D4d24e8420E54BB29Cb0d"
+                "manager": "0x041D4bF21367e9B92016B28Fb5A2f697c1befd01",
+                "wrapStrategy": "0xD790CDE7A1B3194d8Ce3CF21544F03a770336E23"
             },
             "existentialNFTCloneFactory": "0x642332562BC60a4Bd9681E7bb1588f7456A497aC",
             "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"

@@ -7,7 +7,6 @@ import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import { IERC5267 } from "@openzeppelin/contracts/interfaces/IERC5267.sol";
 import { IERC777 } from "@openzeppelin/contracts/token/ERC777/IERC777.sol";
 import { IPoolAdminNFT } from "../agreements/gdav1/IPoolAdminNFT.sol";
-import { IPoolMemberNFT } from "../agreements/gdav1/IPoolMemberNFT.sol";
 
 /**
  * @title Super token (Superfluid Token + ERC20 + ERC777) interface
@@ -77,8 +76,6 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
 
     // solhint-disable-next-line func-name-mixedcase
     function POOL_ADMIN_NFT() external view returns (IPoolAdminNFT);
-    // solhint-disable-next-line func-name-mixedcase
-    function POOL_MEMBER_NFT() external view returns (IPoolMemberNFT);
 
     /**************************************************************************
     * IERC20Metadata & ERC777
@@ -604,14 +601,6 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
      */
     event PoolAdminNFTCreated(
         IPoolAdminNFT indexed poolAdminNFT
-    );
-
-    /**
-     * @dev Pool Member NFT proxy created event
-     * @param poolMemberNFT pool member nft address
-     */
-    event PoolMemberNFTCreated(
-        IPoolMemberNFT indexed poolMemberNFT
     );
 
     /**************************************************************************

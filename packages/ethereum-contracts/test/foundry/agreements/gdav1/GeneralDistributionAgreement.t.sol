@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
 import "../../FoundrySuperfluidTester.t.sol";
 import {
@@ -16,7 +17,6 @@ import { ISuperfluidToken } from "../../../../contracts/interfaces/superfluid/IS
 import { ISuperfluidPool, SuperfluidPool } from "../../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import { IPoolNFTBase } from "../../../../contracts/interfaces/agreements/gdav1/IPoolNFTBase.sol";
 import { IPoolAdminNFT } from "../../../../contracts/interfaces/agreements/gdav1/IPoolAdminNFT.sol";
-import { IPoolMemberNFT } from "../../../../contracts/interfaces/agreements/gdav1/IPoolMemberNFT.sol";
 import { SuperfluidPoolStorageLayoutMock } from "./SuperfluidPoolUpgradabilityMock.t.sol";
 
 /// @title GeneralDistributionAgreementV1 Integration Tests
@@ -270,10 +270,17 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.stopPrank();
     }
 
-    function testRevertIfNotAdminOrGDAUpdatesMemberUnitsViaPool() public {
+    function testRevertIfNotAdminOrGDAChangesMemberUnitsViaPool() public {
         vm.startPrank(bob);
         vm.expectRevert(ISuperfluidPool.SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA.selector);
         freePool.updateMemberUnits(bob, 69);
+
+        vm.expectRevert(ISuperfluidPool.SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA.selector);
+        freePool.increaseMemberUnits(bob, 69);
+
+        vm.expectRevert(ISuperfluidPool.SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA.selector);
+        freePool.decreaseMemberUnits(bob, 69);
+
         vm.stopPrank();
     }
 
@@ -876,6 +883,34 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         }
     }
 
+    function testIncreaseDecreaseMemberUnits(
+        address member,
+        uint120 increaseAmount,
+        uint120 decreaseAmount
+    ) public {
+        vm.assume(increaseAmount >= decreaseAmount);
+        vm.assume(member != address(0));
+        vm.assume(member != address(freePool));
+
+        vm.startPrank(alice);
+
+        freePool.increaseMemberUnits(member, increaseAmount);
+        assertEq(freePool.getUnits(member), increaseAmount);
+
+        freePool.decreaseMemberUnits(member, decreaseAmount);
+        assertEq(freePool.getUnits(member), increaseAmount - decreaseAmount);
+
+        // explicitly test for overflow and underflow behaviour
+        freePool.updateMemberUnits(member, 10);
+        vm.expectRevert(stdError.arithmeticError);
+        freePool.increaseMemberUnits(member, type(uint128).max);
+
+        vm.expectRevert(stdError.arithmeticError);
+        freePool.decreaseMemberUnits(member, 11);
+
+        vm.stopPrank();
+    }
+
     function testApproveAndTransferFrom(
         address owner,
         address spender,
@@ -906,14 +941,168 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         _helperSuperfluidPoolUnitsTransferFrom(freePool, spender, owner, spender, uint256(uint128(transferAmount)));
     }
 
+    function testGetClaimable(
+        address member,
+        uint128 units,
+        uint64 distributionAmount,
+        bool useForwarder,
+        PoolConfig memory config
+    ) public {
+        vm.assume(member != address(0));
+        vm.assume(member != address(freePool));
+        vm.assume(member != alice); // alice is the test distributor
+        vm.assume(units > 0);
+        vm.assume(distributionAmount > 0);
+        vm.assume(units < distributionAmount);
+        vm.assume(distributionAmount < type(uint128).max);
+
+        // Create a pool for testing
+        ISuperfluidPool pool = _helperCreatePool(superToken, alice, alice, useForwarder, config);
+        _addAccount(member);
+
+        // Step 1: Assign units to disconnected member
+        _helperUpdateMemberUnits(pool, alice, member, units, _StackVars_UseBools({useForwarder: useForwarder, useGDA: false}));
+
+        (int256 balanceBefore,,,) = superToken.realtimeBalanceOfNow(member);
+        (int256 claimableBefore,) = pool.getClaimableNow(member);
+
+        // Distribute
+        _helperDistributeViaGDA(superToken, alice, alice, pool, distributionAmount, useForwarder);
+
+        // Check disconnected member: expect balance unchanged, claimable increased
+        (int256 balanceAfter1,,,) = superToken.realtimeBalanceOfNow(member);
+        (int256 claimableAfter1,) = pool.getClaimableNow(member);
+
+        if (!sf.gda.isMemberConnected(pool, member)) {
+            assertEq(balanceAfter1, balanceBefore, "Disconnected member balance should not change");
+            assertTrue(claimableAfter1 > claimableBefore, "Disconnected member claimable amount should increase");
+        }
+
+        // Step 2: Connect member and distribute again
+        _helperConnectPool(member, superToken, pool, useForwarder);
+        _helperDistributeViaGDA(superToken, alice, alice, pool, distributionAmount, useForwarder);
+
+        (int256 balanceAfter2,,,) = superToken.realtimeBalanceOfNow(member);
+        (int256 claimableAfter2,) = pool.getClaimableNow(member);
+
+        // Check connected member: balance increased, claimable remains 0
+        assertTrue(balanceAfter2 > balanceAfter1, "Connected member balance should increase");
+        assertEq(claimableAfter2, 0, "Connected member claimable amount should be 0");
+    }
+
+    function testAutoConnect(address member, uint128 units, uint64 distributionAmount) public {
+        vm.assume(member != address(0));
+        vm.assume(member != address(freePool));
+        vm.assume(member != alice); // alice is the test distributor
+        vm.assume(units > 0);
+        vm.assume(units < distributionAmount);
+
+        uint256 expectedAmount = (distributionAmount / units) * units;
+
+        uint256 balanceBefore = superToken.balanceOf(member);
+
+        vm.startPrank(alice);
+        // update units to non-zero and connect the pool
+        freePool.updateMemberUnits(member, units);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, member, new bytes(0))),
+            new bytes(0)
+        );
+        assertEq(freePool.getUnits(member), units);
+        assertEq(sf.gda.isMemberConnected(freePool, member), true, "member should be (auto)connected");
+
+        // distribute tokens: this is supposed to show up as balance, with claimable amount remaining 0
+        superToken.distribute(alice, freePool, distributionAmount);
+
+        assertEq(superToken.balanceOf(member), balanceBefore + expectedAmount, "balance != distributionAmount");
+        assertEq(freePool.getClaimable(member, uint32(block.timestamp)), 0, "claimable != 0");
+        vm.stopPrank();
+    }
+
+    function testAutoConnectSlotLimit() public {
+        for (uint256 i = 0; i < sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS() * 2; ++i) {
+            ISuperfluidPool pool = _helperCreatePool(superToken, alice, alice, false, PoolConfig({ transferabilityForUnitsOwner: false, distributionFromAnyAddress: true }));
+            vm.startPrank(alice);
+            // update units to non-zero and connect the pool
+            pool.updateMemberUnits(bob, 1);
+
+            bytes memory ret = sf.host.callAgreement(
+                sf.gda,
+                abi.encodeCall(sf.gda.tryConnectPoolFor, (pool, bob, new bytes(0))),
+                new bytes(0)
+            );
+            (bool success, ) = abi.decode(ret, (bool, bytes));
+            if (i < sf.gda.MAX_POOL_AUTO_CONNECT_SLOTS()) {
+                assertEq(success, true, "success != true");
+                assertEq(sf.gda.isMemberConnected(pool, bob), true, "bob should be (auto)connected");
+            } else {
+                assertEq(success, false, "success != false");
+                assertEq(sf.gda.isMemberConnected(pool, bob), false, "bob should not be (auto)connected");
+            }
+            vm.stopPrank();
+        }
+    }
+
+    function testAutoConnectPermissioning() public {
+        vm.startPrank(bob);
+        sf.gda.setConnectPermission(false);
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        freePool.updateMemberUnits(bob, 1);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, bob, new bytes(0))),
+            new bytes(0)
+        );
+        assertEq(sf.gda.isMemberConnected(freePool, bob), false, "member should not be (auto)connected");
+
+        // alice can't revoke the opt-out
+        IAccessControl simpleACL = sf.host.getSimpleACL();
+        bytes32 aclRole = sf.gda.ACL_POOL_CONNECT_EXCLUSIVE_ROLE(); //need this ext call before the expectRevert
+        vm.expectRevert();
+        simpleACL.revokeRole(aclRole, bob);
+        vm.stopPrank();
+
+        // bob changes his mind and gives permission
+
+        vm.startPrank(bob);
+        sf.gda.setConnectPermission(true);
+        vm.stopPrank();
+
+        // now alice can connect bob
+        vm.startPrank(alice);
+        freePool.updateMemberUnits(bob, 1);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, bob, new bytes(0))),
+            new bytes(0)
+        );
+        assertEq(sf.gda.isMemberConnected(freePool, bob), true, "member should not be (auto)connected");
+        vm.stopPrank();
+
+
+        // cannot connect a pool
+        ISuperfluidPool anotherPool = _helperCreatePool(superToken, alice, alice, false, PoolConfig({ transferabilityForUnitsOwner: false, distributionFromAnyAddress: true }));
+        vm.startPrank(alice);
+        vm.expectRevert(IGeneralDistributionAgreementV1.GDA_CANNOT_CONNECT_POOL.selector);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeCall(sf.gda.tryConnectPoolFor, (freePool, address(anotherPool), new bytes(0))),
+            new bytes(0)
+        );
+        vm.stopPrank();
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
                                     Assertion Functions
     //////////////////////////////////////////////////////////////////////////*/
 
     struct PoolUpdateStep {
         uint8 u; // which user
-        uint8 a; // action types: 0 update units, 1 distribute flow, 2 freePool connection, 3 freePool claim for,
-            // 4 distribute
+        uint8 a; // action types: 0 update units, 1 distribute flow, 2 freePool claim for, 3 freePool connection,
+            // 4 distribute, 5: freePool autoconnect
         uint32 v; // action param
         uint16 dt; // time delta
     }
@@ -925,7 +1114,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
             emit log_named_string("", "");
             emit log_named_uint(">>> STEP", i);
             PoolUpdateStep memory s = steps[i];
-            uint256 action = s.a % 5;
+            uint256 action = s.a % 6;
             uint256 u = 1 + s.u % N_MEMBERS;
             address user = TEST_ACCOUNTS[u];
 
@@ -949,9 +1138,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
                 address u4 = TEST_ACCOUNTS[1 + (s.v % N_MEMBERS)];
                 emit log_named_string("action", "claimAll");
                 emit log_named_address("claim for", u4);
-                vm.startPrank(user);
-                assert(freePool.claimAll(u4));
-                vm.stopPrank();
+                _helperClaimAll(freePool, user, u4);
             } else if (action == 3) {
                 bool doConnect = s.v % 2 == 0 ? false : true;
                 emit log_named_string("action", "doConnectPool");
@@ -963,6 +1150,11 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
                 emit log_named_string("action", "distribute");
                 emit log_named_uint("distributionAmount", s.v);
                 _helperDistributeViaGDA(superToken, user, user, freePool, uint256(s.v), useBools_.useForwarder);
+            } else if (action == 5) {
+                address u4 = TEST_ACCOUNTS[1 + (s.v % N_MEMBERS)];
+                emit log_named_string("action", "tryConnectPoolFor");
+                emit log_named_address("connect for", u4);
+                _helperConnectPoolFor(user, u4, superToken, freePool, false);
             } else {
                 assert(false);
             }

@@ -3,10 +3,36 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [unreleased]
+## [UNRELEASED]
 
 ### Added
-- `SuperToken` now implements [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) (permit extension for EIP-20 signed approvals)
+- GDA _autoconnect_ feature: now any account can connect pool members using `tryConnectPoolFor()` as long as they have less than 4 connection slots occupied for that Super Token. This allows for smoother onboarding of new users, allowing Apps to make sure tokens distributed via GDA immediately show up in user's wallets. Accounts can opt out of this by using `setConnectPermission()`, this is mainly supposed to be used by contracts.
+
+### Changed
+- Refactored `GeneralDistributionAgreementV1`: extracted functionality which reads/writes agreement data from/to the token contract into dedicated libraries:
+  - `GDAv1StorageLib` contains data structures and related encoders/decoders.
+  - `GDAv1StorageReader` contains getters reading agreement data from the token contract, allowing contracts to get this data without making a call to the GDA contract.
+  - `GDAv1StorageWriter` contains functions for writing agreement data to the token contract. This can only be used by the GDA contract itself.
+- bump solc to "0.8.30".
+- Changed EVM target from `paris` to `shanghai` because now all networks with supported Superfluid deployment support it.
+
+### Fixed
+- `ISuperfluidPool`: `getClaimable` and `getClaimableNow` could previously return non-zero values for connected pools, which was inconsistent with what `claimAll` would actually do in this situation (claim nothing).
+
+### Breaking
+- PoolMemberNFT pruning: `IPoolMemberNFT` and `PoolMemberNFT` removed, `POOL_MEMBER_NFT()` removed from `ISuperToken`.
+
+## [v1.13.0]
+
+### Added
+- `SuperToken` now implements [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) (permit extension for EIP-20 signed approvals).
+- `SuperfluidPool` now has additional methods `increaseMemberUnits` and `decreaseMemberUnits` which allow the pool admin to change member units parameterized with delta amounts.
+
+### Changed
+- Curation of the SuperApp registration allowlist can now be delegated by governance to a newly added `ACL` contract.
+
+### Breaking
+- `SuperfluidPool` does no longer mint and burn EIP-721 tokens (NFTs) on member unit updates. The gas overhead of this operation caused friction for integrations with other protocols (e.g. Uniswap V4).
 
 ## [v1.12.1]
 
