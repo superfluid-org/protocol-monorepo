@@ -1,7 +1,7 @@
 {
     "name": "@superfluid-finance/metadata",
     "description": "Superfluid Metadata",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "author": "Superfluid",
     "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
     "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/metadata#readme",
