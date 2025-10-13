@@ -3,6 +3,10 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.2]
+### Added
+- `VestingSchedulerV3` now also available on eth-sepolia and base-sepolia
+
 ## [v1.6.1]
 ### Changed
 - New deployment of the autowrap contracts on Base
