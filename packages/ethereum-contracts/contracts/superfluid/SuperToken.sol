@@ -13,13 +13,11 @@ import {
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IERC777Recipient } from "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
-import { IERC777Sender } from "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
+import { IERC777Recipient } from "@openzeppelin-v5/contracts/interfaces/IERC777Recipient.sol";
+import { IERC777Sender } from "@openzeppelin-v5/contracts/interfaces/IERC777Sender.sol";
+import { ECDSA } from "@openzeppelin-v5/contracts/utils/cryptography/ECDSA.sol";
 
 
 // placeholder type needed as an intermediate step before complete removal
@@ -36,9 +34,7 @@ contract SuperToken is
     SuperfluidToken,
     ISuperToken
 {
-    using SafeMath for uint256;
     using SafeCast for uint256;
-    using Address for address;
     using ERC777Helper for ERC777Helper.Operators;
     using SafeERC20 for IERC20;
 
@@ -362,10 +358,9 @@ contract SuperToken is
         _move(operator, holder, recipient, amount, "", "");
 
         if (spender != holder) {
-            _approve(
-                holder,
-                spender,
-                _allowances[holder][spender].sub(amount, "SuperToken: transfer amount exceeds allowance"));
+            require(amount <= _allowances[holder][spender], "SuperToken: transfer amount exceeds allowance");
+            // TODO: this triggers an `Approval` event, which shouldn't happen for transfers.
+            _approve(holder, spender, _allowances[holder][spender] - amount);
         }
 
         return true;
@@ -576,7 +571,7 @@ contract SuperToken is
         if (implementer != address(0)) {
             IERC777Recipient(implementer).tokensReceived(operator, from, to, amount, userData, operatorData);
         } else if (requireReceptionAck) {
-            if (to.isContract()) revert SUPER_TOKEN_NOT_ERC777_TOKENS_RECIPIENT();
+            if (to.code.length > 0) revert SUPER_TOKEN_NOT_ERC777_TOKENS_RECIPIENT();
         }
     }
 
@@ -638,8 +633,8 @@ contract SuperToken is
 
     function decreaseAllowance(address spender, uint256 subtractedValue)
         public virtual override returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue,
-            "SuperToken: decreased allowance below zero"));
+        require(subtractedValue <= _allowances[msg.sender][spender], "SuperToken: decreased allowance below zero");
+        _approve(msg.sender, spender, _allowances[msg.sender][spender] - subtractedValue);
         return true;
     }
 
@@ -918,8 +913,8 @@ contract SuperToken is
         external virtual override
         onlyHost
     {
-        _approve(account, spender, _allowances[account][spender].sub(subtractedValue,
-            "SuperToken: decreased allowance below zero"));
+        require(subtractedValue <= _allowances[account][spender], "SuperToken: decreased allowance below zero");
+        _approve(account, spender, _allowances[account][spender] - subtractedValue);
     }
 
     function operationTransferFrom(

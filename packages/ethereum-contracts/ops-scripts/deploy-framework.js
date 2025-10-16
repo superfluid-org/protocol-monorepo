@@ -826,25 +826,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             return newAddress !== ZERO_ADDRESS ? newAddress : prevAddr;
         }
 
-        async function getOrDeployHelper(
-            Contract,
-            getPrevAddrFn,
-            outputKey
-        ) {
-            let prevAddr = await getPrevAddrFn().catch(_err => {
-                console.error(`### Error getting ${Contract.contractName} address, likely not yet deployed`);
-                return ZERO_ADDRESS;
-            });
-
-            if (prevAddr !== ZERO_ADDRESS) {
-                return prevAddr;
-            }
-
-            const instance = await web3tx(Contract.new, `${Contract.contractName}.new`)();
-            output += `${outputKey}=${instance.address}\n`;
-            return instance.address;
-        }
-
         const simpleForwarderAddress = await getOrDeployForwarder(
             superfluid,
             SimpleForwarder,
@@ -859,11 +840,9 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             "ERC2771_FORWARDER"
         );
 
-        const simpleAclAddress = await getOrDeployHelper(
-            SimpleACL,
-            () => superfluid.getSimpleACL(),
-            "SIMPLE_ACL"
-        );
+        // SimpleACL has now been deployed on all networks.
+        // It shall never be deployed in the upgrade path in order to eliminate the risk of accidental state loss.
+        const simpleAclAddress = await superfluid.getSimpleACL();
         console.log("SimpleACL address", simpleAclAddress);
 
         // get previous callback gas limit, make sure we don't decrease it

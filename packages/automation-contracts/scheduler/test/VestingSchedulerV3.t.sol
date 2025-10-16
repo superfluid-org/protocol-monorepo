@@ -1105,7 +1105,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with overflow.");
-        vm.expectRevert("SafeCast: value doesn't fit in 96 bits");
+        vm.expectRevert(); // SafeCastOverflowedIntDowncast
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -2189,7 +2189,7 @@ contract VestingSchedulerV3Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with overflow.");
-        vm.expectRevert("SafeCast: value doesn't fit in 96 bits");
+        vm.expectRevert(); // SafeCastOverflowedIntDowncast
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,

@@ -179,7 +179,9 @@ const config: HardhatUserConfig = {
                   )
                 : undefined,
     },
-    typechain: {target: "ethers-v5"},
+    typechain: {
+        target: "ethers-v5"
+    },
 };
 
 export default config;

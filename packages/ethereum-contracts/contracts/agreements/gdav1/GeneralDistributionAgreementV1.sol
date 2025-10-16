@@ -2,7 +2,7 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.23;
 
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 import { ISuperfluid, ISuperfluidGovernance, IAccessControl } from "../../interfaces/superfluid/ISuperfluid.sol";
 import {
@@ -319,7 +319,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         newCtx = ctx;
 
-        if (pool.superToken().isPool(this, memberAddr)) {
+        if (memberAddr == address(0) || pool.superToken().isPool(this, memberAddr)) {
             revert GDA_CANNOT_CONNECT_POOL();
         }
 

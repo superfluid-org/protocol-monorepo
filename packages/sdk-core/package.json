@@ -55,7 +55,7 @@
         "pretest": "yarn testenv:start",
         "test": "hardhat test --tsconfig \"tsconfig.test.json\"",
         "dev": "nodemon -e ts -x yarn test",
-        "clean": "rm -rf node_modules; rm -rf dist; rm -rf src/typechain-types; rm -rf src/typechain; rm -rf src/abi; find . -type f -name '*.generated.ts' -exec rm {} +",
+        "clean": "rm -rf node_modules; rm -rf dist; rm -rf typechain-types; rm -rf src/typechain; rm -rf src/abi; find . -type f -name '*.generated.ts' -exec rm {} +",
         "test-coverage": "nyc --reporter=html --reporter=lcov --reporter=json yarn test",
         "posttest": "yarn testenv:stop",
         "check-updates": "ncu --target minor --dep prod,dev",

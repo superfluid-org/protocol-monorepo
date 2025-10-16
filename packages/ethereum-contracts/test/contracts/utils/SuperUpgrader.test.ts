@@ -1,6 +1,6 @@
 import {assert} from "chai";
 import {ethers, web3} from "hardhat";
-import {expectRevertedWith} from "../../utils/expectRevert";
+import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
 import TestEnvironment from "../../TestEnvironment";
 import {toWad} from "./helpers";
 
@@ -195,11 +195,13 @@ describe("Superfluid Super Upgrader Contract", function () {
             const backendSigner = await ethers.getSigner(backend[0]);
 
             console.log("upgrader.upgrade");
-            await expectRevertedWith(
+            await expectCustomError(
                 upgrader
                     .connect(backendSigner)
                     .upgrade(superToken.address, alice, 1),
-                "ERC20: insufficient allowance"
+                testToken,
+                "ERC20InsufficientAllowance",
+                [upgrader.address, 0, 1]
             );
         });
 
@@ -212,11 +214,13 @@ describe("Superfluid Super Upgrader Contract", function () {
                 .connect(aliceSigner)
                 .approve(upgrader.address, toWad("1"));
 
-            await expectRevertedWith(
+            await expectCustomError(
                 upgrader
                     .connect(backendSigner)
                     .upgrade(superToken.address, alice, "1000000000000000001"),
-                "ERC20: insufficient allowance"
+                testToken,
+                "ERC20InsufficientAllowance",
+                [upgrader.address, toWad("1"), "1000000000000000001"]
             );
         });
 
@@ -308,14 +312,18 @@ describe("Superfluid Super Upgrader Contract", function () {
                 "operation not allowed"
             );
 
-            await expectRevertedWith(
+            await expectCustomError(
                 upgrader.connect(eveSigner).grantBackendAgent(eve),
-                `AccessControl: account ${eve.toLowerCase()} is missing role ${DEFAULT_ADMIN_ROLE}`
+                upgrader,
+                "AccessControlUnauthorizedAccount",
+                [eve, DEFAULT_ADMIN_ROLE]
             );
 
-            await expectRevertedWith(
+            await expectCustomError(
                 upgrader.connect(eveSigner).revokeBackendAgent(backend[1]),
-                `AccessControl: account ${eve.toLowerCase()} is missing role ${DEFAULT_ADMIN_ROLE}`
+                upgrader,
+                "AccessControlUnauthorizedAccount",
+                [eve, DEFAULT_ADMIN_ROLE]
             );
         });
 

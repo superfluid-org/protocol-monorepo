@@ -12,7 +12,7 @@ import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library
 import { SuperAppMock } from "../../../contracts/mocks/SuperAppMocks.t.sol";
 import { SimpleForwarder } from "../../../contracts/utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../../../contracts/utils/ERC2771Forwarder.sol";
-import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
+import { Ownable } from '@openzeppelin-v5/contracts/access/Ownable.sol';
 import { BaseRelayRecipient } from "../../../contracts/libs/BaseRelayRecipient.sol";
 
 // A mock for an arbitrary external contract
@@ -42,6 +42,8 @@ contract TestContract {
 // A mock for an external contract that uses ERC-2771
 contract TestContract2771 is TestContract, Ownable, BaseRelayRecipient {
     error NotOwner();
+
+    constructor() Ownable(_msgSender()) {}
 
     // Expects the msgSender to be encoded in calldata as specified by ERC-2771.
     // Will revert if relayed for anybody but the contract owner.
@@ -454,7 +456,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
 
         // only the owner of the forwarder shall be allowed to relay
         vm.startPrank(eve);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, eve));
         forwarder.forward2771Call(
             address(testContract),
             alice,
@@ -619,7 +621,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
 
         // eve isn't allowed to withdraw
         vm.startPrank(eve);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, eve));
         forwarder.withdrawLostNativeTokens(payable(bob));
         vm.stopPrank();
 
@@ -643,7 +645,7 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
 
         // eve isn't allowed to withdraw
         vm.startPrank(eve);
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, eve));
         forwarder.withdrawLostNativeTokens(payable(bob));
         vm.stopPrank();
 

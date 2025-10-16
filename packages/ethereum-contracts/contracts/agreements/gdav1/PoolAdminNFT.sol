@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import { IERC721Metadata } from "@openzeppelin-v5/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import { IPoolAdminNFT } from "../../interfaces/agreements/gdav1/IPoolAdminNFT.sol";
 import { PoolNFTBase } from "./PoolNFTBase.sol";
 import { IGeneralDistributionAgreementV1, ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";

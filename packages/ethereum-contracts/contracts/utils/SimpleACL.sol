@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
+import { AccessControl } from "@openzeppelin-v5/contracts/access/AccessControl.sol";
 
 contract SimpleACL is AccessControl {
     constructor() {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     /// Allows the default admin to set the admin role for a given role.

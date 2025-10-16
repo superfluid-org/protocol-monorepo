@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 /// @dev OpenZeppelin Imports
-import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /// @dev Superfluid Protocol Imports
@@ -532,7 +531,7 @@ contract VestingSchedulerV3 is IVestingSchedulerV3, IRelayRecipient {
                 });
             } else {
                 // Linear Default Cliff (calculated based on the overall vesting flow rate)
-                cliffAmount = SafeMath.mul(cliffPeriod, SafeCast.toUint256(flowRate));
+                cliffAmount = cliffPeriod * SafeCast.toUint256(flowRate);
                 params = ScheduleCreationParams({
                     superToken: superToken,
                     sender: sender,

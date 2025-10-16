@@ -39,20 +39,75 @@ Prerequisites:
 - [yarn](https://classic.yarnpkg.com/en/docs/install)
 - [forge](https://book.getfoundry.sh/getting-started/installation)
 
-Once you have set up your project, cd into its base directory and add the npm package:
+Once you have set up your project, cd into its base directory and add the package:
 
-##### hardhat
+#### hardhat
 ```sh
 $ yarn add @superfluid-finance/ethereum-contracts
 ```
 
-##### foundry
+#### foundry
 
 ```sh
 $ forge install superfluid-protocol-monorepo=superfluid-finance/protocol-monorepo@dev
 $ # or using ethereum-contracts@v1.6.0
 $ forge install superfluid-protocol-monorepo=superfluid-finance/protocol-monorepo@$(git ls-remote https://github.com/superfluid-finance/protocol-monorepo.git ethereum-contracts@v1.6.0 | awk '{print $1}')
 ```
+
+### Dependencies
+
+Next you need to satisfy the OpenZeppelin contracts dependency v5 of the Superfluid contracts.
+How to do that depends on your project's setup.
+
+#### foundry
+
+**Your project uses OZ v5**
+
+If your project already uses OZ v5, just add a remapping in your `foundry.toml` or `remappings.txt` file:
+```
+@openzeppelin-v5/=lib/openzeppelin-contracts/
+```
+(adjust the path to the openzeppelin-contracts directory in your project)
+
+**Your project doesn't use OZ v5**
+
+Install the v5 package:
+```
+forge install openzeppelin-contracts-v5=https://github.com/OpenZeppelin/openzeppelin-contracts@release-v5.5
+```
+and add a remapping in your `foundry.toml` or `remappings.txt` file:
+```
+@openzeppelin-v5/=lib/openzeppelin-contracts-v5/
+```
+
+#### hardhat
+
+**Your project uses OZ v5**
+
+If you have the npm package `@openzeppelin/contracts` v5 installed, instruct hardhat to use it via a remapping, by adding this to your `hardhat.config.[js|ts]` file:
+```
+const {TASK_COMPILE_GET_REMAPPINGS} = require("hardhat/builtin-tasks/task-names");
+
+subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
+    async (_, __, runSuper) => {
+        const remappings = await runSuper();
+        return {
+            ...remappings,
+            "@openzeppelin-v5/contracts/": "@openzeppelin/contracts/",
+        };
+    }
+);
+```
+Note: this requires hardat v2.17.2 or higher.
+
+**Your project doesn't use OZ v5**
+
+If your project doesn't use `@openzeppelin/contracts` v5, or uses another version you want to stick to, you can install the v5 package in a custom path, by adding this to the section `dependencies` in your `package.json` file:
+```
+"@openzeppelin-v5/contracts": "npm:@openzeppelin/contracts@5"
+```
+
+In this case you don't need to add a remapping to your hardhat config.
 
 ### Smart Contract
 

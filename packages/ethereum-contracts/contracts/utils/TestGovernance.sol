@@ -7,7 +7,7 @@ import {
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidGovernanceBase } from "../gov/SuperfluidGovernanceBase.sol";
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin-v5/contracts/access/Ownable.sol";
 
 
 /**
@@ -20,6 +20,8 @@ contract TestGovernance is
     SuperfluidGovernanceBase
 {
     ISuperfluid private _host;
+
+    constructor() Ownable(_msgSender()) {}
 
     function initialize(
         ISuperfluid host,

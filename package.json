@@ -52,6 +52,7 @@
     },
     "scripts": {
         "prepare": "husky && npm run git-submodule:init",
+        "postinstall": "ln -fs ../lib/openzeppelin-contracts node_modules/@openzeppelin-v5",
         "lint": "run-s -l lint:*",
         "lint:syncpack": "syncpack lint",
         "lint:shellcheck": "tasks/shellcheck-all-tasks.sh",

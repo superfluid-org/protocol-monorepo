@@ -141,11 +141,13 @@ describe("SuperToken's Non Standard Functions", function () {
         it("#2.2 - should not upgrade without enough underlying balance", async () => {
             const initialBalance = await testToken.balanceOf(alice);
             console.log("SuperToken.upgrade - bad balance");
-            await expectRevertedWith(
+            await expectCustomError(
                 superToken
                     .connect(aliceSigner)
                     .upgrade(initialBalance.add(toBN(1))),
-                "ERC20: transfer amount exceeds balance"
+                testToken,
+                "ERC20InsufficientBalance",
+                [alice, initialBalance, initialBalance.add(toBN(1))]
             );
             await t.validateSystemInvariance();
         });

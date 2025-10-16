@@ -11,7 +11,7 @@ optimizer_runs = 200
 via_ir = false
 remappings = [
     '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
-    '@openzeppelin/=node_modules/@openzeppelin/',
+    '@openzeppelin/=lib/openzeppelin-contracts/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/']
 

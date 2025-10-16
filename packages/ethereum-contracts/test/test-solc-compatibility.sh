@@ -31,12 +31,12 @@ fi
 # from here - don't forget to add 0x to our generated sha256
 
 # workaround to make solc to find OZ library
-ln -sf ../../node_modules/@openzeppelin .
+ln -s ../../lib/openzeppelin-contracts @openzeppelin-v5
 
 # verify they are compatible with the minimum version of the SOLC we support
 find contracts/{interfaces/,apps/} -name '*.sol' | while read i;do
-  $SOLC --allow-paths '@openzeppelin' $i
+  $SOLC --allow-paths '@openzeppelin-v5' $i
 done
 
 echo SUCCESS
-rm -f @openzeppelin
+rm -f @openzeppelin-v5

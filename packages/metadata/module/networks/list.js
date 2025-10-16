@@ -774,7 +774,8 @@ export default
             "name": "protocol-v1-scroll-mainnet",
             "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/scroll-mainnet/protocol-v1"
         },
-        "publicRPCs": ["https://rpc.scroll.io"]
+        "publicRPCs": ["https://rpc.scroll.io"],
+        "coinGeckoId": "scroll"
     },
     {
         "name": "degenchain",
