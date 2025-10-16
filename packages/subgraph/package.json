@@ -9,7 +9,7 @@
         "mustache": "4.2.0"
     },
     "devDependencies": {
-        "@superfluid-finance/metadata": "^1.6.0",
+        "@superfluid-finance/metadata": "^1.6.2",
         "coingecko-api": "^1.0.10",
         "graphql": "^16.9.0",
         "graphql-request": "^6.1.0",

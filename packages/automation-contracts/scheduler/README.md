@@ -30,7 +30,7 @@ BSC_PRIVATE_KEY=
 POLYGON_URL=
 BSC_URL=
 
-ETHERSCAN_API_KEY=
+ETHERSCAN_API_V2_KEY=
 ```
 
 #### Run tests
@@ -51,7 +51,7 @@ npx hardhat deploy --network <network>
 
 #### Deployed Contracts
 
-Contract addresses can be found in https://explorer.superfluid.finance/protocol, with the data source being `networks.json` in the metadata package.
+Contract addresses can be found in https://explorer.superfluid.finance/protocol, with the data source being [metadata/networks.json](../../metadata/networks.json).
 All current production deployments are based on the codebase found in version 1.2.0 of the scheduler package.
 
 In package version 1.3.0 VestingScheduler (v1) was removed, as it's not gonna be used for new production deployments.

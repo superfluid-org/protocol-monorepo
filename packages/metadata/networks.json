@@ -69,7 +69,8 @@
             "superfluidLoader": "0x862F59081FC7907F940bE4227b9f485d700E6cdD",
             "batchLiquidator": "0x79aE8BF8EE9238d8E848F7dbBF74Ddb3365f6c11",
             "existentialNFTCloneFactory": "0x0D1F0d4629B722b4dFabd195c14F12f2095418d9",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "vestingSchedulerV3": "0x638a8ABF60118e018c80a0eC878057E8C53E0fd1"
         },
         "startBlockV1": 3322400,
         "logsQueryRange": 10000,
@@ -197,7 +198,8 @@
             "superTokenFactory": "0x7447E94Dfe3d804a9f46Bf12838d467c912C8F6C",
             "superfluidLoader": "0x777Be25F9fdcA87e8a0E06Ad4be93d65429FCb9f",
             "batchLiquidator": "0x95043eC349476B413eF5c369c4d2454a1a65eaB9",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "vestingSchedulerV3": "0x2D0B7a30bFdED086571D6525762a809ee1049c98"
         },
         "startBlockV1": 10604500,
         "logsQueryRange": 50000,
@@ -706,8 +708,8 @@
             "vestingSchedulerV2": "0x7b77A34b8B76B66E97a5Ae01aD052205d5cbe257",
             "vestingSchedulerV3": "0x6Bf35A170056eDf9aEba159dce4a640cfCef9312",
             "autowrap": {
-                "manager": "0x5D0acD0864Ad07ba4E1E0474AE69Da87482e14A9",
-                "wrapStrategy": "0xB29005319B0caB24cF6D4d24e8420E54BB29Cb0d"
+                "manager": "0x041D4bF21367e9B92016B28Fb5A2f697c1befd01",
+                "wrapStrategy": "0xD790CDE7A1B3194d8Ce3CF21544F03a770336E23"
             },
             "existentialNFTCloneFactory": "0x642332562BC60a4Bd9681E7bb1588f7456A497aC",
             "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
