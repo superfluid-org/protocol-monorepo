@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.23;
+
 import { IERC1820Implementer } from "@openzeppelin-v5/contracts/interfaces/IERC1820Implementer.sol";
 
 
