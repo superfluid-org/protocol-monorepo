@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - bump solc to "0.8.30".
 - Changed EVM target from `paris` to `shanghai` because now all networks with supported Superfluid deployment support it.
 - Emit ERC20 `Transfer` events (with amount 0) on CFA and GDA actions potentially leading to account balance changes. This shall help indexers to keep track of SuperToken holders and account balances.
+- Don't emit ERC20 `Approval` events on `transferFrom` operations. This is consistent with the OpenZeppelin ERC20 implementation from v5 onwards. Change effective only for SuperTokens using the latest logic.
 
 ### Fixed
 - `ISuperfluidPool`: `getClaimable` and `getClaimableNow` could previously return non-zero values for connected pools, which was inconsistent with what `claimAll` would actually do in this situation (claim nothing).

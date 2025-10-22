@@ -513,6 +513,10 @@ contract SuperToken is
      *
      * By default (when calling {_approve}) the flag is set to true. On the other hand, approval changes made
      * during the `transferFrom` operation set the flag to false.
+     *
+     * Note: In the OpenZeppelin implementation, from v5 onwards, {transferFrom} doesn't emit an {Approval} event.
+     * By adding this overloaded function and using it for {transferFrom}, we replicate that change,
+     * because it seems semantically more correct.
      */
     function _approve(address account, address spender, uint256 amount, bool emitEvent)
         internal
