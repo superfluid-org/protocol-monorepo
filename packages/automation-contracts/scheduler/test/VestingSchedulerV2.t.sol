@@ -7,7 +7,6 @@ import { IVestingSchedulerV2 } from "./../contracts/interface/IVestingSchedulerV
 import { VestingSchedulerV2 } from "./../contracts/VestingSchedulerV2.sol";
 import { FoundrySuperfluidTester } from "@superfluid-finance/ethereum-contracts/test/foundry/FoundrySuperfluidTester.t.sol";
 import { SuperTokenV1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "forge-std/console.sol";
 
@@ -200,7 +199,7 @@ contract VestingSchedulerV2Tests is FoundrySuperfluidTester {
         address superToken,
         address sender,
         address receiver
-    ) public {
+    ) public view {
         VestingSchedulerV2.VestingSchedule memory schedule = vestingScheduler.getVestingSchedule(superToken, sender, receiver);
         VestingSchedulerV2.VestingSchedule memory deletedSchedule;
 
@@ -899,7 +898,7 @@ contract VestingSchedulerV2Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with overflow.");
-        vm.expectRevert("SafeCast: value doesn't fit in 96 bits");
+        vm.expectRevert(); // SafeCastOverflowedIntDowncast
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -1961,7 +1960,7 @@ contract VestingSchedulerV2Tests is FoundrySuperfluidTester {
         );
 
         console.log("Revert with overflow.");
-        vm.expectRevert("SafeCast: value doesn't fit in 96 bits"); 
+        vm.expectRevert(); // SafeCastOverflowedIntDowncast
         vestingScheduler.createVestingScheduleFromAmountAndDuration(
             superToken,
             bob,
@@ -2418,7 +2417,7 @@ contract VestingSchedulerV2Tests is FoundrySuperfluidTester {
 
         uint32 newEndDate = type(uint32).max - 1234;
 
-        // Setting up a batch call. Superfluid Protocol will replace the emtpy context with data about the sender. That's where the sender is retrieved from.
+        // Setting up a batch call. Superfluid Protocol will replace the empty context with data about the sender. That's where the sender is retrieved from.
         ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_APP_ACTION,

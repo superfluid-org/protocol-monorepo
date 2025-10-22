@@ -2,9 +2,9 @@ import {getFramework, getSubgraphClient} from '../../../../sdkReduxConfig';
 import {MillisecondTimes} from '../../../../utils';
 import {invalidateSpecificCacheTagsForEvents} from '../../cacheTags/invalidateSpecificCacheTagsForEvents';
 import {CacheTime} from '../../cacheTime';
-import {SubgraphEndpointBuilder} from '../subgraphEndpointBuilder';
+import {type SubgraphEndpointBuilder} from '../subgraphEndpointBuilder';
 
-import {CustomSubgraphQuery, MonitorForEventsToInvalidateCacheMutation} from './baseArgs';
+import {type CustomSubgraphQuery, type MonitorForEventsToInvalidateCacheMutation} from './baseArgs';
 
 export const createBaseEndpoints = (builder: SubgraphEndpointBuilder) => ({
     custom: builder.query<unknown, CustomSubgraphQuery>({

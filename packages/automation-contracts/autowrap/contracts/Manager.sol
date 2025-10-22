@@ -31,7 +31,7 @@ contract Manager is IManager, Ownable {
         address _cfa,
         uint64 _minLower,
         uint64 _minUpper
-    ) {
+    ) Ownable(_msgSender()) {
         if (_cfa == address(0)) revert ZeroAddress();
         if (_minLower >= _minUpper) revert WrongLimits(_minLower, _minUpper);
 

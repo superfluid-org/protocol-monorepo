@@ -1,12 +1,23 @@
 require("dotenv").config();
 require("@nomiclabs/hardhat-ethers");
-require("@nomiclabs/hardhat-etherscan");
+require("@nomicfoundation/hardhat-verify");
 require("hardhat-deploy");
 require("hardhat/config");
-require("./script/addStrategy");
+const {TASK_COMPILE_GET_REMAPPINGS} = require("hardhat/builtin-tasks/task-names");
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
+
+// Remapping for OpenZeppelin contracts
+subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
+    async (_, __, runSuper) => {
+        const remappings = await runSuper();
+        return {
+            ...remappings,
+            "@openzeppelin/contracts/": "@openzeppelin-v5/contracts/",
+        };
+    }
+);
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
@@ -47,13 +58,12 @@ module.exports = {
                     ? [process.env.PRIVATE_KEY]
                     : [],
         },
-        "base-mainnet": {
+        base: {
             url: process.env.BASE_URL || "",
             accounts:
                 process.env.PRIVATE_KEY !== undefined
                     ? [process.env.PRIVATE_KEY]
                     : [],
-            gasPrice: 1000000000,
         },
     },
     namedAccounts: {
@@ -61,8 +71,9 @@ module.exports = {
             default: 0,
         },
     },
+    // see https://v2.hardhat.org/hardhat-runner/plugins/nomicfoundation-hardhat-verify
     etherscan: {
-        apiKey: process.env.ETHERSCAN_API_KEY,
+        apiKey: process.env.ETHERSCAN_API_V2_KEY,
         customChains: [
             {
                 network: "opsepolia",
@@ -72,14 +83,9 @@ module.exports = {
                     browserURL: "https://sepolia-optimism.etherscan.io/",
                 },
             },
-            {
-                network: "base-mainnet",
-                chainId: 8453,
-                urls: {
-                    apiURL: "https://api.basescan.org/api",
-                    browserURL: "https://basescan.org/",
-                },
-            },
         ],
+    },
+    sourcify: {
+        enabled: true,
     },
 };

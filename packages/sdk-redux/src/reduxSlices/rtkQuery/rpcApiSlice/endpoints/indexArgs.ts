@@ -1,4 +1,4 @@
-import {BaseSuperTokenMutation, NothingString} from '../../../argTypes';
+import {type BaseSuperTokenMutation, type NothingString} from '../../../argTypes';
 
 /**
  * Creates an IDA Index.

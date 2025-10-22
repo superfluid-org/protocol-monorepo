@@ -9,23 +9,20 @@ import {
     ISuperfluid,
     ISuperToken,
     IERC20,
-    IPoolAdminNFT,
-    IPoolMemberNFT
+    IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IERC777Recipient } from "@openzeppelin/contracts/token/ERC777/IERC777Recipient.sol";
-import { IERC777Sender } from "@openzeppelin/contracts/token/ERC777/IERC777Sender.sol";
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
+import { IERC777Recipient } from "@openzeppelin-v5/contracts/interfaces/IERC777Recipient.sol";
+import { IERC777Sender } from "@openzeppelin-v5/contracts/interfaces/IERC777Sender.sol";
+import { ECDSA } from "@openzeppelin-v5/contracts/utils/cryptography/ECDSA.sol";
 
-// placeholder types needed as an intermediate step before complete removal of FlowNFTs
+
+// placeholder type needed as an intermediate step before complete removal
 // solhint-disable-next-line no-empty-blocks
-interface IConstantOutflowNFT {}
-// solhint-disable-next-line no-empty-blocks
-interface IConstantInflowNFT {}
+interface IPoolMemberNFT {}
 
 /**
  * @title Superfluid's super token implementation
@@ -37,10 +34,7 @@ contract SuperToken is
     SuperfluidToken,
     ISuperToken
 {
-
-    using SafeMath for uint256;
     using SafeCast for uint256;
-    using Address for address;
     using ERC777Helper for ERC777Helper.Operators;
     using SafeERC20 for IERC20;
 
@@ -49,12 +43,13 @@ contract SuperToken is
 
     uint8 constant private _STANDARD_DECIMALS = 18;
 
-    // solhint-disable-next-line var-name-mixedcase
-    IConstantOutflowNFT immutable public CONSTANT_OUTFLOW_NFT;
+    // EIP-712 permit typehash
+    bytes32 constant private _PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 constant private _EIP712_DOMAIN_TYPEHASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
 
-    // solhint-disable-next-line var-name-mixedcase
-    IConstantInflowNFT immutable public CONSTANT_INFLOW_NFT;
-
+    string constant private _EIP712_VERSION = "1";
     // solhint-disable-next-line var-name-mixedcase
     IPoolMemberNFT immutable public POOL_MEMBER_NFT;
 
@@ -84,6 +79,9 @@ contract SuperToken is
     /// @dev ERC777 operators support data
     ERC777Helper.Operators internal _operators;
 
+    /// @dev ERC20 Nonces for EIP-2612 (permit)
+    mapping(address account => uint256) internal _nonces;
+
     // NOTE: for future compatibility, these are reserved solidity slots
     // The sub-class of SuperToken solidity slot will start after _reserve22
 
@@ -91,8 +89,7 @@ contract SuperToken is
     // function in its respective mock contract to ensure that it doesn't break anything or lead to unexpected
     // behaviors/layout when upgrading
 
-    uint256 internal _reserve22;
-    uint256 private _reserve23;
+    uint256 internal _reserve23;
     uint256 private _reserve24;
     uint256 private _reserve25;
     uint256 private _reserve26;
@@ -107,10 +104,7 @@ contract SuperToken is
 
     constructor(
         ISuperfluid host,
-        IConstantOutflowNFT constantOutflowNFT,
-        IConstantInflowNFT constantInflowNFT,
-        IPoolAdminNFT poolAdminNFT,
-        IPoolMemberNFT poolMemberNFT
+        IPoolAdminNFT poolAdminNFT
     )
         SuperfluidToken(host)
         // solhint-disable-next-line no-empty-blocks
@@ -118,15 +112,10 @@ contract SuperToken is
         // @note This constructor is only run for the initial
         // deployment of the logic contract.
 
-        // set the immutable canonical NFT proxy addresses
-        CONSTANT_OUTFLOW_NFT = constantOutflowNFT;
-        CONSTANT_INFLOW_NFT = constantInflowNFT;
-
+        // set the immutable canonical NFT proxy address
         POOL_ADMIN_NFT = poolAdminNFT;
-        POOL_MEMBER_NFT = poolMemberNFT;
 
         emit PoolAdminNFTCreated(poolAdminNFT);
-        emit PoolMemberNFTCreated(poolMemberNFT);
     }
 
     /// @dev Initialize the Super Token proxy
@@ -181,14 +170,14 @@ contract SuperToken is
         UUPSProxiable._updateCodeAddress(newAddress);
     }
 
-    function changeAdmin(address newAdmin) external override onlyAdmin {
+    function changeAdmin(address newAdmin) external virtual override onlyAdmin {
         address oldAdmin = _getAdmin();
         _setAdmin(newAdmin);
 
         emit AdminChanged(oldAdmin, newAdmin);
     }
 
-    function getAdmin() external view override returns (address) {
+    function getAdmin() external view virtual override returns (address) {
         return _getAdmin();
     }
 
@@ -221,6 +210,101 @@ contract SuperToken is
 
     function decimals() external pure virtual override returns (uint8) {
         return _STANDARD_DECIMALS;
+    }
+
+    /**************************************************************************
+     * ERC20 Permit (EIP-2612)
+     *************************************************************************/
+
+    /// @dev EIP-2612 Permit
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) public virtual override {
+        if (block.timestamp > deadline) revert SUPER_TOKEN_PERMIT_EXPIRED_SIGNATURE(deadline);
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                _PERMIT_TYPEHASH,
+                owner,
+                spender,
+                value,
+                _nonces[owner]++,
+                deadline
+            )
+        );
+
+        bytes32 domainSeparator = DOMAIN_SEPARATOR();
+        // Get the keccak256 digest of the EIP-712 typed data (ERC-191 version `0x01`).
+        // solhint-disable-next-line max-line-length
+        // Snippet taken from https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.2.0/contracts/utils/cryptography/MessageHashUtils.sol
+        bytes32 hash;
+        assembly ("memory-safe") {
+            let ptr := mload(0x40)
+            mstore(ptr, hex"19_01")
+            mstore(add(ptr, 0x02), domainSeparator)
+            mstore(add(ptr, 0x22), structHash)
+            hash := keccak256(ptr, 0x42)
+        }
+
+        address signer = ECDSA.recover(hash, v, r, s);
+        if (signer != owner) revert SUPER_TOKEN_PERMIT_INVALID_SIGNER(signer, owner);
+
+        _approve(owner, spender, value);
+    }
+
+    /// @dev EIP-712 Domain Separator
+    // solhint-disable func-name-mixedcase
+    function DOMAIN_SEPARATOR() public view virtual override returns (bytes32) {
+        // Here we could squeeze out some gas by using pre-computed hashes
+        return keccak256(
+            abi.encode(
+                _EIP712_DOMAIN_TYPEHASH,
+                keccak256(bytes(_name)),
+                keccak256(bytes(_EIP712_VERSION)),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
+
+    /// @dev EIP-2612 Nonces
+    function nonces(address owner) public view virtual override returns (uint256) {
+        return _nonces[owner];
+    }
+
+    /// @dev EIP-5267: Retrieval of EIP-712 domain
+    function eip712Domain()
+        public
+        view
+        virtual
+        override
+        returns
+        (
+            bytes1 fields,
+            /* commented out to avoid warning of name clash with name() */
+            string memory /*name*/,
+            string memory version,
+            uint256 chainId,
+            address verifyingContract,
+            bytes32 salt,
+            uint256[] memory extensions
+        )
+    {
+        return (
+            hex"0f", // 01111 - field "salt" not present
+            _name,
+            _EIP712_VERSION,
+            block.chainid,
+            address(this), // verifyingContract
+            bytes32(0), // salt
+            new uint256[](0) // extensions
+        );
     }
 
     /**************************************************************************
@@ -274,10 +358,9 @@ contract SuperToken is
         _move(operator, holder, recipient, amount, "", "");
 
         if (spender != holder) {
-            _approve(
-                holder,
-                spender,
-                _allowances[holder][spender].sub(amount, "SuperToken: transfer amount exceeds allowance"));
+            require(amount <= _allowances[holder][spender], "SuperToken: transfer amount exceeds allowance");
+            // TODO: this triggers an `Approval` event, which shouldn't happen for transfers.
+            _approve(holder, spender, _allowances[holder][spender] - amount);
         }
 
         return true;
@@ -488,7 +571,7 @@ contract SuperToken is
         if (implementer != address(0)) {
             IERC777Recipient(implementer).tokensReceived(operator, from, to, amount, userData, operatorData);
         } else if (requireReceptionAck) {
-            if (to.isContract()) revert SUPER_TOKEN_NOT_ERC777_TOKENS_RECIPIENT();
+            if (to.code.length > 0) revert SUPER_TOKEN_NOT_ERC777_TOKENS_RECIPIENT();
         }
     }
 
@@ -550,8 +633,8 @@ contract SuperToken is
 
     function decreaseAllowance(address spender, uint256 subtractedValue)
         public virtual override returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue,
-            "SuperToken: decreased allowance below zero"));
+        require(subtractedValue <= _allowances[msg.sender][spender], "SuperToken: decreased allowance below zero");
+        _approve(msg.sender, spender, _allowances[msg.sender][spender] - subtractedValue);
         return true;
     }
 
@@ -830,8 +913,8 @@ contract SuperToken is
         external virtual override
         onlyHost
     {
-        _approve(account, spender, _allowances[account][spender].sub(subtractedValue,
-            "SuperToken: decreased allowance below zero"));
+        require(subtractedValue <= _allowances[account][spender], "SuperToken: decreased allowance below zero");
+        _approve(account, spender, _allowances[account][spender] - subtractedValue);
     }
 
     function operationTransferFrom(
@@ -905,5 +988,4 @@ contract SuperToken is
         if (msg.sender != admin) revert SUPER_TOKEN_ONLY_ADMIN();
         _;
     }
-
 }

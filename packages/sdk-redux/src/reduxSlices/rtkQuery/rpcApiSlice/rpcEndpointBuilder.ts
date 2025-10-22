@@ -1,8 +1,8 @@
-import {EndpointBuilder} from '@reduxjs/toolkit/dist/query/endpointDefinitions';
+import {type EndpointBuilder} from '@reduxjs/toolkit/query';
 
-import {CacheTagType} from '../cacheTags/CacheTagTypes';
+import {type CacheTagType} from '../cacheTags/CacheTagTypes';
 
-import {RpcBaseQuery} from './rpcBaseQuery';
-import {RpcReducerPath} from './rpcReducerPath';
+import {type RpcBaseQuery} from './rpcBaseQuery';
+import {type RpcReducerPath} from './rpcReducerPath';
 
 export type RpcEndpointBuilder = EndpointBuilder<RpcBaseQuery, CacheTagType, RpcReducerPath>;

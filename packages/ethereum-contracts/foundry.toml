@@ -2,17 +2,19 @@
 root = '../..'
 src = 'packages/ethereum-contracts/contracts'
 test = 'packages/ethereum-contracts/test/foundry'
-solc_version = "0.8.26"
+solc_version = "0.8.30"
 #deny_warnings = true
 ignored_error_codes = [
     1699 # assembly { selfdestruct } in contracts/mocks/SuperfluidDestructorMock.sol
 ]
 # keep in sync with truffle-config.js
-evm_version = 'paris'
+evm_version = 'shanghai'
+optimizer = true
+optimizer_runs = 200
 remappings = [
     '@superfluid-finance/ethereum-contracts/contracts/=packages/ethereum-contracts/contracts/',
     '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
-    '@openzeppelin/=node_modules/@openzeppelin/',
+    '@openzeppelin-v5/=lib/openzeppelin-contracts/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/']
 out = 'packages/ethereum-contracts/build/foundry/default'

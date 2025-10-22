@@ -1,6 +1,6 @@
 services:
   graph-node:
-    image: graphprotocol/graph-node:v0.35.0
+    image: graphprotocol/graph-node:v0.38.0
     ports:
       - "8000:8000"
       - "8001:8001"
@@ -25,7 +25,8 @@ services:
     volumes:
       - ./data/ipfs:/data/ipfs
   postgres:
-    image: postgres
+    # note: when switching to v18, the default data directory changes
+    image: postgres:16
     ports:
       - "5432:5432"
     command: ["postgres", "-cshared_preload_libraries=pg_stat_statements"]

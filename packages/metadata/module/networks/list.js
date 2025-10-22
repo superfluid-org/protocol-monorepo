@@ -71,7 +71,8 @@ export default
             "superfluidLoader": "0x862F59081FC7907F940bE4227b9f485d700E6cdD",
             "batchLiquidator": "0x79aE8BF8EE9238d8E848F7dbBF74Ddb3365f6c11",
             "existentialNFTCloneFactory": "0x0D1F0d4629B722b4dFabd195c14F12f2095418d9",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "vestingSchedulerV3": "0x638a8ABF60118e018c80a0eC878057E8C53E0fd1"
         },
         "startBlockV1": 3322400,
         "logsQueryRange": 10000,
@@ -109,6 +110,7 @@ export default
             "flowScheduler": "0x73B1Ce21d03ad389C2A291B1d1dc4DAFE7B5Dc68",
             "vestingScheduler": "0x27444c0235a4D921F3106475faeba0B5e7ABDD7a",
             "vestingSchedulerV2": "0x3aa62b96f44D0f8892BeBBC819DE8e02E9DE69A8",
+            "vestingSchedulerV3": "0x4F4BC2ca9A7CA26AfcFabc6A2A381c104927D72C",
             "autowrap": {
                 "manager": "0xe567b32C10B0dB72d9490eB1B9A409C5ADed192C",
                 "wrapStrategy": "0xf232f1fd34CE12e24F4391865c2D6E374D2C34d9"
@@ -198,7 +200,8 @@ export default
             "superTokenFactory": "0x7447E94Dfe3d804a9f46Bf12838d467c912C8F6C",
             "superfluidLoader": "0x777Be25F9fdcA87e8a0E06Ad4be93d65429FCb9f",
             "batchLiquidator": "0x95043eC349476B413eF5c369c4d2454a1a65eaB9",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "vestingSchedulerV3": "0x2D0B7a30bFdED086571D6525762a809ee1049c98"
         },
         "startBlockV1": 10604500,
         "logsQueryRange": 50000,
@@ -237,6 +240,7 @@ export default
             "batchLiquidator": "0x96C3C2d23d143301cF363a02cB7fe3596d2834d7",
             "flowScheduler": "0x9cC7fc484fF588926149577e9330fA5b2cA74336",
             "vestingScheduler": "0x0170FFCC75d178d426EBad5b1a31451d00Ddbd0D",
+            "vestingSchedulerV3": "0x625F04c9B91ECdfbeb7021271749212388F12c11",
             "wrapManager": "0x7a2899D179a8F205C8EDAd2e52954cA5f6d48D1A",
             "autowrap": {
                 "manager": "0x8082e58681350876aFe8f52d3Bf8672034A03Db0",
@@ -298,6 +302,7 @@ export default
             "batchLiquidator": "0xA7afDc46999076C295cfC6812dd73d103cF64e19",
             "flowScheduler": "0x55F7758dd99d5e185f4CC08d4Ad95B71f598264D",
             "vestingScheduler": "0xcFE6382B33F2AdaFbE46e6A26A88E0182ae32b0c",
+            "vestingSchedulerV3": "0x488913833474bbD9B11f844FdC2f0897FAc0Ca43",
             "autowrap": {
                 "manager": "0x2581c27E7f6D6AF452E63fCe884EDE3EDd716b32",
                 "wrapStrategy": "0xb4afa36BAd8c76976Dc77a21c9Ad711EF720eE4b"
@@ -359,6 +364,7 @@ export default
             "flowScheduler": "0x55c8fc400833eEa791087cF343Ff2409A39DeBcC",
             "vestingScheduler": "0x65377d4dfE9c01639A41952B5083D58964782892",
             "vestingSchedulerV2": "0xe567b32C10B0dB72d9490eB1B9A409C5ADed192C",
+            "vestingSchedulerV3": "0x5aB84e4B3a5F418c95B77DbdecFAF18D0Fd3b3E4",
             "autowrap": {
                 "manager": "0x1fA76f2Cd0C3fe6c399A80111408d9C42C0CAC23",
                 "wrapStrategy": "0x0Cf060a501c0040e9CCC708eFE94079F501c6Bb4"
@@ -419,6 +425,7 @@ export default
             "batchLiquidator": "0x9224413b9177E6c1D5721B4a4D1D00eC84B07Ce7",
             "flowScheduler": "0x3fA8B653F9abf91428800C0ba0F8D145a71F97A1",
             "vestingScheduler": "0x55c8fc400833eEa791087cF343Ff2409A39DeBcC",
+            "vestingSchedulerV3": "0xc3069bDE869912E3d9B965F35D7764Fc92BccE67",
             "autowrap": {
                 "manager": "0xf01825eAFAe5CD1Dab5593EFAF218efC8968D272",
                 "wrapStrategy": "0x342076aA957B0ec8bC1d3893af719b288eA31e61"
@@ -479,6 +486,7 @@ export default
             "batchLiquidator": "0x3b387638a5d33aE8772715642A21345f23Af824c",
             "flowScheduler": "0xF7AfF590E9DE493D7ACb421Fca7f1E35C1ad4Ce5",
             "vestingScheduler": "0x3fA8B653F9abf91428800C0ba0F8D145a71F97A1",
+            "vestingSchedulerV3": "0xB84C98d9B51D0e32114C60C500e17eA79dfd0dAf",
             "autowrap": {
                 "manager": "0x8082e58681350876aFe8f52d3Bf8672034A03Db0",
                 "wrapStrategy": "0x51FBAbD31A615E14b1bC12E9d887f60997264a4E"
@@ -539,6 +547,7 @@ export default
             "batchLiquidator": "0x27636F8E129cdd4ccA0F30E2b4C116DDaC773bE5",
             "flowScheduler": "0x2f9e2A2A59405682d4F86779275CF5525AD7eC2B",
             "vestingScheduler": "0x9B91c27f78376383003C6A12Ad12B341d016C5b9",
+            "vestingSchedulerV3": "0xa032265Ee9dE740D36Af6eb90cf18775577B1Ef3",
             "autowrap": {
                 "manager": "0x2AcdD61ac1EFFe1535109449c31889bdE8d7f325",
                 "wrapStrategy": "0x9e308cb079ae130790F604b1030cDf386670f199"
@@ -599,6 +608,7 @@ export default
             "batchLiquidator": "0x42B709822F18595443c308c1BE5E63CbFEf06481",
             "flowScheduler": "0xAA0cD305eD020137E302CeCede7b18c0A05aCCDA",
             "vestingScheduler": "0x39D5cBBa9adEBc25085a3918d36D5325546C001B",
+            "vestingSchedulerV3": "0xbeEDf563D41dcb3e1b7e0B0f7a86685Fd73Ce84C",
             "autowrap": {
                 "manager": "0x30aE282CF477E2eF28B14d0125aCEAd57Fe1d7a1",
                 "wrapStrategy": "0x1D65c6d3AD39d454Ea8F682c49aE7744706eA96d"
@@ -698,9 +708,10 @@ export default
             "flowScheduler": "0xC72CEd15204d02183c83fEbb918b183E400811Ee",
             "vestingScheduler": "0xDF92D0E6Bcb9385FDe99aD21Ff5e47Fb47E3c6b2",
             "vestingSchedulerV2": "0x7b77A34b8B76B66E97a5Ae01aD052205d5cbe257",
+            "vestingSchedulerV3": "0x6Bf35A170056eDf9aEba159dce4a640cfCef9312",
             "autowrap": {
-                "manager": "0x5D0acD0864Ad07ba4E1E0474AE69Da87482e14A9",
-                "wrapStrategy": "0xB29005319B0caB24cF6D4d24e8420E54BB29Cb0d"
+                "manager": "0x041D4bF21367e9B92016B28Fb5A2f697c1befd01",
+                "wrapStrategy": "0xD790CDE7A1B3194d8Ce3CF21544F03a770336E23"
             },
             "existentialNFTCloneFactory": "0x642332562BC60a4Bd9681E7bb1588f7456A497aC",
             "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
@@ -763,7 +774,8 @@ export default
             "name": "protocol-v1-scroll-mainnet",
             "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/scroll-mainnet/protocol-v1"
         },
-        "publicRPCs": ["https://rpc.scroll.io"]
+        "publicRPCs": ["https://rpc.scroll.io"],
+        "coinGeckoId": "scroll"
     },
     {
         "name": "degenchain",

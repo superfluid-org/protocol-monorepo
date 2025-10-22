@@ -1,24 +1,23 @@
 {
     "name": "@superfluid-finance/ethereum-contracts",
     "description": " Ethereum contracts implementation for the Superfluid Protocol",
-    "version": "1.12.1",
+    "version": "1.13.0",
     "dependencies": {
         "@decentral.ee/web3-helpers": "0.5.3",
         "@nomiclabs/hardhat-ethers": "2.2.3",
-        "@openzeppelin/contracts": "4.9.6",
         "@truffle/contract": "4.6.31",
         "ethereumjs-tx": "2.1.2",
         "ethereumjs-util": "7.1.5",
-        "hardhat": "2.22.9"
+        "hardhat": "2.26.1"
     },
     "devDependencies": {
         "@d10r/truffle-plugin-verify": "^0.6.11",
-        "@nomiclabs/hardhat-truffle5": "^2.0.7",
+        "@nomiclabs/hardhat-truffle5": "^2.1.0",
         "@safe-global/safe-core-sdk": "^3.3.5",
         "@safe-global/safe-service-client": "^2.0.3",
         "@safe-global/safe-web3-lib": "^1.9.4",
         "@superfluid-finance/js-sdk": "^0.6.3",
-        "@superfluid-finance/metadata": "^1.5.2",
+        "@superfluid-finance/metadata": "^1.6.2",
         "async": "^3.2.6",
         "csv-writer": "^1.6.0",
         "ethers": "^5.7.2",
@@ -50,7 +49,8 @@
     "license": "AGPL-3.0-or-later OR MIT",
     "main": "./dev-scripts/index.js",
     "peerDependencies": {
-        "ethers": "^5.7.2"
+        "ethers": "^5.7.2",
+        "@openzeppelin/contracts": "^5.0.0"
     },
     "repository": {
         "type": "git",

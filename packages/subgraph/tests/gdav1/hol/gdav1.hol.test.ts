@@ -206,7 +206,7 @@ describe("GeneralDistributionAgreementV1 Higher Order Level Entity Unit Tests", 
         assert.fieldEquals("Pool", id, "totalMembers", BIG_INT_ZERO.toString());
         assert.fieldEquals("Pool", id, "totalConnectedMembers", BIG_INT_ZERO.toString());
         assert.fieldEquals("Pool", id, "totalDisconnectedMembers", BIG_INT_ZERO.toString());
-        assert.fieldEquals("Pool", id, "adjustmentFlowRate", BIG_INT_ZERO.toString());
+        assert.fieldEquals("Pool", id, "adjustmentFlowRate", newFlowRate.toString()); // No units, so everything is adjustment flow rate
         assert.fieldEquals("Pool", id, "flowRate", newFlowRate.toString());
         assert.fieldEquals("Pool", id, "totalBuffer", BIG_INT_ZERO.toString());
         assert.fieldEquals("Pool", id, "token", ZERO_ADDRESS.toHex());

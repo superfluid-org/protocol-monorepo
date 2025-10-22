@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ISuperToken } from "@superfluid-finance/ethereum-contracts/contracts/superfluid/SuperToken.sol";
 import { SuperTokenV1Library } from "@superfluid-finance/ethereum-contracts/contracts/apps/SuperTokenV1Library.sol";
 import { FoundrySuperfluidTester } from "@superfluid-finance/ethereum-contracts/test/foundry/FoundrySuperfluidTester.t.sol";
@@ -77,15 +78,19 @@ contract ManagerTests is FoundrySuperfluidTester {
 
     /// TESTS
 
-    function testFailDeploymentWithoutCFA() public {
+    function test_RevertWhen_DeploymentWithoutCFA() public {
+        vm.expectRevert(IManager.ZeroAddress.selector);
         new Manager(address(0), 1, 2);
     }
 
-    function testFailDeploymentWrongLimits() public {
+    function test_RevertWhen_DeploymentWrongLimits() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(IManager.WrongLimits.selector, 2, 1)
+        );
         new Manager(address(sf.cfa), 2, 1);
     }
 
-    function testDeploymentCheckData() public {
+    function testDeploymentCheckData() public view {
         assertEq(address(manager.cfaV1()), address(sf.cfa), "manager.cfaV1 not equal");
         assertEq(manager.owner(), admin, "manager.owner not equal");
         assertEq(manager.minLower(), MIN_LOWER, "manager.minLower not equal");
@@ -104,7 +109,7 @@ contract ManagerTests is FoundrySuperfluidTester {
         vm.prank(admin);
         manager.setLimits(newMinLower, newMinUpper);
         // non owner can't set new limits
-        vm.expectRevert(bytes("Ownable: caller is not the owner"));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         manager.setLimits(newMinLower, newMinUpper);
     }
 
@@ -120,7 +125,7 @@ contract ManagerTests is FoundrySuperfluidTester {
         manager.addApprovedStrategy(address(wrapStrategy));
         vm.stopPrank();
         // non owner can't add new strategy
-        vm.expectRevert(bytes("Ownable: caller is not the owner"));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         manager.addApprovedStrategy(address(wrapStrategy));
         bool isStrategyApproved = manager.approvedStrategies(address(wrapStrategy));
         assertTrue(isStrategyApproved, "strategy should be register");
@@ -131,7 +136,7 @@ contract ManagerTests is FoundrySuperfluidTester {
         //add strategy to be removed
         manager.addApprovedStrategy(address(wrapStrategy));
         // non owner can't add new strategy
-        vm.expectRevert(bytes("Ownable: caller is not the owner"));
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         manager.removeApprovedStrategy(address(wrapStrategy));
         vm.startPrank(admin);
         vm.expectEmit(true, true, true, true);

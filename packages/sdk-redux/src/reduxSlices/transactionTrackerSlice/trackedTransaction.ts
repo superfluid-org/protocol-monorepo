@@ -1,11 +1,12 @@
 import {ethers} from 'ethers';
 
-import {TransactionTitle} from './transactionTitle';
+import {type TransactionTitle} from './transactionTitle';
 
 export type TransactionStatus = 'Pending' | 'Succeeded' | 'Failed' | 'Replaced' | 'Unknown';
 
 // "Redux" stuff needs to be serializable. Blockchain transaction object is unserializable.
 export interface TrackedTransaction {
+    id: string;
     chainId: number;
     hash: string;
     /**

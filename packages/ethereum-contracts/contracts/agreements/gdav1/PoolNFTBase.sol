@@ -6,7 +6,8 @@ pragma solidity ^0.8.23;
 
 // Notes: We use these interfaces in natspec documentation below, grep @inheritdoc
 // solhint-disable-next-line no-unused-import
-import { IERC165, IERC721, IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import { IERC165 } from "@openzeppelin-v5/contracts/interfaces/IERC165.sol";
+import { IERC721 } from "@openzeppelin-v5/contracts/token/ERC721/IERC721.sol";
 import { UUPSProxiable } from "../../upgradability/UUPSProxiable.sol";
 import { IGeneralDistributionAgreementV1, ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";
 import { ISuperTokenFactory } from "../../interfaces/superfluid/ISuperTokenFactory.sol";
@@ -127,14 +128,14 @@ abstract contract PoolNFTBase is UUPSProxiable, IPoolNFTBase {
     }
 
     /// @notice Returns the name of the NFT
-    /// @dev Should follow the naming convention: (Pool Admin|Pool Member) NFT
+    /// @dev Should follow the naming convention: Pool Admin NFT
     /// @return name of the NFT
     function name() external view virtual override returns (string memory) {
         return _name;
     }
 
     /// @notice Returns the symbol of the NFT
-    /// @dev Should follow the naming convention: PA|PM
+    /// @dev Should follow the naming convention: PA
     /// @return symbol of the NFT
     function symbol() external view virtual override returns (string memory) {
         return _symbol;

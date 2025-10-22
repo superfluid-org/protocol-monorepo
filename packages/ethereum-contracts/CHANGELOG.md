@@ -3,6 +3,55 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+### Added
+- GDA _autoconnect_ feature: now any account can connect pool members using `tryConnectPoolFor()` as long as they have less than 4 connection slots occupied for that Super Token. This allows for smoother onboarding of new users, allowing Apps to make sure tokens distributed via GDA immediately show up in user's wallets. Accounts can opt out of this by using `setConnectPermission()`, this is mainly supposed to be used by contracts.
+
+### Changed
+- Refactored `GeneralDistributionAgreementV1`: extracted functionality which reads/writes agreement data from/to the token contract into dedicated libraries:
+  - `GDAv1StorageLib` contains data structures and related encoders/decoders.
+  - `GDAv1StorageReader` contains getters reading agreement data from the token contract, allowing contracts to get this data without making a call to the GDA contract.
+  - `GDAv1StorageWriter` contains functions for writing agreement data to the token contract. This can only be used by the GDA contract itself.
+- bump solc to "0.8.30".
+- Changed EVM target from `paris` to `shanghai` because now all networks with supported Superfluid deployment support it.
+
+### Fixed
+- `ISuperfluidPool`: `getClaimable` and `getClaimableNow` could previously return non-zero values for connected pools, which was inconsistent with what `claimAll` would actually do in this situation (claim nothing).
+
+### Breaking
+- Updated OpenZeppelin library from v.4.9.6 to v5.4.0.
+The import path now includes the major version, making it easier for contracts integrating with this protocol to use a different major version of OpenZeppelin.
+Projects using Superfluid contracts as a dependency need to configure a mapping:
+  - Foundry: add this to remappings: `'@openzeppelin-v5/=lib/openzeppelin-contracts/',`
+  - Hardhat (>=v2.17.2): add `@openzeppelin/contracts` as a project dependency and a subtask in your hardhat config:
+```
+import { TASK_COMPILE_GET_REMAPPINGS } from "hardhat/builtin-tasks/task-names";
+
+subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
+    async (_, __, runSuper) => {
+        const remappings = await runSuper();
+        return {
+            ...remappings,
+            "@openzeppelin-v5/contracts/": "@openzeppelin/contracts/",
+        };
+    }
+);
+```
+- PoolMemberNFT pruning: `IPoolMemberNFT` and `PoolMemberNFT` removed, `POOL_MEMBER_NFT()` removed from `ISuperToken`.
+
+## [v1.13.0]
+
+### Added
+- `SuperToken` now implements [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) (permit extension for EIP-20 signed approvals).
+- `SuperfluidPool` now has additional methods `increaseMemberUnits` and `decreaseMemberUnits` which allow the pool admin to change member units parameterized with delta amounts.
+
+### Changed
+- Curation of the SuperApp registration allowlist can now be delegated by governance to a newly added `ACL` contract.
+
+### Breaking
+- `SuperfluidPool` does no longer mint and burn EIP-721 tokens (NFTs) on member unit updates. The gas overhead of this operation caused friction for integrations with other protocols (e.g. Uniswap V4).
+
 ## [v1.12.1]
 
 ### Added
@@ -14,7 +63,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 - Fixed deployment of SimpleForwarder (solved an issue which caused batch operation `OPERATION_TYPE_SIMPLE_FORWARD_CALL` to always revert)
-- `SuperTokenV1Library.getFlowRate` and `SuperTokenV1Library.getFlowInfo` now also allow querying the flowrate between pools and pool members.
+- `SuperTokenV1Library.getFlowRate` and `SuperTokenV1Library.getFlowInfo` now also allow querying the flowrate between pools and pool members
+- Superfluid Pools now emit a Transfer event when changing units with `updateMemberUnits`.
+- Dependency foundry updated to 1.0
 
 ### Breaking
 - `SuperTokenV1Library.distributeFlow`: return `actualFlowRate` instead of a bool

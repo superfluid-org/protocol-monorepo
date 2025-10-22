@@ -128,7 +128,8 @@ contract("Embedded deployment scripts", (accounts) => {
                 false, // appWhiteListingEnabled
                 callbackGasLimit, // callbackGasLimit
                 ZERO_ADDRESS, // simpleForwarder
-                ZERO_ADDRESS // erc2771Forwarder
+                ZERO_ADDRESS, // erc2771Forwarder
+                ZERO_ADDRESS // simpleAcl
             );
             assert.isFalse(
                 await codeChanged(web3, Superfluid, a1.address, [

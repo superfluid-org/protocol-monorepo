@@ -4,10 +4,9 @@ pragma solidity ^0.8.23;
 import { Test } from "forge-std/Test.sol";
 import { UUPSProxy } from "../../../contracts/upgradability/UUPSProxy.sol";
 import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.sol";
-import { IERC20, ISuperToken, SuperToken, IConstantOutflowNFT, IConstantInflowNFT }
+import { IERC20, ISuperToken, SuperToken }
     from "../../../contracts/superfluid/SuperToken.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
-import { PoolMemberNFT, IPoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol";
@@ -24,7 +23,7 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     }
 
     function testToUnderlyingAmountWithUpgrade(uint8 decimals, uint256 amount) public {
-        vm.assume(amount < type(uint64).max);
+        amount = bound(amount, 0, type(uint64).max);
         // We assume that most underlying tokens will not have more than 32 decimals
         vm.assume(decimals <= 32);
         (TestToken localToken, ISuperToken localSuperToken) =
@@ -42,10 +41,10 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     function testToUnderlyingAmountWithDowngrade(uint8 decimals, uint256 upgradeAmount, uint256 downgradeAmount)
         public
     {
-        vm.assume(upgradeAmount < type(uint64).max);
+        upgradeAmount = bound(upgradeAmount, 0, type(uint64).max);
         // We assume that most underlying tokens will not have more than 32 decimals
         vm.assume(decimals <= 32);
-        vm.assume(downgradeAmount < upgradeAmount);
+        downgradeAmount = bound(downgradeAmount, 0, upgradeAmount);
         (TestToken localToken, ISuperToken localSuperToken) =
             sfDeployer.deployWrapperSuperToken("FTT", "FTT", decimals, type(uint256).max, address(0));
         (uint256 underlyingAmount, uint256 adjustedAmount) = localSuperToken.toUnderlyingAmount(upgradeAmount);
@@ -177,5 +176,82 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
             address(newSuperTokenLogic),
             "testOnlyHostCanUpdateCodeWhenNoAdmin: super token logic not updated correctly"
         );
+    }
+
+    function testPermit(
+        address relayer,
+        uint256 signerPrivKey,
+        uint256 amount,
+        address spender,
+        uint32 deadlineDelta
+    ) public {
+        uint256 deadline = bound(deadlineDelta, block.timestamp, block.timestamp + deadlineDelta);
+        amount = bound(amount, 1, type(uint96).max);
+        signerPrivKey = bound(signerPrivKey, 1, type(uint128).max);
+        address permitSigner = vm.addr(signerPrivKey);
+        // zero address is not a valid signer
+        vm.assume(permitSigner != address(0));
+        // SuperToken doesn't allow approval to zero address
+        vm.assume(spender != address(0));
+
+        (ISuperToken localSuperToken) = sfDeployer.deployPureSuperToken("Super MR", "MRx", amount * 2);
+        localSuperToken.transfer(permitSigner, amount * 2);
+        uint256 nonce = localSuperToken.nonces(permitSigner);
+        // check nonce is 0
+        assertEq(nonce, 0, "Nonce should be 0");
+
+        assertEq(localSuperToken.allowance(permitSigner, spender), 0, "Allowance should be 0");
+
+        bytes32 digest;
+        // stack too deep avoidance gymnastics
+        {
+            // create permit digest
+            bytes32 PERMIT_TYPEHASH =
+                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+            bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, permitSigner, spender, amount, nonce, deadline));
+            digest = keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    localSuperToken.DOMAIN_SEPARATOR(),
+                    structHash
+                )
+            );
+        }
+
+        // create signature
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivKey, digest);
+
+        vm.startPrank(relayer);
+
+        // expect revert if spender doesn't match
+        if (spender != relayer) {
+            vm.expectRevert();
+            localSuperToken.permit(permitSigner, relayer, amount, deadline, v, r, s);
+        }
+
+        // expect revert if amount doesn't match
+        vm.expectRevert();
+        localSuperToken.permit(permitSigner, spender, amount + 1, deadline, v, r, s);
+
+        // expect revert if signature is invalid
+        vm.expectRevert();
+        localSuperToken.permit(permitSigner, spender, amount, deadline, v + 1, r, s);
+
+        // expect revert if deadline is in the past
+        uint256 prevBlockTS = block.timestamp;
+        vm.warp(block.timestamp + deadline + 1);
+        vm.expectRevert();
+        localSuperToken.permit(permitSigner, spender, amount, deadline, v, r, s);
+        // restore block timestamp
+        vm.warp(prevBlockTS);
+
+        // succeed with correct parameters
+        localSuperToken.permit(permitSigner, spender, amount, deadline, v, r, s);
+
+        vm.stopPrank();
+
+        // Verify expected state changes
+        assertEq(localSuperToken.nonces(permitSigner), 1, "Nonce should be incremented");
+        assertEq(localSuperToken.allowance(permitSigner, spender), amount, "Allowance should be set");
     }
 }

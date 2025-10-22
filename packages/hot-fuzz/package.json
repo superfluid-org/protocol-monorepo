@@ -6,17 +6,14 @@
         "hot-fuzz": "./hot-fuzz"
     },
     "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
-    "dependencies": {
-        "@openzeppelin/contracts": "4.9.6"
-    },
     "devDependencies": {
-        "@superfluid-finance/ethereum-contracts": "^1.12.1"
+        "@superfluid-finance/ethereum-contracts": "^1.13.0"
     },
     "homepage": "https://github.com/superfluid-finance/protocol-monorepo#readme",
     "license": "AGPL-3.0",
     "main": "index.js",
     "peerDependencies": {
-        "@superfluid-finance/ethereum-contracts": "1.12.1"
+        "@superfluid-finance/ethereum-contracts": "1.13.0"
     },
     "repository": {
         "type": "git",

@@ -64,7 +64,7 @@ contract CrossStreamSuperAppTest is FoundrySuperfluidTester {
         _addAccount(address(superApp));
     }
 
-    function testNoTokensMintedOrBurnedInCrossStreamSuperApp(int96 flowRate, uint32 blockTimestamp) public {
+    function testNoTokensMintedOrBurnedInCrossStreamSuperApp(int96 flowRate, uint24 blockTimestamp) public {
         // @note due to clipping, there is precision loss, therefore if the flow rate is too low
         // tokens will be unrecoverable
         flowRate = int96(bound(flowRate, 2 ** 31 - 1, 1e14));

@@ -1,28 +1,23 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { IERC721Metadata } from "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
+import { IERC721Metadata } from "@openzeppelin-v5/contracts/interfaces/IERC721Metadata.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
-import { PoolAdminNFTMock, PoolMemberNFTMock } from "./PoolNFTMock.t.sol";
+import { PoolAdminNFTMock } from "./PoolNFTMock.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
-import { PoolMemberNFT, IPoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
 import { UUPSProxy } from "../../../contracts/upgradability/UUPSProxy.sol";
 import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.sol";
-import { SuperToken, SuperTokenMock, IConstantOutflowNFT, IConstantInflowNFT } from "../../../contracts/mocks/SuperTokenMock.t.sol";
+import { SuperToken, SuperTokenMock } from "../../../contracts/mocks/SuperTokenMock.t.sol";
 
 contract ERC721IntegrationTest is FoundrySuperfluidTester {
-    string internal constant POOL_MEMBER_NFT_NAME_TEMPLATE = "Pool Member NFT";
-    string internal constant POOL_MEMBER_NFT_SYMBOL_TEMPLATE = "PMF";
     string internal constant POOL_ADMIN_NFT_NAME_TEMPLATE = "Pool Admin NFT";
     string internal constant POOL_ADMIN_NFT_SYMBOL_TEMPLATE = "PAF";
 
     SuperTokenMock public superTokenMock;
 
-    PoolMemberNFTMock public poolMemberNFTLogic;
     PoolAdminNFTMock public poolAdminNFTLogic;
 
-    PoolMemberNFTMock public poolMemberNFT;
     PoolAdminNFTMock public poolAdminNFT;
 
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
@@ -40,29 +35,18 @@ contract ERC721IntegrationTest is FoundrySuperfluidTester {
 
         // Deploy Pool NFTs
 
-        // deploy pool member NFT contract
-        UUPSProxy poolMemberProxy = new UUPSProxy();
-
         // deploy pool admin NFT contract
         UUPSProxy poolAdminProxy = new UUPSProxy();
 
         // we deploy mock NFT contracts for the tests to access internal functions
-        poolMemberNFTLogic = new PoolMemberNFTMock(sf.host, sf.gda);
         poolAdminNFTLogic = new PoolAdminNFTMock(sf.host, sf.gda);
 
-        poolMemberNFTLogic.castrate();
         poolAdminNFTLogic.castrate();
-
-        // initialize proxy to point at logic
-        poolMemberProxy.initializeProxy(address(poolMemberNFTLogic));
 
         // initialize proxy to point at logic
         poolAdminProxy.initializeProxy(address(poolAdminNFTLogic));
 
-        poolMemberNFT = PoolMemberNFTMock(address(poolMemberProxy));
         poolAdminNFT = PoolAdminNFTMock(address(poolAdminProxy));
-
-        poolMemberNFT.initialize(POOL_MEMBER_NFT_NAME_TEMPLATE, POOL_MEMBER_NFT_SYMBOL_TEMPLATE);
 
         poolAdminNFT.initialize(POOL_ADMIN_NFT_NAME_TEMPLATE, POOL_ADMIN_NFT_SYMBOL_TEMPLATE);
 
@@ -76,10 +60,7 @@ contract ERC721IntegrationTest is FoundrySuperfluidTester {
         SuperTokenMock superTokenMockLogic = new SuperTokenMock(
             sf.host,
             0,
-            IConstantOutflowNFT(address(0)),
-            IConstantInflowNFT(address(0)),
-            IPoolAdminNFT(address(poolAdminNFT)),
-            IPoolMemberNFT(address(poolMemberNFT))
+            IPoolAdminNFT(address(poolAdminNFT))
         );
         superTokenMockProxy.initializeProxy(address(superTokenMockLogic));
 

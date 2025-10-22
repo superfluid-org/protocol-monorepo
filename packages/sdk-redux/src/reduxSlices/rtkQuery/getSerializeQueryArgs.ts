@@ -1,5 +1,5 @@
 import {isPlainObject} from '@reduxjs/toolkit';
-import {SerializeQueryArgs} from '@reduxjs/toolkit/dist/query/defaultSerializeQueryArgs';
+import {type SerializeQueryArgs} from '@reduxjs/toolkit/query';
 
 import {mutationOverridesKey, mutationSignerKey} from '../../utils';
 

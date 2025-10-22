@@ -46,6 +46,11 @@ contract SlotsBitmapLibraryPropertyTest is Test {
         (slotIds, dataList) = SlotsBitmapLibrary.listData(
             _superToken, _subscriber, _SUBSCRIBER_SUBS_BITMAP_STATE_SLOT_ID, _SUBSCRIBER_SUB_DATA_STATE_SLOT_ID_START
         );
+        uint256 n = SlotsBitmapLibrary.countUsedSlots(
+            _superToken, _subscriber, _SUBSCRIBER_SUBS_BITMAP_STATE_SLOT_ID
+        );
+        assertEq(slotIds.length, n, "slotsIds.length");
+        assertEq(dataList.length, n, "dataList.length");
     }
 
     /**

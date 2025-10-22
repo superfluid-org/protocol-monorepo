@@ -23,19 +23,24 @@ module.exports = async function ({ deployments, getNamedAccounts }) {
     const { deploy } = deployments;
     const { deployer } = await getNamedAccounts();
 
-
     console.log(`network: ${hre.network.name}`);
     console.log(`chainId: ${chainId}`);
     console.log(`rpc: ${hre.network.config.url}`);
     console.log(`host: ${host}`);
 
+    const deployFlowScheduler =
+        process.env.DEPLOY_FLOW_SCHEDULER?.toLowerCase() === "true";
+    const deployVestingScheduler =
+        process.env.DEPLOY_VESTING_SCHEDULER?.toLowerCase() === "true";
+    const deployVestingSchedulerV2 =
+        process.env.DEPLOY_VESTING_SCHEDULER_V2?.toLowerCase() === "true";
+    const deployVestingSchedulerV3 =
+        process.env.DEPLOY_VESTING_SCHEDULER_V3?.toLowerCase() === "true";
 
-    const deployFlowScheduler = process.env.DEPLOY_FLOW_SCHEDULER?.toLowerCase() === "true";
-    const deployVestingScheduler = process.env.DEPLOY_VESTING_SCHEDULER?.toLowerCase() === "true";
-    const deployVestingSchedulerV2 = process.env.DEPLOY_VESTING_SCHEDULER_V2?.toLowerCase() === "true";
     console.log(`deployFlowScheduler: ${deployFlowScheduler}`);
     console.log(`deployVestingScheduler: ${deployVestingScheduler}`);
     console.log(`deployVestingSchedulerV2: ${deployVestingSchedulerV2}`);
+    console.log(`deployVestingSchedulerV3: ${deployVestingSchedulerV3}`);
 
     if (deployFlowScheduler) {
         console.log("Deploying FlowScheduler...");
@@ -43,7 +48,7 @@ module.exports = async function ({ deployments, getNamedAccounts }) {
             from: deployer,
             args: [host],
             log: true,
-            skipIfAlreadyDeployed: false
+            skipIfAlreadyDeployed: false,
         });
 
         // wait for 15 seconds to allow etherscan to indexed the contracts
@@ -56,14 +61,14 @@ module.exports = async function ({ deployments, getNamedAccounts }) {
             contract: "contracts/FlowScheduler.sol:FlowScheduler",
         });
     }
-    
+
     if (deployVestingScheduler) {
         console.log("Deploying VestingScheduler...");
         const VestingScheduler = await deploy("VestingScheduler", {
             from: deployer,
             args: [host],
             log: true,
-            skipIfAlreadyDeployed: false
+            skipIfAlreadyDeployed: false,
         });
 
         // wait for 15 seconds to allow etherscan to indexed the contracts
@@ -94,6 +99,26 @@ module.exports = async function ({ deployments, getNamedAccounts }) {
             address: VestingSchedulerV2.address,
             constructorArguments: [host],
             contract: "contracts/VestingSchedulerV2.sol:VestingSchedulerV2",
+        });
+    }
+
+    if (deployVestingSchedulerV3) {
+        console.log("Deploying VestingSchedulerV3...");
+        const VestingSchedulerV3 = await deploy("VestingSchedulerV3", {
+            from: deployer,
+            args: [host],
+            log: true,
+            skipIfAlreadyDeployed: false,
+        });
+
+        // wait for 15 seconds to allow etherscan to indexed the contracts
+        await sleep(15000);
+
+        console.log("Verifying VestingSchedulerV3...");
+        await hre.run("verify:verify", {
+            address: VestingSchedulerV3.address,
+            constructorArguments: [host],
+            contract: "contracts/VestingSchedulerV3.sol:VestingSchedulerV3",
         });
     }
 

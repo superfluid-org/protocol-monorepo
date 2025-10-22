@@ -4,21 +4,18 @@ pragma solidity ^0.8.23;
 import {
     ISuperfluid,
     ISuperToken,
-    IPoolAdminNFT,
-    IPoolMemberNFT
+    IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
-import { SuperTokenFactoryBase, IConstantOutflowNFT, IConstantInflowNFT } from "../superfluid/SuperTokenFactory.sol";
+import { SuperTokenFactoryBase, IPoolMemberNFT } from "../superfluid/SuperTokenFactory.sol";
 
 contract SuperTokenFactoryStorageLayoutTester is SuperTokenFactoryBase {
     constructor(
         ISuperfluid host,
         ISuperToken superTokenLogic,
-        IConstantOutflowNFT constantOutflowNFT,
-        IConstantInflowNFT constantInflowNFT,
         IPoolAdminNFT poolAdminNFT,
         IPoolMemberNFT poolMemberNFT
     )
-        SuperTokenFactoryBase(host, superTokenLogic, constantOutflowNFT, constantInflowNFT, poolAdminNFT, poolMemberNFT)
+        SuperTokenFactoryBase(host, superTokenLogic, poolAdminNFT, poolMemberNFT)
     // solhint-disable-next-line no-empty-blocks
     { }
 
@@ -43,12 +40,10 @@ contract SuperTokenFactoryUpdateLogicContractsTester is SuperTokenFactoryBase {
     constructor(
         ISuperfluid host,
         ISuperToken superTokenLogic,
-        IConstantOutflowNFT constantOutflowNFT,
-        IConstantInflowNFT constantInflowNFT,
         IPoolAdminNFT poolAdminNFT,
         IPoolMemberNFT poolMemberNFT
     )
-        SuperTokenFactoryBase(host, superTokenLogic, constantOutflowNFT, constantInflowNFT, poolAdminNFT, poolMemberNFT)
+        SuperTokenFactoryBase(host, superTokenLogic, poolAdminNFT, poolMemberNFT)
     // solhint-disable-next-line no-empty-blocks
     { }
 }
@@ -57,12 +52,10 @@ contract SuperTokenFactoryMock is SuperTokenFactoryBase {
     constructor(
         ISuperfluid host,
         ISuperToken superTokenLogic,
-        IConstantOutflowNFT constantOutflowNFT,
-        IConstantInflowNFT constantInflowNFT,
         IPoolAdminNFT poolAdminNFT,
         IPoolMemberNFT poolMemberNFT
     )
-        SuperTokenFactoryBase(host, superTokenLogic, constantOutflowNFT, constantInflowNFT, poolAdminNFT, poolMemberNFT)
+        SuperTokenFactoryBase(host, superTokenLogic, poolAdminNFT, poolMemberNFT)
     // solhint-disable-next-line no-empty-blocks
     { }
 }
@@ -71,12 +64,10 @@ contract SuperTokenFactoryMock42 is SuperTokenFactoryBase {
     constructor(
         ISuperfluid host,
         ISuperToken superTokenLogic,
-        IConstantOutflowNFT constantOutflowNFT,
-        IConstantInflowNFT constantInflowNFT,
         IPoolAdminNFT poolAdminNFT,
         IPoolMemberNFT poolMemberNFT
     )
-        SuperTokenFactoryBase(host, superTokenLogic, constantOutflowNFT, constantInflowNFT, poolAdminNFT, poolMemberNFT)
+        SuperTokenFactoryBase(host, superTokenLogic, poolAdminNFT, poolMemberNFT)
     // solhint-disable-next-line no-empty-blocks
     { }
 }

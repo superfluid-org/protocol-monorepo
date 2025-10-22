@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import {
     UpgradeableBeacon
-} from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
+} from "@openzeppelin-v5/contracts/proxy/beacon/UpgradeableBeacon.sol";
 import { BeaconProxiable } from "./BeaconProxiable.sol";
 
 contract SuperfluidUpgradeableBeacon is UpgradeableBeacon {
@@ -11,7 +11,7 @@ contract SuperfluidUpgradeableBeacon is UpgradeableBeacon {
     error INCOMPATIBLE_LOGIC();             // 0x5af2144c
     error NO_PROXY_LOOP();                  // 0z66750bca
 
-    constructor(address implementation_) UpgradeableBeacon(implementation_) {}
+    constructor(address implementation_) UpgradeableBeacon(implementation_, _msgSender()) {}
 
     function upgradeTo(address newImplementation) public override onlyOwner {
         if (newImplementation == address(0)) {

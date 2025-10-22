@@ -67,16 +67,12 @@ describe("SuperToken's Non Standard Functions", function () {
 
     describe("#1 upgradability", () => {
         it("#1.1 storage layout", async () => {
-            const {poolAdminNFTProxy, poolMemberNFTProxy} =
-                await t.deployNFTContracts();
+            const {poolAdminNFTProxy} = await t.deployNFTContracts();
             const superTokenLogic =
                 await t.deployContract<SuperTokenStorageLayoutTester>(
                     "SuperTokenStorageLayoutTester",
                     superfluid.address,
-                    t.constants.ZERO_ADDRESS,
-                    t.constants.ZERO_ADDRESS,
-                    poolAdminNFTProxy.address,
-                    poolMemberNFTProxy.address
+                    poolAdminNFTProxy.address
                 );
             await superTokenLogic.validateStorageLayout();
         });
@@ -145,11 +141,13 @@ describe("SuperToken's Non Standard Functions", function () {
         it("#2.2 - should not upgrade without enough underlying balance", async () => {
             const initialBalance = await testToken.balanceOf(alice);
             console.log("SuperToken.upgrade - bad balance");
-            await expectRevertedWith(
+            await expectCustomError(
                 superToken
                     .connect(aliceSigner)
                     .upgrade(initialBalance.add(toBN(1))),
-                "ERC20: transfer amount exceeds balance"
+                testToken,
+                "ERC20InsufficientBalance",
+                [alice, initialBalance, initialBalance.add(toBN(1))]
             );
             await t.validateSystemInvariance();
         });
@@ -706,16 +704,12 @@ describe("SuperToken's Non Standard Functions", function () {
         });
 
         it("#3.1 Custom token storage should not overlap with super token", async () => {
-            const {poolAdminNFTProxy, poolMemberNFTProxy} =
-                await t.deployNFTContracts();
+            const {poolAdminNFTProxy} = await t.deployNFTContracts();
             const superTokenLogic =
                 await t.deployContract<SuperTokenStorageLayoutTester>(
                     "SuperTokenStorageLayoutTester",
                     superfluid.address,
-                    t.constants.ZERO_ADDRESS,
-                    t.constants.ZERO_ADDRESS,
-                    poolAdminNFTProxy.address,
-                    poolMemberNFTProxy.address
+                    poolAdminNFTProxy.address
                 );
             const a = await superTokenLogic.getLastSuperTokenStorageSlot();
             const b = await customToken.getFirstCustomTokenStorageSlot();

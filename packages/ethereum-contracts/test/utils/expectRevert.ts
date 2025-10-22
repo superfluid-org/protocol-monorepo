@@ -16,12 +16,6 @@ export const expectCustomError = async (
     customErrorString: string,
     args?: any
 ) => {
-    args
-        ? await expect(func)
-              .to.be.revertedWithCustomError(contract, customErrorString)
-              .withArgs(args)
-        : await expect(func).to.be.revertedWithCustomError(
-              contract,
-              customErrorString
-          );
+    const expectation = expect(func).to.be.revertedWithCustomError(contract, customErrorString);
+    args ? await expectation.withArgs(...(Array.isArray(args) ? args : [args])) : await expectation;
 };

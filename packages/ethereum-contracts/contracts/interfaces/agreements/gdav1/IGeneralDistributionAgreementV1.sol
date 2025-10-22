@@ -37,6 +37,7 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     error GDA_NOT_POOL_ADMIN();                             // 0x3a87e565
     error GDA_NO_ZERO_ADDRESS_ADMIN();                      // 0x82c5d837
     error GDA_ONLY_SUPER_TOKEN_POOL();                      // 0x90028c37
+    error GDA_CANNOT_CONNECT_POOL();                        // 0x83d98e4c
 
 
     // Events
@@ -179,7 +180,7 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     /// @param token The token address
     /// @param admin The admin of the pool
     /// @param poolConfig The pool configuration (see PoolConfig struct)
-    function createPool(ISuperfluidToken token, address admin, PoolConfig memory poolConfig)
+    function createPool(ISuperfluidToken token, address admin, PoolConfig calldata poolConfig)
         external
         virtual
         returns (ISuperfluidPool pool);
@@ -193,7 +194,7 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     function createPoolWithCustomERC20Metadata(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory poolConfig,
+        PoolConfig calldata poolConfig,
         PoolERC20Metadata memory poolERC20Metadata
     ) external virtual returns (ISuperfluidPool pool);
 
@@ -213,6 +214,22 @@ abstract contract IGeneralDistributionAgreementV1 is ISuperAgreement {
     /// @param ctx Context bytes (see ISuperfluid.sol for Context struct)
     /// @return newCtx the new context bytes
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external virtual returns (bytes memory newCtx);
+
+    /// @notice Allows the pool admin to connect a member to the pool if autoconnect slots are available.
+    /// "autoconnect slots" are a subset of the slots available to pool members themselves.
+    /// @param pool The pool address
+    /// @param memberAddr The member address
+    /// @param ctx Context bytes
+    /// @return success true if the member was (or remained) connected, false otherwise
+    /// @return newCtx the new context bytes
+    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx) 
+        external
+        virtual
+        returns (bool success, bytes memory newCtx);
+
+    /// @notice Allows accounts to control whether third parties can connect them to pools. By default, they can.
+    /// @param allow true to allow (only has an effect if it was previously denied), false to deny
+    function setConnectPermission(bool allow) external virtual;
 
     /// @notice Disconnects `msg.sender` from `pool`.
     /// @dev This is used to disconnect a pool from the GDA.

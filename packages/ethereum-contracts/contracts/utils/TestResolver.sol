@@ -9,10 +9,10 @@ import { Resolver } from "./Resolver.sol";
 /// @dev Used by the SuperfluidFrameworkDeployer to grant admin privileges to its deployer
 contract TestResolver is Resolver {
     constructor(address _additionalAdmin) {
-        _setupRole(DEFAULT_ADMIN_ROLE, _additionalAdmin);
+        _grantRole(DEFAULT_ADMIN_ROLE, _additionalAdmin);
     }
 
     function addAdmin(address _additionalAdmin) external {
-        _setupRole(DEFAULT_ADMIN_ROLE, _additionalAdmin);
+        _grantRole(DEFAULT_ADMIN_ROLE, _additionalAdmin);
     }
 }

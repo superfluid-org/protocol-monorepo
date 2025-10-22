@@ -5,7 +5,7 @@ import {
     ISuperfluid, ISuperAgreement, ISuperToken, ISuperfluidPool,
     IConstantFlowAgreementV1, IGeneralDistributionAgreementV1
 } from "../interfaces/superfluid/ISuperfluid.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC20 } from "@openzeppelin-v5/contracts/token/ERC20/ERC20.sol";
 
 /**
  * @title Batch liquidator contract

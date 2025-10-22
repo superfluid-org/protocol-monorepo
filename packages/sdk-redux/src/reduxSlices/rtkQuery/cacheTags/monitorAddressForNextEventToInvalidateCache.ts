@@ -1,9 +1,8 @@
-import {AnyAction} from '@reduxjs/toolkit';
-import {ThunkDispatch} from '@reduxjs/toolkit';
+import {type ThunkDispatch, type UnknownAction} from '@reduxjs/toolkit';
 
 import {getFramework} from '../../../sdkReduxConfig';
 import {MillisecondTimes} from '../../../utils';
-import {TransactionInfo} from '../../argTypes';
+import {type TransactionInfo} from '../../argTypes';
 
 import {invalidateSpecificCacheTagsForEvents} from './invalidateSpecificCacheTagsForEvents';
 
@@ -16,7 +15,7 @@ import {invalidateSpecificCacheTagsForEvents} from './invalidateSpecificCacheTag
 export const monitorAddressForNextEventToInvalidateCache = async (
     address: string,
     transactionInfo: TransactionInfo,
-    dispatch: ThunkDispatch<any, any, AnyAction>
+    dispatch: ThunkDispatch<any, any, UnknownAction>
 ) => {
     const framework = await getFramework(transactionInfo.chainId);
     framework.query.on(

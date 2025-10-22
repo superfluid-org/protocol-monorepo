@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { AccessControlEnumerable } from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { AccessControlEnumerable } from "@openzeppelin-v5/contracts/access/extensions/AccessControlEnumerable.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
 import {
     ISuperToken,
     IERC20
@@ -29,10 +29,10 @@ contract SuperUpgrader is AccessControlEnumerable {
 
     constructor(address adminRole, address[] memory backendAddr) {
         require(adminRole != address(0), "adminRole is empty");
-        _setupRole(DEFAULT_ADMIN_ROLE, adminRole);
+        _grantRole(DEFAULT_ADMIN_ROLE, adminRole);
         for (uint256 i = 0; i < backendAddr.length; ++i) {
             require(backendAddr[i] != address(0), "backend can't be zero");
-            _setupRole(BACKEND_ROLE, backendAddr[i]);
+            _grantRole(BACKEND_ROLE, backendAddr[i]);
         }
     }
 
@@ -60,8 +60,7 @@ contract SuperUpgrader is AccessControlEnumerable {
         IERC20 token = IERC20(superToken.getUnderlyingToken());
         uint256 beforeBalance = token.balanceOf(address(this));
         token.safeTransferFrom(account, address(this), amount);
-        token.safeApprove(address(superToken), 0);
-        token.safeApprove(address(superToken), amount);
+        token.forceApprove(address(superToken), amount);
         // upgrade tokens and send back to user
         superToken.upgradeTo(
             account,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity >=0.8.4;
 
-import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ISuperfluidToken } from "../../superfluid/ISuperfluidToken.sol";
 
 /**
@@ -88,6 +88,16 @@ interface ISuperfluidPool is IERC20, IERC20Metadata {
     /// @param memberAddr The address of the member
     /// @param newUnits The new units for the member
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool);
+
+    /// @notice Increases `memberAddr` ownedUnits by `addedUnits`
+    /// @param memberAddr The address of the member
+    /// @param addedUnits The additional units for the member
+    function increaseMemberUnits(address memberAddr, uint128 addedUnits) external returns (bool);
+
+    /// @notice Decreases `memberAddr` ownedUnits by `subtractedUnits`
+    /// @param memberAddr The address of the member
+    /// @param subtractedUnits The units subtracted for the member
+    function decreaseMemberUnits(address memberAddr, uint128 subtractedUnits) external returns (bool);
 
     /// @notice Claims the claimable balance for `memberAddr` at `block.timestamp`
     /// @param memberAddr The address of the member

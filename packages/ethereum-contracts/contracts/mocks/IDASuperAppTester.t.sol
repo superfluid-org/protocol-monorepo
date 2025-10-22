@@ -26,7 +26,7 @@ contract IDASuperAppTester is ISuperApp {
         uint32 indexId)
     {
         _host = host;
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
         _ida = ida;
         _token = token;
         _indexId = indexId;

@@ -117,7 +117,7 @@ describe("IDAv1 | Non-Callback Tests", function () {
                 );
             });
 
-            it("#1.1.3 publisher should fail to query non-existant index", async () => {
+            it("#1.1.3 publisher should fail to query non-existent index", async () => {
                 const idata = await t.contracts.ida.getIndex(
                     superToken.address,
                     alice,

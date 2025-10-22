@@ -277,9 +277,6 @@ describe("PoolMember ending up with wrong `totalAmountReceivedUntilUpdatedAt`", 
         handleFlowDistributionUpdated(firstFlowRateEvent);
 
         // # First flow rate
-        if (pool) {
-            pool.updatedAtTimestamp = firstFlowRateEvent.block.timestamp;
-        }
 
         // TODO: This fails, how has this already flown???
         assert.fieldEquals(
@@ -409,9 +406,6 @@ describe("PoolMember ending up with wrong `totalAmountReceivedUntilUpdatedAt`", 
         mockedAppManifestAndRealtimeBalanceOf(superTokenAddress, bobAddress.toHexString(), updateBobEvent.block.timestamp);
         handleMemberUnitsUpdated(updateBobEvent);
 
-        if (pool) {
-            pool.updatedAtTimestamp = updateBobEvent.block.timestamp;
-        }
         assert.fieldEquals(
             "Pool",
             poolAddress.toHexString(),
@@ -445,9 +439,6 @@ describe("PoolMember ending up with wrong `totalAmountReceivedUntilUpdatedAt`", 
         mockedAppManifestAndRealtimeBalanceOf(superTokenAddress, aliceAddress.toHexString(), updateAliceEvent.block.timestamp);
         handleMemberUnitsUpdated(updateAliceEvent);
 
-        if (pool) {
-            pool.updatedAtTimestamp = updateAliceEvent.block.timestamp;
-        }
         assert.fieldEquals(
             "PoolMember",
             aliceId,

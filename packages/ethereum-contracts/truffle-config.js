@@ -221,6 +221,8 @@ const E = (module.exports = {
         "optimism-sepolia": {
             ...createNetworkDefaultConfiguration("optimism-sepolia"),
             network_id: 11155420,
+            maxPriorityFeePerGas: 1e6, // 0.001 gwei
+            maxFeePerGas: 1e9, // 1 gwei
         },
 
         //
@@ -272,6 +274,8 @@ const E = (module.exports = {
         "base-sepolia": {
             ...createNetworkDefaultConfiguration("base-sepolia"),
             network_id: 84532,
+            maxPriorityFeePerGas: 1e6, // 0.001 gwei - even 0 may do
+            maxFeePerGas: 1e8, // 0.1 gwei
         },
 
         //
@@ -377,7 +381,7 @@ const E = (module.exports = {
             // Fetch exact version from solc-bin (default: truffle's version)
             // If SOLC environment variable is provided, assuming it is available as "solc", use it instead.
             // Ref, this maybe possible in the future: https://github.com/trufflesuite/truffle/pull/6007
-            version: process.env.SOLC ? "native" : "0.8.26",
+            version: process.env.SOLC ? "native" : "0.8.30",
             settings: {
                 // See the solidity docs for advice about optimization and evmVersion
                 optimizer: {
@@ -385,9 +389,7 @@ const E = (module.exports = {
                     runs: 200,
                 },
                 // see https://docs.soliditylang.org/en/latest/using-the-compiler.html#target-options
-                // we don't switch to "shanghai" or later as long as there's networks
-                // without EIP-3855 support (PUSH0)
-                evmVersion: "paris",
+                evmVersion: "shanghai",
             },
         },
     },

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { IERC721Metadata } from "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
+import { IERC721Metadata } from "@openzeppelin-v5/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import { IPoolAdminNFT } from "../../interfaces/agreements/gdav1/IPoolAdminNFT.sol";
 import { PoolNFTBase } from "./PoolNFTBase.sol";
 import { IGeneralDistributionAgreementV1, ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";
@@ -37,8 +37,8 @@ contract PoolAdminNFT is PoolNFTBase, IPoolAdminNFT {
         return _poolAdminDataByTokenId[tokenId];
     }
 
-    /// @notice Reverts - Transfer of pool member NFT is not allowed.
-    /// @dev We revert when users attempt to transfer pool member NFTs.
+    /// @notice Reverts - Transfer of NFT is not allowed.
+    /// @dev We revert when users attempt to transfer NFTs.
     function _transfer(
         address, // from,
         address, // to,

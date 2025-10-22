@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >= 0.8.11;
 
-import { ISuperfluid, ISuperToken, ISuperApp, SuperAppDefinitions } from "../interfaces/superfluid/ISuperfluid.sol";
+import {
+    ISuperfluid,
+    ISuperToken,
+    ISuperApp,
+    SuperAppDefinitions,
+    IGeneralDistributionAgreementV1
+} from "../interfaces/superfluid/ISuperfluid.sol";
 import { SuperTokenV1Library } from "./SuperTokenV1Library.sol";
 
 /**
@@ -50,6 +56,16 @@ abstract contract CFASuperAppBase is ISuperApp {
      */
     constructor(ISuperfluid host_) {
         HOST = host_;
+
+        // disable autoconnect for GDA pools
+        IGeneralDistributionAgreementV1 gda = IGeneralDistributionAgreementV1(
+            address(
+                ISuperfluid(host_).getAgreementClass(
+                    keccak256("org.superfluid-finance.agreements.GeneralDistributionAgreement.v1")
+                )
+            )
+        );
+        gda.setConnectPermission(false);
     }
 
     /**

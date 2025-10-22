@@ -2,9 +2,9 @@
 // solhint-disable not-rely-on-time
 pragma solidity ^0.8.23;
 
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
-import { ISuperfluid, ISuperfluidGovernance } from "../../interfaces/superfluid/ISuperfluid.sol";
+import { ISuperfluid, ISuperfluidGovernance, IAccessControl } from "../../interfaces/superfluid/ISuperfluid.sol";
 import {
     BasicParticle,
     PDPoolIndex,
@@ -23,88 +23,35 @@ import {
 } from "../../interfaces/agreements/gdav1/IGeneralDistributionAgreementV1.sol";
 import { SuperfluidUpgradeableBeacon } from "../../upgradability/SuperfluidUpgradeableBeacon.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
-import { ISuperToken } from "../../interfaces/superfluid/ISuperToken.sol";
-import { IPoolAdminNFT } from "../../interfaces/agreements/gdav1/IPoolAdminNFT.sol";
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
 import { SlotsBitmapLibrary } from "../../libs/SlotsBitmapLibrary.sol";
 import { SolvencyHelperLibrary } from "../../libs/SolvencyHelperLibrary.sol";
-import { AgreementBase } from "../AgreementBase.sol";
+import { AgreementBase, ISuperAgreement } from "../AgreementBase.sol";
 import { AgreementLibrary } from "../AgreementLibrary.sol";
+import { GDAv1StorageLib, GDAv1StorageReader, GDAv1StorageWriter } from "./GDAv1StorageLayout.sol";
 
 
 /**
  * @title General Distribution Agreement
  * @author Superfluid
- * @notice
- *
- * Storage Layout Notes
- * Agreement State
- *
- * Universal Index Data
- * slotId           = _UNIVERSAL_INDEX_STATE_SLOT_ID or 0
- * msg.sender       = address of GDAv1
- * account          = context.msgSender
- * Universal Index Data stores a Basic Particle for an account as well as the total buffer and
- * whether the account is a pool or not.
- *
- * SlotsBitmap Data
- * slotId           = _POOL_SUBS_BITMAP_STATE_SLOT_ID or 1
- * msg.sender       = address of GDAv1
- * account          = context.msgSender
- * Slots Bitmap Data Slot stores a bitmap of the slots that are "enabled" for a pool member.
- *
- * Pool Connections Data Slot Id Start
- * slotId (start)   = _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START or 1 << 128 or 340282366920938463463374607431768211456
- * msg.sender       = address of GDAv1
- * account          = context.msgSender
- * Pool Connections Data Slot Id Start indicates the starting slot for where we begin to store the pools that a
- * pool member is a part of.
- *
- *
- * Agreement Data
- * NOTE The Agreement Data slot is calculated with the following function:
- * keccak256(abi.encode("AgreementData", agreementClass, agreementId))
- * agreementClass       = address of GDAv1
- * agreementId          = DistributionFlowId | PoolMemberId
- *
- * DistributionFlowId   =
- * keccak256(abi.encode(block.chainid, "distributionFlow", from, pool))
- * DistributionFlowId stores FlowDistributionData between a sender (from) and pool.
- *
- * PoolMemberId         =
- * keccak256(abi.encode(block.chainid, "poolMember", member, pool))
- * PoolMemberId stores PoolMemberData for a member at a pool.
  */
 contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDistributionAgreementV1 {
     using SafeCast for uint256;
     using SafeCast for int256;
     using SemanticMoney for BasicParticle;
-
-    struct UniversalIndexData {
-        int96 flowRate;
-        uint32 settledAt;
-        uint256 totalBuffer;
-        bool isPool;
-        int256 settledValue;
-    }
-
-    struct PoolMemberData {
-        address pool;
-        uint32 poolID; // the slot id in the pool's subs bitmap
-    }
-
-    struct FlowDistributionData {
-        uint32 lastUpdated;
-        int96 flowRate;
-        uint256 buffer; // stored as uint96
-    }
+    using GDAv1StorageReader for ISuperfluidToken;
+    using GDAv1StorageWriter for ISuperfluidToken;
 
     address public constant SLOTS_BITMAP_LIBRARY_ADDRESS = address(SlotsBitmapLibrary);
 
     address public constant SUPERFLUID_POOL_DEPLOYER_ADDRESS = address(SuperfluidPoolDeployerLibrary);
 
-    /// @dev Universal Index state slot id for storing universal index data
-    uint256 private constant _UNIVERSAL_INDEX_STATE_SLOT_ID = 0;
+    // @dev The max number of slots which can be used for connecting pools on behalf of a member (per token)
+    uint32 public constant MAX_POOL_AUTO_CONNECT_SLOTS = 4;
+
+    // @dev The ACL role owned by this contract, used to persist autoconnect permissions for accounts
+    bytes32 constant public ACL_POOL_CONNECT_EXCLUSIVE_ROLE = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE");
+
     /// @dev Pool member state slot id for storing subs bitmap
     uint256 private constant _POOL_SUBS_BITMAP_STATE_SLOT_ID = 1;
     /// @dev Pool member state slot id starting point for pool connections
@@ -119,39 +66,51 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         superfluidPoolBeacon = superfluidPoolBeacon_;
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ISuperAgreement interface
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// @inheritdoc ISuperAgreement
     function realtimeBalanceOf(ISuperfluidToken token, address account, uint256 time)
         public
         view
         override
         returns (int256 rtb, uint256 buf, uint256 owedBuffer)
     {
-        UniversalIndexData memory universalIndexData = _getUIndexData(abi.encode(token), account);
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, account);
 
-        if (_isPool(token, account)) {
+        if (token.isPool(this, account)) {
             rtb = ISuperfluidPool(account).getDisconnectedBalance(uint32(time));
         } else {
-            rtb = Value.unwrap(_getBasicParticleFromUIndex(universalIndexData).rtb(Time.wrap(uint32(time))));
+            rtb = Value.unwrap(GDAv1StorageLib
+                               .getUniversalIndexFromAccountData(accountData)
+                               .rtb(Time.wrap(uint32(time))));
         }
 
-        int256 fromPools;
+        int256 totalConnectedFromPools;
         {
             (uint32[] memory slotIds, bytes32[] memory pidList) = _listPoolConnectionIds(token, account);
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
-                (bool exist, PoolMemberData memory poolMemberData) =
-                    _getPoolMemberData(token, account, ISuperfluidPool(pool));
-                assert(exist);
-                assert(poolMemberData.pool == pool);
-                fromPools += ISuperfluidPool(pool).getClaimable(account, uint32(time));
+                _assertPoolConnectivity(token, account, ISuperfluidPool(pool));
+                totalConnectedFromPools += SuperfluidPool(pool).getUnsettledValue(account, uint32(time));
             }
         }
-        rtb += fromPools;
+        rtb += totalConnectedFromPools;
 
-        buf = uint256(universalIndexData.totalBuffer.toInt256()); // upcasting to uint256 is safe
+        buf = uint256(accountData.totalBuffer.toInt256()); // upcasting to uint256 is safe
         owedBuffer = 0;
     }
 
-    /// @dev ISuperAgreement.realtimeBalanceOf implementation
+    function _assertPoolConnectivity(ISuperfluidToken token, address account, ISuperfluidPool pool) internal view
+    {
+        (bool exist, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
+            token.getPoolConnectivity(this, account, pool);
+        assert(exist);
+        assert(poolConnectivity.pool == pool);
+    }
+
+    /// @dev Use block.timestamp for realtimeBalanceOf
     function realtimeBalanceOfNow(ISuperfluidToken token, address account)
         external
         view
@@ -161,11 +120,15 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         timestamp = block.timestamp;
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // IGeneralDistributionAgreementV1 interface
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
     /// @inheritdoc IGeneralDistributionAgreementV1
     function getNetFlow(ISuperfluidToken token, address account) external view override returns (int96 netFlowRate) {
         netFlowRate = int256(FlowRate.unwrap(_getUIndex(abi.encode(token), account).flow_rate())).toInt96();
 
-        if (_isPool(token, account)) {
+        if (token.isPool(this, account)) {
             netFlowRate += ISuperfluidPool(account).getTotalDisconnectedFlowRate();
         }
 
@@ -185,7 +148,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (int96)
     {
-        (, FlowDistributionData memory data) = _getFlowDistributionData(token, _getFlowDistributionHash(from, to));
+        GDAv1StorageLib.FlowInfo memory data = token.getDistributionFlowInfo(this, from, to);
         return data.flowRate;
     }
 
@@ -196,7 +159,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (uint256 lastUpdated, int96 flowRate, uint256 deposit)
     {
-        (, FlowDistributionData memory data) = _getFlowDistributionData(token, _getFlowDistributionHash(from, to));
+        GDAv1StorageLib.FlowInfo memory data = token.getDistributionFlowInfo(this, from, to);
         lastUpdated = data.lastUpdated;
         flowRate = data.flowRate;
         deposit = data.buffer;
@@ -209,10 +172,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (uint256 timestamp, int96 flowRate, uint256 deposit)
     {
-        UniversalIndexData memory universalIndexData = _getUIndexData(abi.encode(token), account);
-        timestamp = universalIndexData.settledAt;
-        flowRate = universalIndexData.flowRate;
-        deposit = universalIndexData.totalBuffer;
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, account);
+        timestamp = accountData.settledAt;
+        flowRate = accountData.flowRate;
+        deposit = accountData.totalBuffer;
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -223,7 +186,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int96 requestedFlowRate
     ) external view override returns (int96 actualFlowRate, int96 totalDistributionFlowRate) {
         bytes memory eff = abi.encode(token);
-        bytes32 distributionFlowHash = _getFlowDistributionHash(from, to);
+        bytes32 distributionFlowHash = GDAv1StorageLib.getFlowDistributionHash(from, to);
 
         BasicParticle memory fromUIndexData = _getUIndex(eff, from);
 
@@ -269,12 +232,12 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function _createPool(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory config,
+        PoolConfig calldata config,
         PoolERC20Metadata memory poolERC20Metadata
     ) internal returns (ISuperfluidPool pool) {
         // @note ensure if token and admin are the same that nothing funky happens with echidna
         if (admin == address(0)) revert GDA_NO_ZERO_ADDRESS_ADMIN();
-        if (_isPool(token, admin)) revert GDA_ADMIN_CANNOT_BE_POOL();
+        if (token.isPool(this, admin)) revert GDA_ADMIN_CANNOT_BE_POOL();
 
         pool = ISuperfluidPool(
             address(
@@ -284,23 +247,15 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             )
         );
 
-        // @note We utilize the storage slot for Universal Index State
-        // to store whether an account is a pool or not
-        bytes32[] memory data = new bytes32[](1);
-        data[0] = bytes32(uint256(1));
-        token.updateAgreementStateSlot(address(pool), _UNIVERSAL_INDEX_STATE_SLOT_ID, data);
+        token.setIsPoolFlag(pool);
 
-        IPoolAdminNFT poolAdminNFT = IPoolAdminNFT(_getPoolAdminNFTAddress(token));
-
-        if (address(poolAdminNFT) != address(0)) {
-            poolAdminNFT.mint(address(pool));
-        }
+        SuperfluidPoolDeployerLibrary.mintPoolAdminNFT(token, pool);
 
         emit PoolCreated(token, admin, pool);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function createPool(ISuperfluidToken token, address admin, PoolConfig memory config)
+    function createPool(ISuperfluidToken token, address admin, PoolConfig calldata config)
         external
         override
         returns (ISuperfluidPool pool)
@@ -317,7 +272,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     function createPoolWithCustomERC20Metadata(
         ISuperfluidToken token,
         address admin,
-        PoolConfig memory config,
+        PoolConfig calldata config,
         PoolERC20Metadata memory poolERC20Metadata
     ) external override returns (ISuperfluidPool pool) {
         return _createPool(token, admin, config, poolERC20Metadata);
@@ -352,83 +307,109 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, true, ctx);
+        newCtx = ctx;
+        _setPoolConnectionFor(pool, address(0), true /* doConnect */, ctx);
+    }
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function tryConnectPoolFor(ISuperfluidPool pool, address memberAddr, bytes calldata ctx)
+        external
+        override
+        returns (bool success, bytes memory newCtx)
+    {
+        newCtx = ctx;
+
+        if (memberAddr == address(0) || pool.superToken().isPool(this, memberAddr)) {
+            revert GDA_CANNOT_CONNECT_POOL();
+        }
+
+        // check if the member has opted out of autoconnect
+        IAccessControl simpleACL = ISuperfluid(_host).getSimpleACL();
+        if (simpleACL.hasRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, memberAddr)) {
+            success = false;
+        } else {
+            success = _setPoolConnectionFor(pool, memberAddr, true /* doConnect */, ctx);
+        }
+    }
+
+    function setConnectPermission(bool allow) external override {
+        IAccessControl simpleACL = ISuperfluid(_host).getSimpleACL();
+        if (!allow) {
+            simpleACL.grantRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, msg.sender);
+        } else {
+            simpleACL.revokeRole(ACL_POOL_CONNECT_EXCLUSIVE_ROLE, msg.sender);
+        }
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function disconnectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
-        return connectPool(pool, false, ctx);
+        newCtx = ctx;
+        _setPoolConnectionFor(pool, address(0), false /* doConnect */, ctx);
     }
 
-    // @note setPoolConnection function naming
-    function connectPool(ISuperfluidPool pool, bool doConnect, bytes calldata ctx)
-        public
-        returns (bytes memory newCtx)
+    // @note memberAddr has override semantics - if set to address(0), it will be set to the msgSender
+    function _setPoolConnectionFor(
+        ISuperfluidPool pool,
+        address memberAddr,
+        bool doConnect,
+        bytes memory ctx
+    )
+        internal
+        returns (bool success)
     {
         ISuperfluidToken token = pool.superToken();
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
-        address msgSender = currentContext.msgSender;
-        newCtx = ctx;
-        bool isConnected = _isMemberConnected(token, address(pool), msgSender);
+
+        bool autoConnectForOtherMember = false;
+        if (memberAddr == address(0)) {
+            memberAddr = currentContext.msgSender;
+        } else {
+            autoConnectForOtherMember = true;
+        }
+
+        bool isConnected = token.isPoolMemberConnected(this, pool, memberAddr);
+
         if (doConnect != isConnected) {
+            if (doConnect) {
+                if (autoConnectForOtherMember) {
+                    // check if we're below the slot limit for autoconnect
+                   uint256 nUsedSlots = SlotsBitmapLibrary.countUsedSlots(
+                        token, memberAddr, _POOL_SUBS_BITMAP_STATE_SLOT_ID
+                    );
+                    if (nUsedSlots >= MAX_POOL_AUTO_CONNECT_SLOTS) {
+                        return false;
+                    }
+                }
+
+                uint32 poolSlotId = _findAndFillPoolConnectionsBitmap(
+                    token, memberAddr, bytes32(uint256(uint160(address(pool))))
+                );
+
+                token.createPoolConnectivity
+                    (memberAddr, GDAv1StorageLib.PoolConnectivity({ slotId: poolSlotId, pool: pool }));
+            } else {
+                (, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
+                    token.getPoolConnectivity(this, memberAddr, pool);
+                token.deletePoolConnectivity(memberAddr, pool);
+
+                _clearPoolConnectionsBitmap(token, memberAddr, poolConnectivity.slotId);
+            }
+
             assert(
                 SuperfluidPool(address(pool)).operatorConnectMember(
-                    msgSender, doConnect, uint32(currentContext.timestamp)
+                    memberAddr, doConnect, uint32(currentContext.timestamp)
                 )
             );
 
-            if (doConnect) {
-                uint32 poolSlotID =
-                    _findAndFillPoolConnectionsBitmap(token, msgSender, bytes32(uint256(uint160(address(pool)))));
-
-                // malicious token can reenter here
-                // external call to untrusted contract
-                // what sort of boundary can we trust
-                token.createAgreement(
-                    _getPoolMemberHash(msgSender, pool),
-                    _encodePoolMemberData(PoolMemberData({ poolID: poolSlotID, pool: address(pool) }))
-                );
-            } else {
-                (, PoolMemberData memory poolMemberData) = _getPoolMemberData(token, msgSender, pool);
-                token.terminateAgreement(_getPoolMemberHash(msgSender, pool), 1);
-
-                _clearPoolConnectionsBitmap(token, msgSender, poolMemberData.poolID);
-            }
-
-            emit PoolConnectionUpdated(token, pool, msgSender, doConnect, currentContext.userData);
+            emit PoolConnectionUpdated(token, pool, memberAddr, doConnect, currentContext.userData);
         }
+
+        return true;
     }
 
-    function _isMemberConnected(ISuperfluidToken token, address pool, address member) internal view returns (bool) {
-        (bool exist,) = _getPoolMemberData(token, member, ISuperfluidPool(pool));
-        return exist;
-    }
-
+    /// @inheritdoc IGeneralDistributionAgreementV1
     function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
-        return _isMemberConnected(pool.superToken(), address(pool), member);
-    }
-
-    function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t) external returns (bool) {
-        if (_isPool(token, msg.sender) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
-        bytes memory eff = abi.encode(token);
-        _setUIndex(eff, msg.sender, _getUIndex(eff, msg.sender).mappend(p));
-        _setPoolAdjustmentFlowRate(eff, msg.sender, true, /* doShift? */ p.flow_rate(), t);
-        return true;
-    }
-
-    function poolSettleClaim(ISuperfluidToken superToken, address claimRecipient, int256 amount)
-        external
-        returns (bool)
-    {
-        if (_isPool(superToken, msg.sender) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
-
-        // _poolSettleClaim()
-        _doShift(abi.encode(superToken), msg.sender, claimRecipient, Value.wrap(amount));
-        return true;
+        return pool.superToken().isPoolMemberConnected(this, pool, member);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
@@ -443,7 +424,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         newCtx = ctx;
 
-        if (_isPool(token, address(pool)) == false ||
+        if (token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
             pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
@@ -509,7 +490,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int96 requestedFlowRate,
         bytes calldata ctx
     ) external override returns (bytes memory newCtx) {
-        if (_isPool(token, address(pool)) == false ||
+        if (token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
             pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
@@ -521,7 +502,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         _StackVars_DistributeFlow memory flowVars;
         {
             flowVars.currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
-            flowVars.distributionFlowHash = _getFlowDistributionHash(from, pool);
+            flowVars.distributionFlowHash = GDAv1StorageLib.getFlowDistributionHash(from, pool);
             flowVars.oldFlowRate = _getFlowRate(abi.encode(token), flowVars.distributionFlowHash);
         }
 
@@ -563,8 +544,8 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                         liquidationData.sender = from;
                         liquidationData.liquidator = flowVars.currentContext.msgSender;
                         liquidationData.distributionFlowHash = flowVars.distributionFlowHash;
-                        liquidationData.signedTotalGDADeposit =
-                            _getUIndexData(abi.encode(token), from).totalBuffer.toInt256();
+                        // TODO: GeneralDistributionAgreementV1Storage may offer an function that reads only 1 word.
+                        liquidationData.signedTotalGDADeposit = token.getAccountData(this, from).totalBuffer.toInt256();
                         liquidationData.availableBalance = availableBalance;
                     }
                     // closing stream on behalf of someone else: liquidation case
@@ -609,24 +590,98 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         }
     }
 
-    function _getPoolAdminNFTAddress(ISuperfluidToken token) internal view returns (address poolAdminNFTAddress) {
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory data) =
-            address(token).staticcall(abi.encodeWithSelector(ISuperToken.POOL_ADMIN_NFT.selector));
+    function _adjustBuffer
+        (ISuperfluidToken token,
+         address pool,
+         address from,
+         bytes32 flowHash, // cached result of: GDAv1StorageLib.getFlowDistributionHash(from, pool)
+         FlowRate newFlowRate
+        )
+        internal
+    {
+        // not using oldFlowRate in this model
+        // surprising effect: reducing flow rate may require more buffer when liquidation_period adjusted upward
+        ISuperfluidGovernance gov = ISuperfluidGovernance(ISuperfluid(_host).getGovernance());
+        uint256 minimumDeposit =
+            gov.getConfigAsUint256(ISuperfluid(msg.sender), ISuperfluidToken(token), SUPERTOKEN_MINIMUM_DEPOSIT_KEY);
 
-        if (success) {
-            // @note We are aware this may revert if a Custom SuperToken's
-            // POOL_ADMIN_NFT does not return data that can be
-            // decoded to an address. This would mean it was intentionally
-            // done by the creator of the Custom SuperToken logic and is
-            // fully expected to revert in that case as the author desired.
-            poolAdminNFTAddress = abi.decode(data, (address));
+        (uint256 liquidationPeriod,) = SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), ISuperfluidToken(token));
+
+        GDAv1StorageLib.FlowInfo memory flowDistributionData = token.getFlowInfoByFlowHash(this, flowHash);
+
+        // @note downcasting from uint256 -> uint32 for liquidation period
+        Value newBufferAmount = newFlowRate.mul(Time.wrap(uint32(liquidationPeriod)));
+
+        if (Value.unwrap(newBufferAmount).toUint256() < minimumDeposit && FlowRate.unwrap(newFlowRate) > 0) {
+            newBufferAmount = Value.wrap(minimumDeposit.toInt256());
         }
+
+        Value bufferDelta = newBufferAmount - Value.wrap(uint256(flowDistributionData.buffer).toInt256());
+
+        token.setFlowInfoByFlowHash(flowHash,
+                                    GDAv1StorageLib.FlowInfo({
+                                        lastUpdated: uint32(block.timestamp),
+                                        flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
+                                        buffer: uint256(Value.unwrap(newBufferAmount)) // upcast to uint256 is safe
+                                        })
+                                   );
+
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, from);
+        // new buffer
+        accountData.totalBuffer = (accountData.totalBuffer.toInt256() + Value.unwrap(bufferDelta)).toUint256();
+        token.setTotalBuffer(from, accountData.totalBuffer);
+
+        emit BufferAdjusted(
+            ISuperfluidToken(token),
+            ISuperfluidPool(pool),
+            from,
+            Value.unwrap(bufferDelta),
+            Value.unwrap(newBufferAmount).toUint256(),
+            accountData.totalBuffer
+        );
+    }
+
+    //
+    // Solvency
+    //
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function isPatricianPeriodNow(ISuperfluidToken token, address account)
+        external
+        view
+        override
+        returns (bool isCurrentlyPatricianPeriod, uint256 timestamp)
+    {
+        timestamp = ISuperfluid(_host).getNow();
+        isCurrentlyPatricianPeriod = isPatricianPeriod(token, account, timestamp);
+    }
+
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function isPatricianPeriod(ISuperfluidToken token, address account, uint256 timestamp)
+        public
+        view
+        override
+        returns (bool)
+    {
+        (int256 availableBalance,,) = token.realtimeBalanceOf(account, timestamp);
+        if (availableBalance >= 0) {
+            return true;
+        }
+
+        (uint256 liquidationPeriod, uint256 patricianPeriod) =
+            SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), token);
+
+        return SolvencyHelperLibrary.isPatricianPeriod(
+            availableBalance,
+            token.getAccountData(this, account).totalBuffer.toInt256(),
+            liquidationPeriod,
+            patricianPeriod
+        );
     }
 
     function _makeLiquidationPayouts(_StackVars_Liquidation memory data) internal {
-        (, FlowDistributionData memory flowDistributionData) =
-            _getFlowDistributionData(ISuperfluidToken(data.token), data.distributionFlowHash);
+        GDAv1StorageLib.FlowInfo memory flowDistributionData =
+            data.token.getFlowInfoByFlowHash(this, data.distributionFlowHash);
         int256 signedSingleDeposit = flowDistributionData.buffer.toInt256();
 
         bool isCurrentlyPatricianPeriod;
@@ -668,265 +723,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         }
     }
 
-    function _adjustBuffer(ISuperfluidToken token, address pool, address from, bytes32 flowHash, FlowRate newFlowRate)
-        internal
-    {
-        // not using oldFlowRate in this model
-        // surprising effect: reducing flow rate may require more buffer when liquidation_period adjusted upward
-        ISuperfluidGovernance gov = ISuperfluidGovernance(ISuperfluid(_host).getGovernance());
-        uint256 minimumDeposit =
-            gov.getConfigAsUint256(ISuperfluid(msg.sender), ISuperfluidToken(token), SUPERTOKEN_MINIMUM_DEPOSIT_KEY);
-
-        (uint256 liquidationPeriod,) = SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), ISuperfluidToken(token));
-
-        (, FlowDistributionData memory flowDistributionData) =
-            _getFlowDistributionData(ISuperfluidToken(token), flowHash);
-
-        // @note downcasting from uint256 -> uint32 for liquidation period
-        Value newBufferAmount = newFlowRate.mul(Time.wrap(uint32(liquidationPeriod)));
-
-        if (Value.unwrap(newBufferAmount).toUint256() < minimumDeposit && FlowRate.unwrap(newFlowRate) > 0) {
-            newBufferAmount = Value.wrap(minimumDeposit.toInt256());
-        }
-
-        Value bufferDelta = newBufferAmount - Value.wrap(uint256(flowDistributionData.buffer).toInt256());
-
-        {
-            bytes32[] memory data = _encodeFlowDistributionData(
-                FlowDistributionData({
-                    lastUpdated: uint32(block.timestamp),
-                    flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
-                    buffer: uint256(Value.unwrap(newBufferAmount)) // upcast to uint256 is safe
-                 })
-            );
-
-            ISuperfluidToken(token).updateAgreementData(flowHash, data);
-        }
-
-        UniversalIndexData memory universalIndexData = _getUIndexData(abi.encode(token), from);
-        universalIndexData.totalBuffer =
-        // new buffer
-         (universalIndexData.totalBuffer.toInt256() + Value.unwrap(bufferDelta)).toUint256();
-        ISuperfluidToken(token).updateAgreementStateSlot(
-            from, _UNIVERSAL_INDEX_STATE_SLOT_ID, _encodeUniversalIndexData(universalIndexData)
-        );
-
-        {
-            emit BufferAdjusted(
-                ISuperfluidToken(token),
-                ISuperfluidPool(pool),
-                from,
-                Value.unwrap(bufferDelta),
-                Value.unwrap(newBufferAmount).toUint256(),
-                universalIndexData.totalBuffer
-            );
-        }
-    }
-
-    // Solvency Related Getters
-    function isPatricianPeriodNow(ISuperfluidToken token, address account)
-        external
-        view
-        override
-        returns (bool isCurrentlyPatricianPeriod, uint256 timestamp)
-    {
-        timestamp = ISuperfluid(_host).getNow();
-        isCurrentlyPatricianPeriod = isPatricianPeriod(token, account, timestamp);
-    }
-
-    function isPatricianPeriod(ISuperfluidToken token, address account, uint256 timestamp)
-        public
-        view
-        override
-        returns (bool)
-    {
-        (int256 availableBalance,,) = token.realtimeBalanceOf(account, timestamp);
-        if (availableBalance >= 0) {
-            return true;
-        }
-
-        (uint256 liquidationPeriod, uint256 patricianPeriod) =
-            SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), token);
-
-        return SolvencyHelperLibrary.isPatricianPeriod(
-            availableBalance,
-            _getUIndexData(abi.encode(token), account).totalBuffer.toInt256(),
-            liquidationPeriod,
-            patricianPeriod
-        );
-    }
-
-    // Hash Getters
-
-    function _getPoolMemberHash(address poolMember, ISuperfluidPool pool) internal view returns (bytes32) {
-        return keccak256(abi.encode(block.chainid, "poolMember", poolMember, address(pool)));
-    }
-
-    function _getFlowDistributionHash(address from, ISuperfluidPool to) internal view returns (bytes32) {
-        return keccak256(abi.encode(block.chainid, "distributionFlow", from, to));
-    }
-
-    function _getPoolAdjustmentFlowHash(address from, address to) internal view returns (bytes32) {
-        // this will never be in conflict with other flow has types
-        return keccak256(abi.encode(block.chainid, "poolAdjustmentFlow", from, to));
-    }
-
-    // # Universal Index operations
     //
-    // Universal Index packing:
-    // store buffer (96) and one bit to specify is pool in free
-    // -------- ------------------ ------------------ ------------------ ------------------
-    // WORD 1: |     flowRate     |     settledAt    |    totalBuffer   |      isPool      |
-    // -------- ------------------ ------------------ ------------------ ------------------
-    //         |        96b       |       32b        |       96b        |        32b       |
-    // -------- ------------------ ------------------ ------------------ ------------------
-    // WORD 2: |                                settledValue                               |
-    // -------- ------------------ ------------------ ------------------ ------------------
-    //         |                                    256b                                   |
-    // -------- ------------------ ------------------ ------------------ ------------------
-
-    function _encodeUniversalIndexData(BasicParticle memory p, uint256 buffer, bool isPool_)
-        internal
-        pure
-        returns (bytes32[] memory data)
-    {
-        data = new bytes32[](2);
-        data[0] = bytes32(
-            (uint256(int256(FlowRate.unwrap(p.flow_rate()))) << 160) | (uint256(Time.unwrap(p.settled_at())) << 128)
-                | (uint256(buffer.toUint96()) << 32) | (isPool_ ? 1 : 0)
-        );
-        data[1] = bytes32(uint256(Value.unwrap(p._settled_value)));
-    }
-
-    function _encodeUniversalIndexData(UniversalIndexData memory uIndexData)
-        internal
-        pure
-        returns (bytes32[] memory data)
-    {
-        data = new bytes32[](2);
-        data[0] = bytes32(
-            (uint256(int256(uIndexData.flowRate)) << 160) | (uint256(uIndexData.settledAt) << 128)
-                | (uint256(uIndexData.totalBuffer.toUint96()) << 32) | (uIndexData.isPool ? 1 : 0)
-        );
-        data[1] = bytes32(uint256(uIndexData.settledValue));
-    }
-
-    function _decodeUniversalIndexData(bytes32[] memory data)
-        internal
-        pure
-        returns (bool exists, UniversalIndexData memory universalIndexData)
-    {
-        uint256 a = uint256(data[0]);
-        uint256 b = uint256(data[1]);
-
-        exists = a > 0 || b > 0;
-
-        if (exists) {
-            universalIndexData.flowRate = int96(int256(a >> 160) & int256(uint256(type(uint96).max)));
-            universalIndexData.settledAt = uint32(uint256(a >> 128) & uint256(type(uint32).max));
-            universalIndexData.totalBuffer = uint256(a >> 32) & uint256(type(uint96).max);
-            universalIndexData.isPool = ((a << 224) >> 224) & 1 == 1;
-            universalIndexData.settledValue = int256(b);
-        }
-    }
-
-    function _getUIndexData(bytes memory eff, address owner)
-        internal
-        view
-        returns (UniversalIndexData memory universalIndexData)
-    {
-        (, universalIndexData) = _decodeUniversalIndexData(
-            ISuperfluidToken(abi.decode(eff, (address))).getAgreementStateSlot(
-                address(this), owner, _UNIVERSAL_INDEX_STATE_SLOT_ID, 2
-            )
-        );
-    }
-
-    function _getBasicParticleFromUIndex(UniversalIndexData memory universalIndexData)
-        internal
-        pure
-        returns (BasicParticle memory particle)
-    {
-        particle._flow_rate = FlowRate.wrap(universalIndexData.flowRate);
-        particle._settled_at = Time.wrap(universalIndexData.settledAt);
-        particle._settled_value = Value.wrap(universalIndexData.settledValue);
-    }
-
-    // TokenMonad virtual functions
-    function _getUIndex(bytes memory eff, address owner) internal view override returns (BasicParticle memory uIndex) {
-        (, UniversalIndexData memory universalIndexData) = _decodeUniversalIndexData(
-            ISuperfluidToken(abi.decode(eff, (address))).getAgreementStateSlot(
-                address(this), owner, _UNIVERSAL_INDEX_STATE_SLOT_ID, 2
-            )
-        );
-        uIndex = _getBasicParticleFromUIndex(universalIndexData);
-    }
-
-    function _setUIndex(bytes memory eff, address owner, BasicParticle memory p)
-        internal
-        override
-        returns (bytes memory)
-    {
-        UniversalIndexData memory universalIndexData = _getUIndexData(eff, owner);
-
-        ISuperfluidToken(abi.decode(eff, (address))).updateAgreementStateSlot(
-            owner,
-            _UNIVERSAL_INDEX_STATE_SLOT_ID,
-            _encodeUniversalIndexData(p, universalIndexData.totalBuffer, universalIndexData.isPool)
-        );
-
-        return eff;
-    }
-
-    function _getPDPIndex(
-        bytes memory, // eff,
-        address pool
-    ) internal view override returns (PDPoolIndex memory) {
-        SuperfluidPool.PoolIndexData memory data = SuperfluidPool(pool).poolOperatorGetIndex();
-        return poolIndexDataToPDPoolIndex(data);
-    }
-
-    function _setPDPIndex(bytes memory eff, address pool, PDPoolIndex memory p)
-        internal
-        override
-        returns (bytes memory)
-    {
-        assert(SuperfluidPool(pool).operatorSetIndex(p));
-
-        return eff;
-    }
-
-    function _getFlowRate(bytes memory eff, bytes32 distributionFlowHash) internal view override returns (FlowRate) {
-        (, FlowDistributionData memory data) =
-            _getFlowDistributionData(ISuperfluidToken(abi.decode(eff, (address))), distributionFlowHash);
-        return FlowRate.wrap(data.flowRate);
-    }
-
-    function _setFlowInfo(
-        bytes memory eff,
-        bytes32 flowHash,
-        address, // from,
-        address, // to,
-        FlowRate newFlowRate,
-        FlowRate // flowRateDelta
-    ) internal override returns (bytes memory) {
-        address token = abi.decode(eff, (address));
-        (, FlowDistributionData memory flowDistributionData) =
-            _getFlowDistributionData(ISuperfluidToken(token), flowHash);
-
-        ISuperfluidToken(token).updateAgreementData(
-            flowHash,
-            _encodeFlowDistributionData(
-                FlowDistributionData({
-                    lastUpdated: uint32(block.timestamp),
-                    flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
-                    buffer: flowDistributionData.buffer
-                })
-            )
-        );
-
-        return eff;
-    }
+    // pool info and operators
+    //
 
     /// @inheritdoc IGeneralDistributionAgreementV1
     function getPoolAdjustmentFlowInfo(ISuperfluidPool pool)
@@ -938,38 +737,25 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return _getPoolAdjustmentFlowInfo(abi.encode(pool.superToken()), address(pool));
     }
 
-    function _getPoolAdjustmentFlowInfo(bytes memory eff, address pool)
-        internal
-        view
-        returns (address adjustmentRecipient, bytes32 flowHash, int96 flowRate)
-    {
-        // pool admin is always the adjustment recipient
-        adjustmentRecipient = ISuperfluidPool(pool).admin();
-        flowHash = _getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
-        return (adjustmentRecipient, flowHash, int256(FlowRate.unwrap(_getFlowRate(eff, flowHash))).toInt96());
+    /// @inheritdoc IGeneralDistributionAgreementV1
+    function isPool(ISuperfluidToken token, address account) external view override returns (bool) {
+        return token.isPool(this, account);
     }
 
-    function _getPoolAdjustmentFlowRate(bytes memory eff, address pool)
-        internal
-        view
-        override
-        returns (FlowRate flowRate)
-    {
-        (,, int96 rawFlowRate) = _getPoolAdjustmentFlowInfo(eff, pool);
-        flowRate = FlowRate.wrap(int128(rawFlowRate)); // upcasting to int128 is safe
-    }
-
+    /// @inheritdoc IGeneralDistributionAgreementV1
     function getPoolAdjustmentFlowRate(address pool) external view override returns (int96) {
         ISuperfluidToken token = ISuperfluidPool(pool).superToken();
         return int256(FlowRate.unwrap(_getPoolAdjustmentFlowRate(abi.encode(token), pool))).toInt96();
     }
 
-    function _setPoolAdjustmentFlowRate(bytes memory eff, address pool, FlowRate flowRate, Time t)
-        internal
-        override
-        returns (bytes memory)
+    function _getPoolAdjustmentFlowInfo(bytes memory eff, address pool)
+        internal view
+        returns (address adjustmentRecipient, bytes32 flowHash, int96 flowRate)
     {
-        return _setPoolAdjustmentFlowRate(eff, pool, false, /* doShift? */ flowRate, t);
+        // pool admin is always the adjustment recipient
+        adjustmentRecipient = ISuperfluidPool(pool).admin();
+        flowHash = GDAv1StorageLib.getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
+        return (adjustmentRecipient, flowHash, int256(FlowRate.unwrap(_getFlowRate(eff, flowHash))).toInt96());
     }
 
     function _setPoolAdjustmentFlowRate(bytes memory eff, address pool, bool doShiftFlow, FlowRate flowRate, Time t)
@@ -978,110 +764,172 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         // @note should this also always be
         address adjustmentRecipient = ISuperfluidPool(pool).admin();
-        bytes32 adjustmentFlowHash = _getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
+        bytes32 adjustmentFlowHash = GDAv1StorageLib.getPoolAdjustmentFlowHash(pool, adjustmentRecipient);
 
         if (doShiftFlow) {
             flowRate = flowRate + _getFlowRate(eff, adjustmentFlowHash);
         }
-        eff = _doFlow(eff, pool, adjustmentRecipient, adjustmentFlowHash, flowRate, t);
+        return _doFlow(eff, pool, adjustmentRecipient, adjustmentFlowHash, flowRate, t);
+    }
+
+    //
+    // Pool-only operations
+    //
+
+    function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t)
+        external
+        returns (bool)
+    {
+        if (token.isPool(this, msg.sender) == false) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
+        bytes memory eff = abi.encode(token);
+        _setUIndex(eff, msg.sender, _getUIndex(eff, msg.sender).mappend(p));
+        _setPoolAdjustmentFlowRate(eff, msg.sender, true, /* doShift? */ p.flow_rate(), t);
+        return true;
+    }
+
+    function poolSettleClaim(ISuperfluidToken superToken, address claimRecipient, int256 amount)
+        external
+        returns (bool)
+    {
+        if (superToken.isPool(this, msg.sender) == false) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
+
+        _doShift(abi.encode(superToken), msg.sender, claimRecipient, Value.wrap(amount));
+        return true;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // TokenMonad interface
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// @inheritdoc TokenMonad
+    function _getUIndex(bytes memory eff, address owner)
+        internal view
+        override
+        returns (BasicParticle memory uIndex)
+    {
+        ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
+        GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, owner);
+        uIndex = GDAv1StorageLib.getUniversalIndexFromAccountData(accountData);
+    }
+
+    /// @inheritdoc TokenMonad
+    function _setUIndex(bytes memory eff, address owner, BasicParticle memory uIndex)
+        internal
+        override
+        returns (bytes memory)
+    {
+        ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
+        token.setUniversalIndex(owner, uIndex);
         return eff;
     }
 
-    /// @inheritdoc IGeneralDistributionAgreementV1
-    function isPool(ISuperfluidToken token, address account) external view override returns (bool) {
-        return _isPool(token, account);
-    }
-
-    function _isPool(ISuperfluidToken token, address account) internal view returns (bool exists) {
-        // @note see createPool, we retrieve the isPool bit from
-        // UniversalIndex for this pool to determine whether the account
-        // is a pool
-        exists = (
-            (uint256(token.getAgreementStateSlot(address(this), account, _UNIVERSAL_INDEX_STATE_SLOT_ID, 1)[0]) << 224)
-                >> 224
-        ) & 1 == 1;
-    }
-
-    // FlowDistributionData data packing:
-    // -------- ---------- ------------- ---------- --------
-    // WORD A: | reserved | lastUpdated | flowRate | buffer |
-    // -------- ---------- ------------- ---------- --------
-    //         |    32    |      32     |    96    |   96   |
-    // -------- ---------- ------------- ---------- --------
-
-    function _encodeFlowDistributionData(FlowDistributionData memory flowDistributionData)
-        internal
-        pure
-        returns (bytes32[] memory data)
+    /// @inheritdoc TokenMonad
+    function _getPDPIndex(
+        bytes memory, // eff,
+        address pool
+    )
+        internal view
+        override
+        returns (PDPoolIndex memory)
     {
-        data = new bytes32[](1);
-        data[0] = bytes32(
-            (uint256(uint32(flowDistributionData.lastUpdated)) << 192)
-                | (uint256(uint96(flowDistributionData.flowRate)) << 96) | uint256(flowDistributionData.buffer)
-        );
+        SuperfluidPool.PoolIndexData memory data = SuperfluidPool(pool).poolOperatorGetIndex();
+        return poolIndexDataToPDPoolIndex(data);
     }
 
-    function _decodeFlowDistributionData(uint256 data)
+    /// @inheritdoc TokenMonad
+    function _setPDPIndex(bytes memory eff, address pool, PDPoolIndex memory p)
         internal
-        pure
-        returns (bool exist, FlowDistributionData memory flowDistributionData)
+        override
+        returns (bytes memory)
     {
-        exist = data > 0;
-        if (exist) {
-            flowDistributionData.lastUpdated = uint32((data >> 192) & uint256(type(uint32).max));
-            flowDistributionData.flowRate = int96(int256(data >> 96));
-            flowDistributionData.buffer = uint96(data & uint256(type(uint96).max));
-        }
+        assert(SuperfluidPool(pool).operatorSetIndex(p));
+        return eff;
     }
 
-    function _getFlowDistributionData(ISuperfluidToken token, bytes32 distributionFlowHash)
+    /// @inheritdoc TokenMonad
+    function _getFlowRate(bytes memory eff, bytes32 flowHash)
+        internal view
+        override
+        returns (FlowRate)
+    {
+        ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
+        GDAv1StorageLib.FlowInfo memory data = token.getFlowInfoByFlowHash(this, flowHash);
+        return FlowRate.wrap(data.flowRate);
+    }
+
+    /// @inheritdoc TokenMonad
+    function _setFlowInfo(
+        bytes memory eff,
+        bytes32 flowHash,
+        address, // from,
+        address, // to,
+        FlowRate newFlowRate,
+        FlowRate // flowRateDelta
+    )
         internal
-        view
-        returns (bool exist, FlowDistributionData memory flowDistributionData)
+        override
+        returns (bytes memory)
     {
-        (exist, flowDistributionData) =
-            _decodeFlowDistributionData(uint256(token.getAgreementData(address(this), distributionFlowHash, 1)[0]));
+        ISuperfluidToken token = ISuperfluidToken(abi.decode(eff, (address)));
+        GDAv1StorageLib.FlowInfo memory flowInfo = token.getFlowInfoByFlowHash(this, flowHash);
+
+        token.setFlowInfoByFlowHash(flowHash,
+                                    GDAv1StorageLib.FlowInfo({
+                                        lastUpdated: uint32(block.timestamp),
+                                        flowRate: int256(FlowRate.unwrap(newFlowRate)).toInt96(),
+                                        buffer: flowInfo.buffer
+                                        })
+                                   );
+
+        return eff;
     }
 
-    // PoolMemberData data packing:
-    // -------- ---------- -------- -------------
-    // WORD A: | reserved | poolID | poolAddress |
-    // -------- ---------- -------- -------------
-    //         |    64    |   32   |     160     |
-    // -------- ---------- -------- -------------
+    /// @inheritdoc TokenMonad
+    function _getPoolAdjustmentFlowRate(bytes memory eff, address pool)
+        internal view
+        override
+        returns (FlowRate flowRate)
+    {
+        (,, int96 rawFlowRate) = _getPoolAdjustmentFlowInfo(eff, pool);
+        flowRate = FlowRate.wrap(int128(rawFlowRate)); // upcasting to int128 is safe
+    }
 
-    function _encodePoolMemberData(PoolMemberData memory poolMemberData)
+    /// @inheritdoc TokenMonad
+    function _setPoolAdjustmentFlowRate(bytes memory eff, address pool, FlowRate flowRate, Time t)
         internal
-        pure
-        returns (bytes32[] memory data)
+        override
+        returns (bytes memory)
     {
-        data = new bytes32[](1);
-        data[0] = bytes32((uint256(uint32(poolMemberData.poolID)) << 160) | uint256(uint160(poolMemberData.pool)));
+        return _setPoolAdjustmentFlowRate(eff, pool, false, /* doShift? */ flowRate, t);
     }
 
-    function _decodePoolMemberData(uint256 data)
-        internal
-        pure
-        returns (bool exist, PoolMemberData memory poolMemberData)
-    {
-        exist = data > 0;
-        if (exist) {
-            poolMemberData.pool = address(uint160(data & uint256(type(uint160).max)));
-            poolMemberData.poolID = uint32(data >> 160);
-        }
-    }
 
-    function _getPoolMemberData(ISuperfluidToken token, address poolMember, ISuperfluidPool pool)
-        internal
-        view
-        returns (bool exist, PoolMemberData memory poolMemberData)
-    {
-        (exist, poolMemberData) = _decodePoolMemberData(
-            uint256(token.getAgreementData(address(this), _getPoolMemberHash(poolMember, pool), 1)[0])
-        );
-    }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Pool Subscription SlotsBitmap
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    // SlotsBitmap Pool Data:
+    /*
+     *
+     * ### SlotsBitmap Data
+     *
+     * slotId           = _POOL_SUBS_BITMAP_STATE_SLOT_ID or 1
+     * msg.sender       = address of GDAv1
+     * account          = context.msgSender
+     * Slots Bitmap Data Slot stores a bitmap of the slots that are "enabled" for a pool member.
+     *
+     * ### Pool Connections Data Slot Id Start
+     *
+     * slotId (start)   = _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START or 1 << 128
+     * msg.sender       = address of GDAv1
+     * account          = context.msgSender
+     * Pool Connections Data Slot Id Start indicates the starting slot for where we begin to store the pools that a
+     * pool member is a part of.
+     */
+
     function _findAndFillPoolConnectionsBitmap(ISuperfluidToken token, address poolMember, bytes32 poolID)
         private
         returns (uint32 slotId)

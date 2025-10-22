@@ -2,13 +2,12 @@
 // solhint-disable reason-string
 pragma solidity ^0.8.23;
 
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
+import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 
 import {
     IGeneralDistributionAgreementV1, ISuperfluid
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { PoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
-import { PoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
 import { PoolNFTBase } from "../../../contracts/agreements/gdav1/PoolNFTBase.sol";
 
 contract PoolNFTBaseMock is PoolNFTBase {
@@ -60,30 +59,6 @@ contract PoolAdminNFTMock is PoolAdminNFT {
     /// @dev a mock mint function that exposes the internal _mint function
     function mockMint(address _pool) public {
         _mint(_pool);
-    }
-
-    /// @dev this ownerOf doesn't revert if _tokenId doesn't exist
-    function mockOwnerOf(uint256 _tokenId) public view returns (address) {
-        return _ownerOf(_tokenId);
-    }
-
-    /// @dev This exposes the _tokenApprovals storage without the requireMinted call
-    function mockGetApproved(uint256 _tokenId) public view returns (address) {
-        return _tokenApprovals[_tokenId];
-    }
-}
-
-contract PoolMemberNFTMock is PoolMemberNFT {
-    constructor(ISuperfluid host, IGeneralDistributionAgreementV1 gdaV1) PoolMemberNFT(host, gdaV1) { }
-
-    /// @dev a mock mint function that exposes the internal _mint function
-    function mockMint(address _pool, address _member) public {
-        _mint(_pool, _member);
-    }
-
-    /// @dev a mock burn function that exposes the internal _burn function
-    function mockBurn(uint256 _tokenId) public {
-        _burn(_tokenId);
     }
 
     /// @dev this ownerOf doesn't revert if _tokenId doesn't exist

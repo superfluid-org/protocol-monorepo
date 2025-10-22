@@ -4,8 +4,8 @@ pragma solidity ^0.8.23;
 
 // Notes: We use these interfaces in natspec documentation below, grep @inheritdoc
 // solhint-disable-next-line no-unused-import
-import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 import {
     BasicParticle,
     SemanticMoney,
@@ -19,11 +19,11 @@ import {
 } from "@superfluid-finance/solidity-semantic-money/src/SemanticMoney.sol";
 import { ISuperfluid } from "../../interfaces/superfluid/ISuperfluid.sol";
 import { ISuperfluidToken } from "../../interfaces/superfluid/ISuperfluidToken.sol";
-import { ISuperToken } from "../../interfaces/superfluid/ISuperToken.sol";
 import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPool.sol";
 import { GeneralDistributionAgreementV1 } from "../../agreements/gdav1/GeneralDistributionAgreementV1.sol";
+import { GDAv1StorageReader } from "../../agreements/gdav1/GDAv1StorageLayout.sol";
 import { BeaconProxiable } from "../../upgradability/BeaconProxiable.sol";
-import { IPoolMemberNFT } from "../../interfaces/agreements/gdav1/IPoolMemberNFT.sol";
+
 
 using SafeCast for uint256;
 using SafeCast for int256;
@@ -63,6 +63,7 @@ function poolIndexDataToPDPoolIndex(SuperfluidPool.PoolIndexData memory data)
  */
 contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
     using SemanticMoney for BasicParticle;
+    using GDAv1StorageReader for ISuperfluidToken;
 
     // Structs
     struct PoolIndexData {
@@ -122,8 +123,8 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         ISuperfluidToken superToken_,
         bool transferabilityForUnitsOwner_,
         bool distributionFromAnyAddress_,
-        string memory erc20Name_,
-        string memory erc20Symbol_,
+        string calldata erc20Name_,
+        string calldata erc20Symbol_,
         uint8 erc20Decimals_
     ) external initializer {
         admin = admin_;
@@ -288,7 +289,7 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
             Value.unwrap(
                 // PDPoolMemberMU(poolIndex, memberData)
                 PDPoolMemberMU(poolIndexDataToPDPoolIndex(_index), _memberDataToPDPoolMember(memberData)).settle(
-                    Time.wrap(uint32(block.timestamp))
+                    Time.wrap(SafeCast.toUint32(block.timestamp))
                 ).m._settled_value
             )
         );
@@ -369,77 +370,64 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         returns (int256 claimableBalance, uint256 timestamp)
     {
         timestamp = ISuperfluid(superToken.getHost()).getNow();
-        return (getClaimable(memberAddr, uint32(timestamp)), timestamp);
+        return (getClaimable(memberAddr, SafeCast.toUint32(timestamp)), timestamp);
     }
 
     /// @inheritdoc ISuperfluidPool
     function getClaimable(address memberAddr, uint32 time) public view override returns (int256) {
-        Time t = Time.wrap(time);
-        PDPoolIndex memory pdPoolIndex = poolIndexDataToPDPoolIndex(_index);
-        PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(_membersData[memberAddr]);
-        return Value.unwrap(
-            PDPoolMemberMU(pdPoolIndex, pdPoolMember).rtb(t) - Value.wrap(_membersData[memberAddr].claimedValue)
-        );
+        return superToken.isPoolMemberConnected(GDA, this, memberAddr)
+             ? int256(0)
+             : getUnsettledValue(memberAddr, time);
     }
 
     /// @inheritdoc ISuperfluidPool
     function updateMemberUnits(address memberAddr, uint128 newUnits) external returns (bool) {
-        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+        _enforceChangeMemberUnitsPreconditions();
 
-        _updateMemberUnits(memberAddr, newUnits);
+        uint128 oldUnits = _updateMemberUnits(memberAddr, newUnits);
+
+        // Unit updates by admin are effectively mint/burn operations when viewed through the ERC20 lens.
+        // We thus emit a Transfer event from/to the zero address accordingly.
+        if (oldUnits < newUnits) {
+            emit Transfer(address(0), memberAddr, newUnits - oldUnits);
+        } else if (oldUnits > newUnits) {
+            emit Transfer(memberAddr, address(0), oldUnits - newUnits);
+        }
 
         return true;
     }
 
-    /**
-     * @notice Checks whether or not the NFT hook can be called.
-     * @dev A staticcall, so `POOL_MEMBER_NFT` must be a view otherwise the assumption is that it reverts
-     * @param token the super token that is being streamed
-     * @return poolMemberNFT the address returned by low level call
-     */
-    function _canCallNFTHook(ISuperfluidToken token) internal view returns (address poolMemberNFT) {
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory data) =
-            address(token).staticcall(abi.encodeWithSelector(ISuperToken.POOL_MEMBER_NFT.selector));
+    /// @inheritdoc ISuperfluidPool
+    function increaseMemberUnits(address memberAddr, uint128 addedUnits) external override returns (bool) {
+        _enforceChangeMemberUnitsPreconditions();
 
-        if (success) {
-            // @note We are aware this may revert if a Custom SuperToken's
-            // POOL_MEMBER_NFT does not return data that can be
-            // decoded to an address. This would mean it was intentionally
-            // done by the creator of the Custom SuperToken logic and is
-            // fully expected to revert in that case as the author desired.
-            poolMemberNFT = abi.decode(data, (address));
-        }
+        _updateMemberUnits(memberAddr, _getUnits(memberAddr) + addedUnits);
+        emit Transfer(address(0), memberAddr, addedUnits);
+
+        return true;
     }
 
-    function _handlePoolMemberNFT(address memberAddr, uint128 newUnits) internal {
-        // Pool Member NFT Logic
-        IPoolMemberNFT poolMemberNFT = IPoolMemberNFT(_canCallNFTHook(superToken));
-        if (address(poolMemberNFT) != address(0)) {
-            uint256 tokenId = poolMemberNFT.getTokenId(address(this), memberAddr);
-            if (newUnits == 0) {
-                if (poolMemberNFT.poolMemberDataByTokenId(tokenId).member != address(0)) {
-                    poolMemberNFT.onDelete(address(this), memberAddr);
-                }
-            } else {
-                // if not minted, we mint a new pool member nft
-                if (poolMemberNFT.poolMemberDataByTokenId(tokenId).member == address(0)) {
-                    poolMemberNFT.onCreate(address(this), memberAddr);
-                } else {
-                    // if minted, we update the pool member nft
-                    poolMemberNFT.onUpdate(address(this), memberAddr);
-                }
-            }
-        }
+    /// @inheritdoc ISuperfluidPool
+    function decreaseMemberUnits(address memberAddr, uint128 subtractedUnits) external override returns (bool) {
+        _enforceChangeMemberUnitsPreconditions();
+
+        _updateMemberUnits(memberAddr, _getUnits(memberAddr) - subtractedUnits);
+        emit Transfer(memberAddr, address(0), subtractedUnits);
+
+        return true;
     }
 
-    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (bool) {
+    function _enforceChangeMemberUnitsPreconditions() internal view {
+        if (msg.sender != admin && msg.sender != address(GDA)) revert SUPERFLUID_POOL_NOT_POOL_ADMIN_OR_GDA();
+    }
+
+    function _updateMemberUnits(address memberAddr, uint128 newUnits) internal returns (uint128 oldUnits) {
         // @note normally we keep the sanitization in the external functions, but here
         // this is used in both updateMemberUnits and transfer
-        if (GDA.isPool(superToken, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
+        if (superToken.isPool(GDA, memberAddr)) revert SUPERFLUID_POOL_NO_POOL_MEMBERS();
         if (memberAddr == address(0)) revert SUPERFLUID_POOL_NO_ZERO_ADDRESS();
 
-        uint32 time = uint32(ISuperfluid(superToken.getHost()).getNow());
+        uint32 time = SafeCast.toUint32(ISuperfluid(superToken.getHost()).getNow());
         Time t = Time.wrap(time);
         Unit wrappedUnits = toSemanticMoneyUnit(newUnits);
 
@@ -447,12 +435,12 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
         MemberData memory memberData = _membersData[memberAddr];
         PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(memberData);
 
-        uint128 oldUnits = memberData.ownedUnits;
+        oldUnits = memberData.ownedUnits;
 
         PDPoolMemberMU memory mu = PDPoolMemberMU(pdPoolIndex, pdPoolMember);
 
         // update pool's disconnected units
-        if (!GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr)) {
+        if (!superToken.isPoolMemberConnected(GDA, this, memberAddr)) {
             _shiftDisconnectedUnits(wrappedUnits - mu.m.owned_units, Value.wrap(0), t);
         }
 
@@ -466,17 +454,28 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
             assert(GDA.appendIndexUpdateByPool(superToken, p, t));
         }
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
+    }
 
-        _handlePoolMemberNFT(memberAddr, newUnits);
+    function _settle(address memberAddr, uint32 time) internal returns (int256 amount) {
+        amount = getUnsettledValue(memberAddr, time);
+        assert(GDA.poolSettleClaim(superToken, memberAddr, amount));
+        _membersData[memberAddr].claimedValue += amount;
+    }
 
-        return true;
+    function getUnsettledValue(address memberAddr, uint32 time) public view returns (int256) {
+        Time t = Time.wrap(time);
+        PDPoolIndex memory pdPoolIndex = poolIndexDataToPDPoolIndex(_index);
+        PDPoolMember memory pdPoolMember = _memberDataToPDPoolMember(_membersData[memberAddr]);
+        return Value.unwrap(
+            PDPoolMemberMU(pdPoolIndex, pdPoolMember).rtb(t) - Value.wrap(_membersData[memberAddr].claimedValue)
+        );
     }
 
     function _claimAll(address memberAddr, uint32 time) internal returns (int256 amount) {
-        amount = getClaimable(memberAddr, time);
-        assert(GDA.poolSettleClaim(superToken, memberAddr, (amount)));
-        _membersData[memberAddr].claimedValue += amount;
-
+        // For connected pool, claimable amount is zero; hence, we skip.
+        if (!superToken.isPoolMemberConnected(GDA, this, memberAddr)) {
+            amount = _settle(memberAddr, time);
+        }
         emit DistributionClaimed(superToken, memberAddr, amount, _membersData[memberAddr].claimedValue);
     }
 
@@ -487,8 +486,8 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     /// @inheritdoc ISuperfluidPool
     function claimAll(address memberAddr) public returns (bool) {
-        bool isConnected = GDA.isMemberConnected(ISuperfluidPool(address(this)), memberAddr);
-        uint32 time = uint32(ISuperfluid(superToken.getHost()).getNow());
+        bool isConnected = superToken.isPoolMemberConnected(GDA, this, memberAddr);
+        uint32 time = SafeCast.toUint32(ISuperfluid(superToken.getHost()).getNow());
         int256 claimedAmount = _claimAll(memberAddr, time);
         if (!isConnected) {
             _shiftDisconnectedUnits(Unit.wrap(0), Value.wrap(claimedAmount), Time.wrap(time));
@@ -505,10 +504,10 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
 
     // WARNING for operators: it is undefined behavior if member is already connected or disconnected
     function operatorConnectMember(address memberAddr, bool doConnect, uint32 time) external onlyGDA returns (bool) {
-        int256 claimedAmount = _claimAll(memberAddr, time);
+        int256 settleAmount = _settle(memberAddr, time);
         int128 units = uint256(_getUnits(memberAddr)).toInt256().toInt128();
         if (doConnect) {
-            _shiftDisconnectedUnits(Unit.wrap(-units), Value.wrap(claimedAmount), Time.wrap(time));
+            _shiftDisconnectedUnits(Unit.wrap(-units), Value.wrap(settleAmount), Time.wrap(time));
         } else {
             _shiftDisconnectedUnits(Unit.wrap(units), Value.wrap(0), Time.wrap(time));
         }

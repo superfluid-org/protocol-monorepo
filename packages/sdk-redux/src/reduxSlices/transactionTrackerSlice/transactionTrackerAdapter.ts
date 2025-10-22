@@ -1,10 +1,9 @@
 import {createEntityAdapter} from '@reduxjs/toolkit';
 
-import {TrackedTransaction} from './trackedTransaction';
-import {TransactionTrackerReducer, transactionTrackerSlicePrefix} from './transactionTrackerSlice';
+import {type TrackedTransaction} from './trackedTransaction';
+import {type TransactionTrackerReducer, transactionTrackerSlicePrefix} from './transactionTrackerSlice';
 
 export const transactionTrackerAdapter = createEntityAdapter<TrackedTransaction>({
-    selectId: (transaction) => transaction.hash,
     sortComparer: (a) => a.timestampMs,
 });
 

@@ -1,24 +1,21 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {
-    ISuperfluid, IERC20, IPoolAdminNFT, IPoolMemberNFT
+    ISuperfluid, IERC20, IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { UUPSProxiable } from "../upgradability/UUPSProxiable.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
-import { SuperToken, IConstantOutflowNFT, IConstantInflowNFT } from "../superfluid/SuperToken.sol";
+import { SuperToken } from "../superfluid/SuperToken.sol";
 import { SuperfluidToken } from "../superfluid/SuperfluidToken.sol";
 
 contract SuperTokenStorageLayoutTester is SuperToken {
     constructor(
         ISuperfluid host,
-        IConstantOutflowNFT constantOutflowNFTProxy,
-        IConstantInflowNFT constantInflowNFTProxy,
-        IPoolAdminNFT poolAdminNFTProxy,
-        IPoolMemberNFT poolMemberNFTProxy
-    ) SuperToken(host, constantOutflowNFTProxy, constantInflowNFTProxy, poolAdminNFTProxy, poolMemberNFTProxy)
+        IPoolAdminNFT poolAdminNFTProxy
+    ) SuperToken(host, poolAdminNFTProxy)
     // solhint-disable-next-line no-empty-blocks
     { }
 
@@ -67,8 +64,8 @@ contract SuperTokenStorageLayoutTester is SuperToken {
         require (slot == 18 && offset == 0, "_operators changed location");
         // uses 4 slots
 
-        assembly { slot:= _reserve22.slot offset := _reserve22.offset }
-        require (slot == 22 && offset == 0, "_reserve22 changed location");
+        assembly { slot:= _reserve23.slot offset := _reserve23.offset }
+        require (slot == 23 && offset == 0, "_reserve23 changed location");
 
         assembly { slot:= _reserve31.slot offset := _reserve31.offset }
         require (slot == 31 && offset == 0, "_reserve31 changed location");
@@ -85,11 +82,8 @@ contract SuperTokenMock is SuperToken {
     constructor(
         ISuperfluid host,
         uint256 w,
-        IConstantOutflowNFT constantOutflowNFTProxy,
-        IConstantInflowNFT constantInflowNFTProxy,
-        IPoolAdminNFT poolAdminNFTProxy,
-        IPoolMemberNFT poolMemberNFTProxy
-    ) SuperToken(host, constantOutflowNFTProxy, constantInflowNFTProxy, poolAdminNFTProxy, poolMemberNFTProxy) {
+        IPoolAdminNFT poolAdminNFTProxy
+    ) SuperToken(host, poolAdminNFTProxy) {
         waterMark = w;
     }
 

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { ISuperTokenFactory } from "../interfaces/superfluid/ISuperTokenFactory.sol";
-import { Proxy } from "@openzeppelin/contracts/proxy/Proxy.sol";
+import { Proxy } from "@openzeppelin-v5/contracts/proxy/Proxy.sol";
 
 
 /**
@@ -29,6 +29,14 @@ contract FullUpgradableSuperTokenProxy is Proxy {
         }
     }
 
+    /**
+     * @dev Fallback function that delegates calls to the address returned by `_implementation()`. Will run if call data
+     * is empty.
+     */
+    receive() external payable virtual {
+        _fallback();
+    }
+
     function _implementation() internal override view returns (address impl) {
         ISuperTokenFactory factory;
         assembly { // solium-disable-line
@@ -37,5 +45,4 @@ contract FullUpgradableSuperTokenProxy is Proxy {
         assert(address(factory) != address(0));
         return address(factory.getSuperTokenLogic());
     }
-
 }

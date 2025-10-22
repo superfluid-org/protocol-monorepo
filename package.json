@@ -4,9 +4,9 @@
     "version": "0.0.0",
     "devDependencies": {
         "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
-        "@nomicfoundation/hardhat-ethers": "^3.0.7",
-        "@nomiclabs/hardhat-etherscan": "^3.1.7",
-        "@nomiclabs/hardhat-web3": "^2.0.0",
+        "@nomicfoundation/hardhat-ethers": "^3.1.0",
+        "@nomicfoundation/hardhat-verify": "^2.1.1",
+        "@nomiclabs/hardhat-web3": "^2.1.0",
         "@openzeppelin/test-helpers": "^0.5.16",
         "@truffle/hdwallet-provider": "^2.1.15",
         "@typechain/ethers-v5": "^11.1.2",
@@ -23,8 +23,8 @@
         "eslint-plugin-eslint-comments": "^3.2.0",
         "eslint-plugin-import": "^2.29.1",
         "eslint-plugin-prettier": "^5.2.1",
-        "hardhat": "^2.22.9",
-        "hardhat-deploy": "^0.12.4",
+        "hardhat": "^2.26.1",
+        "hardhat-deploy": "^1.0.4",
         "husky": "^9.1.5",
         "lerna": "^8.1.8",
         "node-jq": "^6.0.1",
@@ -40,7 +40,8 @@
         "typechain": "^8.3.2",
         "typedoc": "^0.26.6",
         "typescript": "^5.5.4",
-        "web3": "^1.10.4"
+        "web3": "^1.10.4",
+        "graphql": "^16.9.0"
     },
     "license": "MIT",
     "npmClient": "yarn",
@@ -51,6 +52,7 @@
     },
     "scripts": {
         "prepare": "husky && npm run git-submodule:init",
+        "postinstall": "ln -fs ../lib/openzeppelin-contracts node_modules/@openzeppelin-v5",
         "lint": "run-s -l lint:*",
         "lint:syncpack": "syncpack lint",
         "lint:shellcheck": "tasks/shellcheck-all-tasks.sh",

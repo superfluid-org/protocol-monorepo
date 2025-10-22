@@ -36,7 +36,7 @@ contract ExclusiveInflowTestApp is SuperAppBase {
             // | SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
             ;
 
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
     }
 
     function afterAgreementCreated(
@@ -121,7 +121,7 @@ contract NonClosableOutflowTestApp is SuperAppBase {
             // | SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
             ;
 
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
     }
 
     function setupOutflow(
@@ -210,7 +210,7 @@ contract SelfDeletingFlowTestApp is SuperAppBase {
             | SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
             ;
 
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
     }
 
     function afterAgreementCreated(
@@ -267,7 +267,7 @@ contract ClosingOnUpdateFlowTestApp is SuperAppBase {
             | SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
             ;
 
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
     }
 
     function afterAgreementUpdated(
@@ -326,7 +326,7 @@ contract FlowExchangeTestApp is SuperAppBase {
             | SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
             ;
 
-        _host.registerAppWithKey(configWord, "");
+        _host.registerApp(configWord);
     }
 
     function afterAgreementCreated(

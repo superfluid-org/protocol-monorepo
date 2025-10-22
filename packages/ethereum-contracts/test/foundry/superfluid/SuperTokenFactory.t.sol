@@ -2,10 +2,9 @@
 pragma solidity ^0.8.23;
 
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
-import { SuperTokenFactory } from "../../../contracts/superfluid/SuperTokenFactory.sol";
+import { SuperTokenFactory, IPoolMemberNFT } from "../../../contracts/superfluid/SuperTokenFactory.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
-import { PoolMemberNFT, IPoolMemberNFT } from "../../../contracts/agreements/gdav1/PoolMemberNFT.sol";
-import { ISuperToken, SuperToken, IConstantOutflowNFT, IConstantInflowNFT } from "../../../contracts/superfluid/SuperToken.sol";
+import { ISuperToken, SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.sol";
 
 contract SuperTokenFactoryTest is FoundrySuperfluidTester {
@@ -18,20 +17,14 @@ contract SuperTokenFactoryTest is FoundrySuperfluidTester {
     function testUpdateCodeSetsNewContracts() public {
         SuperToken newSuperTokenLogic = new SuperToken(
             sf.host,
-            IConstantOutflowNFT(address(0)),
-            IConstantInflowNFT(address(0)),
-            superToken.POOL_ADMIN_NFT(),
-            superToken.POOL_MEMBER_NFT()
+            superToken.POOL_ADMIN_NFT()
         );
         PoolAdminNFT newPoolAdminNFTLogic = new PoolAdminNFT(sf.host, sf.gda);
-        PoolMemberNFT newPoolMemberNFTLogic = new PoolMemberNFT(sf.host, sf.gda);
         SuperTokenFactory newSuperTokenFactoryLogic = new SuperTokenFactory(
             sf.host,
             newSuperTokenLogic,
-            IConstantOutflowNFT(address(0)),
-            IConstantInflowNFT(address(0)),
             newPoolAdminNFTLogic,
-            newPoolMemberNFTLogic
+            IPoolMemberNFT(address(0))
         );
         vm.startPrank(address(sf.host));
         // We expect this to revert if the protocol is not upgradeable
