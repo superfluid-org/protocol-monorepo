@@ -453,7 +453,7 @@ contract ConstantFlowAgreementV1 is
                 ctx, currentContext);
         }
 
-        flowVars.token.emitZeroTransfer(flowVars.sender, flowVars.receiver);
+        flowVars.token.emitPseudoTransfer(flowVars.sender, flowVars.receiver);
 
         _requireAvailableBalance(flowVars.token, flowVars.sender, currentContext);
     }
@@ -595,7 +595,7 @@ contract ConstantFlowAgreementV1 is
             }
         }
 
-        flowVars.token.emitZeroTransfer(flowVars.sender, flowVars.receiver);
+        flowVars.token.emitPseudoTransfer(flowVars.sender, flowVars.receiver);
     }
 
     /**************************************************************************

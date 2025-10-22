@@ -261,7 +261,7 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     }
 
     // Verify zero Transfer events being emitted by CFA and GDA actions
-    function testEmitZeroTransferEvent() public {
+    function testEmitPseudoTransferEvent() public {
         vm.startPrank(admin);
 
         // case 1: create flow

@@ -437,5 +437,5 @@ interface ISuperfluidToken {
      * @param from The address from which the transfer is happening
      * @param to The address to which the transfer is happening
      */
-    function emitZeroTransfer(address from, address to) external;
+    function emitPseudoTransfer(address from, address to) external;
 }
