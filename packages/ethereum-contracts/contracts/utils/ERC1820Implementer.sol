@@ -1,5 +1,7 @@
-import { IERC1820Implementer } from "@openzeppelin-v5/contracts/interfaces/IERC1820Implementer.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.23;
 
+import { IERC1820Implementer } from "@openzeppelin-v5/contracts/interfaces/IERC1820Implementer.sol";
 
 // Copy of OpenZeppelin v4.9.6: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v4.9.6/
 /**
