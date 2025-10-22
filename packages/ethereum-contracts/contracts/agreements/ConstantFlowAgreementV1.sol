@@ -453,12 +453,7 @@ contract ConstantFlowAgreementV1 is
                 ctx, currentContext);
         }
 
-        if (
-            oldFlowData.flowRate == 0 && flowParams.flowRate != 0 ||
-            oldFlowData.flowRate != 0 && flowParams.flowRate == 0
-        ) {
-            flowVars.token.emitZeroTransfer(flowVars.sender, flowVars.receiver);
-        }
+        flowVars.token.emitZeroTransfer(flowVars.sender, flowVars.receiver);
 
         _requireAvailableBalance(flowVars.token, flowVars.sender, currentContext);
     }
@@ -599,6 +594,8 @@ contract ConstantFlowAgreementV1 is
                     newCtx, currentContext);
             }
         }
+
+        flowVars.token.emitZeroTransfer(flowVars.sender, flowVars.receiver);
     }
 
     /**************************************************************************
