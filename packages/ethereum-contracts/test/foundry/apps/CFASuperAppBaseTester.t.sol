@@ -46,7 +46,7 @@ contract CFASuperAppBaseTester is CFASuperAppBase {
 
     // CREATE
 
-    function onFlowCreated(ISuperToken, /*superToken*/ address sender, bytes calldata ctx)
+    function onFlowCreated(ISuperToken, /*superToken*/ address sender, int96 /*flowRate*/, bytes calldata ctx)
         internal
         override
         returns (bytes memory)
@@ -60,6 +60,7 @@ contract CFASuperAppBaseTester is CFASuperAppBase {
     function onFlowUpdated(
         ISuperToken, /*superToken*/
         address sender,
+        int96 /*flowRate*/,
         int96 previousFlowRate,
         uint256 lastUpdated,
         bytes calldata ctx

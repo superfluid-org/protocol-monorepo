@@ -68,35 +68,32 @@ contract FlowSplitter is CFASuperAppBase {
     // ---------------------------------------------------------------------------------------------
     // CALLBACK LOGIC
 
-    function onFlowCreated(ISuperToken superToken, address sender, bytes calldata ctx)
+    function onFlowCreated(ISuperToken superToken, address, /*sender*/ int96 flowRate, bytes calldata ctx)
         internal
         override
         returns (bytes memory newCtx)
     {
         newCtx = ctx;
 
-        // get inflow rate from sender
-        int96 inflowRate = superToken.getFlowRate(sender, address(this));
-
         // if there's no outflow already, create outflows
         if (superToken.getFlowRate(address(this), mainReceiver) == 0) {
             newCtx =
-                superToken.createFlowWithCtx(mainReceiver, (inflowRate * (1000 - sideReceiverPortion)) / 1000, newCtx);
+                superToken.createFlowWithCtx(mainReceiver, (flowRate * (1000 - sideReceiverPortion)) / 1000, newCtx);
 
-            newCtx = superToken.createFlowWithCtx(sideReceiver, (inflowRate * sideReceiverPortion) / 1000, newCtx);
+            newCtx = superToken.createFlowWithCtx(sideReceiver, (flowRate * sideReceiverPortion) / 1000, newCtx);
         }
         // otherwise, there's already outflows which should be increased
         else {
             newCtx = superToken.updateFlowWithCtx(
                 mainReceiver,
                 acceptedSuperToken.getFlowRate(address(this), mainReceiver)
-                    + (inflowRate * (1000 - sideReceiverPortion)) / 1000,
+                    + (flowRate * (1000 - sideReceiverPortion)) / 1000,
                 newCtx
             );
 
             newCtx = superToken.updateFlowWithCtx(
                 sideReceiver,
-                acceptedSuperToken.getFlowRate(address(this), sideReceiver) + (inflowRate * sideReceiverPortion) / 1000,
+                acceptedSuperToken.getFlowRate(address(this), sideReceiver) + (flowRate * sideReceiverPortion) / 1000,
                 newCtx
             );
         }
@@ -104,7 +101,8 @@ contract FlowSplitter is CFASuperAppBase {
 
     function onFlowUpdated(
         ISuperToken superToken,
-        address sender,
+        address, /*sender*/
+        int96 flowRate,
         int96 previousFlowRate,
         uint256, /*lastUpdated*/
         bytes calldata ctx
@@ -112,7 +110,7 @@ contract FlowSplitter is CFASuperAppBase {
         newCtx = ctx;
 
         // get inflow rate change from sender
-        int96 inflowChange = superToken.getFlowRate(sender, address(this)) - previousFlowRate;
+        int96 inflowChange = flowRate - previousFlowRate;
 
         // update outflows
         newCtx = superToken.updateFlowWithCtx(

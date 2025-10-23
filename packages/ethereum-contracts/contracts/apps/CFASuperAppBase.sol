@@ -134,6 +134,7 @@ abstract contract CFASuperAppBase is ISuperApp {
     function onFlowCreated(
         ISuperToken /*superToken*/,
         address /*sender*/,
+        int96 /*flowRate*/,
         bytes calldata ctx
     ) internal virtual returns (bytes memory /*newCtx*/) {
         return ctx;
@@ -144,6 +145,7 @@ abstract contract CFASuperAppBase is ISuperApp {
     function onFlowUpdated(
         ISuperToken /*superToken*/,
         address /*sender*/,
+        int96 /*flowRate*/,
         int96 /*previousFlowRate*/,
         uint256 /*lastUpdated*/,
         bytes calldata ctx
@@ -221,11 +223,13 @@ abstract contract CFASuperAppBase is ISuperApp {
         if (!isAcceptedSuperToken(superToken)) revert NotAcceptedSuperToken();
 
         (address sender, ) = abi.decode(agreementData, (address, address));
+        int96 flowRate = superToken.getCFAFlowRate(sender, address(this));
 
         return
             onFlowCreated(
                 superToken,
                 sender,
+                flowRate,
                 ctx // userData can be acquired with `host.decodeCtx(ctx).userData`
             );
     }
@@ -264,17 +268,28 @@ abstract contract CFASuperAppBase is ISuperApp {
         if (!_isAcceptedAgreement(agreementClass)) return ctx;
         if (!isAcceptedSuperToken(superToken)) revert NotAcceptedSuperToken();
 
+        return _afterAgreementUpdatedHelper(superToken, agreementData, cbdata, ctx);
+    }
+
+    // workaround to stack-too-deep compiler error
+    function _afterAgreementUpdatedHelper(
+        ISuperToken superToken,
+        bytes calldata agreementData,
+        bytes calldata cbdata,
+        bytes calldata ctx
+    ) private returns (bytes memory) {
         (address sender, ) = abi.decode(agreementData, (address, address));
         (int96 previousFlowRate, uint256 lastUpdated) = abi.decode(cbdata, (int96, uint256));
+        int96 flowRate = superToken.getCFAFlowRate(sender, address(this));
 
-        return
-            onFlowUpdated(
-                superToken,
-                sender,
-                previousFlowRate,
-                lastUpdated,
-                ctx // userData can be acquired with `host.decodeCtx(ctx).userData`
-            );
+        return onFlowUpdated(
+            superToken,
+            sender,
+            flowRate,
+            previousFlowRate,
+            lastUpdated,
+            ctx // userData can be acquired with `host.decodeCtx(ctx).userData`
+        );
     }
 
     // DELETED callbacks

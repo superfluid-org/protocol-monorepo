@@ -28,27 +28,24 @@ contract CrossStreamSuperApp is CFASuperAppBase {
         flowRecipient = z_;
     }
 
-    function onFlowCreated(ISuperToken superToken, address sender, bytes calldata ctx)
+    function onFlowCreated(ISuperToken superToken, address sender, int96 flowRate, bytes calldata ctx)
         internal
         override
         returns (bytes memory newCtx)
     {
         newCtx = ctx;
 
-        // get incoming stream
-        int96 inFlowRate = superToken.getFlowRate(sender, address(this));
-
         if (prevSender == address(0)) {
             // first flow to super app creates a flow
-            newCtx = superToken.createFlowWithCtx(flowRecipient, inFlowRate, newCtx);
+            newCtx = superToken.createFlowWithCtx(flowRecipient, flowRate, newCtx);
         } else {
             // subsequent flows to super app updates and deletes the flow
-            newCtx = superToken.updateFlowWithCtx(flowRecipient, inFlowRate, newCtx);
+            newCtx = superToken.updateFlowWithCtx(flowRecipient, flowRate, newCtx);
             newCtx = superToken.deleteFlowWithCtx(prevSender, address(this), newCtx);
         }
 
         prevSender = sender;
-        prevFlowRate = inFlowRate;
+        prevFlowRate = flowRate;
     }
 }
 
