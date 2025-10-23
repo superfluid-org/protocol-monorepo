@@ -72,11 +72,10 @@ subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
 - `SuperTokenV1Library.distribute`: return `actualAmount` instead of a bool
 
 # Breaking
-- CFASuperAppBase: `onFlowDeleted` from now on only handles events related to incoming flows, while for events triggered by outgoing flows `onOutFlowDeleted` is invoked.
-  This is safer because the latter case is in many cases unexpected and may thus not be handled correctly, potentially leading to state corruption or SuperApp jailing.
-  The change is breaking because of a signature change in `onFlowDeleted`. The removal of the now unnecessary `receiver` argument also makes sure
-  that this change can't without notice break implementations which correctly handled the corner case of an outgoing flow with the previous implementation of CFASuperAppBase.
-  Many applications may not want/need to handle the case of outgoing flows being deleted, thus don't need to override the newly added `onOutFlowDeleted`.
+- CFASuperAppBase: `onFlowDeleted` is replaced by `onInFlowDeleted` and `onOutFlowDeleted`.
+  This is safer because the latter hook handles a case (outgoing flow being deleted by its receiver) which is often not expected.
+  In the past, apps creating outflows had to explicitly distinguish between the 2 possible triggers in order to avoid potentially invalid state changes or even jailing.
+  Most apps will want to implement just `onInFlowDeleted`.
 
 ## [v1.12.0]
 

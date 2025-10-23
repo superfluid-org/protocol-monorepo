@@ -153,9 +153,9 @@ abstract contract CFASuperAppBase is ISuperApp {
 
     /// @dev override if the SuperApp shall have custom logic invoked when an existing flow
     ///      to it is deleted (flowrate set to 0).
-    ///      Unlike the other callbacks, this method is NOT allowed to revert.
+    ///      Unlike the other callbacks, the delete callbacks are NOT allowed to revert.
     ///      Failing to satisfy that requirement leads to jailing (defunct SuperApp).
-    function onFlowDeleted(
+    function onInFlowDeleted(
         ISuperToken /*superToken*/,
         address /*sender*/,
         int96 /*previousFlowRate*/,
@@ -168,13 +168,13 @@ abstract contract CFASuperAppBase is ISuperApp {
     /// @dev override if the SuperApp shall have custom logic invoked when an outgoing flow
     ///      is deleted by the receiver (it's not triggered when deleted by the SuperApp itself).
     ///      A possible implementation is to make outflows "sticky" by simply reopening it.
-    ///      Like onFlowDeleted, this method is NOT allowed to revert.
+    ///      Like onInFlowDeleted, this method is NOT allowed to revert.
     ///      It's safe to not override this method if the SuperApp doesn't have outgoing flows,
     ///      or if it doesn't want/need to know if an outgoing flow is deleted by its receiver.
     /// Note: In theory this hook could also be triggered by a liquidation, but this would imply
     /// that the SuperApp is insolvent, and would thus be jailed already.
     /// Thus in practice this is triggered only when a receiver of an outgoing flow deletes that flow.
-    function onOutflowDeleted(
+    function onOutFlowDeleted(
         ISuperToken /*superToken*/,
         address /*receiver*/,
         int96 /*previousFlowRate*/,
@@ -324,7 +324,7 @@ abstract contract CFASuperAppBase is ISuperApp {
 
         if (receiver == address(this)) {
             return
-                onFlowDeleted(
+                onInFlowDeleted(
                     superToken,
                     sender,
                     previousFlowRate,
@@ -333,7 +333,7 @@ abstract contract CFASuperAppBase is ISuperApp {
                 );
         } else {
             return
-                onOutflowDeleted(
+                onOutFlowDeleted(
                     superToken,
                     receiver,
                     previousFlowRate,

@@ -553,10 +553,10 @@ contract SuperAppMock is CFASuperAppBase {
         return _mirrorOrMatchIncomingFlow(superToken, sender, ctx);
     }
 
-    function onFlowDeleted(
+    function onInFlowDeleted(
         ISuperToken superToken,
         address sender,
-        int96 previousFlowRate,
+        int96 /*previousFlowRate*/,
         uint256 /*lastUpdated*/,
         bytes calldata ctx
     ) internal virtual override returns (bytes memory /*newCtx*/) {
@@ -564,7 +564,7 @@ contract SuperAppMock is CFASuperAppBase {
     }
 
     // outflow was deleted by the sender we mirror to, we make it "sticky" by simply restoring it.
-    function onOutflowDeleted(
+    function onOutFlowDeleted(
         ISuperToken superToken,
         address receiver,
         int96 previousFlowRate,

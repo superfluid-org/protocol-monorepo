@@ -72,7 +72,7 @@ contract CFASuperAppBaseTester is CFASuperAppBase {
 
     // DELETE
 
-    function onFlowDeleted(
+    function onInFlowDeleted(
         ISuperToken, /*superToken*/
         address sender,
         int96 previousFlowRate,
@@ -85,7 +85,7 @@ contract CFASuperAppBaseTester is CFASuperAppBase {
         return ctx;
     }
 
-    function onOutflowDeleted(
+    function onOutFlowDeleted(
         ISuperToken, /*superToken*/
         address receiver,
         int96 previousFlowRate,
