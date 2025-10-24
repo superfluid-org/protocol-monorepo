@@ -5,9 +5,8 @@ set -e
 # read the network name from the command line
 NETWORK=$1
 
-WALLET_NAME=${WALLET_NAME:-gh-agent}
-
-#source .env
+# name of the foundry wallet account to be used
+WALLET_NAME=${WALLET_NAME:-sf-ops}
 
 if ! cat ../metadata/networks.json | jq ".[].name" | grep -q "$NETWORK"; then
     echo "Network $NETWORK not found in networks.json"
@@ -72,13 +71,12 @@ fi
 echo "Using VERSION_STRING: $VERSION_STRING"
 
 # Run the Forge script
-export DEPLOYMENT_MODE=UPGRADE
 export HOST_ADDRESS
 export RESOLVER_ADDRESS
 export VERSION_STRING
 
 # Build forge command with conditional flags
-FORGE_CMD="forge script scripts/DeployFramework.s.sol:DeployFramework"
+FORGE_CMD="forge script scripts/UpgradeFramework.s.sol:UpgradeFramework"
 if [ -z "$DRY_RUN" ]; then
     FORGE_CMD="$FORGE_CMD --broadcast --verify"
     if [ ! -z "$ETHERSCAN_API_KEY" ]; then
