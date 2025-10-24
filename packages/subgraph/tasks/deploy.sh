@@ -84,6 +84,7 @@ deploy_to_graph() {
         ["bsc-mainnet"]="superfluid-v1-bnb"
         ["celo-mainnet"]="superfluid-v1-celo"
         ["base-mainnet"]="superfluid-v1-base"
+        ["base-sepolia"]="superfluid-v1-base-sepolia"
     )
 
     local subgraphName="${SUBGRAPH_NAME:-${networkToSubgraphNames[$network]}}"
