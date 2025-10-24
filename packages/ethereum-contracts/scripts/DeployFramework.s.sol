@@ -8,7 +8,6 @@ import {Strings} from "@openzeppelin-v5/contracts/utils/Strings.sol";
 // Core contracts
 import {Resolver} from "../contracts/utils/Resolver.sol";
 import {Superfluid} from "../contracts/superfluid/Superfluid.sol";
-import {UUPSProxy} from "../contracts/upgradability/UUPSProxy.sol";
 
 // Agreement contracts
 import {ConstantFlowAgreementV1} from "../contracts/agreements/ConstantFlowAgreementV1.sol";
@@ -38,64 +37,27 @@ import {Ownable} from "@openzeppelin-v5/contracts/access/Ownable.sol";
 import {ISuperfluidGovernance} from "../contracts/interfaces/superfluid/ISuperfluidGovernance.sol";
 
 contract DeployFramework is Script {
-    // Deployment mode enum
-    enum DeploymentMode {
-        DEV,        // Development chain for testing
-        INITIAL,    // Initial deployment to persistent chains
-        UPGRADE     // Upgrade deployment to persistent chains
-    }
-
-    // Configuration struct
+    // Configuration struct for upgrades
     struct DeploymentConfig {
-        DeploymentMode mode;
-        bool reset;
         string version;
-        bool useMocks;
-        bool nonUpgradable;
-        bool appWhiteListing;
-        uint256 appCallbackGasLimit;
-        uint256 liquidationPeriod;
-        uint256 patricianPeriod;
-        bool useTestGovernance;
         address deployer;
-        string outputFile;
-        // Upgrade-specific config
         address existingHost;
-        address existingGovernance;
         address existingResolver;
-        bool useAsyncGovernance;
-        address multisigAddress;
     }
 
-    // Deployed contracts struct
+    // Existing deployed contracts struct (loaded for upgrades)
     struct DeployedContracts {
         Resolver resolver;
-
-        Superfluid host; // proxy
-
-        // testnets currently have TestGovernance deployed, while mainnets have SuperfluidGovernanceII.
-        // The latter is upgradble (proxy and logic).
-        // In the future we want to use the latter for all persistent chains.
-        // This may require some throwaway logic for the transition upgrade.
-        // gov uses SuperfluidGovernanceProxy (UUPSProxy + Ownable) which is in SuperfluidGovernanceII.sol.
+        Superfluid host;
         ISuperfluidGovernance governance;
-        ConstantFlowAgreementV1 cfa; // proxy
-        InstantDistributionAgreementV1 ida; // proxy
-        GeneralDistributionAgreementV1 gda; // proxy
-        SuperTokenFactory factory; // proxy
-
-        // The upgradable beacon is a pointer between proxy and logic:
-        // BeaconProxy -> Beacon -> Logic
+        ConstantFlowAgreementV1 cfa;
+        InstantDistributionAgreementV1 ida;
+        GeneralDistributionAgreementV1 gda;
+        SuperTokenFactory factory;
         SuperfluidUpgradeableBeacon poolBeacon;
         SuperfluidPool poolLogic;
-
-        // canonical SuperToken logic used for new SuperTokens created by the factory
         SuperToken superTokenLogic;
         PoolAdminNFT poolAdminNFT;
-
-        SimpleForwarder simpleForwarder;
-        ERC2771Forwarder erc2771Forwarder;
-        SimpleACL simpleAcl;
     }
 
     // Newly deployed contracts for upgrades
@@ -111,103 +73,46 @@ contract DeployFramework is Script {
 
     function run() external {
         DeploymentConfig memory config = _loadConfig();
-        DeployedContracts memory contracts;
 
-        console.log("======== Deploying Superfluid Framework ========");
-        console.log("Mode: %s", _modeToString(config.mode));
-        // TODO: this is confusing naming, should probably be changed or be made invisible. Just a resolver thing.
+        console.log("======== Upgrading Superfluid Framework ========");
         console.log("Release version: %s", config.version);
         console.log("Deployer: %s", config.deployer);
 
         // Start broadcasting - Forge will use the account specified via --account flag
         vm.startBroadcast();
 
-        if (config.mode == DeploymentMode.DEV) {
-            contracts = _deployDevEnvironment(config);
-        } else if (config.mode == DeploymentMode.INITIAL) {
-            contracts = _deployInitial(config);
-        } else if (config.mode == DeploymentMode.UPGRADE) {
-            contracts = _deployUpgrade(config);
-        }
-
-        //_finalizeDeployment(contracts, config);
+        _deployUpgrade(config);
 
         vm.stopBroadcast();
 
-        console.log("======== Deployment Complete ========");
+        console.log("======== Upgrade Complete ========");
     }
 
     function _loadConfig() internal view returns (DeploymentConfig memory config) {
-        // Determine deployment mode
-        string memory modeStr = vm.envOr("DEPLOYMENT_MODE", string("DEV"));
-        // TODO: find a less ugly way to do string comparison (here and in other places)
-        if (keccak256(abi.encodePacked(modeStr)) == keccak256(abi.encodePacked("INITIAL"))) {
-            config.mode = DeploymentMode.INITIAL;
-        } else if (_stringEquals(modeStr, "UPGRADE")) {
-            config.mode = DeploymentMode.UPGRADE;
-        } else {
-            revert("Invalid deployment mode");
-        }
-
-        // TODO: change the default to "v1"
         config.version = vm.envOr("RELEASE_VERSION", string("v1"));
-        // TODO: I don't think we need this. It's probably implied in DEV mode, or is it?
-        config.useMocks = vm.envOr("USE_MOCKS", false);
-
         config.existingHost = vm.envOr("HOST_ADDRESS", address(0));
         config.existingResolver = vm.envOr("RESOLVER_ADDRESS", address(0));
-
-        // TODO: Do we need this? Afaik only used in tests.
-        config.nonUpgradable = vm.envOr("NON_UPGRADABLE", false);
-        config.appWhiteListing = vm.envOr("ENABLE_APP_WHITELISTING", true);
-        config.appCallbackGasLimit = vm.envOr("APP_CALLBACK_GAS_LIMIT", uint256(3000000));
-        config.liquidationPeriod = vm.envOr("LIQUIDATION_PERIOD", uint256(14400)); // 4 hours
-        config.patricianPeriod = vm.envOr("PATRICIAN_PERIOD", uint256(1800)); // 30 min
-        // TODO: can probably be removed, instead directly check the mode
-        config.useTestGovernance = vm.envOr("USE_TEST_GOVERNANCE", config.mode == DeploymentMode.DEV);
-        // Deployer address - get from the account that Forge is using
         config.deployer = msg.sender;
-        config.outputFile = vm.envOr("OUTPUT_FILE", string("addrs/fallback"));
     }
 
-    function _deployDevEnvironment(DeploymentConfig memory config) internal returns (DeployedContracts memory contracts) {
-        // TODO
-    }
-
-    function _deployInitial(DeploymentConfig memory config) internal returns (DeployedContracts memory contracts) {
-        console.log("Deploying initial framework...");
-        
-        // Similar to dev but with production governance
-        // Implementation would be similar to _deployDevEnvironment but with different governance setup
-        revert("Initial deployment not yet implemented");
-    }
-
-    // TODO: make sure all new logics are castrated
     function _deployUpgrade(DeploymentConfig memory config) internal returns (DeployedContracts memory contracts) {
         console.log("Deploying upgrade...");
         
         // Validate required addresses for upgrade
-        require(config.existingHost != address(0), "EXISTING_HOST must be set for upgrade");
-        require(
-            config.existingResolver != address(0), 
-            "EXISTING_RESOLVER must be set for upgrade"
-        );
+        require(config.existingHost != address(0), "HOST_ADDRESS must be set");
+        require(config.existingResolver != address(0), "RESOLVER_ADDRESS must be set");
         
         // Load existing contracts
         contracts = _loadExistingContracts(config);
         
         // Deploy all new contract logics
-        NewDeployedContracts memory newContracts = _deployAllNewContracts(
-            config, 
-            contracts
-        );
+        NewDeployedContracts memory newContracts = _deployAllNewContracts(config, contracts);
         
-        // Create governance action with properly aligned arguments
+        // Create governance action to update contracts
         _createGovernanceAction(contracts, newContracts);
         
         // Update resolver with version string
-        _updateResolverForUpgrade(contracts, config);
-        //_setupACLRoles(config, contracts);
+        _updateResolver(contracts, config);
         
         console.log("Upgrade deployment completed successfully");
     }
@@ -217,10 +122,9 @@ contract DeployFramework is Script {
         contracts.host = Superfluid(config.existingHost);
         contracts.resolver = Resolver(config.existingResolver);
 
-        // get from host: governance, factory, factoryLogic, cfa, ida, gda
+        // get from host: governance, factory, cfa, ida, gda
         contracts.governance = ISuperfluidGovernance(address(contracts.host.getGovernance()));
         contracts.factory = SuperTokenFactory(address(contracts.host.getSuperTokenFactory()));
-        address factoryLogic = contracts.host.getSuperTokenFactoryLogic();
         contracts.cfa = ConstantFlowAgreementV1(address(contracts.host.getAgreementClass(
             keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
         )));
@@ -340,18 +244,22 @@ contract DeployFramework is Script {
         console.log("All new contract logics deployed successfully");
     }
 
-    function _deployNewHostLogic(DeploymentConfig memory config, Superfluid host) internal returns (Superfluid newHostLogic) {
-        // collect constructor args
+    function _deployNewHostLogic(DeploymentConfig memory, Superfluid host) internal returns (Superfluid newHostLogic) {
+        // collect constructor args from existing host
         address simpleAclAddress = address(host.getSimpleACL());
         address simpleForwarderAddress = address(host.SIMPLE_FORWARDER());
         address erc2771ForwarderAddress = address(host.getERC2771Forwarder());
         uint256 prevCallbackGasLimit = host.CALLBACK_GAS_LIMIT();
+        bool nonUpgradable = host.NON_UPGRADABLE_DEPLOYMENT();
+        bool appWhiteListing = host.APP_WHITE_LISTING_ENABLED();
         
         console.log("Collected host constructor args:");
         console.log("  SimpleACL: %s", simpleAclAddress);
         console.log("  SimpleForwarder: %s", simpleForwarderAddress);
         console.log("  ERC2771Forwarder: %s", erc2771ForwarderAddress);
         console.log("  CallbackGasLimit: %s", prevCallbackGasLimit);
+        console.log("  NonUpgradable: %s", nonUpgradable);
+        console.log("  AppWhiteListing: %s", appWhiteListing);
         
         // TODO: add a way to change the callback gas limit
         uint256 newCallbackGasLimit = prevCallbackGasLimit;
@@ -362,8 +270,8 @@ contract DeployFramework is Script {
         
         // deploy new logic with collected arguments
         newHostLogic = new Superfluid(
-            config.nonUpgradable,
-            config.appWhiteListing,
+            nonUpgradable,
+            appWhiteListing,
             uint64(newCallbackGasLimit),
             simpleForwarderAddress,
             erc2771ForwarderAddress,
@@ -429,77 +337,8 @@ contract DeployFramework is Script {
         _executeGovernanceAction(governanceAddr, actionData, governanceAdmin);
     }
 
-    function _setupACLRoles(DeploymentConfig memory config, DeployedContracts memory contracts) internal {
-        // Get ACL address from host
-        address simpleAclAddress = address(contracts.host.getSimpleACL());
-        SimpleACL simpleAcl = SimpleACL(simpleAclAddress);
-        
-        // Get GDA proxy address
-        address gdaProxyAddr = address(contracts.host.getAgreementClass(
-            keccak256("org.superfluid-finance.agreements.GeneralDistributionAgreement.v1")
-        ));
-        
-        bytes32 aclSuperappRegistrationRoleAdmin = keccak256("ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN");
-        bytes32 aclSuperappRegistrationRole = keccak256("ACL_SUPERAPP_REGISTRATION_ROLE");
-        if (!simpleAcl.hasRole(aclSuperappRegistrationRoleAdmin, config.deployer)) {
-            simpleAcl.setRoleAdmin(aclSuperappRegistrationRole, aclSuperappRegistrationRoleAdmin);
-            simpleAcl.grantRole(aclSuperappRegistrationRoleAdmin, config.deployer);
-            console.log("Set up SuperApp registration ACL roles");
-        }
-        
-        bytes32 aclPoolConnectExclusiveRole = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE");
-        bytes32 aclPoolConnectExclusiveRoleAdmin = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN");
-        if (!simpleAcl.hasRole(aclPoolConnectExclusiveRoleAdmin, gdaProxyAddr)) {
-            simpleAcl.setRoleAdmin(aclPoolConnectExclusiveRole, aclPoolConnectExclusiveRoleAdmin);
-            simpleAcl.grantRole(aclPoolConnectExclusiveRoleAdmin, gdaProxyAddr);
-            console.log("Set up Pool connect exclusive ACL roles");
-        }
-    }
 
-    function _deploySuperfluidHost(
-        DeploymentConfig memory config,
-        SimpleForwarder simpleForwarder,
-        ERC2771Forwarder erc2771Forwarder,
-        SimpleACL simpleAcl
-    ) internal returns (Superfluid host) {
-        Superfluid hostLogic = new Superfluid(
-            config.nonUpgradable,
-            config.appWhiteListing,
-            uint64(config.appCallbackGasLimit),
-            address(simpleForwarder),
-            address(erc2771Forwarder),
-            address(simpleAcl)
-        );
-
-        if (!config.nonUpgradable) {
-            UUPSProxy proxy = new UUPSProxy();
-            proxy.initializeProxy(address(hostLogic));
-            host = Superfluid(address(proxy));
-        } else {
-            host = hostLogic;
-        }
-
-        return host;
-    }
-
-    function _deployPoolBeacon() internal returns (SuperfluidUpgradeableBeacon) {
-        // Deploy placeholder pool logic first
-        SuperfluidPool placeholderPool = new SuperfluidPool(GeneralDistributionAgreementV1(address(0)));
-        return new SuperfluidUpgradeableBeacon(address(placeholderPool));
-    }
-
-    function _deployPoolAdminNFT(Superfluid host, GeneralDistributionAgreementV1 gda) internal returns (PoolAdminNFT) {
-        UUPSProxy proxy = new UUPSProxy();
-        PoolAdminNFT logic = new PoolAdminNFT(host, gda);
-        logic.castrate();
-        proxy.initializeProxy(address(logic));
-        
-        PoolAdminNFT nft = PoolAdminNFT(address(proxy));
-        nft.initialize("Pool Admin NFT", "PA");
-        return nft;
-    }
-
-    function _updateResolverForUpgrade(DeployedContracts memory contracts, DeploymentConfig memory config) internal {
+    function _updateResolver(DeployedContracts memory contracts, DeploymentConfig memory config) internal {
         string memory versionString = vm.envOr("VERSION_STRING", string(""));
         require(bytes(versionString).length > 0, "VERSION_STRING not set");
         
@@ -588,54 +427,6 @@ contract DeployFramework is Script {
         if (v >= 97 && v <= 102) return v - 87;
         if (v >= 65 && v <= 70) return v - 55;
         revert("Invalid hex char");
-    }
-
-    function _finalizeDeployment(DeployedContracts memory contracts, DeploymentConfig memory config) internal {
-        // Transfer ownership of forwarders to host
-        contracts.simpleForwarder.transferOwnership(address(contracts.host));
-        contracts.erc2771Forwarder.transferOwnership(address(contracts.host));
-
-        // Set up ACL roles
-        bytes32 aclSuperappRegistrationRoleAdmin = keccak256("ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN");
-        bytes32 aclSuperappRegistrationRole = keccak256("ACL_SUPERAPP_REGISTRATION_ROLE");
-        contracts.simpleAcl.setRoleAdmin(aclSuperappRegistrationRole, aclSuperappRegistrationRoleAdmin);
-        contracts.simpleAcl.grantRole(aclSuperappRegistrationRoleAdmin, config.deployer);
-
-        bytes32 aclPoolConnectExclusiveRole = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE");
-        bytes32 aclPoolConnectExclusiveRoleAdmin = keccak256("ACL_POOL_CONNECT_EXCLUSIVE_ROLE_ADMIN");
-        contracts.simpleAcl.setRoleAdmin(aclPoolConnectExclusiveRole, aclPoolConnectExclusiveRoleAdmin);
-        contracts.simpleAcl.grantRole(aclPoolConnectExclusiveRoleAdmin, address(contracts.gda));
-
-        // Output deployment addresses if requested
-        if (bytes(config.outputFile).length > 0) {
-            _writeDeploymentOutput(contracts, config.outputFile);
-        }
-    }
-
-    function _writeDeploymentOutput(DeployedContracts memory contracts, string memory outputFile) internal {
-        // This would write deployment addresses to a file
-        // Implementation depends on how Foundry handles file output
-        console.log("Deployment addresses:");
-        console.log("RESOLVER=%s", address(contracts.resolver));
-        console.log("GOVERNANCE=%s", address(contracts.governance));
-        console.log("HOST=%s", address(contracts.host));
-        console.log("CFA=%s", address(contracts.cfa));
-        console.log("IDA=%s", address(contracts.ida));
-        console.log("GDA=%s", address(contracts.gda));
-        console.log("FACTORY=%s", address(contracts.factory));
-        console.log("SUPER_TOKEN_LOGIC=%s", address(contracts.superTokenLogic));
-    }
-
-    function _modeToString(DeploymentMode mode) internal pure returns (string memory) {
-        if (mode == DeploymentMode.DEV) return "DEV";
-        if (mode == DeploymentMode.INITIAL) return "INITIAL";
-        if (mode == DeploymentMode.UPGRADE) return "UPGRADE";
-        return "UNKNOWN";
-    }
-
-    /// @dev Helper function for string comparison - more readable than keccak256
-    function _stringEquals(string memory a, string memory b) internal pure returns (bool) {
-        return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 
     /****************************************************************
