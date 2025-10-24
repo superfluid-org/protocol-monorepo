@@ -5,6 +5,11 @@ pragma solidity >= 0.8.11;
 // solhint-disable-next-line no-global-import
 import "../interfaces/superfluid/ISuperfluid.sol";
 
+/**
+ * @title [DEPRECATED] Base contract which provides a reverting implementation of all ISuperApp methods.
+ * @author Superfluid
+ * @custom:deprecated Use an agreement specific base contract (e.g. `CFASuperAppBase`) or implement `ISuperApp`.
+ */
 abstract contract SuperAppBase is ISuperApp {
 
     function beforeAgreementCreated(
