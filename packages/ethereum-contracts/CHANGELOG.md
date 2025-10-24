@@ -38,6 +38,11 @@ subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
     }
 );
 ```
+- CFASuperAppBase: `onFlowDeleted` is replaced by `onInFlowDeleted` and `onOutFlowDeleted`.
+  This is safer because the latter hook handles a case (outgoing flow being deleted by its receiver) which is often not expected.
+  In the past, apps creating outflows had to explicitly distinguish between the 2 possible triggers in order to avoid potentially invalid state changes or even jailing.
+  Most apps will want to implement just `onInFlowDeleted`.
+- CFASuperAppBase: added `flowRate` argument to `onFlowCreated` and `onFlowUpdated`.
 - PoolMemberNFT pruning: `IPoolMemberNFT` and `PoolMemberNFT` removed, `POOL_MEMBER_NFT()` removed from `ISuperToken`.
 
 ## [v1.13.0]
@@ -70,12 +75,6 @@ subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(
 ### Breaking
 - `SuperTokenV1Library.distributeFlow`: return `actualFlowRate` instead of a bool
 - `SuperTokenV1Library.distribute`: return `actualAmount` instead of a bool
-
-# Breaking
-- CFASuperAppBase: `onFlowDeleted` is replaced by `onInFlowDeleted` and `onOutFlowDeleted`.
-  This is safer because the latter hook handles a case (outgoing flow being deleted by its receiver) which is often not expected.
-  In the past, apps creating outflows had to explicitly distinguish between the 2 possible triggers in order to avoid potentially invalid state changes or even jailing.
-  Most apps will want to implement just `onInFlowDeleted`.
 
 ## [v1.12.0]
 
