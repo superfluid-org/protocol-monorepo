@@ -14,19 +14,26 @@ import { SuperTokenV1Library } from "./SuperTokenV1Library.sol";
  * @title abstract base contract for SuperApps using CFA callbacks
  * @author Superfluid
  * @dev This contract provides a more convenient API for implementing CFA callbacks.
- * It allows to write more concise and readable SuperApps when the full flexibility
- * of the low-level agreement callbacks isn't needed.
- * The API is tailored for the most common use cases, with the "beforeX" and "afterX" callbacks being
+ * It allows to write more concise and readable SuperApps.
+ * The API is tailored for common use cases, with the "beforeX" and "afterX" callbacks being
  * abstrated into a single "onX" callback for create|update|delete flows.
- * For use cases requiring more flexibility (specifically if more data needs to be provided by the before callbacks)
- * it's recommended to implement the low-level callbacks directly instead of using this base contract.
+ * If the previous state provided by this API (`previousFlowRate` and `lastUpdated`) is not sufficient for you use case,
+ * you should implement the more generic low-level API of `ISuperApp` instead of using this base contract.
  */
 abstract contract CFASuperAppBase is ISuperApp {
     using SuperTokenV1Library for ISuperToken;
 
+    /// =================================================================================
+    /// CONSTANTS & IMMUTABLES
+    /// =================================================================================
+
     bytes32 public constant CFAV1_TYPE = keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1");
 
     ISuperfluid public immutable HOST;
+
+    /// =================================================================================
+    /// ERRORS
+    /// =================================================================================
 
     /// @dev Thrown when the callback caller is not the host.
     error UnauthorizedHost();
@@ -36,6 +43,10 @@ abstract contract CFASuperAppBase is ISuperApp {
 
     /// @dev Thrown when SuperTokens not accepted by the SuperApp are streamed to it
     error NotAcceptedSuperToken();
+
+    // =================================================================================
+    // SETUP
+    // =================================================================================
 
     /**
      * @dev Creates the contract tied to the provided Superfluid host
@@ -65,7 +76,7 @@ abstract contract CFASuperAppBase is ISuperApp {
      *
      * Note: if the App self-registers on a network with permissioned SuperApp registration,
      * self-registration can be used only if the tx.origin (EOA) is whitelisted as deployer.
-     * If a whitelisted factory is used, it needs to call `host.registerApp()` itself.
+     * If instead a whitelisted factory is used, the factory needs to call `host.registerApp(address app)`.
      * For more details, see https://github.com/superfluid-finance/protocol-monorepo/wiki/Super-App-White-listing-Guide
      */
     function selfRegister(
@@ -88,7 +99,9 @@ abstract contract CFASuperAppBase is ISuperApp {
         bool activateOnUpdated,
         bool activateOnDeleted
     ) public pure returns (uint256 configWord) {
+        // since only 1 level is allowed by the protocol, we can hardcode APP_LEVEL_FINAL
         configWord = SuperAppDefinitions.APP_LEVEL_FINAL
+        // there's no information we want to carry over for create
             | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
         if (!activateOnCreated) {
             configWord |= SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
@@ -112,16 +125,16 @@ abstract contract CFASuperAppBase is ISuperApp {
         return true;
     }
 
-
-    // ---------------------------------------------------------------------------------------------
-    // CFA specific convenience callbacks
-    // to be overridden and implemented by inheriting SuperApps
+    // =================================================================================
+    // CFA SPECIFIC CALLBACKS - TO BE OVERRIDDEN BY INHERITING SUPERAPPS
+    // =================================================================================
 
     /// @dev override if the SuperApp shall have custom logic invoked when a new flow
     ///      to it is created.
     function onFlowCreated(
         ISuperToken /*superToken*/,
         address /*sender*/,
+        int96 /*flowRate*/,
         bytes calldata ctx
     ) internal virtual returns (bytes memory /*newCtx*/) {
         return ctx;
@@ -132,6 +145,7 @@ abstract contract CFASuperAppBase is ISuperApp {
     function onFlowUpdated(
         ISuperToken /*superToken*/,
         address /*sender*/,
+        int96 /*flowRate*/,
         int96 /*previousFlowRate*/,
         uint256 /*lastUpdated*/,
         bytes calldata ctx
@@ -141,11 +155,29 @@ abstract contract CFASuperAppBase is ISuperApp {
 
     /// @dev override if the SuperApp shall have custom logic invoked when an existing flow
     ///      to it is deleted (flowrate set to 0).
-    ///      Unlike the other callbacks, this method is NOT allowed to revert.
+    ///      Unlike the other callbacks, the delete callbacks are NOT allowed to revert.
     ///      Failing to satisfy that requirement leads to jailing (defunct SuperApp).
-    function onFlowDeleted(
+    function onInFlowDeleted(
         ISuperToken /*superToken*/,
         address /*sender*/,
+        int96 /*previousFlowRate*/,
+        uint256 /*lastUpdated*/,
+        bytes calldata ctx
+    ) internal virtual returns (bytes memory /*newCtx*/) {
+        return ctx;
+    }
+
+    /// @dev override if the SuperApp shall have custom logic invoked when an outgoing flow
+    ///      is deleted by the receiver (it's not triggered when deleted by the SuperApp itself).
+    ///      A possible implementation is to make outflows "sticky" by simply reopening it.
+    ///      Like onInFlowDeleted, this method is NOT allowed to revert.
+    ///      It's safe to not override this method if the SuperApp doesn't have outgoing flows,
+    ///      or if it doesn't want/need to know if an outgoing flow is deleted by its receiver.
+    /// Note: In theory this hook could also be triggered by a liquidation, but this would imply
+    /// that the SuperApp is insolvent, and would thus be jailed already.
+    /// Thus in practice this is triggered only when a receiver of an outgoing flow deletes that flow.
+    function onOutFlowDeleted(
+        ISuperToken /*superToken*/,
         address /*receiver*/,
         int96 /*previousFlowRate*/,
         uint256 /*lastUpdated*/,
@@ -154,12 +186,16 @@ abstract contract CFASuperAppBase is ISuperApp {
         return ctx;
     }
 
+    // =================================================================================
+    // INTERNAL IMPLEMENTATION
+    // =================================================================================
 
-    // ---------------------------------------------------------------------------------------------
-    // Low-level callbacks
-    // Shall NOT be overriden by SuperApps when inheriting from this contract.
-    // The before-callbacks are implemented to forward data (flowrate, timestamp),
-    // the after-callbacks invoke the CFA specific specific convenience callbacks.
+    // The following methods SHALL NOT BE OVERRIDDEN by SuperApps inheriting from this contract.
+    // If more fine grained control than provided by the onX callbacks is needed,
+    // you should implement the more generic low-level API of `ISuperApp` instead of using this base contract.
+
+    // The before-callbacks are implemented to relay data (flowrate, timestamp) to the after-callbacks.
+    // The after-callbacks invoke the more convenient onX callbacks.
 
     // CREATED callback
 
@@ -183,15 +219,17 @@ abstract contract CFASuperAppBase is ISuperApp {
         bytes calldata ctx
     ) external override returns (bytes memory newCtx) {
         if (msg.sender != address(HOST)) revert UnauthorizedHost();
-        if (!isAcceptedAgreement(agreementClass)) return ctx;
+        if (!_isAcceptedAgreement(agreementClass)) return ctx;
         if (!isAcceptedSuperToken(superToken)) revert NotAcceptedSuperToken();
 
         (address sender, ) = abi.decode(agreementData, (address, address));
+        int96 flowRate = superToken.getCFAFlowRate(sender, address(this));
 
         return
             onFlowCreated(
                 superToken,
                 sender,
+                flowRate,
                 ctx // userData can be acquired with `host.decodeCtx(ctx).userData`
             );
     }
@@ -206,7 +244,7 @@ abstract contract CFASuperAppBase is ISuperApp {
         bytes calldata /*ctx*/
     ) external view override returns (bytes memory /*beforeData*/) {
         if (msg.sender != address(HOST)) revert UnauthorizedHost();
-        if (!isAcceptedAgreement(agreementClass)) return "0x";
+        if (!_isAcceptedAgreement(agreementClass)) return "0x";
         if (!isAcceptedSuperToken(superToken)) revert NotAcceptedSuperToken();
 
         (address sender, ) = abi.decode(agreementData, (address, address));
@@ -227,20 +265,31 @@ abstract contract CFASuperAppBase is ISuperApp {
         bytes calldata ctx
     ) external override returns (bytes memory newCtx) {
         if (msg.sender != address(HOST)) revert UnauthorizedHost();
-        if (!isAcceptedAgreement(agreementClass)) return ctx;
+        if (!_isAcceptedAgreement(agreementClass)) return ctx;
         if (!isAcceptedSuperToken(superToken)) revert NotAcceptedSuperToken();
 
+        return _afterAgreementUpdatedHelper(superToken, agreementData, cbdata, ctx);
+    }
+
+    // workaround to stack-too-deep compiler error
+    function _afterAgreementUpdatedHelper(
+        ISuperToken superToken,
+        bytes calldata agreementData,
+        bytes calldata cbdata,
+        bytes calldata ctx
+    ) private returns (bytes memory) {
         (address sender, ) = abi.decode(agreementData, (address, address));
         (int96 previousFlowRate, uint256 lastUpdated) = abi.decode(cbdata, (int96, uint256));
+        int96 flowRate = superToken.getCFAFlowRate(sender, address(this));
 
-        return
-            onFlowUpdated(
-                superToken,
-                sender,
-                previousFlowRate,
-                lastUpdated,
-                ctx // userData can be acquired with `host.decodeCtx(ctx).userData`
-            );
+        return onFlowUpdated(
+            superToken,
+            sender,
+            flowRate,
+            previousFlowRate,
+            lastUpdated,
+            ctx // userData can be acquired with `host.decodeCtx(ctx).userData`
+        );
     }
 
     // DELETED callbacks
@@ -254,7 +303,7 @@ abstract contract CFASuperAppBase is ISuperApp {
     ) external view override returns (bytes memory /*beforeData*/) {
         // we're not allowed to revert in this callback, thus just return empty beforeData on failing checks
         if (msg.sender != address(HOST)
-            || !isAcceptedAgreement(agreementClass)
+            || !_isAcceptedAgreement(agreementClass)
             || !isAcceptedSuperToken(superToken))
         {
             return "0x";
@@ -279,7 +328,7 @@ abstract contract CFASuperAppBase is ISuperApp {
     ) external override returns (bytes memory newCtx) {
         // we're not allowed to revert in this callback, thus just return ctx on failing checks
         if (msg.sender != address(HOST)
-            || !isAcceptedAgreement(agreementClass)
+            || !_isAcceptedAgreement(agreementClass)
             || !isAcceptedSuperToken(superToken))
         {
             return ctx;
@@ -288,15 +337,25 @@ abstract contract CFASuperAppBase is ISuperApp {
         (address sender, address receiver) = abi.decode(agreementData, (address, address));
         (uint256 lastUpdated, int96 previousFlowRate) = abi.decode(cbdata, (uint256, int96));
 
-        return
-            onFlowDeleted(
-                superToken,
-                sender,
-                receiver,
-                previousFlowRate,
-                lastUpdated,
-                ctx
-            );
+        if (receiver == address(this)) {
+            return
+                onInFlowDeleted(
+                    superToken,
+                    sender,
+                    previousFlowRate,
+                    lastUpdated,
+                    ctx
+                );
+        } else {
+            return
+                onOutFlowDeleted(
+                    superToken,
+                    receiver,
+                    previousFlowRate,
+                    lastUpdated,
+                    ctx
+                );
+        }
     }
 
 
@@ -308,7 +367,7 @@ abstract contract CFASuperAppBase is ISuperApp {
      *      This function can be overridden with custom logic and to revert if desired
      *      Current implementation expects ConstantFlowAgreement
      */
-    function isAcceptedAgreement(address agreementClass) internal view virtual returns (bool) {
+    function _isAcceptedAgreement(address agreementClass) internal view returns (bool) {
         return agreementClass == address(HOST.getAgreementClass(CFAV1_TYPE));
     }
 }

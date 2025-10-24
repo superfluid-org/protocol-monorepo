@@ -538,42 +538,47 @@ contract SuperAppMock is CFASuperAppBase {
     function onFlowCreated(
         ISuperToken superToken,
         address sender,
+        int96 flowRate,
         bytes calldata ctx
     ) internal virtual override returns (bytes memory /*newCtx*/) {
-        return _mirrorOrMatchIncomingFlow(superToken, sender, ctx);
+        return _mirrorOrMatchIncomingFlow(superToken, sender, flowRate, ctx);
     }
 
     function onFlowUpdated(
+        ISuperToken superToken,
+        address sender,
+        int96 flowRate,
+        int96 /*previousFlowRate*/,
+        uint256 /*lastUpdated*/,
+        bytes calldata ctx
+    ) internal virtual override returns (bytes memory /*newCtx*/) {
+        return _mirrorOrMatchIncomingFlow(superToken, sender, flowRate, ctx);
+    }
+
+    function onInFlowDeleted(
         ISuperToken superToken,
         address sender,
         int96 /*previousFlowRate*/,
         uint256 /*lastUpdated*/,
         bytes calldata ctx
     ) internal virtual override returns (bytes memory /*newCtx*/) {
-        return _mirrorOrMatchIncomingFlow(superToken, sender, ctx);
+        return _mirrorOrMatchIncomingFlow(superToken, sender, 0, ctx);
     }
 
-    function onFlowDeleted(
+    // outflow was deleted by the sender we mirror to, we make it "sticky" by simply restoring it.
+    function onOutFlowDeleted(
         ISuperToken superToken,
-        address sender,
         address receiver,
         int96 previousFlowRate,
         uint256 /*lastUpdated*/,
         bytes calldata ctx
     ) internal virtual override returns (bytes memory /*newCtx*/) {
-        if (receiver == address(this)) {
-            return _mirrorOrMatchIncomingFlow(superToken, sender, ctx);
-        } else {
-            // outflow was deleted by the sender we mirror to,
-            // we make it "sticky" by simply restoring it.
-            return superToken.flowWithCtx(receiver, previousFlowRate, ctx);
-        }
+        return superToken.flowWithCtx(receiver, previousFlowRate, ctx);
     }
 
-    function _mirrorOrMatchIncomingFlow(ISuperToken superToken, address senderAndReceiver, bytes memory ctx)
+    function _mirrorOrMatchIncomingFlow(ISuperToken superToken, address senderAndReceiver, int96 flowRate, bytes memory ctx)
         internal returns (bytes memory newCtx)
     {
-        int96 flowRate = superToken.getFlowRate(senderAndReceiver, address(this));
         if (aclFlowSender == address(0)) {
             return superToken.flowWithCtx(senderAndReceiver, flowRate, ctx);
         } else {

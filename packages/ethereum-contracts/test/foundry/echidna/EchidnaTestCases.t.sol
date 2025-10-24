@@ -26,6 +26,7 @@ contract EchidnaTestCases is FoundrySuperfluidTester {
         public
     {
         vm.assume(member != address(0));
+        vm.assume(member != address(currentPool));
         vm.assume(flowRate > 0);
 
         _helperUpdateMemberUnits(currentPool, alice, member, units);
