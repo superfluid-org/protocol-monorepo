@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {console} from "forge-std/console.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {Strings} from "@openzeppelin-v5/contracts/utils/Strings.sol";
 
 import {Resolver} from "../../contracts/utils/Resolver.sol";
@@ -13,6 +14,8 @@ import {ISafe} from "../../contracts/interfaces/utils/ISafe.sol";
  * @notice Utility library for deployment scripts including admin action execution and version string handling
  */
 library DeployUtils {
+    Vm private constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    
     /****************************************************************
      * Admin type detection and action execution utilities
      ****************************************************************/
@@ -97,9 +100,25 @@ library DeployUtils {
             
         } else if (adminType == AdminType.SAFE) {
             console.log("  %s Admin Type: Safe", actionType);
-            // TODO: Implement Safe transaction execution
-            console.log("  Safe admin type detected but not yet implemented");
-            revert("Safe admin type not yet implemented");
+            console.log("  Safe address: %s", adminAddress);
+            console.log("  Target contract: %s", targetContract);
+            console.log("  Safe transaction data:");
+            console.logBytes(actionData);
+            
+            // Output Safe transaction details to stdout for TypeScript layer to capture
+            // Using a special marker that TypeScript can parse from the output
+            string memory safeTxJson = string(abi.encodePacked(
+                "{\"safeAddress\":\"", Strings.toHexString(uint160(adminAddress), 20), "\",",
+                "\"to\":\"", Strings.toHexString(uint160(targetContract), 20), "\",",
+                "\"value\":\"0\",",
+                "\"data\":\"0x", _bytesToHex(actionData), "\",",
+                "\"actionType\":\"", actionType, "\"}"
+            ));
+            
+            console.log("<<<SAFE_TX_START>>>");
+            console.log(safeTxJson);
+            console.log("<<<SAFE_TX_END>>>");
+            console.log("*** Safe transaction will be proposed by the TypeScript layer ***");
             
         } else {
             revert("Unknown admin type");
@@ -140,12 +159,12 @@ library DeployUtils {
      * @return adminAddress The admin address
      */
     function getResolverAdmin(Resolver resolver) internal view returns (address adminAddress) {
-        bytes32 ADMIN_ROLE = 0x0000000000000000000000000000000000000000000000000000000000000000;
-        uint256 adminCount = resolver.getRoleMemberCount(ADMIN_ROLE);
+        bytes32 adminRole = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        uint256 adminCount = resolver.getRoleMemberCount(adminRole);
         
         if (adminCount > 0) {
             // Get the last admin (following the legacy pattern)
-            adminAddress = resolver.getRoleMember(ADMIN_ROLE, adminCount - 1);
+            adminAddress = resolver.getRoleMember(adminRole, adminCount - 1);
         } else {
             console.log("!!! resolver.getRoleMemberCount() returned 0. Using deployer as resolver admin.");
             adminAddress = msg.sender;
@@ -292,5 +311,20 @@ library DeployUtils {
         if (v >= 97 && v <= 102) return v - 87;
         if (v >= 65 && v <= 70) return v - 55;
         revert("Invalid hex char");
+    }
+    
+    /**
+     * @dev Convert bytes to hex string (without 0x prefix)
+     */
+    function _bytesToHex(bytes memory data) private pure returns (string memory) {
+        bytes memory hexChars = "0123456789abcdef";
+        bytes memory str = new bytes(data.length * 2);
+        
+        for (uint256 i = 0; i < data.length; i++) {
+            str[i * 2] = hexChars[uint8(data[i] >> 4)];
+            str[i * 2 + 1] = hexChars[uint8(data[i] & 0x0f)];
+        }
+        
+        return string(str);
     }
 }
