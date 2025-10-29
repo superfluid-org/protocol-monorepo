@@ -132,23 +132,6 @@ export function shouldBehaveLikeERC20(
                                 .to.emit(this.token, "Transfer")
                                 .withArgs(tokenOwner, to, amount);
                         });
-
-                        it("emits an approval event", async function () {
-                            await expect(
-                                this.token
-                                    .connect(spenderSigner)
-                                    .transferFrom(tokenOwner, to, amount)
-                            )
-                                .to.emit(this.token, "Approval")
-                                .withArgs(
-                                    tokenOwner,
-                                    spender,
-                                    await this.token.allowance(
-                                        tokenOwner,
-                                        spender
-                                    )
-                                );
-                        });
                     });
 
                     describe("when the token owner does not have enough balance", function () {

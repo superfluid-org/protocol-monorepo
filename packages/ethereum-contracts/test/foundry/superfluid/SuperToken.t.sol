@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { Test } from "forge-std/Test.sol";
+import { Test, console } from "forge-std/Test.sol";
 import { UUPSProxy } from "../../../contracts/upgradability/UUPSProxy.sol";
 import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.sol";
-import { IERC20, ISuperToken, SuperToken }
+import { IERC20, ISuperToken, ISuperfluidPool, PoolConfig }
+    from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { SuperToken }
     from "../../../contracts/superfluid/SuperToken.sol";
 import { PoolAdminNFT, IPoolAdminNFT } from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol";
+import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 
 contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
-    constructor() FoundrySuperfluidTester(0) { }
+    using SuperTokenV1Library for ISuperToken;
+
+    constructor() FoundrySuperfluidTester(1) { }
 
     function setUp() public override {
         super.setUp();
@@ -253,5 +258,55 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
         // Verify expected state changes
         assertEq(localSuperToken.nonces(permitSigner), 1, "Nonce should be incremented");
         assertEq(localSuperToken.allowance(permitSigner, spender), amount, "Allowance should be set");
+    }
+
+    // Verify zero Transfer events being emitted by CFA and GDA actions
+    function testEmitPseudoTransferEvent() public {
+        vm.startPrank(admin);
+
+        // case 1: create flow
+        vm.expectEmit(address(superToken));
+        emit IERC20.Transfer(admin, alice, 0);
+        superToken.createFlow(alice, 1);
+
+        // case 2: delete flow
+        vm.expectEmit(address(superToken));
+        emit IERC20.Transfer(admin, alice, 0);
+        superToken.deleteFlow(admin, alice);
+
+        // create a pool for the next tests
+        ISuperfluidPool pool = superToken.createPool(
+            admin,
+            PoolConfig({
+                transferabilityForUnitsOwner: true,
+                distributionFromAnyAddress: true
+            })
+        );
+
+        // case 3: assign pool units
+        vm.expectEmit(address(superToken));
+        emit IERC20.Transfer(address(pool), alice, 0);
+        pool.updateMemberUnits(alice, 1);
+
+        vm.stopPrank();
+
+        // case 4: test pool token transfer
+        vm.startPrank(alice);
+        // This emits 2 Transfer events, because the sender's units toggle to 0 and the receiver units from 0
+        vm.expectEmit(address(superToken));
+        emit IERC20.Transfer(address(pool), alice, 0);
+        vm.expectEmit(address(superToken));
+        emit IERC20.Transfer(address(pool), bob, 0);
+        IERC20(pool).transfer(bob, 1);
+
+        vm.stopPrank();
+
+        // case 5: remove pool units
+        vm.startPrank(admin);
+        vm.expectEmit(address(superToken));
+        emit IERC20.Transfer(address(pool), bob, 0);
+        pool.updateMemberUnits(bob, 0);
+
+        vm.stopPrank();
     }
 }

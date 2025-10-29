@@ -360,7 +360,7 @@ contract SuperToken is
         if (spender != holder) {
             require(amount <= _allowances[holder][spender], "SuperToken: transfer amount exceeds allowance");
             // TODO: this triggers an `Approval` event, which shouldn't happen for transfers.
-            _approve(holder, spender, _allowances[holder][spender] - amount);
+            _approve(holder, spender, _allowances[holder][spender] - amount, false);
         }
 
         return true;
@@ -504,7 +504,21 @@ contract SuperToken is
      * - `account` cannot be the zero address.
      * - `spender` cannot be the zero address.
      */
-    function _approve(address account, address spender, uint256 amount)
+    function _approve(address owner, address spender, uint256 value) internal {
+        _approve(owner, spender, value, true);
+    }
+
+    /**
+     * @dev Variant of {_approve} with an optional flag to enable or disable the {Approval} event.
+     *
+     * By default (when calling {_approve}) the flag is set to true. On the other hand, approval changes made
+     * during the `transferFrom` operation set the flag to false.
+     *
+     * Note: In the OpenZeppelin implementation, from v5 onwards, {transferFrom} doesn't emit an {Approval} event.
+     * By adding this overloaded function and using it for {transferFrom}, we replicate that change,
+     * because it seems semantically more correct.
+     */
+    function _approve(address account, address spender, uint256 amount, bool emitEvent)
         internal
     {
         if (account == address(0)) {
@@ -515,7 +529,10 @@ contract SuperToken is
         }
 
         _allowances[account][spender] = amount;
-        emit Approval(account, spender, amount);
+
+        if (emitEvent) {
+            emit Approval(account, spender, amount);
+        }
     }
 
     /**

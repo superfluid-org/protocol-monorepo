@@ -3,7 +3,7 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [UNRELEASED]
+## [v1.14.0]
 
 ### Added
 - GDA _autoconnect_ feature: now any account can connect pool members using `tryConnectPoolFor()` as long as they have less than 4 connection slots occupied for that Super Token. This allows for smoother onboarding of new users, allowing Apps to make sure tokens distributed via GDA immediately show up in user's wallets. Accounts can opt out of this by using `setConnectPermission()`, this is mainly supposed to be used by contracts.
@@ -15,6 +15,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   - `GDAv1StorageWriter` contains functions for writing agreement data to the token contract. This can only be used by the GDA contract itself.
 - bump solc to "0.8.30".
 - Changed EVM target from `paris` to `shanghai` because now all networks with supported Superfluid deployment support it.
+- Emit ERC20 `Transfer` events (with amount 0) on CFA and GDA actions potentially leading to account balance changes. This shall help indexers to keep track of SuperToken holders and account balances.
+- Don't emit ERC20 `Approval` events on `transferFrom` operations. This is consistent with the OpenZeppelin ERC20 implementation from v5 onwards. Change effective only for SuperTokens using the latest logic.
 
 ### Fixed
 - `ISuperfluidPool`: `getClaimable` and `getClaimableNow` could previously return non-zero values for connected pools, which was inconsistent with what `claimAll` would actually do in this situation (claim nothing).

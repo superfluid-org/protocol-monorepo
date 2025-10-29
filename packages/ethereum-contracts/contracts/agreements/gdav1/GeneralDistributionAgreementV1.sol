@@ -801,6 +801,14 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return true;
     }
 
+    function tokenEmitPseudoTransfer(ISuperfluidToken superToken, address from, address to) external {
+        if (superToken.isPool(this, msg.sender) == false) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
+
+        superToken.emitPseudoTransfer(from, to);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     // TokenMonad interface
     //////////////////////////////////////////////////////////////////////////////////////////////////////
