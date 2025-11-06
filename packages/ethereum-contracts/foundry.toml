@@ -38,3 +38,7 @@ verbosity = 2
 
 [profile.ci.fuzz]
 runs = 1000
+
+# Lint configuration
+[profile.lint]
+ignore = ["packages/ethereum-contracts/test/**/*.sol"]
