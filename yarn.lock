@@ -646,10 +646,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@d10r/truffle-plugin-verify@^0.6.11":
-  version "0.6.11"
-  resolved "https://registry.yarnpkg.com/@d10r/truffle-plugin-verify/-/truffle-plugin-verify-0.6.11.tgz#d10d1923b1344f14b513c0d7ce831c5cfa1407ba"
-  integrity sha512-jWn2WpiA2fas05XqjJtTLXcOJ4XRL+etf2A/in86AtqN88tImYbcoPIg+S8TpDp/Qum+PGr9edDof/ui1Q/jCw==
+"@d10r/truffle-plugin-verify@^0.7.0":
+  version "0.7.0"
+  resolved "https://registry.yarnpkg.com/@d10r/truffle-plugin-verify/-/truffle-plugin-verify-0.7.0.tgz#deaaa649de7a07a610fd5602ca15d5b6965de00c"
+  integrity sha512-wDhwt8qlsDdSIJ7x/Z0JQn2BqVY9Si99AKkVprU5Frer9Q+ZR423NsdVE7gNa2tMpULnFMXh33oH+spHTIhAfg==
   dependencies:
     "@truffle/resolver" "^9.0.35"
     axios "^0.26.1"
@@ -7397,22 +7397,7 @@ create-require@^1.1.0:
   resolved "https://registry.yarnpkg.com/create-require/-/create-require-1.1.1.tgz#c1d7e8f1e5f6cfc9ff65f9cd352d37348756c333"
   integrity sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==
 
-cross-fetch@^2.1.0:
-  version "2.2.6"
-  resolved "https://registry.yarnpkg.com/cross-fetch/-/cross-fetch-2.2.6.tgz#2ef0bb39a24ac034787965c457368a28730e220a"
-  integrity sha512-9JZz+vXCmfKUZ68zAptS7k4Nu8e2qcibe7WVZYps7sAgk5R8GYTc+T1WR0v1rlP9HxgARmOX1UTIJZFytajpNA==
-  dependencies:
-    node-fetch "^2.6.7"
-    whatwg-fetch "^2.0.4"
-
-cross-fetch@^3.1.4, cross-fetch@^3.1.5:
-  version "3.2.0"
-  resolved "https://registry.yarnpkg.com/cross-fetch/-/cross-fetch-3.2.0.tgz#34e9192f53bc757d6614304d9e5e6fb4edb782e3"
-  integrity sha512-Q+xVJLoGOeIMXZmbUK4HYk+69cQH6LudR0Vu/pRm2YlU/hDV9CiS0gKUMaWY5f2NeUH9C1nV3bsTlCo0FsTV1Q==
-  dependencies:
-    node-fetch "^2.7.0"
-
-cross-fetch@^4.0.0:
+cross-fetch@^2.1.0, cross-fetch@^3.1.4, cross-fetch@^3.1.5, cross-fetch@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/cross-fetch/-/cross-fetch-4.0.0.tgz#f037aef1580bb3a1a35164ea2a848ba81b445983"
   integrity sha512-e4a5N8lVvuLgAWgnCrLr2PP0YyDOTHa9H/Rj54dirp61qXnNq46m82bRhNqIA5VccJtWBvPTFRV3TtvHUKPB1g==
@@ -18961,11 +18946,6 @@ websocket@^1.0.32:
     typedarray-to-buffer "^3.1.5"
     utf-8-validate "^5.0.2"
     yaeti "^0.0.6"
-
-whatwg-fetch@^2.0.4:
-  version "2.0.4"
-  resolved "https://registry.yarnpkg.com/whatwg-fetch/-/whatwg-fetch-2.0.4.tgz#dde6a5df315f9d39991aa17621853d720b85566f"
-  integrity sha512-dcQ1GWpOD/eEQ97k66aiEVpNnapVj90/+R+SXTPYGHpYBBypfKJEQjLrvMZ7YXbKm21gXd4NcuxUTjiv1YtLng==
 
 whatwg-mimetype@^3.0.0:
   version "3.0.0"
