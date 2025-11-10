@@ -806,7 +806,10 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
 
-        superToken.emitPseudoTransfer(from, to);
+        // solhint-disable-next-line no-empty-blocks
+        try superToken.emitPseudoTransfer(from, to) {}
+        // solhint-disable-next-line no-empty-blocks
+        catch {}
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
