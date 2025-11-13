@@ -279,34 +279,44 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function updateMemberUnits(ISuperfluidPool pool, address memberAddress, uint128 newUnits, bytes calldata ctx)
+    function updateMemberUnits(ISuperfluidPool untrustedPool, address memberAddress, uint128 newUnits, bytes calldata ctx)
         external
         override
         returns (bytes memory newCtx)
     {
+        ISuperfluidToken token = untrustedPool.superToken();
+        address msgSender = AgreementLibrary.authorizeTokenAccess(token, ctx).msgSender;
+
         // Only the admin can update member units here
-        if (AgreementLibrary.authorizeTokenAccess(pool.superToken(), ctx).msgSender != pool.admin()) {
+        if (msgSender != untrustedPool.admin()) {
             revert GDA_NOT_POOL_ADMIN();
         }
         newCtx = ctx;
 
-        pool.updateMemberUnits(memberAddress, newUnits);
+        // NOTE: In GDA.appendIndexUpdateByPool, it checks whether pool is created by the token.
+        untrustedPool.updateMemberUnits(memberAddress, newUnits);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function claimAll(ISuperfluidPool pool, address memberAddress, bytes calldata ctx)
+    function claimAll(ISuperfluidPool untrustedPool, address memberAddress, bytes calldata ctx)
         external
         override
         returns (bytes memory newCtx)
     {
-        AgreementLibrary.authorizeTokenAccess(pool.superToken(), ctx);
+        ISuperfluidToken token = untrustedPool.superToken();
+        AgreementLibrary.authorizeTokenAccess(token, ctx);
         newCtx = ctx;
 
+        // NOTE: In GDA.poolSettleClaim, it checks whether pool is created by the token.
         pool.claimAll(memberAddress);
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function connectPool(ISuperfluidPool pool, bytes calldata ctx) external override returns (bytes memory newCtx) {
+    function connectPool(ISuperfluidPool pool, bytes calldata ctx)
+        external
+        override
+        returns (bytes memory newCtx)
+    {
         newCtx = ctx;
         _setPoolConnectionFor(pool, address(0), true /* doConnect */, ctx);
     }
@@ -319,6 +329,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     {
         newCtx = ctx;
 
+        // NOTE: We do not allow a pool to connect to another pool.
         if (memberAddr == address(0) || pool.superToken().isPool(this, memberAddr)) {
             revert GDA_CANNOT_CONNECT_POOL();
         }
@@ -354,6 +365,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         bool doConnect,
         bytes memory ctx
     )
+        // _poolIsTrustedByItsSuperToken(pool) // TODO
         internal
         returns (bool success)
     {
@@ -404,6 +416,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                 )
             );
 
+            // NOTE: similar to Transfer, we cannot tell if it is done through tryConnect or regular connect.
             emit PoolConnectionUpdated(token, pool, memberAddr, doConnect, currentContext.userData);
         }
 
@@ -411,7 +424,14 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
     }
 
     /// @inheritdoc IGeneralDistributionAgreementV1
-    function isMemberConnected(ISuperfluidPool pool, address member) external view override returns (bool) {
+    function isMemberConnected(ISuperfluidPool pool, address member)
+        external view override
+        returns (bool)
+    {
+        // NOTE: this function is complete, in that even for invalid pools, it will always return false.
+        //
+        // Retrospectively, it may be more helpful to the developers if this function is non-complete, and always revert
+        // on invalid pool.
         return pool.superToken().isPoolMemberConnected(this, pool, member);
     }
 
@@ -427,7 +447,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         newCtx = ctx;
 
-        if (token.isPool(this, address(pool)) == false ||
+        if (token.isPool(this, address(pool)) == false || // TODO: with _poolIsTrustedByItsSuperToken
             // Note: we do not support multi-tokens pools
             pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
@@ -493,7 +513,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int96 requestedFlowRate,
         bytes calldata ctx
     ) external override returns (bytes memory newCtx) {
-        if (token.isPool(this, address(pool)) == false ||
+        if (token.isPool(this, address(pool)) == false || // TODO _poolIsTrustedByItsSuperTokne
             // Note: we do not support multi-tokens pools
             pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
@@ -602,6 +622,8 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         )
         internal
     {
+        // NOTE: the caller to guarantee that the token and pool are mutually trusted.
+
         // not using oldFlowRate in this model
         // surprising effect: reducing flow rate may require more buffer when liquidation_period adjusted upward
         ISuperfluidGovernance gov = ISuperfluidGovernance(ISuperfluid(_host).getGovernance());
@@ -781,14 +803,17 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t)
         external
+        // TODO _poolIsTrustedByItsSuperToken(msg.sender)
         returns (bool)
     {
-        if (token.isPool(this, msg.sender) == false) {
+        ISuperfluidPool untrustedPool = msg.sender;
+
+        if (token.isPool(this, untrustedPool) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
         bytes memory eff = abi.encode(token);
-        _setUIndex(eff, msg.sender, _getUIndex(eff, msg.sender).mappend(p));
-        _setPoolAdjustmentFlowRate(eff, msg.sender, true, /* doShift? */ p.flow_rate(), t);
+        _setUIndex(eff, msg.sender, _getUIndex(eff, untrustedPool).mappend(p));
+        _setPoolAdjustmentFlowRate(eff, untrustedPool, true, /* doShift? */ p.flow_rate(), t);
         return true;
     }
 
@@ -796,16 +821,20 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         external
         returns (bool)
     {
-        if (superToken.isPool(this, msg.sender) == false) {
+        ISuperfluidPool untrustedPool = msg.sender;
+
+        if (superToken.isPool(this, untrustedPool) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
 
-        _doShift(abi.encode(superToken), msg.sender, claimRecipient, Value.wrap(amount));
+        _doShift(abi.encode(superToken), untrustedPool, claimRecipient, Value.wrap(amount));
         return true;
     }
 
     function tokenEmitPseudoTransfer(ISuperfluidToken superToken, address from, address to) external {
-        if (superToken.isPool(this, msg.sender) == false) {
+        ISuperfluidPool untrustedPool = msg.sender;
+
+        if (superToken.isPool(this, untrustedPool) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
 
