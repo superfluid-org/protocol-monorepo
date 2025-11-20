@@ -808,41 +808,32 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t)
         external
-        // TODO _poolIsTrustedByItsSuperToken(msg.sender)
+        senderIsTrustedPool(token)
         returns (bool)
     {
-        ISuperfluidPool untrustedPool = ISuperfluidPool(msg.sender);
+        address poolAddress = msg.sender;
 
-        if (token.isPool(this, address(untrustedPool)) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
         bytes memory eff = abi.encode(token);
-        _setUIndex(eff, msg.sender, _getUIndex(eff, address(untrustedPool)).mappend(p));
-        _setPoolAdjustmentFlowRate(eff, address(untrustedPool), true, /* doShift? */ p.flow_rate(), t);
+        _setUIndex(eff, msg.sender, _getUIndex(eff, poolAddress).mappend(p));
+        _setPoolAdjustmentFlowRate(eff, poolAddress, true, /* doShift? */ p.flow_rate(), t);
         return true;
     }
 
-    function poolSettleClaim(ISuperfluidToken superToken, address claimRecipient, int256 amount)
+    function poolSettleClaim(ISuperfluidToken token, address claimRecipient, int256 amount)
         external
+        senderIsTrustedPool(token)
         returns (bool)
     {
-        ISuperfluidPool untrustedPool = ISuperfluidPool(msg.sender);
+        address poolAddress = msg.sender;
 
-        if (superToken.isPool(this, address(untrustedPool)) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
-
-        _doShift(abi.encode(superToken), address(untrustedPool), claimRecipient, Value.wrap(amount));
+        _doShift(abi.encode(token), poolAddress, claimRecipient, Value.wrap(amount));
         return true;
     }
 
-    function tokenEmitPseudoTransfer(ISuperfluidToken superToken, address from, address to) external {
-        ISuperfluidPool untrustedPool = ISuperfluidPool(msg.sender);
-
-        if (superToken.isPool(this, address(untrustedPool)) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
-
+    function tokenEmitPseudoTransfer(ISuperfluidToken superToken, address from, address to)
+        external
+        senderIsTrustedPool(superToken)
+    {
         // solhint-disable-next-line no-empty-blocks
         try superToken.emitPseudoTransfer(from, to) {}
         // solhint-disable-next-line no-empty-blocks
@@ -999,5 +990,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         (slotIds, pidList) = SlotsBitmapLibrary.listData(
             token, subscriber, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START
         );
+    }
+
+    modifier senderIsTrustedPool(ISuperfluidToken token) {
+        address untrustedPoolAddress = msg.sender;
+        if (token.isPool(this, untrustedPoolAddress) == false) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
+        _;
     }
 }
