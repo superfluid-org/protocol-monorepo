@@ -808,7 +808,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t)
         external
-        senderIsTrustedPool(token)
+        senderIsTrustedPool
         returns (bool)
     {
         address poolAddress = msg.sender;
@@ -821,7 +821,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     function poolSettleClaim(ISuperfluidToken token, address claimRecipient, int256 amount)
         external
-        senderIsTrustedPool(token)
+        senderIsTrustedPool
         returns (bool)
     {
         address poolAddress = msg.sender;
@@ -982,9 +982,17 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         );
     }
 
-    modifier senderIsTrustedPool(ISuperfluidToken token) {
-        address untrustedPoolAddress = msg.sender;
-        if (token.isPool(this, untrustedPoolAddress) == false) {
+    // This check passing means that either the pool is legitimate, or the associated token is not legitimate.
+    // if the token is legitimate, `token.isPool()` can return true only if the pool was created by this agreement.
+    // The following "false positives" could occur if the associated token:
+    // 1. is lying (claims the pool was registered by this agreement when it was not)
+    // or
+    // 2. is not associated to the same host (and agreements).
+    // In both cases, pre-conditions are not met and no state this agreement is responsible for can be manipulated.
+    modifier senderIsTrustedPool() {
+        ISuperfluidPool pool = ISuperfluidPool(msg.sender);
+
+        if (pool.superToken().isPool(this, address(pool)) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
         _;
