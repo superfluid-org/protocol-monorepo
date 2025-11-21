@@ -370,14 +370,11 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         bool doConnect,
         bytes memory ctx
     )
-        // _poolIsTrustedByItsSuperToken(pool) // TODO
         internal
+        isPoolTrustedByItsSuperToken(pool)
         returns (bool success)
     {
         ISuperfluidToken token = pool.superToken();
-        if (!token.isPool(this, address(pool))) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
 
         bool autoConnectForOtherMember = false;
@@ -447,14 +444,17 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluidPool pool,
         uint256 requestedAmount,
         bytes calldata ctx
-    ) external override returns (bytes memory newCtx) {
+    )
+        external override
+        isPoolTrustedByItsSuperToken(pool)
+        returns (bytes memory newCtx)
+    {
         ISuperfluid.Context memory currentContext = AgreementLibrary.authorizeTokenAccess(token, ctx);
 
         newCtx = ctx;
 
-        if (token.isPool(this, address(pool)) == false || // TODO: with _poolIsTrustedByItsSuperToken
-            // Note: we do not support multi-tokens pools
-            pool.superToken() != token) {
+        // Note: we do not support multi-tokens pools
+        if (pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
 
@@ -500,16 +500,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         FlowRate oldFlowRate;
     }
 
-    // solhint-disable-next-line contract-name-camelcase
-    struct _StackVars_Liquidation {
-        ISuperfluidToken token;
-        int256 availableBalance;
-        address sender;
-        bytes32 distributionFlowHash;
-        int256 signedTotalGDADeposit;
-        address liquidator;
-    }
-
     /// @inheritdoc IGeneralDistributionAgreementV1
     function distributeFlow(
         ISuperfluidToken token,
@@ -517,10 +507,13 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         ISuperfluidPool pool,
         int96 requestedFlowRate,
         bytes calldata ctx
-    ) external override returns (bytes memory newCtx) {
-        if (token.isPool(this, address(pool)) == false || // TODO _poolIsTrustedByItsSuperTokne
-            // Note: we do not support multi-tokens pools
-            pool.superToken() != token) {
+    )
+        external override
+        isPoolTrustedByItsSuperToken(pool)
+        returns (bytes memory newCtx)
+    {
+        // Note: we do not support multi-tokens pools
+        if (pool.superToken() != token) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
         if (requestedFlowRate < 0) {
@@ -555,40 +548,23 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         );
 
         // handle distribute flow on behalf of someone else
-        // @note move to internal maybe
-        {
-            if (from != flowVars.currentContext.msgSender) {
-                if (requestedFlowRate > 0) {
-                    // @note no ACL support for now
-                    // revert if trying to distribute on behalf of others
-                    revert GDA_DISTRIBUTE_FOR_OTHERS_NOT_ALLOWED();
+        if (from != flowVars.currentContext.msgSender) {
+            if (requestedFlowRate > 0) {
+                // @note no ACL support for now
+                // revert if trying to distribute on behalf of others
+                revert GDA_DISTRIBUTE_FOR_OTHERS_NOT_ALLOWED();
+            } else {
+                // liquidation case, requestedFlowRate == 0
+                (int256 availableBalance,,) = token.realtimeBalanceOf(from, flowVars.currentContext.timestamp);
+                if (availableBalance < 0) {
+                    _makeLiquidationPayouts(token, from, availableBalance, flowVars);
                 } else {
-                    // liquidation case, requestedFlowRate == 0
-                    (int256 availableBalance,,) = token.realtimeBalanceOf(from, flowVars.currentContext.timestamp);
-                    // StackVarsLiquidation used to handle good ol' stack too deep
-                    _StackVars_Liquidation memory liquidationData;
-                    {
-                        liquidationData.token = token;
-                        liquidationData.sender = from;
-                        liquidationData.liquidator = flowVars.currentContext.msgSender;
-                        liquidationData.distributionFlowHash = flowVars.distributionFlowHash;
-                        // TODO: GeneralDistributionAgreementV1Storage may offer an function that reads only 1 word.
-                        liquidationData.signedTotalGDADeposit = token.getAccountData(this, from).totalBuffer.toInt256();
-                        liquidationData.availableBalance = availableBalance;
-                    }
-                    // closing stream on behalf of someone else: liquidation case
-                    if (availableBalance < 0) {
-                        _makeLiquidationPayouts(liquidationData);
-                    } else {
-                        revert GDA_NON_CRITICAL_SENDER();
-                    }
+                    revert GDA_NON_CRITICAL_SENDER();
                 }
             }
         }
 
-        {
-            _adjustBuffer(token, address(pool), from, flowVars.distributionFlowHash, actualFlowRate);
-        }
+        _adjustBuffer(token, address(pool), from, flowVars.distributionFlowHash, actualFlowRate);
 
         // ensure sender has enough balance to execute transaction
         if (from == flowVars.currentContext.msgSender) {
@@ -709,44 +685,52 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         );
     }
 
-    function _makeLiquidationPayouts(_StackVars_Liquidation memory data) internal {
+    function _makeLiquidationPayouts(
+        ISuperfluidToken token,
+        address sender,
+        int256 availableBalance,
+        _StackVars_DistributeFlow memory flowVars
+    ) internal {
+        address liquidator = flowVars.currentContext.msgSender;
+        int256 signedTotalGDADeposit = token.getAccountData(this, sender).totalBuffer.toInt256();
+
         GDAv1StorageLib.FlowInfo memory flowDistributionData =
-            data.token.getFlowInfoByFlowHash(this, data.distributionFlowHash);
+            token.getFlowInfoByFlowHash(this, flowVars.distributionFlowHash);
         int256 signedSingleDeposit = flowDistributionData.buffer.toInt256();
 
         bool isCurrentlyPatricianPeriod;
 
         {
             (uint256 liquidationPeriod, uint256 patricianPeriod) =
-                SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), data.token);
+                SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), token);
             isCurrentlyPatricianPeriod = SolvencyHelperLibrary.isPatricianPeriod(
-                data.availableBalance, data.signedTotalGDADeposit, liquidationPeriod, patricianPeriod
+                availableBalance, signedTotalGDADeposit, liquidationPeriod, patricianPeriod
             );
         }
 
-        int256 totalRewardLeft = data.availableBalance + data.signedTotalGDADeposit;
+        int256 totalRewardLeft = availableBalance + signedTotalGDADeposit;
 
         // critical case
         if (totalRewardLeft >= 0) {
-            int256 rewardAmount = (signedSingleDeposit * totalRewardLeft) / data.signedTotalGDADeposit;
-            data.token.makeLiquidationPayoutsV2(
-                data.distributionFlowHash,
+            int256 rewardAmount = (signedSingleDeposit * totalRewardLeft) / signedTotalGDADeposit;
+            token.makeLiquidationPayoutsV2(
+                flowVars.distributionFlowHash,
                 abi.encode(2, isCurrentlyPatricianPeriod ? 0 : 1),
-                data.liquidator,
+                liquidator,
                 isCurrentlyPatricianPeriod,
-                data.sender,
+                sender,
                 rewardAmount.toUint256(),
                 rewardAmount * -1
             );
         } else {
             int256 rewardAmount = signedSingleDeposit;
             // bailout case
-            data.token.makeLiquidationPayoutsV2(
-                data.distributionFlowHash,
+            token.makeLiquidationPayoutsV2(
+                flowVars.distributionFlowHash,
                 abi.encode(2, 2),
-                data.liquidator,
+                liquidator,
                 false,
-                data.sender,
+                sender,
                 rewardAmount.toUint256(),
                 totalRewardLeft * -1
             );
@@ -808,7 +792,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t)
         external
-        senderIsTrustedPool(token)
+        isPoolTrustedByItsSuperToken(ISuperfluidPool(msg.sender))
         returns (bool)
     {
         address poolAddress = msg.sender;
@@ -821,7 +805,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     function poolSettleClaim(ISuperfluidToken token, address claimRecipient, int256 amount)
         external
-        senderIsTrustedPool(token)
+        isPoolTrustedByItsSuperToken(ISuperfluidPool(msg.sender))
         returns (bool)
     {
         address poolAddress = msg.sender;
@@ -982,9 +966,17 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         );
     }
 
-    modifier senderIsTrustedPool(ISuperfluidToken token) {
-        address untrustedPoolAddress = msg.sender;
-        if (token.isPool(this, untrustedPoolAddress) == false) {
+    // This check passing means that either the pool is legitimate, or the associated token is not legitimate.
+    // if the token is legitimate, `token.isPool()` can return true only if the pool was created by this agreement.
+    // The following "false positives" could occur if the associated token:
+    // 1. is lying (claims the pool was registered by this agreement when it was not)
+    // or
+    // 2. is not associated to the same host (and agreements).
+    // In both cases, pre-conditions are not met and no state this agreement is responsible for can be manipulated.
+    modifier isPoolTrustedByItsSuperToken(ISuperfluidPool pool) {
+        ISuperfluidToken token = pool.superToken();
+
+        if (token.isPool(this, address(pool)) == false) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
         _;
