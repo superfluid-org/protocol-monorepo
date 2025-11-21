@@ -830,16 +830,6 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return true;
     }
 
-    function tokenEmitPseudoTransfer(ISuperfluidToken superToken, address from, address to)
-        external
-        senderIsTrustedPool(superToken)
-    {
-        // solhint-disable-next-line no-empty-blocks
-        try superToken.emitPseudoTransfer(from, to) {}
-        // solhint-disable-next-line no-empty-blocks
-        catch {}
-    }
-
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     // TokenMonad interface
     //////////////////////////////////////////////////////////////////////////////////////////////////////

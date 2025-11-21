@@ -454,10 +454,6 @@ contract SuperfluidPool is ISuperfluidPool, BeaconProxiable {
             assert(GDA.appendIndexUpdateByPool(superToken, p, t));
         }
 
-        if ((oldUnits == 0 || newUnits == 0) && oldUnits != newUnits) {
-            GDA.tokenEmitPseudoTransfer(superToken, address(this), memberAddr);
-        }
-
         emit MemberUnitsUpdated(superToken, memberAddr, oldUnits, newUnits);
     }
 

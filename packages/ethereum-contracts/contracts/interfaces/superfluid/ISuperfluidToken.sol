@@ -431,11 +431,4 @@ interface ISuperfluidToken {
         uint256 rewardAmount,
         uint256 bailoutAmount
     );
-
-    /**
-     * @dev Emit an ERC20.Transfer event with zero amount, helps indexers track token holders.
-     * @param from The address from which the transfer is happening
-     * @param to The address to which the transfer is happening
-     */
-    function emitPseudoTransfer(address from, address to) external;
 }
