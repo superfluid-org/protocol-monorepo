@@ -370,11 +370,11 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         bool doConnect,
         bytes memory ctx
     )
-        // _poolIsTrustedByItsSuperToken(pool) // TODO
         internal
         returns (bool success)
     {
         ISuperfluidToken token = pool.superToken();
+        // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
         if (!token.isPool(this, address(pool))) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -452,9 +452,12 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         newCtx = ctx;
 
-        if (token.isPool(this, address(pool)) == false || // TODO: with _poolIsTrustedByItsSuperToken
+        // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
+        if (
+            token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
-            pool.superToken() != token) {
+            pool.superToken() != token)
+        {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
 
@@ -518,9 +521,12 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int96 requestedFlowRate,
         bytes calldata ctx
     ) external override returns (bytes memory newCtx) {
-        if (token.isPool(this, address(pool)) == false || // TODO _poolIsTrustedByItsSuperTokne
+        // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
+        if (
+            token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
-            pool.superToken() != token) {
+            pool.superToken() != token)
+        {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
         if (requestedFlowRate < 0) {
@@ -804,14 +810,27 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
     //
     // Pool-only operations
-    //
+    // Can only be called (`msg.sender`) by legitimate pool contracts.
+    // If `token` is legitimate, `token.isPool()` can return true only if the pool was created by this agreement.
+    // "false positives" (does not revert for illegitimate caller) could occur if `token`:
+    // 1. is lying (claims the pool was registered by this agreement when it was not)
+    // or
+    // 2. is not associated to the same host (and agreements).
+    // In both cases, pre-conditions are not met and no state this agreement is responsible for can be manipulated.
 
     function appendIndexUpdateByPool(ISuperfluidToken token, BasicParticle memory p, Time t)
         external
-        senderIsTrustedPool
         returns (bool)
     {
         address poolAddress = msg.sender;
+
+        // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
+        if (
+            token.isPool(this, msg.sender) == false ||
+            ISuperfluidPool(poolAddress).superToken() != token
+        ) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
 
         bytes memory eff = abi.encode(token);
         _setUIndex(eff, msg.sender, _getUIndex(eff, poolAddress).mappend(p));
@@ -819,12 +838,20 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         return true;
     }
 
+    // succeeds only if `msg.sender` is a pool trusted by `token`
     function poolSettleClaim(ISuperfluidToken token, address claimRecipient, int256 amount)
         external
-        senderIsTrustedPool
         returns (bool)
     {
         address poolAddress = msg.sender;
+
+        // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
+        if (
+            token.isPool(this, msg.sender) == false ||
+            ISuperfluidPool(poolAddress).superToken() != token
+        ) {
+            revert GDA_ONLY_SUPER_TOKEN_POOL();
+        }
 
         _doShift(abi.encode(token), poolAddress, claimRecipient, Value.wrap(amount));
         return true;
@@ -980,21 +1007,5 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         (slotIds, pidList) = SlotsBitmapLibrary.listData(
             token, subscriber, _POOL_SUBS_BITMAP_STATE_SLOT_ID, _POOL_CONNECTIONS_DATA_STATE_SLOT_ID_START
         );
-    }
-
-    // This check passing means that either the pool is legitimate, or the associated token is not legitimate.
-    // if the token is legitimate, `token.isPool()` can return true only if the pool was created by this agreement.
-    // The following "false positives" could occur if the associated token:
-    // 1. is lying (claims the pool was registered by this agreement when it was not)
-    // or
-    // 2. is not associated to the same host (and agreements).
-    // In both cases, pre-conditions are not met and no state this agreement is responsible for can be manipulated.
-    modifier senderIsTrustedPool() {
-        ISuperfluidPool pool = ISuperfluidPool(msg.sender);
-
-        if (pool.superToken().isPool(this, address(pool)) == false) {
-            revert GDA_ONLY_SUPER_TOKEN_POOL();
-        }
-        _;
     }
 }
