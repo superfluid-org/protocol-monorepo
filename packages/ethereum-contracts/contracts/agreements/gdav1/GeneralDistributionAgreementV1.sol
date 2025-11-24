@@ -433,9 +433,9 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         external view override
         returns (bool)
     {
-        // NOTE: this function is complete, in that even for invalid pools, it will always return false.
+        // NOTE: this function is total, in that even for invalid pools, it will always return false.
         //
-        // Retrospectively, it may be more helpful to the developers if this function is non-complete, and always revert
+        // Retrospectively, it may be more helpful to the developers if this function is non-total, and always revert
         // on invalid pool.
         return pool.superToken().isPoolMemberConnected(this, pool, member);
     }
