@@ -297,7 +297,7 @@ const E = (module.exports = {
             ...createNetworkDefaultConfiguration("degenchain"),
             network_id: 666666666,
             maxPriorityFeePerGas: 1e6, // 0.001 gwei
-            maxFeePerGas: 100e9, // 100 gwei
+            maxFeePerGas: 120e9, // 120 gwei
         },
 
         //
@@ -397,6 +397,9 @@ const E = (module.exports = {
     contracts_build_directory: "./build/truffle",
 
     api_keys: {
+        // used by the truffle-plugin-verify v0.7+
+        etherscan_v2: process.env.ETHERSCAN_API_V2_KEY,
+        // the rest is now legacy and should likely be removed
         etherscan: process.env.ETHERSCAN_API_KEY,
         polygonscan: process.env.POLYGONSCAN_API_KEY,
         snowtrace: process.env.SNOWTRACE_API_KEY,
