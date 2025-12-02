@@ -2,7 +2,7 @@
 import Safe from "@safe-global/protocol-kit";
 import SafeApiKit from "@safe-global/api-kit";
 import type { MetaTransactionData } from "@safe-global/types-kit";
-import { Wallet } from "ethers";
+import { Wallet, providers } from "ethers";
 
 type Log = Pick<Console, "info" | "warn" | "error">;
 
@@ -60,9 +60,8 @@ export async function proposeSafeTx({
     "api: init"
   );
 
-  // 2.5) DEBUG: Check if Safe exists in the service
+  // 2.5) Check if Safe exists in the service
   const proposerAddress = new Wallet(proposerPrivateKey).address;
-  
   try {
     log.info('=== DEBUG: Querying Safe from API ===');
     const safeInfo = await api.getSafeInfo(safeAddress);
@@ -72,24 +71,6 @@ export async function proposeSafeTx({
     log.warn(`Error: ${e.message}`);
     log.warn('This Safe is NOT indexed by the Transaction Service');
     
-    // Try to get all safes for this proposer address
-    try {
-      log.info(`\nTrying to get Safes owned by ${proposerAddress}...`);
-      const ownedSafes = await api.getSafesByOwner(proposerAddress);
-      log.info('Safes owned by proposer:', JSON.stringify(ownedSafes, null, 2));
-      
-      if (ownedSafes.safes && ownedSafes.safes.length > 0) {
-        log.info(`\nFound ${ownedSafes.safes.length} indexed Safe(s)`);
-        log.info('If you want to test with an indexed Safe, use one of these addresses');
-      } else {
-        log.warn('No Safes found for this owner in the Transaction Service');
-      }
-    } catch (e2: any) {
-      log.warn(`Could not query owned safes: ${e2.message}`);
-    }
-    
-    // Still continue with the transaction creation (we'll fail at proposal but that's ok for debugging)
-    log.info('\nContinuing anyway to test transaction creation and signing...\n');
   }
 
   // 3) Choose nonce
@@ -134,8 +115,8 @@ export async function proposeSafeTx({
   log.info({ safeTxHash, senderAddress, isOwner, owners }, "tx: hashed & signed");
   
   if (!isOwner) {
-    log.warn('WARNING: Signer is not an owner of this Safe!');
-    log.warn(`Signer: ${senderAddress}`);
+    log.warn('WARNING: Proposer is not an owner of this Safe!');
+    log.warn(`Proposer: ${senderAddress}`);
     log.warn(`Safe owners: ${owners.join(', ')}`);
   }
 
@@ -156,7 +137,7 @@ export async function proposeSafeTx({
   log.info('===========================');
   
   await api.proposeTransaction(proposalData);
-  log.info({ safeTxHash, nonce }, "tx: proposed"); // proposeTransaction. :contentReference[oaicite:4]{index=4}
+  log.info({ safeTxHash, nonce }, "tx: proposed");
 
   return { safeTxHash, nonce };
 }
@@ -167,8 +148,9 @@ async function main() {
   const safeAddress = process.env.SAFE_ADDRESS;
   const proposerPrivateKey = process.env.SAFE_PROPOSER_PK;
   const rpcUrl = process.env.RPC_URL;
-  const chainId = process.env.CHAIN_ID;
+  const safeTxPayload = process.env.SAFE_TX_PAYLOAD;
   
+  // Validation
   if (!safeAddress) {
     console.error('Error: SAFE_ADDRESS environment variable is required');
     process.exit(1);
@@ -181,37 +163,72 @@ async function main() {
     console.error('Error: RPC_URL environment variable is required');
     process.exit(1);
   }
-  if (!chainId) {
-    console.error('Error: CHAIN_ID environment variable is required');
+  if (!safeTxPayload) {
+    console.error('Error: SAFE_TX_PAYLOAD environment variable is required');
+    process.exit(1);
+  }
+  
+  // Parse JSON payload
+  let payload: any;
+  try {
+    payload = JSON.parse(safeTxPayload);
+  } catch (error: any) {
+    console.error('Error: Failed to parse SAFE_TX_PAYLOAD JSON');
+    console.error(error.message);
+    process.exit(1);
+  }
+  
+  const txTo = payload.to;
+  const txData = payload.data;
+  
+  if (!txTo) {
+    console.error('Error: SAFE_TX_PAYLOAD.to is required');
+    process.exit(1);
+  }
+  if (!txData) {
+    console.error('Error: SAFE_TX_PAYLOAD.data is required');
     process.exit(1);
   }
 
-  console.log('======== Safe Transaction Proposal Test ========');
+  // Auto-detect chainId from RPC
+  let chainId: bigint;
+  try {
+    const provider = new providers.JsonRpcProvider(rpcUrl);
+    const network = await provider.getNetwork();
+    chainId = BigInt(network.chainId);
+    console.log(`Auto-detected Chain ID: ${chainId}`);
+  } catch (error: any) {
+    console.error('Error: Failed to detect chainId from RPC');
+    console.error(error.message);
+    process.exit(1);
+  }
+
+  // Build transaction
+  const transactions: MetaTransactionData[] = [{
+    to: txTo,
+    value: "0",
+    data: txData,
+    operation: 0 // CALL
+  }];
+
+  console.log('======== Safe Transaction Proposal ========');
   console.log(`Safe Address: ${safeAddress}`);
   console.log(`Chain ID: ${chainId}`);
   console.log(`RPC URL: ${rpcUrl}`);
+  console.log(`To: ${txTo}`);
+  console.log(`Data: ${txData}`);
   console.log('');
-
-  // Dummy transaction data (sending 0 ETH to the Safe itself - harmless)
-  const dummyTransactions: MetaTransactionData[] = [
-    {
-      to: safeAddress,
-      value: '0',
-      data: '0x', // empty data
-    }
-  ];
 
   try {
     const result = await proposeSafeTx({
       rpcUrl,
-      chainId: BigInt(chainId),
+      chainId,
       safeAddress,
       proposerPrivateKey,
-      transactions: dummyTransactions,
-      explicitNonce: process.env.SAFE_NONCE ? parseInt(process.env.SAFE_NONCE) : undefined, // Optional: use explicit nonce
+      transactions,
       apiKey: process.env.SAFE_API_KEY, // Optional
       txServiceUrl: process.env.SAFE_TX_SERVICE_URL, // Optional
-      origin: 'propose-safe-tx-test',
+      origin: process.env.SAFE_ORIGIN, // Optional
       logger: console,
     });
 
