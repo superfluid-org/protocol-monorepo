@@ -74,12 +74,7 @@ contract UpgradeFramework is Script {
         console.log("Release version: %s", config.version);
         console.log("Deployer: %s", config.deployer);
 
-        // Start broadcasting - Forge will use the account specified via --account flag
-        vm.startBroadcast();
-
         _deployUpgrade(config);
-
-        vm.stopBroadcast();
 
         console.log("======== Upgrade Complete ========");
     }
@@ -100,6 +95,9 @@ contract UpgradeFramework is Script {
         
         // Load existing contracts
         contracts = _loadExistingContracts(config);
+
+        // Start broadcasting - Forge will use the account specified via --account flag
+        vm.startBroadcast();
         
         // Deploy all new contract logics
         NewDeployedContracts memory newContracts = _deployAllNewContracts(config, contracts);
@@ -109,6 +107,8 @@ contract UpgradeFramework is Script {
         
         // Update resolver with version string
         _updateResolver(contracts, config);
+
+        vm.stopBroadcast();
         
         console.log("Upgrade deployment completed successfully");
     }

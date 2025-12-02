@@ -2,6 +2,8 @@
 
 set -e
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 # read the network name from the command line
 NETWORK=$1
 
@@ -63,8 +65,39 @@ echo "Using RESOLVER_ADDRESS: $RESOLVER_ADDRESS"
 
 # Set VERSION_STRING if not already set
 if [ -z "$VERSION_STRING" ]; then
-    GIT_REVISION=$(git rev-parse HEAD | cut -c1-16)
+    # Get the latest tag starting with "ethereum-contracts@"
+    LATEST_TAG=$(git tag -l "ethereum-contracts@*" --sort=-version:refname | head -n1)
+    if [ -z "$LATEST_TAG" ]; then
+        echo "Error: No tag found starting with 'ethereum-contracts@'"
+        exit 1
+    fi
+    
+    # Extract version from tag (part after @)
+    TAG_VERSION=${LATEST_TAG#ethereum-contracts@}
+    # Strip leading 'v' if present
+    TAG_VERSION=${TAG_VERSION#v}
+    
+    # Get version from package.json
     PACKAGE_VERSION=$(cat ../ethereum-contracts/package.json | jq -r '.version')
+    
+    # Verify versions match
+    if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+        echo "Error: Tag version ($TAG_VERSION) does not match package.json version ($PACKAGE_VERSION)"
+        exit 1
+    fi
+    
+    # Get commit hash from the tag
+    TAGGED_COMMIT=$(git rev-list -n 1 "$LATEST_TAG")
+    GIT_REVISION=$(echo "$TAGGED_COMMIT" | cut -c1-16)
+    
+    # Sanity check: verify the latest change in contracts/ matches the tagged commit
+    LATEST_CONTRACTS_COMMIT=$(git log -1 --format=%H -- contracts/)
+    if [ "$TAGGED_COMMIT" != "$LATEST_CONTRACTS_COMMIT" ]; then
+        echo "Warning: Latest commit modifying contracts/ ($LATEST_CONTRACTS_COMMIT) does not match tagged commit ($TAGGED_COMMIT)"
+        echo "The tag may not contain the latest contract changes."
+        exit 1
+    fi
+    
     VERSION_STRING="${PACKAGE_VERSION}-${GIT_REVISION}"
 fi
 
@@ -88,4 +121,34 @@ if [ -z "$DRY_RUN" ]; then
 fi
 FORGE_CMD="$FORGE_CMD --rpc-url \"$PROVIDER_URL\" --account \"$WALLET_NAME\""
 
-eval $FORGE_CMD || { echo "Forge script failed"; exit 1; }
+SCRIPT_LOG=$(mktemp)
+if ! eval $FORGE_CMD | tee "$SCRIPT_LOG"; then
+    rm -f "$SCRIPT_LOG"
+    echo "Forge script failed"
+    exit 1
+fi
+
+SAFE_TX_LINES=$(grep "<<<SAFE_TX:v1>>>" "$SCRIPT_LOG" || true)
+if [ -n "$SAFE_TX_LINES" ]; then
+    echo "Captured Safe transaction payloads:"
+    while IFS= read -r safe_line; do
+        payload=${safe_line#*<<<SAFE_TX:v1>>>}
+        safe_address=$(printf '%s' "$payload" | jq -r '.safeAddress')
+        to_address=$(printf '%s' "$payload" | jq -r '.to')
+        value_hex=$(printf '%s' "$payload" | jq -r '.value')
+        data_hex=$(printf '%s' "$payload" | jq -r '.data')
+        action_type=$(printf '%s' "$payload" | jq -r '.actionType')
+        echo "  Action Type: $action_type"
+        echo "    Safe: $safe_address"
+        echo "    To: $to_address"
+        echo "    Value: $value_hex"
+        echo "    Data: $data_hex"
+        if [ -z "$DRY_RUN" ]; then
+            origin_env="${SAFE_ORIGIN:-$action_type}"
+            echo "    Proposing Safe transaction via propose-safe-tx.ts"
+            SAFE_ADDRESS="$safe_address" SAFE_TX_PAYLOAD="$payload" SAFE_ORIGIN="$origin_env" npx ts-node "$SCRIPT_DIR/propose-safe-tx.ts"
+        fi
+    done <<< "$SAFE_TX_LINES"
+fi
+
+rm -f "$SCRIPT_LOG"
