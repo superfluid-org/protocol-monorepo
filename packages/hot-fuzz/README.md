@@ -96,7 +96,7 @@ $ npx hot-fuzz contracts/YourAppHotFuzz.yaml
 ```
 
 Once it is running, what is going on is that your list of actions in addition to a preset of actions defined in
-`HotFuzzBase` are randomized as as many sequences of instructions as you configured for, are being executed.
+`HotFuzzBase` are randomized as many sequences of instructions as you configured for, are being executed.
 
 While executing these sequences of instructions, all echidna invariants are checked each time a transaction is made.
 Any violation of these invariants is considered a bug somewhere in the app.

@@ -453,11 +453,6 @@ contract ConstantFlowAgreementV1 is
                 ctx, currentContext);
         }
 
-        // solhint-disable-next-line no-empty-blocks
-        try flowVars.token.emitPseudoTransfer(flowVars.sender, flowVars.receiver) {}
-        // solhint-disable-next-line no-empty-blocks
-        catch {}
-
         _requireAvailableBalance(flowVars.token, flowVars.sender, currentContext);
     }
 
@@ -597,11 +592,6 @@ contract ConstantFlowAgreementV1 is
                     newCtx, currentContext);
             }
         }
-
-        // solhint-disable-next-line no-empty-blocks
-        try flowVars.token.emitPseudoTransfer(flowVars.sender, flowVars.receiver) {}
-        // solhint-disable-next-line no-empty-blocks
-        catch {}
     }
 
     /**************************************************************************
