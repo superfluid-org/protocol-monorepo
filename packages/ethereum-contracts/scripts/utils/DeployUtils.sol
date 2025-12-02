@@ -107,17 +107,17 @@ library DeployUtils {
             
             // Output Safe transaction details to stdout for TypeScript layer to capture
             // Using a special marker that TypeScript can parse from the output
+            // Using checksummed addresses (EIP-55) for better compatibility
             string memory safeTxJson = string(abi.encodePacked(
-                "{\"safeAddress\":\"", Strings.toHexString(uint160(adminAddress), 20), "\",",
-                "\"to\":\"", Strings.toHexString(uint160(targetContract), 20), "\",",
+                "{\"safeAddress\":\"", Strings.toChecksumHexString(adminAddress), "\",",
+                "\"to\":\"", Strings.toChecksumHexString(targetContract), "\",",
                 "\"value\":\"0\",",
                 "\"data\":\"0x", _bytesToHex(actionData), "\",",
+                "\"operation\":\"0\",",
                 "\"actionType\":\"", actionType, "\"}"
             ));
             
-            console.log("<<<SAFE_TX_START>>>");
-            console.log(safeTxJson);
-            console.log("<<<SAFE_TX_END>>>");
+            console.log("<<<SAFE_TX:v1>>>%s", safeTxJson);
             console.log("*** Safe transaction will be proposed by the TypeScript layer ***");
             
         } else {
