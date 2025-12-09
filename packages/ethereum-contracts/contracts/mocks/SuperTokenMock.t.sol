@@ -64,8 +64,8 @@ contract SuperTokenStorageLayoutTester is SuperToken {
         require (slot == 18 && offset == 0, "_operators changed location");
         // uses 4 slots
 
-        assembly { slot:= _reserve23.slot offset := _reserve23.offset }
-        require (slot == 23 && offset == 0, "_reserve23 changed location");
+        assembly { slot:= _reserve24.slot offset := _reserve24.offset }
+        require (slot == 24 && offset == 0, "_reserve24 changed location");
 
         assembly { slot:= _reserve31.slot offset := _reserve31.offset }
         require (slot == 31 && offset == 0, "_reserve31 changed location");

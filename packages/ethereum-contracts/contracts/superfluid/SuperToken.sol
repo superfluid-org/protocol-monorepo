@@ -11,6 +11,7 @@ import {
     IERC20,
     IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
+import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
 import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -82,15 +83,16 @@ contract SuperToken is
     /// @dev ERC20 Nonces for EIP-2612 (permit)
     mapping(address account => uint256) internal _nonces;
 
+    IYieldBackend public yieldBackend;
+
     // NOTE: for future compatibility, these are reserved solidity slots
-    // The sub-class of SuperToken solidity slot will start after _reserve22
+    // The sub-class of SuperToken solidity slot will start after _reserve24
 
     // NOTE: Whenever modifying the storage layout here it is important to update the validateStorageLayout
     // function in its respective mock contract to ensure that it doesn't break anything or lead to unexpected
     // behaviors/layout when upgrading
 
-    uint256 internal _reserve23;
-    uint256 private _reserve24;
+    uint256 internal _reserve24;
     uint256 private _reserve25;
     uint256 private _reserve26;
     uint256 private _reserve27;
@@ -135,6 +137,30 @@ contract SuperToken is
 
         // initialize the Super Token
         _initialize(underlyingToken, underlyingDecimals, n, s, address(0));
+    }
+
+    function enableYieldBackend(IYieldBackend newYieldBackend) external onlyAdmin {
+        require(address(yieldBackend) == address(0));
+        yieldBackend = newYieldBackend;
+        (bool success, ) = address(yieldBackend).delegatecall(
+            //abi.encodeWithSignature("init(bytes)", yieldBackend.getConfig())
+            abi.encodeCall(IYieldBackend.init, (yieldBackend.getConfig()))
+        );
+        require(success, "delegatecall failed");
+        yieldBackend.depositMax();
+        // TODO: emit event
+    }
+
+    // withdraws everything and removes allowances
+    function disableYieldBackend() external onlyAdmin {
+        yieldBackend.withdrawMax();
+        (bool success, ) = address(yieldBackend).delegatecall(
+            abi.encodeWithSignature("deinit(bytes)", yieldBackend.getConfig())
+        );
+        // TODO: should this be allowed to fail?
+        require(success, "delegatecall failed");
+        yieldBackend = IYieldBackend(address(0));
+        // TODO: emit event
     }
 
     /// @dev Initialize the Super Token proxy with an admin
@@ -839,6 +865,11 @@ contract SuperToken is
         uint256 actualUpgradedAmount = amountAfter - amountBefore;
         if (underlyingAmount != actualUpgradedAmount) revert SUPER_TOKEN_INFLATIONARY_DEFLATIONARY_NOT_SUPPORTED();
 
+        if (address(yieldBackend) != address(0)) {
+            // TODO: shall we deposit all, or just the upgradeAmount?
+            yieldBackend.deposit(actualUpgradedAmount);
+        }
+
         _mint(operator, to, adjustedAmount,
             // if `userData.length` is greater than 0, we set invokeHook and requireReceptionAck true
             userData.length != 0, userData.length != 0, userData, operatorData);
@@ -860,6 +891,11 @@ contract SuperToken is
 
          // _burn will check the (actual) amount availability again
          _burn(operator, account, adjustedAmount, userData.length != 0, userData, operatorData);
+
+        if (address(yieldBackend) != address(0)) {
+            // TODO: we may want to skip if enough underlying already in the contract
+            yieldBackend.withdraw(underlyingAmount);
+        }
 
         uint256 amountBefore = _underlyingToken.balanceOf(address(this));
         _underlyingToken.safeTransfer(to, underlyingAmount);

@@ -614,5 +614,4 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
 
     /// @dev The msg.sender must be the contract itself
     //modifier onlySelf() virtual
-
 }
