@@ -63,12 +63,22 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
      */
     function changeAdmin(address newAdmin) external;
 
+
     event AdminChanged(address indexed oldAdmin, address indexed newAdmin);
 
     /**
      * @dev Returns the admin address for the SuperToken
      */
     function getAdmin() external view returns (address admin);
+
+    /**
+     * @notice Sets the yield backend for the SuperToken
+     * @dev Only the admin can call this function
+     * @param yieldBackend Address of the yield backend contract, or address(0) to disable the yield backend
+     */
+    function setYieldBackend(address yieldBackend) external;
+
+    function getYieldBackend() external view returns (address yieldBackend);
 
     /**************************************************************************
     * Immutable variables

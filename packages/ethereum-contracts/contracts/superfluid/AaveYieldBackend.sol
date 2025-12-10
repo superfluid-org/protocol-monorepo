@@ -36,6 +36,8 @@ contract AaveYieldBackend is Ownable, IYieldBackend {
         // (safe pattern: immutable approval reduces gas & friction)
         assetToken.approve(address(aavePool), type(uint256).max);
 
+        // TODO: aavePool seems to have implicit allowance to aTokens.
+
         A_TOKEN = IERC20(aavePool.getReserveAToken(address(assetToken)));
     }
 
@@ -49,7 +51,7 @@ contract AaveYieldBackend is Ownable, IYieldBackend {
     // to be invoked as delegatecall
     // CANNOT ACCESS STATE OF THIS CONTRACT!
     // TODO: how can we single this out such that it can't access state?
-    function init(bytes memory config) external {
+    function delegateInitSuperToken(bytes memory config) external {
         Config memory c = abi.decode(config, (Config));
         IERC20(c.assetTokenAddr).approve(c.spender, type(uint256).max);
         IERC20(c.aTokenAddr).approve(c.spender, type(uint256).max);
@@ -57,7 +59,7 @@ contract AaveYieldBackend is Ownable, IYieldBackend {
 
     // to be invoked as delegatecall
     // CANNOT ACCESS STATE OF THIS CONTRACT!
-    function deinit(bytes memory config) external {
+    function delegateDeinitSuperToken(bytes memory config) external {
         Config memory c = abi.decode(config, (Config));
         IERC20(c.assetTokenAddr).approve(c.spender, 0);
         IERC20(c.aTokenAddr).approve(c.spender, 0);

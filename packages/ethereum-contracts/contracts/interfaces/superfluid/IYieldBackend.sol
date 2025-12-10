@@ -11,13 +11,13 @@ pragma solidity ^0.8.23;
  * one -> no means withdraw not in the context of a downgrade.
  */
 interface IYieldBackend {
-    // returns the config to be provided to init() and deinit()
+    // returns the config to be provided to delegateInitSuperToken() and deinit()
     function getConfig() external returns (bytes memory config);
 
     // to be invoked as delegatecall
-    function init(bytes memory config) external;
+    function delegateInitSuperToken(bytes memory config) external;
     // to be invoked as delegatecall
-    function deinit(bytes memory config) external;
+    function delegateDeinitSuperToken(bytes memory config) external;
 
     function deposit(uint256 amount) external;
     function depositMax() external;

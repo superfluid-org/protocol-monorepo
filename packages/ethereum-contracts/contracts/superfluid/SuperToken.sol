@@ -83,7 +83,8 @@ contract SuperToken is
     /// @dev ERC20 Nonces for EIP-2612 (permit)
     mapping(address account => uint256) internal _nonces;
 
-    IYieldBackend public yieldBackend;
+    // TODO: use a randomly located storage slot instead?
+    IYieldBackend internal _yieldBackend;
 
     // NOTE: for future compatibility, these are reserved solidity slots
     // The sub-class of SuperToken solidity slot will start after _reserve24
@@ -137,30 +138,6 @@ contract SuperToken is
 
         // initialize the Super Token
         _initialize(underlyingToken, underlyingDecimals, n, s, address(0));
-    }
-
-    function enableYieldBackend(IYieldBackend newYieldBackend) external onlyAdmin {
-        require(address(yieldBackend) == address(0));
-        yieldBackend = newYieldBackend;
-        (bool success, ) = address(yieldBackend).delegatecall(
-            //abi.encodeWithSignature("init(bytes)", yieldBackend.getConfig())
-            abi.encodeCall(IYieldBackend.init, (yieldBackend.getConfig()))
-        );
-        require(success, "delegatecall failed");
-        yieldBackend.depositMax();
-        // TODO: emit event
-    }
-
-    // withdraws everything and removes allowances
-    function disableYieldBackend() external onlyAdmin {
-        yieldBackend.withdrawMax();
-        (bool success, ) = address(yieldBackend).delegatecall(
-            abi.encodeWithSignature("deinit(bytes)", yieldBackend.getConfig())
-        );
-        // TODO: should this be allowed to fail?
-        require(success, "delegatecall failed");
-        yieldBackend = IYieldBackend(address(0));
-        // TODO: emit event
     }
 
     /// @dev Initialize the Super Token proxy with an admin
@@ -221,6 +198,41 @@ contract SuperToken is
         }
     }
 
+    function setYieldBackend(address newYieldBackend) external onlyAdmin {
+        if (address(_yieldBackend) != address(0)) {
+            _disableYieldBackend();
+        }
+        if (address(newYieldBackend) != address(0)) {
+            _enableYieldBackend(IYieldBackend(newYieldBackend));
+        }
+    }
+
+    function _enableYieldBackend(IYieldBackend newYieldBackend) internal {
+        require(address(_yieldBackend) == address(0));
+        _yieldBackend = newYieldBackend;
+        (bool success, ) = address(_yieldBackend).delegatecall(
+            abi.encodeCall(IYieldBackend.delegateInitSuperToken, (_yieldBackend.getConfig()))
+        );
+        require(success, "delegatecall failed");
+        _yieldBackend.depositMax();
+        // TODO: emit event
+    }
+
+    // withdraws everything and removes allowances
+    function _disableYieldBackend() internal {
+        _yieldBackend.withdrawMax();
+        (bool success, ) = address(_yieldBackend).delegatecall(
+            abi.encodeCall(IYieldBackend.delegateDeinitSuperToken, (_yieldBackend.getConfig()))
+        );
+        // TODO: should this be allowed to fail?
+        require(success, "delegatecall failed");
+        _yieldBackend = IYieldBackend(address(0));
+        // TODO: emit event
+    }
+
+    function getYieldBackend() external view returns (address) {
+        return address(_yieldBackend);
+    }
 
     /**************************************************************************
      * ERC20 Token Info
@@ -865,9 +877,9 @@ contract SuperToken is
         uint256 actualUpgradedAmount = amountAfter - amountBefore;
         if (underlyingAmount != actualUpgradedAmount) revert SUPER_TOKEN_INFLATIONARY_DEFLATIONARY_NOT_SUPPORTED();
 
-        if (address(yieldBackend) != address(0)) {
+        if (address(_yieldBackend) != address(0)) {
             // TODO: shall we deposit all, or just the upgradeAmount?
-            yieldBackend.deposit(actualUpgradedAmount);
+            _yieldBackend.deposit(actualUpgradedAmount);
         }
 
         _mint(operator, to, adjustedAmount,
@@ -892,9 +904,9 @@ contract SuperToken is
          // _burn will check the (actual) amount availability again
          _burn(operator, account, adjustedAmount, userData.length != 0, userData, operatorData);
 
-        if (address(yieldBackend) != address(0)) {
+        if (address(_yieldBackend) != address(0)) {
             // TODO: we may want to skip if enough underlying already in the contract
-            yieldBackend.withdraw(underlyingAmount);
+            _yieldBackend.withdraw(underlyingAmount);
         }
 
         uint256 amountBefore = _underlyingToken.balanceOf(address(this));

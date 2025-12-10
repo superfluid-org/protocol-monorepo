@@ -83,7 +83,7 @@ contract SuperTokenYieldForkTest is Test {
 
     function _enableYieldBackend() public {
         vm.startPrank(address(superToken.getHost()));
-        superToken.enableYieldBackend(aaveBackend);
+        superToken.setYieldBackend(address(aaveBackend));
         vm.stopPrank();
     }
     
@@ -102,7 +102,7 @@ contract SuperTokenYieldForkTest is Test {
     }
     
     /// @notice Test AaveBackend getConfig function
-    function testAaveBackendGetConfig() public {
+    function testAaveBackendGetConfig() public view {
         bytes memory config = aaveBackend.getConfig();
         assertTrue(config.length > 0, "Config should not be empty");
         Config memory c = abi.decode(config, (Config));
@@ -117,7 +117,7 @@ contract SuperTokenYieldForkTest is Test {
 
         _enableYieldBackend();
 
-        assertEq(address(superToken.yieldBackend()), address(aaveBackend), "Yield backend mismatch");
+        assertEq(address(superToken.getYieldBackend()), address(aaveBackend), "Yield backend mismatch");
         
         // Check if SuperToken has approved AaveBackend to spend USDC
         uint256 usdcAllowance = IERC20(USDC).allowance(address(superToken), address(aaveBackend));
@@ -146,9 +146,9 @@ contract SuperTokenYieldForkTest is Test {
         _enableYieldBackend();
 
         vm.startPrank(address(superToken.getHost()));
-        superToken.disableYieldBackend();
+        superToken.setYieldBackend(address(0));
         vm.stopPrank();
-        assertEq(address(superToken.yieldBackend()), address(0), "Yield backend mismatch");
+        assertEq(address(superToken.getYieldBackend()), address(0), "Yield backend mismatch");
 
         // the SuperToken should now have a non-zero USDC balance and a zero aUSDC balance
         assertGt(IERC20(USDC).balanceOf(address(superToken)), 0, "USDC balance should be non-zero");
