@@ -190,5 +190,127 @@ contract SuperTokenYieldForkTest is Test {
 
         uint256 aTokenBalanceAfterDowngrade = IERC20(aUSDC).balanceOf(address(superToken));
     }
+
+    // ============ Gas Benchmarking Tests ============
+
+    /// @notice Test gas cost of upgrade WITHOUT yield backend
+    /// @dev Separate test function to avoid cold/warm storage slot interference
+    function testGasUpgrade_WithoutYieldBackend() public {
+        // Ensure yield backend is NOT set
+        vm.startPrank(address(superToken.getHost()));
+        superToken.setYieldBackend(address(0));
+        vm.stopPrank();
+        assertEq(address(superToken.getYieldBackend()), address(0), "Yield backend should not be set");
+
+        // Prepare test state
+        // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
+        // In SuperToken units (18 decimals), this is 1000 * 1e18
+        uint256 upgradeAmount = 1000 * 1e18;
+        deal(USDC, ALICE, 1000 * 1e6);
+        vm.startPrank(ALICE);
+        IERC20(USDC).approve(address(superToken), type(uint256).max);
+        
+        // Measure gas for upgrade
+        uint256 gasBefore = gasleft();
+        superToken.upgrade(upgradeAmount);
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        console.log("=== Gas: Upgrade WITHOUT Yield Backend ===");
+        console.log("Gas used", gasUsed);
+        console.log("Amount upgraded", upgradeAmount);
+    }
+
+    /// @notice Test gas cost of upgrade WITH yield backend
+    /// @dev Separate test function to avoid cold/warm storage slot interference
+    function testGasUpgrade_WithYieldBackend() public {
+        // Enable yield backend
+        _enableYieldBackend();
+        assertEq(address(superToken.getYieldBackend()), address(aaveBackend), "Yield backend should be set");
+
+        // Prepare test state
+        // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
+        // In SuperToken units (18 decimals), this is 1000 * 1e18
+        uint256 upgradeAmount = 1000 * 1e18;
+        deal(USDC, ALICE, 1000 * 1e6);
+        vm.startPrank(ALICE);
+        IERC20(USDC).approve(address(superToken), type(uint256).max);
+        
+        // Measure gas for upgrade
+        uint256 gasBefore = gasleft();
+        superToken.upgrade(upgradeAmount);
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        console.log("=== Gas: Upgrade WITH Yield Backend ===");
+        console.log("Gas used", gasUsed);
+        console.log("Amount upgraded", upgradeAmount);
+    }
+
+    /// @notice Test gas cost of downgrade WITHOUT yield backend
+    /// @dev Separate test function to avoid cold/warm storage slot interference
+    function testGasDowngrade_WithoutYieldBackend() public {
+        // Ensure yield backend is NOT set
+        vm.startPrank(address(superToken.getHost()));
+        superToken.setYieldBackend(address(0));
+        vm.stopPrank();
+
+        // First, upgrade some tokens for ALICE to downgrade later
+        // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
+        // In SuperToken units (18 decimals), this is 1000 * 1e18
+        uint256 initialUpgradeAmount = 1000 * 1e18;
+        deal(USDC, ALICE, 1000 * 1e6);
+        vm.startPrank(ALICE);
+        IERC20(USDC).approve(address(superToken), type(uint256).max);
+        superToken.upgrade(initialUpgradeAmount);
+        vm.stopPrank();
+
+        uint256 aliceBalance = superToken.balanceOf(ALICE);
+        assertGt(aliceBalance, 0, "ALICE should have super tokens");
+
+        // Now measure gas for downgrade
+        vm.startPrank(ALICE);
+        uint256 amountToDowngrade = aliceBalance / 2; // Downgrade half
+        uint256 gasBefore = gasleft();
+        superToken.downgrade(amountToDowngrade);
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        console.log("=== Gas: Downgrade WITHOUT Yield Backend ===");
+        console.log("Gas used", gasUsed);
+        console.log("Amount downgraded", amountToDowngrade);
+    }
+
+    /// @notice Test gas cost of downgrade WITH yield backend
+    /// @dev Separate test function to avoid cold/warm storage slot interference
+    function testGasDowngrade_WithYieldBackend() public {
+        // Enable yield backend
+        _enableYieldBackend();
+
+        // First, upgrade some tokens for ALICE to downgrade later
+        // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
+        // In SuperToken units (18 decimals), this is 1000 * 1e18
+        uint256 initialUpgradeAmount = 1000 * 1e18;
+        deal(USDC, ALICE, 1000 * 1e6);
+        vm.startPrank(ALICE);
+        IERC20(USDC).approve(address(superToken), type(uint256).max);
+        superToken.upgrade(initialUpgradeAmount);
+        vm.stopPrank();
+
+        uint256 aliceBalance = superToken.balanceOf(ALICE);
+        assertGt(aliceBalance, 0, "ALICE should have super tokens");
+
+        // Now measure gas for downgrade
+        vm.startPrank(ALICE);
+        uint256 amountToDowngrade = aliceBalance / 2; // Downgrade half
+        uint256 gasBefore = gasleft();
+        superToken.downgrade(amountToDowngrade);
+        uint256 gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
+
+        console.log("=== Gas: Downgrade WITH Yield Backend ===");
+        console.log("Gas used", gasUsed);
+        console.log("Amount downgraded", amountToDowngrade);
+    }
 }
 
