@@ -19,7 +19,6 @@ import {
     ISuperTokenFactory,
     IAccessControl
 } from "../interfaces/superfluid/ISuperfluid.sol";
-import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
 import { GeneralDistributionAgreementV1 } from "../agreements/gdav1/GeneralDistributionAgreementV1.sol";
 import { SuperfluidUpgradeableBeacon } from "../upgradability/SuperfluidUpgradeableBeacon.sol";
 import { CallUtils } from "../libs/CallUtils.sol";
@@ -331,10 +330,6 @@ contract Superfluid is
 
     function changeSuperTokenAdmin(ISuperToken token, address newAdmin) external onlyGovernance {
         token.changeAdmin(newAdmin);
-    }
-
-    function setSuperTokenYieldBackend(ISuperToken token, address yieldBackend) external onlyGovernance {
-        token.setYieldBackend(yieldBackend);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

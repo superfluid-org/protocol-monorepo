@@ -89,19 +89,6 @@ contract SuperfluidIntegrationTest is FoundrySuperfluidTester {
         vm.stopPrank();
     }
 
-    function testSetSuperTokenYieldBackend(address yieldBackend) public {
-        // revert if not called by governance
-        vm.expectRevert(ISuperfluid.HOST_ONLY_GOVERNANCE.selector);
-        sf.host.setSuperTokenYieldBackend(superToken, yieldBackend);
-
-        // succeed if called by governance
-        vm.startPrank(address(sf.governance));
-        sf.host.setSuperTokenYieldBackend(superToken, yieldBackend);
-        vm.stopPrank();
-
-        assertEq(address(superToken.getYieldBackend()), yieldBackend, "Superfluid.t: super token yield backend not set");
-    }
-
     function testSuperAppRegistrationViaSimpleACL() public {
         SimpleACL simpleAcl = new SimpleACL();
         Superfluid hostWithSimpleACL = new Superfluid(

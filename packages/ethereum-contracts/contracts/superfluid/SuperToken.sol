@@ -198,20 +198,11 @@ contract SuperToken is
         }
     }
 
-    function setYieldBackend(address newYieldBackend) external onlyAdmin {
-        if (address(_yieldBackend) != address(0)) {
-            _disableYieldBackend();
-        }
-        if (address(newYieldBackend) != address(0)) {
-            _enableYieldBackend(IYieldBackend(newYieldBackend));
-        }
-    }
-
-    function _enableYieldBackend(IYieldBackend newYieldBackend) internal {
+    function enableYieldBackend(IYieldBackend newYieldBackend) external onlyAdmin {
         require(address(_yieldBackend) == address(0), "yield backend already set");
         _yieldBackend = newYieldBackend;
         (bool success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.initSuperToken, ())
+            abi.encodeCall(IYieldBackend.enable, ())
         );
         require(success, "delegatecall failed");
         (success, ) = address(_yieldBackend).delegatecall(
@@ -222,13 +213,14 @@ contract SuperToken is
     }
 
     // withdraws everything and removes allowances
-    function _disableYieldBackend() internal {
+    function disableYieldBackend() external onlyAdmin {
+        require(address(_yieldBackend) != address(0), "yield backend not set");
         (bool success, ) = address(_yieldBackend).delegatecall(
             abi.encodeCall(IYieldBackend.withdrawMax, ())
         );
         require(success, "delegatecall failed");
         (success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.deinitSuperToken, ())
+            abi.encodeCall(IYieldBackend.disable, ())
         );
         // TODO: should this be allowed to fail?
         require(success, "delegatecall failed");
@@ -238,6 +230,14 @@ contract SuperToken is
 
     function getYieldBackend() external view returns (address) {
         return address(_yieldBackend);
+    }
+
+    function withdrawSurplusFromYieldBackend() external onlyAdmin {
+        require(address(_yieldBackend) != address(0), "yield backend not set");
+        (bool success, ) = address(_yieldBackend).delegatecall(
+            abi.encodeCall(IYieldBackend.withdrawSurplus, (_totalSupply))
+        );
+        require(success, "delegatecall failed");
     }
 
     /**************************************************************************

@@ -141,13 +141,6 @@ abstract contract SuperfluidGovernanceBase is ISuperfluidGovernance
         host.changeSuperTokenAdmin(token, newAdmin);
     }
 
-    function setSuperTokenYieldBackend(ISuperfluid host, ISuperToken token, address yieldBackend)
-        external
-        onlyAuthorized(host)
-    {
-        token.setYieldBackend(yieldBackend);
-    }
-
     function batchChangeSuperTokenAdmin(ISuperfluid host, ISuperToken[] calldata token, address[] calldata newAdmins)
         external
         onlyAuthorized(host)

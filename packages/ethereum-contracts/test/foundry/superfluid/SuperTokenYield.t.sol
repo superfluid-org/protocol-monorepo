@@ -15,6 +15,7 @@ import { IPool } from "aave-v3/interfaces/IPool.sol";
  */
 contract SuperTokenYieldForkTest is Test {
     address constant ALICE = address(0x420);
+    address constant ADMIN = address(0xAAA);
 
     // Base network constants
     uint256 internal constant CHAIN_ID = 8453;
@@ -37,11 +38,6 @@ contract SuperTokenYieldForkTest is Test {
     /// @notice Aave V3 Pool contract
     IPool public aavePool;
     
-    /// @notice Admin address (this contract)
-    address public admin;
-    /// @notice Test user address
-    address public user;
-    
     /// @notice Set up the test environment by forking Base and deploying AaveYieldBackend
     function setUp() public {
         // Fork Base using public RPC
@@ -49,10 +45,6 @@ contract SuperTokenYieldForkTest is Test {
         
         // Verify we're on Base
         assertEq(block.chainid, CHAIN_ID, "Chainid mismatch");
-        
-        // Initialize test accounts
-        admin = address(this);
-        user = address(0x1234);
         
         // Get Aave Pool
         aavePool = IPool(AAVE_POOL);
@@ -77,13 +69,32 @@ contract SuperTokenYieldForkTest is Test {
         superToken.updateCode(address(newSuperTokenLogic));
         vm.stopPrank();
 
+        // designate an admin for the SuperToken
+        vm.startPrank(address(superToken.getHost()));
+        superToken.changeAdmin(ADMIN);
+        vm.stopPrank();
+
+        // provide ALICE with underlying and let her approve for upgrade
+        deal(USDC, ALICE, type(uint128).max);
+        vm.startPrank(ALICE);
+        IERC20(USDC).approve(address(superToken), type(uint256).max);
+
         console.log("aaveBackend address", address(aaveBackend));
     }
 
     function _enableYieldBackend() public {
-        vm.startPrank(address(superToken.getHost()));
-        superToken.setYieldBackend(address(aaveBackend));
+        vm.startPrank(ADMIN);
+        superToken.enableYieldBackend(aaveBackend);
         vm.stopPrank();
+    }
+
+    function _verifyInvariants() internal view {
+        // underlyingBalance + aTokenBalance >= superToken.supply()
+        uint256 underlyingBalance = IERC20(USDC).balanceOf(address(superToken));
+        uint256 aTokenBalance = IERC20(aUSDC).balanceOf(address(superToken));
+        (uint256 superTokenNormalizedSupply,) = superToken.toUnderlyingAmount(superToken.totalSupply());
+
+        assertGe(underlyingBalance + aTokenBalance, superTokenNormalizedSupply, "invariant failed: underlyingBalance + aTokenBalance insufficient");
     }
     
     /// @notice Test that we're forking the correct Base network
@@ -116,16 +127,14 @@ contract SuperTokenYieldForkTest is Test {
         console.log("aUSDC balance of SuperToken", IERC20(aUSDC).balanceOf(address(superToken)));
         // TODO: We'd want asset balance to equal aToken balance. But that's not exactly the case.
         // what else shall be require?
+        _verifyInvariants();
     }
 
     function testDisableYieldBackend() public {
-        // store underlying balance before enabling yield backend
-        uint256 underlyingBalanceBefore = IERC20(USDC).balanceOf(address(superToken));
-
         _enableYieldBackend();
 
-        vm.startPrank(address(superToken.getHost()));
-        superToken.setYieldBackend(address(0));
+        vm.startPrank(ADMIN);
+        superToken.disableYieldBackend();
         vm.stopPrank();
         assertEq(address(superToken.getYieldBackend()), address(0), "Yield backend mismatch");
 
@@ -133,20 +142,15 @@ contract SuperTokenYieldForkTest is Test {
         assertGt(IERC20(USDC).balanceOf(address(superToken)), 0, "USDC balance should be non-zero");
         assertEq(IERC20(aUSDC).balanceOf(address(superToken)), 0, "aUSDC balance should be zero");
 
-        // get underlying balance after disabling yield backend
-        uint256 underlyingBalanceAfter = IERC20(USDC).balanceOf(address(superToken));
-        //assertEq(underlyingBalanceAfter, underlyingBalanceBefore, "Underlying balance should be the same");
+        _verifyInvariants();
     }
 
     // TODO: bool fuzz arg for disabled/enabled backend
     function testUpgradeDowngrade() public {
         _enableYieldBackend();
 
-        deal(USDC, ALICE, 1000 ether);
-
         uint256 aTokenBalanceBefore = IERC20(aUSDC).balanceOf(address(superToken));
         vm.startPrank(ALICE);
-        IERC20(USDC).approve(address(superToken), type(uint256).max);
         superToken.upgrade(1 ether);
         vm.stopPrank();
 
@@ -167,7 +171,7 @@ contract SuperTokenYieldForkTest is Test {
         superToken.downgrade(1 ether);
         vm.stopPrank();
 
-        uint256 aTokenBalanceAfterDowngrade = IERC20(aUSDC).balanceOf(address(superToken));
+        _verifyInvariants();
     }
 
     // ============ Gas Benchmarking Tests ============
@@ -176,19 +180,13 @@ contract SuperTokenYieldForkTest is Test {
     /// @dev Separate test function to avoid cold/warm storage slot interference
     function testGasUpgrade_WithoutYieldBackend() public {
         // Ensure yield backend is NOT set
-        vm.startPrank(address(superToken.getHost()));
-        superToken.setYieldBackend(address(0));
-        vm.stopPrank();
         assertEq(address(superToken.getYieldBackend()), address(0), "Yield backend should not be set");
 
         // Prepare test state
         // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
         // In SuperToken units (18 decimals), this is 1000 * 1e18
         uint256 upgradeAmount = 1000 * 1e18;
-        deal(USDC, ALICE, 1000 * 1e6);
         vm.startPrank(ALICE);
-        IERC20(USDC).approve(address(superToken), type(uint256).max);
-        
         // Measure gas for upgrade
         uint256 gasBefore = gasleft();
         superToken.upgrade(upgradeAmount);
@@ -211,10 +209,7 @@ contract SuperTokenYieldForkTest is Test {
         // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
         // In SuperToken units (18 decimals), this is 1000 * 1e18
         uint256 upgradeAmount = 1000 * 1e18;
-        deal(USDC, ALICE, 1000 * 1e6);
         vm.startPrank(ALICE);
-        IERC20(USDC).approve(address(superToken), type(uint256).max);
-        
         // Measure gas for upgrade
         uint256 gasBefore = gasleft();
         superToken.upgrade(upgradeAmount);
@@ -230,17 +225,13 @@ contract SuperTokenYieldForkTest is Test {
     /// @dev Separate test function to avoid cold/warm storage slot interference
     function testGasDowngrade_WithoutYieldBackend() public {
         // Ensure yield backend is NOT set
-        vm.startPrank(address(superToken.getHost()));
-        superToken.setYieldBackend(address(0));
-        vm.stopPrank();
+        assertEq(address(superToken.getYieldBackend()), address(0), "Yield backend should not be set");
 
         // First, upgrade some tokens for ALICE to downgrade later
         // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
         // In SuperToken units (18 decimals), this is 1000 * 1e18
         uint256 initialUpgradeAmount = 1000 * 1e18;
-        deal(USDC, ALICE, 1000 * 1e6);
         vm.startPrank(ALICE);
-        IERC20(USDC).approve(address(superToken), type(uint256).max);
         superToken.upgrade(initialUpgradeAmount);
         vm.stopPrank();
 
@@ -270,9 +261,7 @@ contract SuperTokenYieldForkTest is Test {
         // 1000 USDC = 1000 * 1e6 (USDC has 6 decimals)
         // In SuperToken units (18 decimals), this is 1000 * 1e18
         uint256 initialUpgradeAmount = 1000 * 1e18;
-        deal(USDC, ALICE, 1000 * 1e6);
         vm.startPrank(ALICE);
-        IERC20(USDC).approve(address(superToken), type(uint256).max);
         superToken.upgrade(initialUpgradeAmount);
         vm.stopPrank();
 
@@ -290,6 +279,46 @@ contract SuperTokenYieldForkTest is Test {
         console.log("=== Gas: Downgrade WITH Yield Backend ===");
         console.log("Gas used", gasUsed);
         console.log("Amount downgraded", amountToDowngrade);
+    }
+
+    function testWithdrawSurplusFromYieldBackend() public {
+        address SURPLUS_RECEIVER = 0xac808840f02c47C05507f48165d2222FF28EF4e1;
+        
+        // Simulate yield accumulation by transferring extra underlying to SuperToken
+        uint256 surplusAmount = 100 * 1e6; // 100 USDC
+        deal(USDC, address(this), surplusAmount);
+
+        _enableYieldBackend();
+        
+        // Upgrade tokens to create supply
+        uint256 upgradeAmount = 1000 * 1e18;
+        vm.startPrank(ALICE);
+        superToken.upgrade(upgradeAmount);
+        vm.stopPrank();
+
+        uint256 receiverBalanceBefore = IERC20(USDC).balanceOf(SURPLUS_RECEIVER);
+        uint256 aTokenBalanceBefore = IERC20(aUSDC).balanceOf(address(superToken));
+
+        // log USDC and aUSDC balances of SuperToken
+        console.log("USDC balance of SuperToken", IERC20(USDC).balanceOf(address(superToken)));
+        console.log("aUSDC balance of SuperToken", IERC20(aUSDC).balanceOf(address(superToken)));
+        // log normalized total supply
+        (uint256 normalizedTotalSupply, uint256 adjustedAmount) = superToken.toUnderlyingAmount(superToken.totalSupply());
+        console.log("normalized total supply", normalizedTotalSupply);
+        console.log("adjusted amount", adjustedAmount);
+        
+        vm.startPrank(ADMIN);
+        superToken.withdrawSurplusFromYieldBackend();
+        vm.stopPrank();
+        
+        uint256 receiverBalanceAfter = IERC20(USDC).balanceOf(SURPLUS_RECEIVER);
+        uint256 aTokenBalanceAfter = IERC20(aUSDC).balanceOf(address(superToken));
+        console.log("aToken balance after", aTokenBalanceAfter);
+        console.log("aToken balance diff", aTokenBalanceBefore - aTokenBalanceAfter);
+        
+        assertGt(receiverBalanceAfter, receiverBalanceBefore, "Surplus should be withdrawn to receiver");
+        assertLt(aTokenBalanceAfter, aTokenBalanceBefore, "aToken balance should decrease");
+        _verifyInvariants();
     }
 }
 
