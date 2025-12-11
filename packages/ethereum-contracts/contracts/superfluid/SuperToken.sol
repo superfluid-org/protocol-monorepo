@@ -208,21 +208,27 @@ contract SuperToken is
     }
 
     function _enableYieldBackend(IYieldBackend newYieldBackend) internal {
-        require(address(_yieldBackend) == address(0));
+        require(address(_yieldBackend) == address(0), "yield backend already set");
         _yieldBackend = newYieldBackend;
         (bool success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.delegateInitSuperToken, (_yieldBackend.getConfig()))
+            abi.encodeCall(IYieldBackend.initSuperToken, ())
         );
         require(success, "delegatecall failed");
-        _yieldBackend.depositMax();
+        (success, ) = address(_yieldBackend).delegatecall(
+            abi.encodeCall(IYieldBackend.depositMax, ())
+        );
+        require(success, "delegatecall failed");
         // TODO: emit event
     }
 
     // withdraws everything and removes allowances
     function _disableYieldBackend() internal {
-        _yieldBackend.withdrawMax();
         (bool success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.delegateDeinitSuperToken, (_yieldBackend.getConfig()))
+            abi.encodeCall(IYieldBackend.withdrawMax, ())
+        );
+        require(success, "delegatecall failed");
+        (success, ) = address(_yieldBackend).delegatecall(
+            abi.encodeCall(IYieldBackend.deinitSuperToken, ())
         );
         // TODO: should this be allowed to fail?
         require(success, "delegatecall failed");
@@ -879,7 +885,10 @@ contract SuperToken is
 
         if (address(_yieldBackend) != address(0)) {
             // TODO: shall we deposit all, or just the upgradeAmount?
-            _yieldBackend.deposit(actualUpgradedAmount);
+            (bool success, ) = address(_yieldBackend).delegatecall(
+                abi.encodeCall(IYieldBackend.deposit, (actualUpgradedAmount))
+            );
+            require(success, "delegatecall failed");
         }
 
         _mint(operator, to, adjustedAmount,
@@ -906,7 +915,10 @@ contract SuperToken is
 
         if (address(_yieldBackend) != address(0)) {
             // TODO: we may want to skip if enough underlying already in the contract
-            _yieldBackend.withdraw(underlyingAmount);
+            (bool success, ) = address(_yieldBackend).delegatecall(
+                abi.encodeCall(IYieldBackend.withdraw, (underlyingAmount))
+            );
+            require(success, "delegatecall failed");
         }
 
         uint256 amountBefore = _underlyingToken.balanceOf(address(this));

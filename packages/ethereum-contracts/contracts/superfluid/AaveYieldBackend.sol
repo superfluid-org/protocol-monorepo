@@ -2,104 +2,68 @@
 pragma solidity ^0.8.23;
 
 import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
-import { DataTypes } from "aave-v3/protocol/libraries/types/DataTypes.sol";
 import { IPool } from "aave-v3/interfaces/IPool.sol";
-import { Ownable } from "@openzeppelin-v5/contracts/access/Ownable.sol";
 import { IERC20 } from "../interfaces/superfluid/ISuperfluid.sol";
 
 
-struct Config {
-    address assetTokenAddr;
-    address aTokenAddr;
-    address spender;
-}
-
-contract AaveYieldBackend is Ownable, IYieldBackend {
+/**
+ * Aave supports a simple deposit/withdraw workflow nicely matching the IYieldBackend interface.
+ * Deposits are represented by transferrable aTokens.
+ *
+ * This contract is conceptually a hot-pluggable library.
+ * All methods are supposed to be invoked as delegatecall.
+ */
+contract AaveYieldBackend is IYieldBackend {
     IERC20 public immutable ASSET_TOKEN;
     IPool public immutable AAVE_POOL;
     IERC20 public immutable A_TOKEN;
 
-    // TODO: what preconditions shall be checked?
+    // THIS CONTRACT CANNOT HAVE STATE VARIABLES!
+    // IF STATE IS NEEDED, USE NAMESPACED STORAGE LAYOUT (EIP-7201)
+
     /**
      * @param assetToken the asset (Aave terminology) supplied to Aave for yield. Typically, this will be 
      * the underlyingToken of a SuperToken.
      * @param aavePool the Aave pool
-     * @param owner the account allowed to deposit and withdraw via this contract. To be set to a SuperToken.
      */
-    constructor(IERC20 assetToken, IPool aavePool, address owner)
-        Ownable(owner)
-    {
+    constructor(IERC20 assetToken, IPool aavePool) {
+        // TODO: any checks to be done?
         ASSET_TOKEN = assetToken;
         AAVE_POOL = IPool(aavePool);
-
-        // Grant unlimited approval to Aave pool
-        // (safe pattern: immutable approval reduces gas & friction)
-        assetToken.approve(address(aavePool), type(uint256).max);
-
-        // TODO: aavePool seems to have implicit allowance to aTokens.
-
         A_TOKEN = IERC20(aavePool.getReserveAToken(address(assetToken)));
     }
 
-    // returns the config to be provided to delegate init() and deinit() calls
-    function getConfig() external view returns (bytes memory config) {
-        return abi.encode(Config({
-            aTokenAddr: address(A_TOKEN), spender: address(this), assetTokenAddr: address(ASSET_TOKEN)
-        }));
+    function init() external {
+        // approve Aave pool to fetch asset
+        ASSET_TOKEN.approve(address(AAVE_POOL), type(uint256).max);
     }
 
-    // to be invoked as delegatecall
-    // CANNOT ACCESS STATE OF THIS CONTRACT!
-    // TODO: how can we single this out such that it can't access state?
-    function delegateInitSuperToken(bytes memory config) external {
-        Config memory c = abi.decode(config, (Config));
-        IERC20(c.assetTokenAddr).approve(c.spender, type(uint256).max);
-        IERC20(c.aTokenAddr).approve(c.spender, type(uint256).max);
+    function deinit() external {
+        // Revoke approval
+        ASSET_TOKEN.approve(address(AAVE_POOL), 0);
     }
 
-    // to be invoked as delegatecall
-    // CANNOT ACCESS STATE OF THIS CONTRACT!
-    function delegateDeinitSuperToken(bytes memory config) external {
-        Config memory c = abi.decode(config, (Config));
-        IERC20(c.assetTokenAddr).approve(c.spender, 0);
-        IERC20(c.aTokenAddr).approve(c.spender, 0);
-    }
-
-    /// @notice Caller deposits tokens into Aave V3
-    function deposit(uint256 amount) public onlyOwner {
+    function deposit(uint256 amount) external {
+        // TODO: can this constraint break anything?
         require(amount > 0, "amount must be greater than 0");
-        // TODO: how to handle 0 amount?
-
-        // Pull tokens from caller
-        require(ASSET_TOKEN.transferFrom(msg.sender, address(this), amount), "transferFrom failed");
-
-        // Deposit into Aave on behalf of this contract
-        AAVE_POOL.supply(address(ASSET_TOKEN), amount, owner(), 0);
+        // Deposit asset and get back aTokens
+        AAVE_POOL.supply(address(ASSET_TOKEN), amount, address(this), 0);
     }
 
-    function depositMax() external onlyOwner {
-        // determine max amount: all of the underlying
-        // TODO: take into account the max supported by the pool
-        
-        uint256 amount = ASSET_TOKEN.balanceOf(owner());
-        deposit(amount);
+    function depositMax() external {
+        uint256 amount = ASSET_TOKEN.balanceOf(address(this));
+        if (amount > 0) {
+            AAVE_POOL.supply(address(ASSET_TOKEN), amount, address(this), 0);
+        }
     }
 
-    /// @notice Caller withdraws tokens from Aave V3
-    function withdraw(uint256 amount) public onlyOwner {
-        // TODO: how to handle 0 amount?
-
-        A_TOKEN.transferFrom(owner(), address(this), A_TOKEN.balanceOf(owner()));
-
-        // Withdraw from Aave to this contract
-        uint256 withdrawnAmount = AAVE_POOL.withdraw(address(ASSET_TOKEN), amount, address(this));
-
-        // Transfer to caller
-        require(ASSET_TOKEN.transfer(msg.sender, withdrawnAmount), "transfer failed");
+    function withdraw(uint256 amount) external {
+        // withdraw amount asset by redeeming the corresponding aTokens amount
+        AAVE_POOL.withdraw(address(ASSET_TOKEN), amount, address(this));
     }
 
-    function withdrawMax() external onlyOwner {
-        // we can delegate the calculation to the pool by setting amount to type(uint256).max
-        withdraw(type(uint256).max);
+    function withdrawMax() external {
+        // We can delegate the max calculation to the Aave pool by setting amount to type(uint256).max
+        AAVE_POOL.withdraw(address(ASSET_TOKEN), type(uint256).max, address(this));
     }
 }

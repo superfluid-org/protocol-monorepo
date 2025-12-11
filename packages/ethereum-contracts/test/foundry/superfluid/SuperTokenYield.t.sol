@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import { Test } from "forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
-import { AaveYieldBackend, Config } from "../../../contracts/superfluid/AaveYieldBackend.sol";
+import { AaveYieldBackend } from "../../../contracts/superfluid/AaveYieldBackend.sol";
 import { IERC20, ISuperfluid } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IPool } from "aave-v3/interfaces/IPool.sol";
@@ -65,12 +65,11 @@ contract SuperTokenYieldForkTest is Test {
         // Deploy AaveBackend
         // Note: In a real scenario, the owner would be the SuperToken contract
         // For testing, we use this contract as owner
-        aaveBackend = new AaveYieldBackend(IERC20(USDC), IPool(AAVE_POOL), USDCx);
+        aaveBackend = new AaveYieldBackend(IERC20(USDC), IPool(AAVE_POOL));
         
         // Verify AaveBackend was deployed correctly
         assertEq(address(aaveBackend.ASSET_TOKEN()), USDC, "Asset token mismatch");
         assertEq(address(aaveBackend.AAVE_POOL()), AAVE_POOL, "Aave pool mismatch");
-        assertEq(aaveBackend.owner(), USDCx, "Owner mismatch");
 
         // upgrade SuperToken to new logic
         SuperToken newSuperTokenLogic = new SuperToken(ISuperfluid(superToken.getHost()), superToken.POOL_ADMIN_NFT());
@@ -101,16 +100,6 @@ contract SuperTokenYieldForkTest is Test {
         assertTrue(address(aaveBackend.A_TOKEN()) != address(0), "aToken should be set");
     }
     
-    /// @notice Test AaveBackend getConfig function
-    function testAaveBackendGetConfig() public view {
-        bytes memory config = aaveBackend.getConfig();
-        assertTrue(config.length > 0, "Config should not be empty");
-        Config memory c = abi.decode(config, (Config));
-        assertEq(c.assetTokenAddr, USDC, "Asset token mismatch");
-        assertEq(c.aTokenAddr, aUSDC, "Aave token mismatch");
-        assertEq(c.spender, address(aaveBackend), "Spender mismatch");
-    }
-
     function testEnableYieldBackend() public {
         // log USDC balance of SuperToken
         console.log("USDC balance of SuperToken", IERC20(USDC).balanceOf(address(superToken)));
@@ -118,16 +107,6 @@ contract SuperTokenYieldForkTest is Test {
         _enableYieldBackend();
 
         assertEq(address(superToken.getYieldBackend()), address(aaveBackend), "Yield backend mismatch");
-        
-        // Check if SuperToken has approved AaveBackend to spend USDC
-        uint256 usdcAllowance = IERC20(USDC).allowance(address(superToken), address(aaveBackend));
-        console.log("USDC allowance from SuperToken to AaveBackend", usdcAllowance);
-//        assertEq(usdcAllowance, type(uint256).max, "SuperToken should have approved AaveBackend to spend USDC");
-        
-        // Check if SuperToken has approved AaveBackend to spend aUSDC
-        uint256 ausdcAllowance = IERC20(aUSDC).allowance(address(superToken), address(aaveBackend));
-        console.log("aUSDC allowance from SuperToken to AaveBackend", ausdcAllowance);
-        assertEq(ausdcAllowance, type(uint256).max, "SuperToken should have approved AaveBackend to spend aUSDC");
         
         // the SuperToken should now have a zero USDC balance and a non-zero aUSDC balance
         assertEq(IERC20(USDC).balanceOf(address(superToken)), 0, "USDC balance should be zero");
