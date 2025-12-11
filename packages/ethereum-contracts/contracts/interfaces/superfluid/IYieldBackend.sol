@@ -9,21 +9,40 @@ pragma solidity ^0.8.23;
  * one -> another could be seen as a composition of one -> no -> another
  *
  * one -> no means withdraw not in the context of a downgrade.
+ *
+ * Contracts implementing this act as a kind of hot-pluggable library,
+ * using delegatecall to execute its logic on the SuperToken contract.
+ * This means that underlying tokens are transferred directly between the SuperToken contract and the yield protocol,
+ * as are yield protocol tokens representing positions in that protocol.
+ * If an implementation requires to hold state, it shall do so using a namespaced storage layout (EIP-7201).
  */
 interface IYieldBackend {
-    /// Invoked by `SuperToken.enableYieldBackend()` as delegatecall.
+    /// Invoked by `SuperToken` as delegatecall.
     /// Sets up the SuperToken as needed, e.g. by giving required approvals.
     function enable() external;
 
-    /// Invoked by `SuperToken.disableYieldBackend()` as delegatecall.
+    /// Invoked by `SuperToken` as delegatecall.
     /// Restores the prior state, e.g. by revoking given approvals
     function disable() external;
 
+    /// Invoked by `SuperToken` as delegatecall.
+    /// Deposits the given amount of the underlying asset into the yield backend.
     function deposit(uint256 amount) external;
+    /// Invoked by `SuperToken` as delegatecall.
+    /// Deposits the maximum amount of the underlying asset into the yield backend.
+    /// Maximum is defined by the underlying asset balance of the SuperToken and the yield backend capacity.
     function depositMax() external;
+
+    /// Invoked by `SuperToken` as delegatecall.
+    /// Withdraws the given amount of the underlying asset from the yield backend.
     function withdraw(uint256 amount) external;
+
+    /// Invoked by `SuperToken` as delegatecall.
+    /// Withdraws the maximum amount of the underlying asset from the yield backend.
+    /// Maximum is defined by how much can be withdrawn from the yield backend at that point in time.
     function withdrawMax() external;
 
-    /// tranfers the deposited asset exceeding the required underlying to the preset treasury account
+    /// Invoked by `SuperToken` as delegatecall.
+    /// tranfers the deposited asset exceeding totalSupply of the SuperToken to the preset receiver account
     function withdrawSurplus(uint256 totalSupply) external;
 }
