@@ -105,6 +105,9 @@ contract SuperToken is
     // NOTE: You cannot add more storage here. Refer to CustomSuperTokenBase.sol
     // to see the hard-coded storage padding used by SETH and PureSuperToken
 
+    // set when withdrawing ETH from yield backend in order to avoid a burn/mint loop
+    bool transient internal _skipSelfMint;
+
     constructor(
         ISuperfluid host,
         IPoolAdminNFT poolAdminNFT
@@ -772,8 +775,18 @@ contract SuperToken is
         external virtual override
         onlySelf
     {
-        _mint(msg.sender, account, amount, userData.length != 0 /* invokeHook */,
-            userData.length != 0 /* requireReceptionAck */, userData, new bytes(0));
+        if (!_skipSelfMint) {
+            if (address(_yieldBackend) != address(0)) {
+                // TODO: shall we deposit all, or just the upgradeAmount?
+                (bool success, ) = address(_yieldBackend).delegatecall(
+                    abi.encodeCall(IYieldBackend.deposit, (amount))
+                );
+                require(success, "delegatecall failed");
+            }
+
+            _mint(msg.sender, account, amount, userData.length != 0 /* invokeHook */,
+                userData.length != 0 /* requireReceptionAck */, userData, new bytes(0));
+        }
     }
 
     function selfBurn(
@@ -785,6 +798,16 @@ contract SuperToken is
        onlySelf
     {
        _burn(msg.sender, account, amount, userData.length != 0 /* invokeHook */, userData, new bytes(0));
+
+       if (address(_yieldBackend) != address(0)) {
+            _skipSelfMint = true;
+            // TODO: we may want to skip if enough underlying already in the contract
+            (bool success, ) = address(_yieldBackend).delegatecall(
+                abi.encodeCall(IYieldBackend.withdraw, (amount))
+            );
+            require(success, "delegatecall failed");
+            _skipSelfMint = false;
+        }
     }
 
     function selfApproveFor(

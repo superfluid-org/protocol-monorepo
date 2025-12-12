@@ -7,6 +7,7 @@ import { AaveYieldBackend } from "../../../contracts/superfluid/AaveYieldBackend
 import { IERC20, ISuperfluid } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IPool } from "aave-v3/interfaces/IPool.sol";
+import { ISETH } from "../../../contracts/interfaces/tokens/ISETH.sol";
 
 /**
  * @title SuperTokenYieldForkTest
@@ -29,6 +30,8 @@ contract SuperTokenYieldForkTest is Test {
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913; // USDC on Base
     address internal constant WETH = 0x4200000000000000000000000000000000000006; // WETH on Base
     address internal constant aUSDC = 0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB; // aUSDC on Base
+
+    address internal constant ETHx = 0x46fd5cfB4c12D87acD3a13e92BAa53240C661D93; // ETHx on Base
     
     SuperToken public superToken;
     /// @notice AaveYieldBackend contract instance
@@ -80,6 +83,7 @@ contract SuperTokenYieldForkTest is Test {
         IERC20(USDC).approve(address(superToken), type(uint256).max);
 
         console.log("aaveBackend address", address(aaveBackend));
+        console.log("aUSDC address", address(aUSDC));
     }
 
     function _enableYieldBackend() public {
@@ -319,6 +323,62 @@ contract SuperTokenYieldForkTest is Test {
         assertGt(receiverBalanceAfter, receiverBalanceBefore, "Surplus should be withdrawn to receiver");
         assertLt(aTokenBalanceAfter, aTokenBalanceBefore, "aToken balance should decrease");
         _verifyInvariants();
+    }
+
+    function testUpgadeDowngradeETH() public {
+        // Get aWETH address from Aave pool
+        address aWETH = aavePool.getReserveAToken(WETH);
+        
+        // Set up ETHx
+        SuperToken ethxToken = SuperToken(ETHx);
+        
+        // Upgrade ETHx to new logic
+        SuperToken newSuperTokenLogic = new SuperToken(ISuperfluid(ethxToken.getHost()), ethxToken.POOL_ADMIN_NFT());
+        vm.startPrank(address(ethxToken.getHost()));
+        ethxToken.updateCode(address(newSuperTokenLogic));
+        vm.stopPrank();
+        
+        // Designate admin for ETHx
+        vm.startPrank(address(ethxToken.getHost()));
+        ethxToken.changeAdmin(ADMIN);
+        vm.stopPrank();
+        
+        // Deploy AaveBackend for native ETH (address(0))
+        AaveYieldBackend ethxBackend = new AaveYieldBackend(IERC20(address(0)), IPool(AAVE_POOL));
+        
+        // assert that USING_WETH is set
+        assertEq(ethxBackend.USING_WETH(), true);
+
+        // Enable yield backend
+        vm.startPrank(ADMIN);
+        ethxToken.enableYieldBackend(ethxBackend);
+        vm.stopPrank();
+        
+        // Give ALICE some ETH
+        vm.deal(ALICE, 10 ether);
+        
+        // Upgrade ETH using upgradeByETH
+        uint256 upgradeAmount = 1 ether;
+        vm.startPrank(ALICE);
+        ISETH(address(ethxToken)).upgradeByETH{value: upgradeAmount}();
+        vm.stopPrank();
+        
+        uint256 aliceBalance = ethxToken.balanceOf(ALICE);
+        assertGt(aliceBalance, 0, "ALICE should have ETHx tokens");
+        
+        // Verify aWETH balance increased
+        uint256 aWETHBalance = IERC20(aWETH).balanceOf(address(ethxToken));
+        assertGt(aWETHBalance, 0, "ETHx should have aWETH balance");
+        
+        // Downgrade using downgradeToETH
+        uint256 aliceETHBefore = ALICE.balance;
+        vm.startPrank(ALICE);
+        ISETH(address(ethxToken)).downgradeToETH(aliceBalance);
+        vm.stopPrank();
+        
+        uint256 aliceETHAfter = ALICE.balance;
+        assertGt(aliceETHAfter, aliceETHBefore, "ALICE should receive ETH back");
+        assertEq(ethxToken.balanceOf(ALICE), 0, "ALICE should have no ETHx tokens");
     }
 }
 
