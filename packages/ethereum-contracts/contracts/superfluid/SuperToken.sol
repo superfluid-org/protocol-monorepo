@@ -12,6 +12,7 @@ import {
     IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
+import { YieldBackendHelperLib } from "../libs/YieldBackendHelperLib.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
 import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -38,6 +39,7 @@ contract SuperToken is
     using SafeCast for uint256;
     using ERC777Helper for ERC777Helper.Operators;
     using SafeERC20 for IERC20;
+    using YieldBackendHelperLib for IYieldBackend;
 
     // See: https://eips.ethereum.org/EIPS/eip-1967#admin-address
     bytes32 constant private _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
@@ -204,29 +206,16 @@ contract SuperToken is
     function enableYieldBackend(IYieldBackend newYieldBackend) external onlyAdmin {
         require(address(_yieldBackend) == address(0), "yield backend already set");
         _yieldBackend = newYieldBackend;
-        (bool success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.enable, ())
-        );
-        require(success, "delegatecall failed");
-        (success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.depositMax, ())
-        );
-        require(success, "delegatecall failed");
+        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.enable, ()));
+        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.depositMax, ()));
         // TODO: emit event
     }
 
     // withdraws everything and removes allowances
     function disableYieldBackend() external onlyAdmin {
         require(address(_yieldBackend) != address(0), "yield backend not set");
-        (bool success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.withdrawMax, ())
-        );
-        require(success, "delegatecall failed");
-        (success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.disable, ())
-        );
-        // TODO: should this be allowed to fail?
-        require(success, "delegatecall failed");
+        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdrawMax, ()));
+        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.disable, ()));
         _yieldBackend = IYieldBackend(address(0));
         // TODO: emit event
     }
@@ -237,10 +226,7 @@ contract SuperToken is
 
     function withdrawSurplusFromYieldBackend() external onlyAdmin {
         require(address(_yieldBackend) != address(0), "yield backend not set");
-        (bool success, ) = address(_yieldBackend).delegatecall(
-            abi.encodeCall(IYieldBackend.withdrawSurplus, (_totalSupply))
-        );
-        require(success, "delegatecall failed");
+        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdrawSurplus, (_totalSupply)));
     }
 
     /**************************************************************************
@@ -778,10 +764,7 @@ contract SuperToken is
         if (!_skipSelfMint) {
             if (address(_yieldBackend) != address(0)) {
                 // TODO: shall we deposit all, or just the upgradeAmount?
-                (bool success, ) = address(_yieldBackend).delegatecall(
-                    abi.encodeCall(IYieldBackend.deposit, (amount))
-                );
-                require(success, "delegatecall failed");
+                _yieldBackend.dCall(abi.encodeCall(IYieldBackend.deposit, (amount)));
             }
 
             _mint(msg.sender, account, amount, userData.length != 0 /* invokeHook */,
@@ -802,10 +785,7 @@ contract SuperToken is
        if (address(_yieldBackend) != address(0)) {
             _skipSelfMint = true;
             // TODO: we may want to skip if enough underlying already in the contract
-            (bool success, ) = address(_yieldBackend).delegatecall(
-                abi.encodeCall(IYieldBackend.withdraw, (amount))
-            );
-            require(success, "delegatecall failed");
+            _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdraw, (amount)));
             _skipSelfMint = false;
         }
     }
@@ -908,10 +888,7 @@ contract SuperToken is
 
         if (address(_yieldBackend) != address(0)) {
             // TODO: shall we deposit all, or just the upgradeAmount?
-            (bool success, ) = address(_yieldBackend).delegatecall(
-                abi.encodeCall(IYieldBackend.deposit, (actualUpgradedAmount))
-            );
-            require(success, "delegatecall failed");
+            _yieldBackend.dCall(abi.encodeCall(IYieldBackend.deposit, (actualUpgradedAmount)));
         }
 
         _mint(operator, to, adjustedAmount,
@@ -938,10 +915,7 @@ contract SuperToken is
 
         if (address(_yieldBackend) != address(0)) {
             // TODO: we may want to skip if enough underlying already in the contract
-            (bool success, ) = address(_yieldBackend).delegatecall(
-                abi.encodeCall(IYieldBackend.withdraw, (underlyingAmount))
-            );
-            require(success, "delegatecall failed");
+            _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdraw, (underlyingAmount)));
         }
 
         uint256 amountBefore = _underlyingToken.balanceOf(address(this));

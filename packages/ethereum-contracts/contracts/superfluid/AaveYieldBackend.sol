@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
 import { IERC20, ISuperToken } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IPool } from "aave-v3/interfaces/IPool.sol";
-import { IWETH } from "aave-v3//helpers/interfaces/IWETH.sol";
+import { IWETH } from "aave-v3/helpers/interfaces/IWETH.sol";
 
 
 /**
