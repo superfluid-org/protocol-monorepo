@@ -7,7 +7,6 @@ import {
     ISuperApp,
     SuperAppDefinitions
 } from "../interfaces/superfluid/ISuperfluid.sol";
-import { ISuperfluidToken } from "../interfaces/superfluid/ISuperfluidToken.sol";
 
 import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 

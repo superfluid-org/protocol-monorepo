@@ -68,9 +68,18 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
 
     /**
      * @dev Returns the admin address for the SuperToken
+     * The admin account has the exclusive privilege of
+     * - updating the contract (change implementation)
+     * - enabling/disabling a yield backend
+     * - setting another admin
+     * If no admin is set (zero address), this privileges are delegated to the host contract.
      */
     function getAdmin() external view returns (address admin);
 
+    /**
+     * @dev Returns the address of the yield backend contract (see `IYieldBackend`).
+     * The yield backend contract is responsible for managing the yield of the SuperToken.
+     */
     function getYieldBackend() external view returns (address yieldBackend);
 
     /**************************************************************************

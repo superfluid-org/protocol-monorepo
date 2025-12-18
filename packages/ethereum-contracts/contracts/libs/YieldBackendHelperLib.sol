@@ -11,6 +11,7 @@ import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
  */
 library YieldBackendHelperLib {
     function dCall(IYieldBackend yieldBackend, bytes memory callData) internal {
+        // solhint-disable-next-line avoid-low-level-calls
         (bool success,) = address(yieldBackend).delegatecall(callData);
         require(success, "yield backend delegatecall failed");
     }
