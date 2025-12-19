@@ -388,10 +388,14 @@ async function executeSafeTransaction(safeAddr, targetContractAddr, safeTxData) 
 
     const data = safeTxData;
 
+    // this is the next nonce, taking into consideration pending ones.
+    // By default it would only look at consumed (executed) transactions.
+    const nextNonce = await apiKit.getNextNonce(safeAddr)
     const safeTransactionData = {
         to: targetContractAddr,
         value: 0,
         data: data,
+        nonce: nextNonce,
     };
     const safeTransaction = await safeSdk.createTransaction({ safeTransactionData });
     console.log("Safe tx:", safeTransaction);
