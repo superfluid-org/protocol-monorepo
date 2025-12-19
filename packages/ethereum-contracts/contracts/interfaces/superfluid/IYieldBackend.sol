@@ -45,4 +45,10 @@ interface IYieldBackend {
     /// Invoked by `SuperToken` as delegatecall.
     /// tranfers the deposited asset exceeding totalSupply of the SuperToken to the preset receiver account
     function withdrawSurplus(uint256 totalSupply) external;
+
+    /// Invoked by `SuperToken` as delegatecall.
+    /// Returns the amount of the underlying asset currently managed by the yield backend.
+    /// This shall reflect the amount which could currently be withdrawn from the yield backend,
+    /// including the generated yield.
+    function getManagedAmount() external view returns (uint256);
 }
