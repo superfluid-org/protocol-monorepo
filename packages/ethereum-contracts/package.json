@@ -5,8 +5,8 @@
     "dependencies": {
         "@decentral.ee/web3-helpers": "0.5.3",
         "@nomiclabs/hardhat-ethers": "2.2.3",
-        "@safe-global/api-kit": "^4.0.1",
-        "@safe-global/protocol-kit": "^6.1.1",
+        "@safe-global/api-kit": "4.0.1",
+        "@safe-global/protocol-kit": "6.1.1",
         "@safe-global/api-kit": "4.0.1",
         "@truffle/contract": "4.6.31",
         "ethereumjs-tx": "2.1.2",
