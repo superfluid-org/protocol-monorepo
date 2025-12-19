@@ -100,7 +100,8 @@ contract AaveYieldBackend is IYieldBackend {
         (uint256 normalizedTotalSupply,) = ISuperToken(address(this)).toUnderlyingAmount(totalSupply);
         // decrement by 100 in order to give ample of margin for offsetting Aave's potential rounding error
         // If there's no surplus, this will simply revert due to arithmetic underflow.
-        uint256 surplusAmount = A_TOKEN.balanceOf(address(this)) - normalizedTotalSupply - 100;
+        uint256 surplusAmount = A_TOKEN.balanceOf(address(this)) + ASSET_TOKEN.balanceOf(address(this))
+            - normalizedTotalSupply - 100;
         AAVE_POOL.withdraw(address(ASSET_TOKEN), surplusAmount, SURPLUS_RECEIVER);
     }
 
