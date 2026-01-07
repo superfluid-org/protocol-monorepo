@@ -12,7 +12,7 @@ import {
     IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
-import { YieldBackendHelperLib } from "../libs/YieldBackendHelperLib.sol";
+import { delegateCallChecked } from "../libs/CallUtils.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
 import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -39,7 +39,6 @@ contract SuperToken is
     using SafeCast for uint256;
     using ERC777Helper for ERC777Helper.Operators;
     using SafeERC20 for IERC20;
-    using YieldBackendHelperLib for IYieldBackend;
 
     // See: https://eips.ethereum.org/EIPS/eip-1967#admin-address
     bytes32 constant private _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
@@ -206,21 +205,21 @@ contract SuperToken is
     function enableYieldBackend(IYieldBackend newYieldBackend) external onlyAdmin {
         require(address(_yieldBackend) == address(0), "yield backend already set");
         _yieldBackend = newYieldBackend;
-        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.enable, ()));
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.enable, ()));
         // Assumption: if no underlying token is set, it's the native token wrapper (SETH).
         // This doesn't hold for pure SuperTokens, but those can't have a yield backend.
         uint256 depositAmount = address(_underlyingToken) == address(0)
             ? address(this).balance
             : _underlyingToken.balanceOf(address(this));
-        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.deposit, (depositAmount)));
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (depositAmount)));
         // TODO: emit event
     }
 
     // withdraws everything and removes allowances
     function disableYieldBackend() external onlyAdmin {
         require(address(_yieldBackend) != address(0), "yield backend not set");
-        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdrawMax, ()));
-        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.disable, ()));
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdrawMax, ()));
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.disable, ()));
         _yieldBackend = IYieldBackend(address(0));
         // TODO: emit event
     }
@@ -231,7 +230,7 @@ contract SuperToken is
 
     function withdrawSurplusFromYieldBackend() external onlyAdmin {
         require(address(_yieldBackend) != address(0), "yield backend not set");
-        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdrawSurplus, (_totalSupply)));
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdrawSurplus, (_totalSupply)));
     }
 
     /**************************************************************************
@@ -769,7 +768,7 @@ contract SuperToken is
         if (!_skipSelfMint) {
             if (address(_yieldBackend) != address(0)) {
                 // TODO: shall we deposit all, or just the upgradeAmount?
-                _yieldBackend.dCall(abi.encodeCall(IYieldBackend.deposit, (amount)));
+                delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (amount)));
             }
 
             _mint(msg.sender, account, amount, userData.length != 0 /* invokeHook */,
@@ -790,7 +789,7 @@ contract SuperToken is
        if (address(_yieldBackend) != address(0)) {
             _skipSelfMint = true;
             // TODO: we may want to skip if enough underlying already in the contract
-            _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdraw, (amount)));
+            delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdraw, (amount)));
             _skipSelfMint = false;
         }
     }
@@ -893,7 +892,7 @@ contract SuperToken is
 
         if (address(_yieldBackend) != address(0)) {
             // TODO: shall we deposit all, or just the upgradeAmount?
-            _yieldBackend.dCall(abi.encodeCall(IYieldBackend.deposit, (actualUpgradedAmount)));
+            delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (actualUpgradedAmount)));
         }
 
         _mint(operator, to, adjustedAmount,
@@ -920,7 +919,7 @@ contract SuperToken is
 
         if (address(_yieldBackend) != address(0)) {
             // TODO: we may want to skip if enough underlying already in the contract
-            _yieldBackend.dCall(abi.encodeCall(IYieldBackend.withdraw, (underlyingAmount)));
+            delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdraw, (underlyingAmount)));
         }
 
         uint256 amountBefore = _underlyingToken.balanceOf(address(this));
