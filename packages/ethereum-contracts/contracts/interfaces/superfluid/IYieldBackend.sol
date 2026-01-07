@@ -28,6 +28,7 @@ interface IYieldBackend {
     /// Invoked by `SuperToken` as delegatecall.
     /// Deposits the given amount of the underlying asset into the yield backend.
     function deposit(uint256 amount) external;
+
     /// Invoked by `SuperToken` as delegatecall.
     /// Deposits the maximum amount of the underlying asset into the yield backend.
     /// Maximum is defined by the underlying asset balance of the SuperToken and the yield backend capacity.
