@@ -4,7 +4,6 @@ pragma solidity ^0.8.23;
 import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
 import { IERC20, ISuperToken } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
-import { IWETH } from "aave-v3/src/contracts/helpers/interfaces/IWETH.sol";
 
 /**
  * @title a SuperToken yield backend for the Aave protocol.
@@ -18,39 +17,23 @@ contract AaveYieldBackend is IYieldBackend {
     IERC20 public immutable ASSET_TOKEN;
     IPool public immutable AAVE_POOL;
     IERC20 public immutable A_TOKEN;
-    bool public immutable USING_WETH;
     address public immutable SURPLUS_RECEIVER;
-    AaveYieldBackend internal immutable _SELF;
 
     // THIS CONTRACT CANNOT HAVE STATE VARIABLES!
     // IF STATE IS NEEDED, USE NAMESPACED STORAGE LAYOUT (EIP-7201)
 
     /**
      * @param assetToken the asset (Aave terminology) supplied to Aave for yield. Typically, this will be
-     * the underlyingToken of a SuperToken.
+     * the underlyingToken of a SuperToken. Must be a valid ERC20 token address.
      * @param aavePool the Aave pool
      * @param surplusReceiver the address to receive the surplus asset when withdrawing the surplus
      */
     constructor(IERC20 assetToken, IPool aavePool, address surplusReceiver) {
-        // TODO: any checks to be done?
-        if (address(assetToken) == address(0)) {
-            // native token, need to wrap to WETH
-            USING_WETH = true;
-            // This implementation currently only supports Base
-            if (block.chainid == 10 || block.chainid == 8453) {
-                // base, optimism
-                ASSET_TOKEN = IERC20(0x4200000000000000000000000000000000000006);
-            } else {
-                revert("not supported");
-            }
-        } else {
-            ASSET_TOKEN = assetToken;
-        }
+        require(address(assetToken) != address(0), "assetToken cannot be address(0)");
+        ASSET_TOKEN = assetToken;
         AAVE_POOL = IPool(aavePool);
         SURPLUS_RECEIVER = surplusReceiver;
         A_TOKEN = IERC20(aavePool.getReserveAToken(address(ASSET_TOKEN)));
-
-        _SELF = this;
     }
 
     function enable() external {
@@ -63,30 +46,21 @@ contract AaveYieldBackend is IYieldBackend {
         ASSET_TOKEN.approve(address(AAVE_POOL), 0);
     }
 
-    function deposit(uint256 amount) public {
+    function deposit(uint256 amount) public virtual {
         // TODO: can this constraint break anything?
         require(amount > 0, "amount must be greater than 0");
-        if (USING_WETH) {
-            // wrap ETH to WETH
-            IWETH(address(ASSET_TOKEN)).deposit{ value: amount }();
-        }
         // Deposit asset and get back aTokens
         AAVE_POOL.supply(address(ASSET_TOKEN), amount, address(this), 0);
     }
 
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) public virtual {
         // withdraw amount asset by redeeming the corresponding aTokens amount
-        if (USING_WETH) {
-            AAVE_POOL.withdraw(address(ASSET_TOKEN), amount, address(_SELF));
-            _SELF.unwrapAndForwardWETH(amount);
-        } else {
-            AAVE_POOL.withdraw(address(ASSET_TOKEN), amount, address(this));
-        }
+        AAVE_POOL.withdraw(address(ASSET_TOKEN), amount, address(this));
     }
 
-    function withdrawMax() external {
+    function withdrawMax() external virtual {
         // We can delegate the max calculation to the Aave pool by setting amount to type(uint256).max
-        AAVE_POOL.withdraw(address(ASSET_TOKEN), type(uint256).max, address(this));
+        withdraw(type(uint256).max);
     }
 
     function withdrawSurplus(uint256 totalSupply) external {
@@ -97,18 +71,5 @@ contract AaveYieldBackend is IYieldBackend {
         uint256 surplusAmount = A_TOKEN.balanceOf(address(this)) + ASSET_TOKEN.balanceOf(address(this))
             - normalizedTotalSupply - 100;
         AAVE_POOL.withdraw(address(ASSET_TOKEN), surplusAmount, SURPLUS_RECEIVER);
-    }
-
-    // ============ functions operating on this contract itself (NOT in delegatecall context) ============
-
-    // allow unwrapping from WETH to this contract
-    receive() external payable { }
-
-    // To be invoked by `withdraw` executed via delegatecall in a SuperToken context.
-    // Since WETH never stays in this contract, no validation of msg.sender is necessary.
-    function unwrapAndForwardWETH(uint256 amount) external {
-        IWETH(address(ASSET_TOKEN)).withdraw(amount);
-        (bool success,) = address(msg.sender).call{ value: amount }("");
-        require(success, "call failed");
     }
 }
