@@ -30,26 +30,14 @@ interface IYieldBackend {
     function deposit(uint256 amount) external;
 
     /// Invoked by `SuperToken` as delegatecall.
-    /// Deposits the maximum amount of the underlying asset into the yield backend.
-    /// Maximum is defined by the underlying asset balance of the SuperToken and the yield backend capacity.
-    function depositMax() external;
-
-    /// Invoked by `SuperToken` as delegatecall.
     /// Withdraws the given amount of the underlying asset from the yield backend.
     function withdraw(uint256 amount) external;
 
     /// Invoked by `SuperToken` as delegatecall.
-    /// Withdraws the maximum amount of the underlying asset from the yield backend.
-    /// Maximum is defined by how much can be withdrawn from the yield backend at that point in time.
+    /// Withdraws the maximum withdrawable amount of the underlying asset from the yield backend.
     function withdrawMax() external;
 
     /// Invoked by `SuperToken` as delegatecall.
     /// tranfers the deposited asset exceeding totalSupply of the SuperToken to the preset receiver account
     function withdrawSurplus(uint256 totalSupply) external;
-
-    /// Invoked by `SuperToken` as delegatecall.
-    /// Returns the amount of the underlying asset currently managed by the yield backend.
-    /// This shall reflect the amount which could currently be withdrawn from the yield backend,
-    /// including the generated yield.
-    function getManagedAmount() external view returns (uint256);
 }

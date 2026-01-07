@@ -207,7 +207,12 @@ contract SuperToken is
         require(address(_yieldBackend) == address(0), "yield backend already set");
         _yieldBackend = newYieldBackend;
         _yieldBackend.dCall(abi.encodeCall(IYieldBackend.enable, ()));
-        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.depositMax, ()));
+        // Assumption: if no underlying token is set, it's the native token wrapper (SETH).
+        // This doesn't hold for pure SuperTokens, but those can't have a yield backend.
+        uint256 depositAmount = address(_underlyingToken) == address(0)
+            ? address(this).balance
+            : _underlyingToken.balanceOf(address(this));
+        _yieldBackend.dCall(abi.encodeCall(IYieldBackend.deposit, (depositAmount)));
         // TODO: emit event
     }
 

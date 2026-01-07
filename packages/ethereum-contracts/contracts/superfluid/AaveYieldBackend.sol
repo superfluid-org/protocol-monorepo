@@ -73,13 +73,6 @@ contract AaveYieldBackend is IYieldBackend {
         AAVE_POOL.supply(address(ASSET_TOKEN), amount, address(this), 0);
     }
 
-    function depositMax() external {
-        uint256 amount = USING_WETH ? address(this).balance : ASSET_TOKEN.balanceOf(address(this));
-        if (amount > 0) {
-            deposit(amount);
-        }
-    }
-
     function withdraw(uint256 amount) external {
         // withdraw amount asset by redeeming the corresponding aTokens amount
         if (USING_WETH) {
@@ -103,10 +96,6 @@ contract AaveYieldBackend is IYieldBackend {
         uint256 surplusAmount = A_TOKEN.balanceOf(address(this)) + ASSET_TOKEN.balanceOf(address(this))
             - normalizedTotalSupply - 100;
         AAVE_POOL.withdraw(address(ASSET_TOKEN), surplusAmount, SURPLUS_RECEIVER);
-    }
-
-    function getManagedAmount() external view returns (uint256) {
-        return A_TOKEN.balanceOf(address(this));
     }
 
     // ============ functions operating on this contract itself (NOT in delegatecall context) ============

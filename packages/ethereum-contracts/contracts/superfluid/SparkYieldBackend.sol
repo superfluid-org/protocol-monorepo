@@ -31,13 +31,6 @@ contract SparkYieldBackend is IYieldBackend {
         VAULT.deposit(amount, address(this));
     }
 
-    function depositMax() external {
-        uint256 amount = ASSET_TOKEN.balanceOf(address(this));
-        if (amount > 0) {
-            VAULT.deposit(amount, address(this));
-        }
-    }
-
     function withdraw(uint256 amount) external {
         VAULT.withdraw(amount, address(this), address(this));
     }
@@ -59,9 +52,5 @@ contract SparkYieldBackend is IYieldBackend {
 
         uint256 surplusAmount = vaultAssets + ASSET_TOKEN.balanceOf(address(this)) - normalizedTotalSupply;
         VAULT.withdraw(surplusAmount, SURPLUS_RECEIVER, address(this));
-    }
-
-    function getManagedAmount() external view returns (uint256) {
-        return VAULT.convertToAssets(VAULT.balanceOf(address(this)));
     }
 }
