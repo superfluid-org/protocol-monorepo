@@ -3,6 +3,16 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+### Added
+
+- `SuperToken`: the contract admin can enable/disable a _Yield Backend_ in order to get a yield on the underlying asset.
+
+### Changed
+
+- EVM target changed from _shanghai_ to _cancun_.
+
 ## [v1.14.1]
 
 ### Added
