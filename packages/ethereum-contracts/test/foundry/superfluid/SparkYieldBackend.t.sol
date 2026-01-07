@@ -3,13 +3,8 @@ pragma solidity ^0.8.23;
 
 import { Test } from "forge-std/Test.sol";
 import { console } from "forge-std/console.sol";
-import {
-    SparkYieldBackend
-} from "../../../contracts/superfluid/SparkYieldBackend.sol";
-import {
-    IERC20,
-    ISuperfluid
-} from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { ERC4626YieldBackend } from "../../../contracts/superfluid/ERC4626YieldBackend.sol";
+import { IERC20, ISuperfluid } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
 
@@ -34,9 +29,8 @@ contract SparkYieldBackendForkTest is Test {
     address internal constant USDCx = 0xD04383398dD2426297da660F9CCA3d439AF9ce1b;
     address internal constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
 
-
     SuperToken internal superToken;
-    SparkYieldBackend internal sparkBackend;
+    ERC4626YieldBackend internal sparkBackend;
     IERC20 internal underlyingToken;
     IERC4626 internal vault;
 
@@ -49,22 +43,15 @@ contract SparkYieldBackendForkTest is Test {
 
         superToken = SuperToken(USDCx);
 
-        sparkBackend = new SparkYieldBackend(vault, SURPLUS_RECEIVER);
+        sparkBackend = new ERC4626YieldBackend(vault, SURPLUS_RECEIVER);
 
-        assertEq(
-            address(sparkBackend.ASSET_TOKEN()),
-            USDC,
-            "Asset token mismatch"
-        );
+        assertEq(address(sparkBackend.ASSET_TOKEN()), USDC, "Asset token mismatch");
         assertEq(address(sparkBackend.VAULT()), SPARK_VAULT, "Vault mismatch");
 
         // upgrade SuperToken to new logic (mocking upgrade to enable features if needed,
         // essentially ensuring we have a fresh state or compatible logic)
         // Note: SuperToken on Base might already be up to date, but we re-deploy logic for safety in test
-        SuperToken newSuperTokenLogic = new SuperToken(
-            ISuperfluid(superToken.getHost()),
-            superToken.POOL_ADMIN_NFT()
-        );
+        SuperToken newSuperTokenLogic = new SuperToken(ISuperfluid(superToken.getHost()), superToken.POOL_ADMIN_NFT());
         vm.startPrank(address(superToken.getHost()));
         superToken.updateCode(address(newSuperTokenLogic));
         vm.stopPrank();
@@ -90,13 +77,9 @@ contract SparkYieldBackendForkTest is Test {
         // underlyingBalance + vaultAssets >= superToken.supply()
         uint256 underlyingBalance = IERC20(USDC).balanceOf(address(superToken));
         // vault balance is in shares, need to convert to assets
-        uint256 vaultAssets = vault.convertToAssets(
-            vault.balanceOf(address(superToken))
-        );
+        uint256 vaultAssets = vault.convertToAssets(vault.balanceOf(address(superToken)));
 
-        (uint256 superTokenNormalizedSupply, ) = superToken.toUnderlyingAmount(
-            superToken.totalSupply()
-        );
+        (uint256 superTokenNormalizedSupply,) = superToken.toUnderlyingAmount(superToken.totalSupply());
 
         // We use approx because of potential rounding/yield accruing differently per block
         // But assets should be >= supply
@@ -108,26 +91,14 @@ contract SparkYieldBackendForkTest is Test {
     }
 
     function testSparkBackendDeployment() public view {
-        assertEq(
-            address(sparkBackend.ASSET_TOKEN()),
-            USDC,
-            "Asset token should be USDC"
-        );
-        assertEq(
-            address(sparkBackend.VAULT()),
-            SPARK_VAULT,
-            "Vault address should match"
-        );
+        assertEq(address(sparkBackend.ASSET_TOKEN()), USDC, "Asset token should be USDC");
+        assertEq(address(sparkBackend.VAULT()), SPARK_VAULT, "Vault address should match");
     }
 
     function testEnableYieldBackend() public {
         _enableYieldBackend();
 
-        assertEq(
-            address(superToken.getYieldBackend()),
-            address(sparkBackend),
-            "Yield backend mismatch"
-        );
+        assertEq(address(superToken.getYieldBackend()), address(sparkBackend), "Yield backend mismatch");
 
         // For new deposits, we need to upgrade
         uint256 amount = 100 * 1e18;
@@ -136,18 +107,10 @@ contract SparkYieldBackendForkTest is Test {
         vm.stopPrank();
 
         // the SuperToken should now have a zero USDC balance (all deposited)
-        assertEq(
-            IERC20(USDC).balanceOf(address(superToken)),
-            0,
-            "USDC balance should be zero"
-        );
+        assertEq(IERC20(USDC).balanceOf(address(superToken)), 0, "USDC balance should be zero");
 
         // And non-zero vault balance
-        assertGt(
-            vault.balanceOf(address(superToken)),
-            0,
-            "Vault share balance should be non-zero"
-        );
+        assertGt(vault.balanceOf(address(superToken)), 0, "Vault share balance should be non-zero");
 
         _verifyInvariants();
     }
@@ -163,23 +126,11 @@ contract SparkYieldBackendForkTest is Test {
         vm.startPrank(ADMIN);
         superToken.disableYieldBackend();
         vm.stopPrank();
-        assertEq(
-            address(superToken.getYieldBackend()),
-            address(0),
-            "Yield backend mismatch"
-        );
+        assertEq(address(superToken.getYieldBackend()), address(0), "Yield backend mismatch");
 
         // the SuperToken should now have a non-zero USDC balance and a zero vault balance
-        assertGt(
-            IERC20(USDC).balanceOf(address(superToken)),
-            0,
-            "USDC balance should be non-zero"
-        );
-        assertEq(
-            vault.balanceOf(address(superToken)),
-            0,
-            "Vault balance should be zero"
-        );
+        assertGt(IERC20(USDC).balanceOf(address(superToken)), 0, "USDC balance should be non-zero");
+        assertEq(vault.balanceOf(address(superToken)), 0, "Vault balance should be zero");
 
         _verifyInvariants();
     }
@@ -196,11 +147,7 @@ contract SparkYieldBackendForkTest is Test {
 
         uint256 vaultSharesAfter = vault.balanceOf(address(superToken));
 
-        assertGt(
-            vaultSharesAfter,
-            vaultSharesBefore,
-            "Vault shares should increase"
-        );
+        assertGt(vaultSharesAfter, vaultSharesBefore, "Vault shares should increase");
 
         // downgrade
         vm.startPrank(ALICE);
@@ -208,11 +155,7 @@ contract SparkYieldBackendForkTest is Test {
         vm.stopPrank();
 
         uint256 vaultSharesFinal = vault.balanceOf(address(superToken));
-        assertLt(
-            vaultSharesFinal,
-            vaultSharesAfter,
-            "Vault shares should decrease"
-        );
+        assertLt(vaultSharesFinal, vaultSharesAfter, "Vault shares should decrease");
 
         _verifyInvariants();
     }
@@ -224,9 +167,7 @@ contract SparkYieldBackendForkTest is Test {
 
         _enableYieldBackend();
 
-        uint256 receiverBalanceBefore = IERC20(USDC).balanceOf(
-            SURPLUS_RECEIVER
-        );
+        uint256 receiverBalanceBefore = IERC20(USDC).balanceOf(SURPLUS_RECEIVER);
 
         vm.startPrank(ADMIN);
         superToken.withdrawSurplusFromYieldBackend();
@@ -238,11 +179,7 @@ contract SparkYieldBackendForkTest is Test {
         console.log("Receiver balance after", receiverBalanceAfter);
         console.log("Diff", receiverBalanceAfter - receiverBalanceBefore);
 
-        assertGt(
-            receiverBalanceAfter,
-            receiverBalanceBefore,
-            "Surplus should be withdrawn to receiver"
-        );
+        assertGt(receiverBalanceAfter, receiverBalanceBefore, "Surplus should be withdrawn to receiver");
         _verifyInvariants();
     }
 }

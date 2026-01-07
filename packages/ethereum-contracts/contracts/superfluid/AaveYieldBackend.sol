@@ -7,6 +7,7 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
 import { IWETH } from "aave-v3/src/contracts/helpers/interfaces/IWETH.sol";
 
 /**
+ * @title a SuperToken yield backend for the Aave protocol.
  * Aave supports a simple deposit/withdraw workflow nicely matching the IYieldBackend interface.
  * Deposits are represented by transferrable aTokens.
  *

@@ -5,9 +5,9 @@ import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
 import { IERC20, ISuperToken } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
 
-// Note: Spark Vaults on Base/Mainnet are ERC4626 compliant.
 
-contract SparkYieldBackend is IYieldBackend {
+/// @title A SuperToken yield backend for ERC4626 compliant vaults.
+contract ERC4626YieldBackend is IYieldBackend {
     IERC20 public immutable ASSET_TOKEN;
     IERC4626 public immutable VAULT;
     address public immutable SURPLUS_RECEIVER;
