@@ -86,24 +86,9 @@ abstract contract YieldBackendUnitTestBase is Test {
 
     /// @notice Execute withdraw via delegatecall
     function _withdraw(uint256 amount) internal {
-        console.log("_withdraw: calling backend at", address(backend));
-        console.log("_withdraw: amount", amount);
-        console.log("_withdraw: address(this) before", address(this));
-        console.log("_withdraw: address(this).balance before", address(this).balance);
-        
         (bool success, bytes memory returnData) = address(backend).delegatecall(
             abi.encodeWithSelector(IYieldBackend.withdraw.selector, amount)
         );
-        
-        console.log("_withdraw: delegatecall success", success);
-        if (!success) {
-            console.log("_withdraw: returnData length", returnData.length);
-            if (returnData.length > 0) {
-                console.logBytes(returnData);
-            }
-        }
-        console.log("_withdraw: address(this).balance after", address(this).balance);
-        
         require(success, "withdraw failed");
     }
 
@@ -182,19 +167,11 @@ abstract contract YieldBackendUnitTestBase is Test {
         _deposit(amount * 2);
         
         uint256 balanceBefore = _getAssetBalance();
-        console.log("testWithdraw: amount requested", amount);
-        console.log("testWithdraw: balance before", balanceBefore);
-        console.log("testWithdraw: msg.sender", msg.sender);
-        console.log("testWithdraw: address(this)", address(this));
         
         _withdraw(amount);
         
         uint256 balanceAfter = _getAssetBalance();
         uint256 balanceIncrease = balanceAfter - balanceBefore;
-        
-        console.log("testWithdraw: balance after", balanceAfter);
-        console.log("testWithdraw: balance increase", balanceIncrease);
-        console.log("testWithdraw: difference (increase - amount)", int256(balanceIncrease) - int256(amount));
         
         assertEq(balanceAfter - balanceBefore, amount, "balance should increase by amount");
     }
