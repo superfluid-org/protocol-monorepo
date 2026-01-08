@@ -10,6 +10,10 @@ import { IWETH } from "aave-v3/src/contracts/helpers/interfaces/IWETH.sol";
  * @title a SuperToken yield backend for the Aave protocol for ETH/native tokens.
  * This contract extends AaveYieldBackend to support native ETH by wrapping it to WETH.
  * WETH addresses are hardcoded by chain id.
+ * 
+ * NOTE: "WETH" is to be interpreted in a technical sense: the native token wrapper.
+ * On chains with ETH not being the native token, the ERC20 token with symbol "WETH" may be an ordinary ERC20
+ * while the ERC20 wrapper of the native token may have a different symbol. We mean the latter!
  *
  * NOTE: Surplus WETH will NOT be unwrapped by `withdrawSurplus` (which is inherited from the Base contract)
  * before transferring it to the configured SURPLUS_RECEIVER.
@@ -30,11 +34,8 @@ contract AaveETHYieldBackend is AaveYieldBackend {
         _SELF = this;
     }
 
-    /// get the canonical WETH contract address based on the chain id and Aave deployment.
+    /// get the canonical native token ERC20 wrapper contract address based on the chain id and Aave deployment.
     /// Implemented for chains with official deployments of Aave and Superfluid.
-    /// NOTE: "WETH" is to be interpreted in a technical sense: the native token wrapper.
-    /// On chains with ETH not being the native token, the ERC20 token with symbol "WETH" may be an ordinary ERC20
-    /// while the ERC20 wrapper of the native token may have a different symbol. We mean the latter!
     function getWETHAddress() internal view returns (address) {
         if (block.chainid == 1) { // Ethereum
             return 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
