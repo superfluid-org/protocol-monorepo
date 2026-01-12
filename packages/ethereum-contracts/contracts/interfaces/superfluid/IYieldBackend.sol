@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity >= 0.8.11;
 
 /**
  * A yield backend acts as interface between an ERC20 wrapper SuperToken and a yield generating protocol.
