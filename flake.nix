@@ -92,7 +92,7 @@
           gnupg
         ];
 
-        # minimem development shell
+        # minimum development shell
         minimumDevInputs = commonDevInputs ++ ethDevInputs ++ defaultNodeDevInputs;
 
         # additional tooling for whitehat hackers
