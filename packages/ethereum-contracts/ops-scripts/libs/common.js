@@ -364,34 +364,11 @@ async function autodetectAdminType(sf, account) {
     throw new Error(`Unknown admin contract type of account ${account}`);
 }
 
-// returns the Safe Tx Service URL or throws if none available
-// source: https://github.com/safe-global/safe-docs/blob/main/pages/api-supported-networks.md?plain=1
-function getSafeTxServiceUrl(chainId) {
-    const safeChainNames = {
-        // mainnets
-        1: "mainnet",
-        10: "optimism",
-        56: "bsc",
-        100: "gnosis-chain",
-        137: "polygon",
-        8453: "base",
-        42161: "arbitrum",
-        42220: "celo",
-        43114: "avalanche",
-        // testnets
-        11155111: "sepolia"
-    };
-    if (safeChainNames[chainId] === undefined) {
-        throw new Error(`no Safe tx service url known for chainId ${chainId}`);
-    }
-    return `https://safe-transaction-${safeChainNames[chainId]}.safe.global`;
-}
-
 // safeTxData is the ABI encoded transaction data of the inner call to be made by the Safe
 async function executeSafeTransaction(safeAddr, targetContractAddr, safeTxData) {
     const Web3Adapter = require('@safe-global/safe-web3-lib').default;
     const Safe = require('@safe-global/safe-core-sdk').default;
-    const SafeServiceClient = require('@safe-global/safe-service-client').default;
+    const SafeApiKit = require('@safe-global/api-kit').default;
 
     const safeOwner = (await web3.eth.getAccounts())[0]; // tx sender
     console.log("Safe signer being used:", safeOwner);
@@ -403,18 +380,18 @@ async function executeSafeTransaction(safeAddr, targetContractAddr, safeTxData) 
 
     const safeSdk = await Safe.create({ ethAdapter: ethAdapterOwner1, safeAddress: safeAddr });
 
-    const safeService = new SafeServiceClient({
-        txServiceUrl: getSafeTxServiceUrl(await web3.eth.getChainId()),
-        ethAdapter: ethAdapterOwner1
+    const chainId = await web3.eth.getChainId();
+    const apiKit = new SafeApiKit({
+        chainId: BigInt(chainId),
+        apiKey: process.env.SAFE_API_KEY  // Required for auth/default service
     });
 
     const data = safeTxData;
-    const nextNonce = await safeService.getNextNonce(safeAddr);
+
     const safeTransactionData = {
         to: targetContractAddr,
         value: 0,
         data: data,
-        nonce: process.env.SAFE_REPLACE_LAST_TX ? nextNonce-1 : nextNonce
     };
     const safeTransaction = await safeSdk.createTransaction({ safeTransactionData });
     console.log("Safe tx:", safeTransaction);
@@ -424,26 +401,24 @@ async function executeSafeTransaction(safeAddr, targetContractAddr, safeTxData) 
     const signature = await safeSdk.signTransactionHash(safeTxHash);
     console.log("Signature:", signature);
 
-    const transactionConfig = {
+    const pendingTxsBefore = await apiKit.getPendingTransactions(safeAddr);
+
+    // according to the docs this should return the tx hash, but always returns undefined although succeeding
+    const ret = await apiKit.proposeTransaction({
         safeAddress: safeAddr,
         safeTransactionData: safeTransaction.data,
         safeTxHash: safeTxHash,
         senderAddress: safeOwner,
         senderSignature: signature.data,
         origin: "ops-scripts"
-    };
-
-    const pendingTxsBefore = await safeService.getPendingTransactions(safeAddr);
-
-    // according to the docs this should return the tx hash, but always returns undefined although succeeding
-    const ret = await safeService.proposeTransaction(transactionConfig);
+    });
     console.log("returned:", ret);
 
-    const pendingTxsAfter = await safeService.getPendingTransactions(safeAddr);
-    console.log(`pending txs before ${pendingTxsBefore.count}, after ${pendingTxsAfter.count}`);
+    const pendingTxsAfter = await apiKit.getPendingTransactions(safeAddr);
+    console.log(`pending txs before ${pendingTxsBefore.results.length}, after ${pendingTxsAfter.results.length}`);
 
     // workaround for verifying that the proposal was added
-    if (!pendingTxsAfter.count > pendingTxsBefore.count) {
+    if (!pendingTxsAfter.results.length > pendingTxsBefore.results.length) {
         throw new Error("Safe pending transactions count didn't increase, propose may have failed!");
     }
 }
