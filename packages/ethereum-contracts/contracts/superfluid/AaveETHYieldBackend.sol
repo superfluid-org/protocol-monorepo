@@ -91,7 +91,7 @@ contract AaveETHYieldBackend is AaveYieldBackend {
     receive() external payable { }
 
     // To be invoked by `withdraw` which is executed via delegatecall in a SuperToken context.
-    // WETH deposited or withdrawn by the SuperToken never stays in this contract beyond the lifetime of the transaction.
+    // WETH deposited or withdrawn by the SuperToken never stays in this contract beyond the lifetime of the tx.
     // Thus it is not necessary to check msg.sender.
     // We accept that an alien caller may withdraw WETH deposited to this contract (for whatever reason).
     function unwrapWETHAndForwardETH(uint256 amount) external {
