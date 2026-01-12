@@ -14,6 +14,16 @@
         "constructor-syntax": "error",
         "func-visibility": ["error", { "ignoreConstructors": true }],
         "quotes": ["error", "double"],
-        "max-line-length": ["error", 120]
+        "max-line-length": ["error", 120],
+        "use-natspec": "off",
+        "import-path-check": "off",
+        "gas-indexed-events": "off",
+        "gas-struct-packing": "off",
+        "gas-small-strings": "off",
+        "gas-increment-by-one": "off",
+        "gas-strict-inequalities": "off",
+        "gas-calldata-parameters": "off",
+        "function-max-lines": "off",
+        "contract-name-capwords": "off"
     }
 }
