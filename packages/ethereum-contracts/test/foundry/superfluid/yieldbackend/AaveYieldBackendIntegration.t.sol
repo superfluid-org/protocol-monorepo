@@ -325,5 +325,140 @@ contract AaveYieldBackendIntegrationTest is Test {
         // 2 operations: enable deposits + withdraw surplus
         _verifyInvariants(false, 2);
     }
+
+    /*//////////////////////////////////////////////////////////////////////////
+                        Random Sequence Fuzz Tests
+    //////////////////////////////////////////////////////////////////////////*/
+
+    struct YieldBackendStep {
+        uint8 a; // action type: 0 enable, 1 disable, 2 switch, 3 upgrade, 4 downgrade, 5 withdraw surplus
+        uint32 v; // action param (amount for upgrade/downgrade, unused for others)
+        uint16 dt; // time delta (for yield accrual simulation)
+    }
+
+    /// @notice Test random sequence of yield backend operations
+    /// @dev Simulates real-world usage patterns with appropriate frequency distribution
+    function testRandomYieldBackendSequence(YieldBackendStep[20] memory steps) external {
+        // Track state
+        bool backendEnabled = false;
+        bool initialExcessPreserved = true; // Track if initial excess has been withdrawn via surplus
+        uint256 numAaveOperations = 0;
+        AaveYieldBackend currentBackend = aaveBackend;
+
+        for (uint256 i = 0; i < steps.length; ++i) {
+            YieldBackendStep memory s = steps[i];
+            uint256 action = s.a % 20; // Use modulo 20 for frequency distribution
+
+            // Action frequency distribution:
+            // 0: Enable (5%)
+            // 1: Disable (5%)
+            // 2: Switch (5%)
+            // 3-16: Upgrade/Downgrade (70%, split evenly: 3-9 upgrade, 10-16 downgrade)
+            // 17-19: Withdraw surplus (15%)
+
+            if (action == 0) {
+                // Enable yield backend (5% frequency)
+                if (!backendEnabled) {
+                    vm.startPrank(ADMIN);
+                    superToken.enableYieldBackend(currentBackend);
+                    vm.stopPrank();
+                    backendEnabled = true;
+                    numAaveOperations += 1; // enable deposits all existing underlying
+                }
+            } else if (action == 1) {
+                // Disable yield backend (5% frequency)
+                if (backendEnabled) {
+                    vm.startPrank(ADMIN);
+                    superToken.disableYieldBackend();
+                    vm.stopPrank();
+                    backendEnabled = false;
+                    numAaveOperations += 1; // disable withdraws max
+                }
+            } else if (action == 2) {
+                // Switch yield backend: disable current, enable new (5% frequency)
+                if (backendEnabled) {
+                    // Disable current
+                    vm.startPrank(ADMIN);
+                    superToken.disableYieldBackend();
+                    vm.stopPrank();
+                    numAaveOperations += 1; // disable withdraws
+
+                    // Deploy and enable new backend
+                    AaveYieldBackend newBackend = new AaveYieldBackend(
+                        IERC20(USDC),
+                        IPool(AAVE_POOL),
+                        SURPLUS_RECEIVER
+                    );
+                    vm.startPrank(ADMIN);
+                    superToken.enableYieldBackend(newBackend);
+                    vm.stopPrank();
+                    currentBackend = newBackend;
+                    numAaveOperations += 1; // enable deposits
+                }
+            } else if (action >= 3 && action <= 9) {
+                // Upgrade (35% frequency)
+                if (backendEnabled) {
+                    // Bound upgrade amount to reasonable range
+                    uint256 upgradeAmount = bound(uint256(s.v), 1e18, 1_000_000 * 1e18);
+                    vm.startPrank(ALICE);
+                    superToken.upgrade(upgradeAmount);
+                    vm.stopPrank();
+                    numAaveOperations += 1; // upgrade deposits
+                }
+            } else if (action >= 10 && action <= 16) {
+                // Downgrade (35% frequency)
+                if (backendEnabled) {
+                    uint256 aliceBalance = superToken.balanceOf(ALICE);
+                    if (aliceBalance > 0) {
+                        // Bound downgrade amount to available balance
+                        uint256 downgradeAmount = bound(uint256(s.v), 1e18, aliceBalance);
+                        // Don't downgrade more than available
+                        if (downgradeAmount > aliceBalance) {
+                            downgradeAmount = aliceBalance;
+                        }
+                        vm.startPrank(ALICE);
+                        superToken.downgrade(downgradeAmount);
+                        vm.stopPrank();
+                        numAaveOperations += 1; // downgrade withdraws
+                    }
+                }
+            } else if (action >= 17 && action <= 19) {
+                // Withdraw surplus (15% frequency)
+                if (backendEnabled) {
+                    // Check if there's surplus to withdraw
+                    uint256 underlyingBalance = IERC20(USDC).balanceOf(address(superToken));
+                    uint256 aTokenBalance = IERC20(A_USDC).balanceOf(address(superToken));
+                    (uint256 normalizedTotalSupply,) = superToken.toUnderlyingAmount(superToken.totalSupply());
+                    uint256 totalAssets = underlyingBalance + aTokenBalance;
+                    
+                    // Only withdraw if there's actual surplus (after 100 wei margin)
+                    if (totalAssets > normalizedTotalSupply + 100) {
+                        vm.startPrank(ADMIN);
+                        superToken.withdrawSurplusFromYieldBackend();
+                        vm.stopPrank();
+                        numAaveOperations += 1; // withdraw surplus
+                        // After withdrawing surplus, initial excess is also withdrawn
+                        initialExcessPreserved = false;
+                    }
+                }
+            }
+
+            // Warp time to simulate yield accrual (if dt > 0)
+            if (s.dt > 0) {
+                // Bound time warp to reasonable range (1 hour to 30 days)
+                uint256 timeWarp = bound(uint256(s.dt), 1 hours, 30 days);
+                vm.warp(block.timestamp + timeWarp);
+            }
+
+            // Verify invariants after each step
+            // Initial excess should be preserved only if backend is enabled AND surplus hasn't been withdrawn
+            bool preserveInitialExcess = backendEnabled && initialExcessPreserved;
+            _verifyInvariants(preserveInitialExcess, numAaveOperations);
+        }
+
+        // Final invariant check
+        bool finalPreserveInitialExcess = backendEnabled && initialExcessPreserved;
+        _verifyInvariants(finalPreserveInitialExcess, numAaveOperations);
+    }
 }
 
