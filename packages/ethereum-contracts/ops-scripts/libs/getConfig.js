@@ -6,8 +6,8 @@ module.exports = function getConfig(chainId) {
         // here go the trusted forwarders which aren't part of the framework contracts
 
         // Local Testing
-        4447: {
-            // for local testing (truffle internal ganache and TestEnvironment)
+        31337: {
+            // for local testing (hardhat node default chainId)
             // this is a fake forwarder address, it is to test the deployment script
             trustedForwarders: ["0x3075b4dc7085C48A14A5A39BBa68F58B19545971"],
         },

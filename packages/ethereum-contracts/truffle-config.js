@@ -312,7 +312,7 @@ const E = (module.exports = {
         development: {
             host: "127.0.0.1",
             port: 47545,
-            network_id: "4447",
+            network_id: "31337", // hardhat default chainId
 
             // workaround to improve testing speed
             // see https://github.com/trufflesuite/truffle/issues/3522
