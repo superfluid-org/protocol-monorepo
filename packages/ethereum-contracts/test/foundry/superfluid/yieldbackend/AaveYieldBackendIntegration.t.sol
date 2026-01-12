@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 import { Test } from "forge-std/Test.sol";
 import { AaveYieldBackend } from "../../../../contracts/superfluid/AaveYieldBackend.sol";
 import { IERC20, ISuperfluid } from "../../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { ISuperToken } from "../../../../contracts/interfaces/superfluid/ISuperToken.sol";
 import { SuperToken } from "../../../../contracts/superfluid/SuperToken.sol";
 import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
 
@@ -88,7 +89,11 @@ contract AaveYieldBackendIntegrationTest is Test {
     }
 
     function _enableYieldBackend() public {
+        uint256 underlyingBalanceBefore = IERC20(USDC).balanceOf(address(superToken));
+
         vm.startPrank(ADMIN);
+        vm.expectEmit(true, false, false, true);
+        emit ISuperToken.YieldBackendEnabled(address(aaveBackend), underlyingBalanceBefore);
         superToken.enableYieldBackend(aaveBackend);
         vm.stopPrank();
     }
@@ -177,6 +182,8 @@ contract AaveYieldBackendIntegrationTest is Test {
         _enableYieldBackend();
 
         vm.startPrank(ADMIN);
+        vm.expectEmit(true, false, false, true);
+        emit ISuperToken.YieldBackendDisabled(address(aaveBackend));
         superToken.disableYieldBackend();
         vm.stopPrank();
         assertEq(address(superToken.getYieldBackend()), address(0), "Yield backend mismatch");

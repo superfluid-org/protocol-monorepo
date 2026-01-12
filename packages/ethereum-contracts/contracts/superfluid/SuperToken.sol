@@ -84,7 +84,7 @@ contract SuperToken is
     /// @dev ERC20 Nonces for EIP-2612 (permit)
     mapping(address account => uint256) internal _nonces;
 
-    // TODO: use a randomly located storage slot instead?
+    /// @dev optional contract using the underlying asset to generate yield
     IYieldBackend internal _yieldBackend;
 
     // NOTE: for future compatibility, these are reserved solidity slots
@@ -212,16 +212,17 @@ contract SuperToken is
             ? address(this).balance
             : _underlyingToken.balanceOf(address(this));
         delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (depositAmount)));
-        // TODO: emit event
+        emit YieldBackendEnabled(address(_yieldBackend), depositAmount);
     }
 
     // withdraws everything and removes allowances
     function disableYieldBackend() external onlyAdmin {
         require(address(_yieldBackend) != address(0), "yield backend not set");
+        address oldYieldBackend = address(_yieldBackend);
         delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdrawMax, ()));
         delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.disable, ()));
         _yieldBackend = IYieldBackend(address(0));
-        // TODO: emit event
+        emit YieldBackendDisabled(oldYieldBackend);
     }
 
     function getYieldBackend() external view returns (address) {
@@ -396,7 +397,6 @@ contract SuperToken is
 
         if (spender != holder) {
             require(amount <= _allowances[holder][spender], "SuperToken: transfer amount exceeds allowance");
-            // TODO: this triggers an `Approval` event, which shouldn't happen for transfers.
             _approve(holder, spender, _allowances[holder][spender] - amount, false);
         }
 
@@ -767,7 +767,6 @@ contract SuperToken is
     {
         if (!_skipSelfMint) {
             if (address(_yieldBackend) != address(0)) {
-                // TODO: shall we deposit all, or just the upgradeAmount?
                 delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (amount)));
             }
 
@@ -788,7 +787,6 @@ contract SuperToken is
 
        if (address(_yieldBackend) != address(0)) {
             _skipSelfMint = true;
-            // TODO: we may want to skip if enough underlying already in the contract
             delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdraw, (amount)));
             _skipSelfMint = false;
         }

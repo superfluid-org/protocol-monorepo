@@ -82,6 +82,24 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
      */
     function getYieldBackend() external view returns (address yieldBackend);
 
+    /**
+     * @dev Yield backend enabled event
+     * @param yieldBackend The address of the yield backend that was enabled
+     * @param depositAmount The amount deposited to the yield backend
+     */
+    event YieldBackendEnabled(
+        address indexed yieldBackend,
+        uint256 depositAmount
+    );
+
+    /**
+     * @dev Yield backend disabled event
+     * @param yieldBackend The address of the yield backend that was disabled
+     */
+    event YieldBackendDisabled(
+        address indexed yieldBackend
+    );
+
     /**************************************************************************
     * Immutable variables
     *************************************************************************/
