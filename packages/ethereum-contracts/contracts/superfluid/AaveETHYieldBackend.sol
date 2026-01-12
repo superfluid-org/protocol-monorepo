@@ -82,7 +82,7 @@ contract AaveETHYieldBackend is AaveYieldBackend {
         // fallback function of the SuperToken contract.
         uint256 withdrawnAmount = AAVE_POOL.withdraw(address(ASSET_TOKEN), amount, address(_SELF));
         // unwrap to ETH and transfer it to the calling SuperToken contract
-        _SELF.unwrapWETHAndForwardETH(withdrawnAmount);
+        _SELF.unwrapWETHAndForwardETH(withdrawnAmount, address(this));
     }
 
     // ============ functions operating on this contract itself (NOT in delegatecall context) ============
@@ -92,11 +92,11 @@ contract AaveETHYieldBackend is AaveYieldBackend {
 
     // To be invoked by `withdraw` which is executed via delegatecall in a SuperToken context.
     // WETH deposited or withdrawn by the SuperToken never stays in this contract beyond the lifetime of the tx.
-    // Thus it is not necessary to check msg.sender.
+    // Thus it is not necessary to restrict msg.sender.
     // We accept that an alien caller may withdraw WETH deposited to this contract (for whatever reason).
-    function unwrapWETHAndForwardETH(uint256 amount) external {
+    function unwrapWETHAndForwardETH(uint256 amount, address recipient) external {
         IWETH(address(ASSET_TOKEN)).withdraw(amount);
-        (bool success,) = address(msg.sender).call{ value: amount }("");
+        (bool success,) = recipient.call{ value: amount }("");
         require(success, "call failed");
     }
 }

@@ -50,7 +50,7 @@ contract AaveYieldBackendUnitTest is YieldBackendUnitTestBase {
         return IYieldBackend(address(aaveBackend));
     }
 
-    function getAssetToken() internal override returns (IERC20) {
+    function getAssetToken() internal pure override returns (IERC20) {
         return IERC20(USDC);
     }
 
@@ -63,7 +63,7 @@ contract AaveYieldBackendUnitTest is YieldBackendUnitTestBase {
         return 6;
     }
 
-    function _getProtocolAddress() internal view override returns (address) {
+    function _getProtocolAddress() internal pure override returns (address) {
         return AAVE_POOL;
     }
 }

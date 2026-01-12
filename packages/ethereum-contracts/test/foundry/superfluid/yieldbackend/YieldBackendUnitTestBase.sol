@@ -86,7 +86,7 @@ abstract contract YieldBackendUnitTestBase is Test {
 
     /// @notice Execute withdraw via delegatecall
     function _withdraw(uint256 amount) internal {
-        (bool success, bytes memory returnData) = address(backend).delegatecall(
+        (bool success, ) = address(backend).delegatecall(
             abi.encodeWithSelector(IYieldBackend.withdraw.selector, amount)
         );
         require(success, "withdraw failed");
@@ -171,7 +171,6 @@ abstract contract YieldBackendUnitTestBase is Test {
         _withdraw(amount);
         
         uint256 balanceAfter = _getAssetBalance();
-        uint256 balanceIncrease = balanceAfter - balanceBefore;
         
         assertEq(balanceAfter - balanceBefore, amount, "balance should increase by amount");
     }

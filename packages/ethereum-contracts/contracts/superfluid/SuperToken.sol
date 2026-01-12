@@ -219,7 +219,12 @@ contract SuperToken is
     function disableYieldBackend() external onlyAdmin {
         require(address(_yieldBackend) != address(0), "yield backend not set");
         address oldYieldBackend = address(_yieldBackend);
+
+        // This guard is needed for the native token wrapper
+        _skipSelfMint = true;
         delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdrawMax, ()));
+        _skipSelfMint = false;
+
         delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.disable, ()));
         _yieldBackend = IYieldBackend(address(0));
         emit YieldBackendDisabled(oldYieldBackend);
