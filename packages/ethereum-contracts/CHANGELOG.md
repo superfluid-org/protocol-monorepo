@@ -7,11 +7,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- `SuperToken`: the contract admin can enable/disable a _Yield Backend_ in order to get a yield on the underlying asset.
+- `SuperToken`: the contract admin can enable/disable a _Yield Backend_ in order to generate a yield on the underlying asset.
 
 ### Changed
 
 - EVM target changed from _shanghai_ to _cancun_.
+- Update solhint to v6.
 
 ## [v1.14.1]
 
