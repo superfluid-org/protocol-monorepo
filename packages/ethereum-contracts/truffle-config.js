@@ -171,8 +171,8 @@ const E = (module.exports = {
     networks: {
         // Useful for testing. The `development` name is special - truffle uses it by default
         // if it's defined here and no other network is specified at the command line.
-        // You should run a client (like ganache-cli, geth or parity) in a separate terminal
-        // tab if you use this network and you must also set the `host`, `port` and `network_id`
+        // You should run a client in a separate terminal tab
+        // if you use this network and you must also set the `host`, `port` and `network_id`
         // options below to some value.
 
         //
@@ -312,7 +312,7 @@ const E = (module.exports = {
         development: {
             host: "127.0.0.1",
             port: 47545,
-            network_id: "4447",
+            network_id: "31337", // hardhat default chainId
 
             // workaround to improve testing speed
             // see https://github.com/trufflesuite/truffle/issues/3522
@@ -389,7 +389,7 @@ const E = (module.exports = {
                     runs: 200,
                 },
                 // see https://docs.soliditylang.org/en/latest/using-the-compiler.html#target-options
-                evmVersion: "shanghai",
+                evmVersion: "cancun",
             },
         },
     },
