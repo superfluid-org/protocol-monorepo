@@ -11,11 +11,6 @@ module.exports = function getConfig(chainId) {
             // this is a fake forwarder address, it is to test the deployment script
             trustedForwarders: ["0x3075b4dc7085C48A14A5A39BBa68F58B19545971"],
         },
-        5777: {
-            // for local testing (external ganache)
-            // this is a fake forwarder address, it is to test the deployment script
-            trustedForwarders: ["0x3075b4dc7085C48A14A5A39BBa68F58B19545971"],
-        },
         6777: {
             // for coverage testing
             // this is a fake forwarder address, it is to test the deployment script

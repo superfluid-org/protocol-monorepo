@@ -32,7 +32,6 @@ import {
 
 const {web3tx, wad4human} = require("@decentral.ee/web3-helpers");
 const SuperfluidSDK = require("@superfluid-finance/js-sdk");
-const traveler = require("ganache-time-traveler");
 
 const deployFramework = require("../ops-scripts/deploy-framework");
 const deploySuperToken = require("../ops-scripts/deploy-super-token");
@@ -161,6 +160,22 @@ export default class TestEnvironment {
         console.debug("popEvmSnapshot", JSON.stringify(this._evmSnapshots));
     }
 
+    /**
+     * Advance time by specified seconds and mine a block (replaces ganache-time-traveler.advanceTimeAndBlock)
+     */
+    async _advanceTimeAndBlock(seconds: number) {
+        await network.provider.send("evm_increaseTime", [seconds]);
+        await network.provider.send("evm_mine", []);
+    }
+
+    /**
+     * Set the next block's timestamp and mine a block (replaces ganache-time-traveler.advanceBlockAndSetTime)
+     * Uses evm_mine with timestamp parameter, matching ganache-time-traveler behavior
+     */
+    async _advanceBlockAndSetTime(timestamp: number) {
+        await network.provider.send("evm_mine", [timestamp]);
+    }
+
     async useLastEvmSnapshot() {
         let oldEvmSnapshotId = "";
         const popped = this._evmSnapshots.pop();
@@ -171,10 +186,6 @@ export default class TestEnvironment {
             } = popped);
         }
         await this._revertToEvmSnapShot(oldEvmSnapshotId);
-        // move the time to now
-        await traveler.advanceBlockAndSetTime(
-            parseInt((Date.now() / 1000).toString())
-        );
         const newEvmSnapshotId = await this._takeEvmSnapshot();
         this._evmSnapshots.push({
             id: newEvmSnapshotId,
@@ -192,7 +203,7 @@ export default class TestEnvironment {
         const block1 = await ethers.provider.getBlock("latest");
         console.log("current block time", block1.timestamp);
         console.log(`time traveler going to the future +${jsNumTime}...`);
-        await traveler.advanceTimeAndBlock(jsNumTime);
+        await this._advanceTimeAndBlock(jsNumTime);
         const block2 = await ethers.provider.getBlock("latest");
         console.log("new block time", block2.timestamp);
     }
