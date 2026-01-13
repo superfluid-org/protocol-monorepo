@@ -894,7 +894,6 @@ contract SuperToken is
         if (underlyingAmount != actualUpgradedAmount) revert SUPER_TOKEN_INFLATIONARY_DEFLATIONARY_NOT_SUPPORTED();
 
         if (address(_yieldBackend) != address(0)) {
-            // TODO: shall we deposit all, or just the upgradeAmount?
             delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (actualUpgradedAmount)));
         }
 
@@ -921,7 +920,6 @@ contract SuperToken is
          _burn(operator, account, adjustedAmount, userData.length != 0, userData, operatorData);
 
         if (address(_yieldBackend) != address(0)) {
-            // TODO: we may want to skip if enough underlying already in the contract
             delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdraw, (underlyingAmount)));
         }
 
