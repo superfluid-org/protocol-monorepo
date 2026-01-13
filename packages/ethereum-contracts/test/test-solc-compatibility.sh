@@ -31,7 +31,7 @@ fi
 # from here - don't forget to add 0x to our generated sha256
 
 # workaround to make solc to find OZ library
-ln -s ../../lib/openzeppelin-contracts @openzeppelin-v5
+ln -sf ../../lib/openzeppelin-contracts @openzeppelin-v5
 
 # verify they are compatible with the minimum version of the SOLC we support
 find contracts/{interfaces/,apps/} -name '*.sol' | while read i;do

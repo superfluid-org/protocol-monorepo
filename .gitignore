@@ -30,3 +30,6 @@ package-lock.json
 # echidna litters
 crytic-export
 corpus
+
+/broadcast
+/.direnv

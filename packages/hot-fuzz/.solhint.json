@@ -8,7 +8,6 @@
         "no-unused-import": "off",
         "max-states-count": "off",
         "no-inline-assembly": "off",
-        "mark-callable-contracts": "off",
         "gas-custom-errors": "off",
         "one-contract-per-file": "off",
         "max-line-length": ["error", 120],
@@ -17,6 +16,16 @@
         "private-vars-leading-underscore": "off",
         "reason-string": ["error", { "maxLength": 64 } ],
         "compiler-version": ["off"],
-        "func-visibility" : ["error", { "ignoreConstructors": true }]
+        "func-visibility" : ["error", { "ignoreConstructors": true }],
+        "use-natspec": "off",
+        "import-path-check": "off",
+        "gas-indexed-events": "off",
+        "gas-struct-packing": "off",
+        "gas-small-strings": "off",
+        "gas-increment-by-one": "off",
+        "gas-strict-inequalities": "off",
+        "gas-calldata-parameters": "off",
+        "function-max-lines": "off",
+        "contract-name-capwords": "off"
     }
 }
