@@ -6,9 +6,6 @@ on:
       network:
         required: true
         type: string
-      network-id:
-        required: true
-        type: string
       provider-url:
         required: true
         type: string
@@ -28,8 +25,11 @@ jobs:
           yarn install --frozen-lockfile
           yarn build-for-contracts-dev
 
-      - name: Start ganache
-        run: npx ganache --port 47545 --mnemonic --fork.url ${{ github.event.inputs.provider-url }} --network-id ${{ github.event.inputs.network-id }} --chain.chainId ${{ github.event.inputs.network-id }}
+      - name: Start hardhat node
+        run: |
+          cd ${{ env.ethereum-contracts-working-directory }}
+          npx hardhat node --port 47545 --fork ${{ github.event.inputs.provider-url }} &
+          sleep 5
 
       - name: Deploy framework
         run: |

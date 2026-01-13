@@ -105,7 +105,7 @@ const config: HardhatUserConfig = {
                 enabled: true,
                 runs: 200,
             },
-            evmVersion: "shanghai",
+            evmVersion: "cancun",
         },
     },
     paths: {
@@ -159,6 +159,10 @@ const config: HardhatUserConfig = {
         hardhat: {
             // We defer the contract size limit test to foundry.
             allowUnlimitedContractSize: true,
+            // Expected by testenv-ctl.sh
+            accounts: {
+                mnemonic: "candy maple cake sugar pudding cream honey rich smooth crumble sweet treat",
+            },
         },
     },
     mocha: {
