@@ -3,6 +3,12 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+### Changed
+
+- Update solhint to v6.
+
 ## [v1.14.1]
 
 ### Added
