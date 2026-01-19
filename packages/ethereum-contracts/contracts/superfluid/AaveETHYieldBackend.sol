@@ -44,7 +44,8 @@ contract AaveETHYieldBackend is AaveYieldBackend {
             return 0x4200000000000000000000000000000000000006;
         }
         if (block.chainid == 137) { // Polygon
-            return 0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619;
+            // Note this token has the symbol WPOL, wrapping the native token POL
+            return 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270;
         }
         if (block.chainid == 42161) { // Arbitrum
             return 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
