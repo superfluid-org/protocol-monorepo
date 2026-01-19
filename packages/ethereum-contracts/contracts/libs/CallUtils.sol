@@ -10,8 +10,10 @@ pragma solidity ^0.8.23;
 */
 function delegateCallChecked(address target, bytes memory callData) {
     // solhint-disable-next-line avoid-low-level-calls
-    (bool success,) = target.delegatecall(callData);
-    require(success, "CallUtils: delegatecall failed");
+    (bool success, bytes memory returnedData) = target.delegatecall(callData);
+    if (!success) {
+        CallUtils.revertFromReturnedData(returnedData);
+    }
 }
 
 /**
