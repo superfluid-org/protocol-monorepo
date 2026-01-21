@@ -11,7 +11,7 @@ import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
  * @title Unit tests for ERC4626YieldBackend with Spark USDS on Ethereum
  * Tests the backend in isolation using delegatecall
  */
-contract ERC4626YieldBackendUnitTest is YieldBackendUnitTestBase {
+contract ERC4626YieldBackendUnitTestEthereumSUSDS is YieldBackendUnitTestBase {
     uint256 internal constant CHAIN_ID = 1;
     string internal constant RPC_URL = "https://eth.drpc.org";
     address internal constant VAULT = 0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD; // sUSDS on Ethereum
@@ -48,6 +48,64 @@ contract ERC4626YieldBackendUnitTest is YieldBackendUnitTestBase {
 
     function getAssetDecimals() internal pure override returns (uint8) {
         return 18; // USDS has 18 decimals
+    }
+
+    function _getProtocolAddress() internal pure override returns (address) {
+        return VAULT;
+    }
+}
+
+/**
+ * @title Unit tests for ERC4626YieldBackend with sUSDC Vault on Base
+ * Tests the backend in isolation using delegatecall
+ */
+contract ERC4626YieldBackendUnitTestBaseSUSDC is YieldBackendUnitTestBase {
+    uint256 internal constant CHAIN_ID = 8453;
+    string internal constant RPC_URL = "https://mainnet.base.org";
+    address internal constant VAULT = 0x3128a0F7f0ea68E7B7c9B00AFa7E41045828e858; // sUSDC Vault on Base
+
+    ERC4626YieldBackend internal erc4626Backend;
+
+    function getRpcUrl() internal pure override returns (string memory) {
+        return RPC_URL;
+    }
+
+    function getChainId() internal pure override returns (uint256) {
+        return CHAIN_ID;
+    }
+
+    /// @notice Override toUnderlyingAmount for USDC (6 decimals)
+    function toUnderlyingAmount(uint256 amount)
+        external
+        pure
+        override
+        returns (uint256 underlyingAmount, uint256 adjustedAmount)
+    {
+        // USDC has 6 decimals, SuperToken has 18 decimals
+        uint256 factor = 10 ** (18 - 6);
+        underlyingAmount = amount / factor;
+        adjustedAmount = underlyingAmount * factor;
+    }
+
+    function createBackend() internal override returns (IYieldBackend) {
+        erc4626Backend = new ERC4626YieldBackend(
+            IERC4626(VAULT),
+            SURPLUS_RECEIVER
+        );
+        return IYieldBackend(address(erc4626Backend));
+    }
+
+    function getAssetToken() internal view override returns (IERC20) {
+        return IERC20((IERC4626(VAULT)).asset());
+    }
+
+    function fundTestContract() internal override {
+        // Fund with 10M USDC (6 decimals)
+        deal(address(getAssetToken()), address(this), 10_000_000 * 1e6);
+    }
+
+    function getAssetDecimals() internal pure override returns (uint8) {
+        return 6; // USDC has 6 decimals
     }
 
     function _getProtocolAddress() internal pure override returns (address) {

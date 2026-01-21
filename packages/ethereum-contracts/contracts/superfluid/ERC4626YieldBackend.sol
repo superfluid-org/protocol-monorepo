@@ -6,7 +6,12 @@ import { IERC20, ISuperToken } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
 
 
-/// @title A SuperToken yield backend for ERC4626 compliant vaults.
+/**
+ * @title A SuperToken yield backend for ERC4626 compliant vaults.
+ *
+ * In order to learn about the limitations and constraints of this implementation, see
+ * https://github.com/superfluid-org/protocol-monorepo/wiki/Yield-Backend
+ */
 contract ERC4626YieldBackend is IYieldBackend {
     IERC20 public immutable ASSET_TOKEN;
     IERC4626 public immutable VAULT;

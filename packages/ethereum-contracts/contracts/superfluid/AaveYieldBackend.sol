@@ -12,6 +12,9 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
  *
  * This contract is conceptually a hot-pluggable library.
  * All methods are supposed to be invoked as delegatecall.
+ *
+ * In order to learn about the limitations and constraints of this implementation, see
+ * https://github.com/superfluid-org/protocol-monorepo/wiki/Yield-Backend
  */
 contract AaveYieldBackend is IYieldBackend {
     IERC20 public immutable ASSET_TOKEN;
