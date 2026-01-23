@@ -235,6 +235,14 @@ abstract contract YieldBackendUnitTestBase is Test {
         assertGt(receiverBalanceAfter, receiverBalanceBefore, "surplus receiver balance should increase");
     }
 
+    /// @notice Test withdrawSurplus() direct call fails - assert: reverts when called directly (not via delegatecall)
+    function testWithdrawSurplusDirectCallFails() public {
+        // Attempt to call withdrawSurplus directly on backend (not via delegatecall)
+        // This should fail because address(this) in backend context is the backend itself, not a SuperToken
+        vm.expectRevert();
+        IYieldBackend(address(backend)).withdrawSurplus(0);
+    }
+
     // ============ Internal helper functions ============
 
     /// @notice Bound amount to reasonable range based on asset decimals
