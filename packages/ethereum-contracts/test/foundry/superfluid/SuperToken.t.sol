@@ -13,6 +13,17 @@ import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
+import { IYieldBackend } from "../../../contracts/interfaces/superfluid/IYieldBackend.sol";
+
+// Simple mock yield backend for testing access control
+contract MockYieldBackend is IYieldBackend {
+    function enable() external {}
+    function disable() external {}
+    function deposit(uint256) external {}
+    function withdraw(uint256) external {}
+    function withdrawMax() external {}
+    function withdrawSurplus(uint256) external {}
+}
 
 contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
@@ -258,5 +269,63 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
         // Verify expected state changes
         assertEq(localSuperToken.nonces(permitSigner), 1, "Nonce should be incremented");
         assertEq(localSuperToken.allowance(permitSigner, spender), amount, "Allowance should be set");
+    }
+
+    // ============ Helper for yield backend tests ============
+
+    /// @notice Helper to deploy a SuperToken with yield backend functionality enabled
+    function _deploySuperTokenWithYieldBackendSupport(address admin) internal returns (SuperToken) {
+        (TestToken localTestToken, ISuperToken localSuperToken) =
+            sfDeployer.deployWrapperSuperToken("FTT", "FTT", 18, type(uint256).max, admin);
+
+        SuperToken newSuperTokenLogic =
+            _helperDeploySuperTokenAndInitialize(localSuperToken, localTestToken, 18, "FTT", "FTT", admin);
+
+        address adminToUse = admin == address(0) ? address(sf.host) : admin;
+        vm.startPrank(adminToUse);
+        UUPSProxiable(address(localSuperToken)).updateCode(address(newSuperTokenLogic));
+        vm.stopPrank();
+
+        return SuperToken(address(localSuperToken));
+    }
+
+    // ============ Yield backend access control tests ============
+
+    function testOnlyAdminCanEnableYieldBackend() public {
+        SuperToken localSuperToken = _deploySuperTokenWithYieldBackendSupport(admin);
+        MockYieldBackend mockBackend = new MockYieldBackend();
+
+        vm.startPrank(alice);
+        vm.expectRevert(ISuperToken.SUPER_TOKEN_ONLY_ADMIN.selector);
+        localSuperToken.enableYieldBackend(IYieldBackend(address(mockBackend)));
+        vm.stopPrank();
+    }
+
+    function testOnlyAdminCanDisableYieldBackend() public {
+        SuperToken localSuperToken = _deploySuperTokenWithYieldBackendSupport(admin);
+        MockYieldBackend mockBackend = new MockYieldBackend();
+
+        vm.startPrank(admin);
+        localSuperToken.enableYieldBackend(IYieldBackend(address(mockBackend)));
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert(ISuperToken.SUPER_TOKEN_ONLY_ADMIN.selector);
+        localSuperToken.disableYieldBackend();
+        vm.stopPrank();
+    }
+
+    function testOnlyAdminCanWithdrawSurplusFromYieldBackend() public {
+        SuperToken localSuperToken = _deploySuperTokenWithYieldBackendSupport(admin);
+        MockYieldBackend mockBackend = new MockYieldBackend();
+
+        vm.startPrank(admin);
+        localSuperToken.enableYieldBackend(IYieldBackend(address(mockBackend)));
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert(ISuperToken.SUPER_TOKEN_ONLY_ADMIN.selector);
+        localSuperToken.withdrawSurplusFromYieldBackend();
+        vm.stopPrank();
     }
 }

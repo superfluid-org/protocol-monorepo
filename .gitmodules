@@ -5,3 +5,6 @@
 	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts.git
 	branch = release-v5.4
+[submodule "lib/aave-v3"]
+	path = lib/aave-v3
+	url = https://github.com/aave-dao/aave-v3-origin

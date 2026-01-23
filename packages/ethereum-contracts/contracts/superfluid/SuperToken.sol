@@ -11,6 +11,8 @@ import {
     IERC20,
     IPoolAdminNFT
 } from "../interfaces/superfluid/ISuperfluid.sol";
+import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
+import { delegateCallChecked } from "../libs/CallUtils.sol";
 import { SuperfluidToken } from "./SuperfluidToken.sol";
 import { ERC777Helper } from "../libs/ERC777Helper.sol";
 import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -82,15 +84,17 @@ contract SuperToken is
     /// @dev ERC20 Nonces for EIP-2612 (permit)
     mapping(address account => uint256) internal _nonces;
 
+    /// @dev optional contract using the underlying asset to generate yield
+    IYieldBackend internal _yieldBackend;
+
     // NOTE: for future compatibility, these are reserved solidity slots
-    // The sub-class of SuperToken solidity slot will start after _reserve22
+    // The sub-class of SuperToken solidity slot will start after _reserve24
 
     // NOTE: Whenever modifying the storage layout here it is important to update the validateStorageLayout
     // function in its respective mock contract to ensure that it doesn't break anything or lead to unexpected
     // behaviors/layout when upgrading
 
-    uint256 internal _reserve23;
-    uint256 private _reserve24;
+    uint256 internal _reserve24;
     uint256 private _reserve25;
     uint256 private _reserve26;
     uint256 private _reserve27;
@@ -101,6 +105,9 @@ contract SuperToken is
 
     // NOTE: You cannot add more storage here. Refer to CustomSuperTokenBase.sol
     // to see the hard-coded storage padding used by SETH and PureSuperToken
+
+    // set when withdrawing ETH from yield backend in order to avoid a burn/mint loop
+    bool transient internal _skipSelfMint;
 
     constructor(
         ISuperfluid host,
@@ -195,6 +202,42 @@ contract SuperToken is
         }
     }
 
+    function enableYieldBackend(IYieldBackend newYieldBackend) external onlyAdmin {
+        require(address(_yieldBackend) == address(0), "yield backend already set");
+        _yieldBackend = newYieldBackend;
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.enable, ()));
+        // Assumption: if no underlying token is set, it's the native token wrapper (SETH).
+        // This doesn't hold for pure SuperTokens, but those can't have a yield backend.
+        uint256 depositAmount = address(_underlyingToken) == address(0)
+            ? address(this).balance
+            : _underlyingToken.balanceOf(address(this));
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (depositAmount)));
+        emit YieldBackendEnabled(address(_yieldBackend), depositAmount);
+    }
+
+    // withdraws everything and removes allowances
+    function disableYieldBackend() external onlyAdmin {
+        require(address(_yieldBackend) != address(0), "yield backend not set");
+        address oldYieldBackend = address(_yieldBackend);
+
+        // This guard is needed for the native token wrapper
+        _skipSelfMint = true;
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdrawMax, ()));
+        _skipSelfMint = false;
+
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.disable, ()));
+        _yieldBackend = IYieldBackend(address(0));
+        emit YieldBackendDisabled(oldYieldBackend);
+    }
+
+    function getYieldBackend() external view returns (address) {
+        return address(_yieldBackend);
+    }
+
+    function withdrawSurplusFromYieldBackend() external onlyAdmin {
+        require(address(_yieldBackend) != address(0), "yield backend not set");
+        delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdrawSurplus, (_totalSupply)));
+    }
 
     /**************************************************************************
      * ERC20 Token Info
@@ -359,7 +402,6 @@ contract SuperToken is
 
         if (spender != holder) {
             require(amount <= _allowances[holder][spender], "SuperToken: transfer amount exceeds allowance");
-            // TODO: this triggers an `Approval` event, which shouldn't happen for transfers.
             _approve(holder, spender, _allowances[holder][spender] - amount, false);
         }
 
@@ -728,8 +770,14 @@ contract SuperToken is
         external virtual override
         onlySelf
     {
-        _mint(msg.sender, account, amount, userData.length != 0 /* invokeHook */,
-            userData.length != 0 /* requireReceptionAck */, userData, new bytes(0));
+        if (!_skipSelfMint) {
+            if (address(_yieldBackend) != address(0)) {
+                delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (amount)));
+            }
+
+            _mint(msg.sender, account, amount, userData.length != 0 /* invokeHook */,
+                userData.length != 0 /* requireReceptionAck */, userData, new bytes(0));
+        }
     }
 
     function selfBurn(
@@ -741,6 +789,12 @@ contract SuperToken is
        onlySelf
     {
        _burn(msg.sender, account, amount, userData.length != 0 /* invokeHook */, userData, new bytes(0));
+
+       if (address(_yieldBackend) != address(0)) {
+            _skipSelfMint = true;
+            delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdraw, (amount)));
+            _skipSelfMint = false;
+        }
     }
 
     function selfApproveFor(
@@ -839,6 +893,10 @@ contract SuperToken is
         uint256 actualUpgradedAmount = amountAfter - amountBefore;
         if (underlyingAmount != actualUpgradedAmount) revert SUPER_TOKEN_INFLATIONARY_DEFLATIONARY_NOT_SUPPORTED();
 
+        if (address(_yieldBackend) != address(0)) {
+            delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.deposit, (actualUpgradedAmount)));
+        }
+
         _mint(operator, to, adjustedAmount,
             // if `userData.length` is greater than 0, we set invokeHook and requireReceptionAck true
             userData.length != 0, userData.length != 0, userData, operatorData);
@@ -860,6 +918,10 @@ contract SuperToken is
 
          // _burn will check the (actual) amount availability again
          _burn(operator, account, adjustedAmount, userData.length != 0, userData, operatorData);
+
+        if (address(_yieldBackend) != address(0)) {
+            delegateCallChecked(address(_yieldBackend), abi.encodeCall(IYieldBackend.withdraw, (underlyingAmount)));
+        }
 
         uint256 amountBefore = _underlyingToken.balanceOf(address(this));
         _underlyingToken.safeTransfer(to, underlyingAmount);

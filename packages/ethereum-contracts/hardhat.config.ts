@@ -59,6 +59,12 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS).setAction(
     }
 );
 
+/*
+Note: for hardhat to find libs in node_modules, they need to look like an npm package, that is they need to have
+a package.json at the directory level looking like the package.
+E.g. if the first path component is prefixed with @, it will expect a package.json in the nested directory.
+*/
+
 const chainIds = {
     "eth-mainnet": 1,
     "eth-sepolia": 11155111,
