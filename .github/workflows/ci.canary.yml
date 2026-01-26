@@ -218,7 +218,6 @@ jobs:
           tasks/npm-publish.sh packages/metadata/ dev --verbose
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
   publish-sdk-html-docs:
     name: Publish canary HTML docs

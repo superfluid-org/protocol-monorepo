@@ -127,7 +127,6 @@ jobs:
           tasks/npm-publish.sh packages/metadata/ latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
   check-sdk-core-version:
     name: Checking if SDK-Core should be published

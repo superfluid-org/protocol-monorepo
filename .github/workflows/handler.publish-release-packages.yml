@@ -52,7 +52,6 @@ jobs:
           tasks/npm-publish.sh packages/ethereum-contracts/ latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
       - name: Publish sdk-core package
         id: publish-sdk-core
@@ -74,7 +73,6 @@ jobs:
           > sdk-core-redirect/index.html
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
       - name: Upload sdk-core HTML documentation
         if: env.PUBLISH_SDK_CORE == 1
@@ -119,7 +117,6 @@ jobs:
           > sdk-redux-redirect/index.html
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
       - name: Upload sdk-redux HTML documentation
         if: env.PUBLISH_SDK_REDUX == 1
