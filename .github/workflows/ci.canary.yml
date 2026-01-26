@@ -176,7 +176,10 @@ jobs:
   publish-npm-packages:
     name: Publish canary packages to registries
 
-    permissions: write-all
+    permissions:
+      contents: read
+      id-token: write
+
 
     needs: [all-packages-tested]
 

@@ -19,7 +19,8 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +50,9 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
+
 
     steps:
       - uses: actions/checkout@v4
@@ -89,7 +92,10 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
+      id-token: write
+
 
     steps:
       - uses: actions/checkout@v4
@@ -166,7 +172,8 @@ jobs:
         check-sdk-core-version,
       ]
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -193,7 +200,8 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4

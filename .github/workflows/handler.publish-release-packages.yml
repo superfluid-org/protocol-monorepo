@@ -8,7 +8,9 @@ jobs:
   publish-release:
     name: Publish release package
 
-    permissions: write-all
+    permissions:
+      contents: read
+      id-token: write
 
     runs-on: ubuntu-22.04
 
