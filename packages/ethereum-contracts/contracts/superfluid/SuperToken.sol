@@ -30,6 +30,11 @@ interface IPoolMemberNFT {}
  * @title Superfluid's super token implementation
  *
  * @author Superfluid
+ *
+ * CHANGELOG:
+ * [1.0.0]
+ * Added:
+ * - support for an optional yield backend
  */
 contract SuperToken is
     UUPSProxiable,
@@ -39,6 +44,8 @@ contract SuperToken is
     using SafeCast for uint256;
     using ERC777Helper for ERC777Helper.Operators;
     using SafeERC20 for IERC20;
+
+    string public constant override VERSION = "1.0.0";
 
     // See: https://eips.ethereum.org/EIPS/eip-1967#admin-address
     bytes32 constant private _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
