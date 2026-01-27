@@ -73,7 +73,6 @@
         "build:contracts:foundry": "yarn run-foundry build",
         "build:post-contracts": "run-p -l build:post-contracts:*",
         "build:post-contracts:abi-bundle": "tasks/build-bundled-abi.sh",
-        "build:post-contracts:dev-scripts-typings": "rm -rf dev-scripts/*.d.ts dev-scripts/*.d.ts.map; tsc -p tsconfig.scripts.json",
         "build:post-contracts:contracts-size": "forge build --sizes --skip test --skip script > build/contracts-sizes.txt",
         "verify-framework": "tasks/etherscan-verify-framework.sh",
         "testenv:start": "test/testenv-ctl.sh start",
