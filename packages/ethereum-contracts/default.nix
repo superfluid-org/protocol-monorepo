@@ -21,7 +21,6 @@
       ./hardhat.config.ts
       ./foundry.toml
       ./tsconfig.json
-      ./tsconfig.scripts.json
     ];
   };
 }
