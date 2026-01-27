@@ -2991,10 +2991,10 @@
   resolved "https://registry.yarnpkg.com/@nomiclabs/hardhat-ethers/-/hardhat-ethers-2.2.3.tgz#b41053e360c31a32c2640c9a45ee981a7e603fe0"
   integrity sha512-YhzPdzb612X591FOe68q+qXVXGG2ANZRvDo0RRUtimev85rCrAlv/TLMEZw5c+kq9AbzocLTVX/h2jVIFPL9Xg==
 
-"@nomiclabs/hardhat-truffle5@^2.1.2":
-  version "2.1.2"
-  resolved "https://registry.yarnpkg.com/@nomiclabs/hardhat-truffle5/-/hardhat-truffle5-2.1.2.tgz#c161fafb53ff82c828d7b4fff31ca1cc5074d141"
-  integrity sha512-y5I9S5/vl3izamwYvvDmhO2zrvHmuKlGqU3J/vWbnbzN83kX1bm8f/F/NG9QtEfVUa6dGfCJxg7YEo5xFCqSZg==
+"@nomiclabs/hardhat-truffle5@^2.1.0":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@nomiclabs/hardhat-truffle5/-/hardhat-truffle5-2.1.0.tgz#e8fb42750084ebf331ca983b585bc9391520aae3"
+  integrity sha512-PldM8b+SWiCsZvFYmOhli8P9Flv01O2xS0aCjP5Owz3fXgY+N5LGulQHh0jyXdL6np6BzqkP8AXK+IZywcq2NQ==
   dependencies:
     "@nomiclabs/truffle-contract" "^4.2.23"
     "@types/chai" "^4.2.0"

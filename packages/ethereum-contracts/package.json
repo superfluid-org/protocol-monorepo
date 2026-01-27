@@ -13,7 +13,7 @@
     },
     "devDependencies": {
         "@d10r/truffle-plugin-verify": "^0.7.2",
-        "@nomiclabs/hardhat-truffle5": "^2.1.2",
+        "@nomiclabs/hardhat-truffle5": "^2.1.0",
         "@safe-global/safe-core-sdk": "^3.3.5",
         "@safe-global/safe-service-client": "^2.0.3",
         "@safe-global/safe-web3-lib": "^1.9.4",
