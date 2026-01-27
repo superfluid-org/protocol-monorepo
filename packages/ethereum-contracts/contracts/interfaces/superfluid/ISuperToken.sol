@@ -35,6 +35,11 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
     error SUPER_TOKEN_PERMIT_INVALID_SIGNER(address signer, address owner);  // 0xb6422105
 
     /**
+     * @dev Return the version of the SuperToken logic
+     */
+    function VERSION() external view returns (string memory);
+
+    /**
      * @dev Initialize the contract
      */
     function initialize(
