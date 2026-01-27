@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 
 - `SuperToken`: the contract admin can enable/disable a _Yield Backend_ in order to generate a yield on the underlying asset.
+- `SuperToken`: added `VERSION()` which returns the version string of the logic contract set for the SuperToken, and inline CHANGELOG.
 
 ### Changed
 
