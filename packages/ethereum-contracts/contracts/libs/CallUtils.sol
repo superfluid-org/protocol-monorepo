@@ -1,6 +1,21 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+
+/**
+* @dev Helper method to delegatecall, reverts if not successful.
+* @param target The address to delegatecall to
+* @param callData The data to delegatecall with
+* Does not return anything!
+*/
+function delegateCallChecked(address target, bytes memory callData) {
+    // solhint-disable-next-line avoid-low-level-calls
+    (bool success, bytes memory returnedData) = target.delegatecall(callData);
+    if (!success) {
+        CallUtils.revertFromReturnedData(returnedData);
+    }
+}
+
 /**
  * @title Call utilities library that is absent from the OpenZeppelin
  * @author Superfluid

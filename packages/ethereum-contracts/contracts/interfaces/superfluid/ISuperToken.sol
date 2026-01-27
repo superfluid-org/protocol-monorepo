@@ -35,6 +35,11 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
     error SUPER_TOKEN_PERMIT_INVALID_SIGNER(address signer, address owner);  // 0xb6422105
 
     /**
+     * @dev Return the version of the SuperToken logic
+     */
+    function VERSION() external view returns (string memory);
+
+    /**
      * @dev Initialize the contract
      */
     function initialize(
@@ -63,12 +68,42 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
      */
     function changeAdmin(address newAdmin) external;
 
+
     event AdminChanged(address indexed oldAdmin, address indexed newAdmin);
 
     /**
      * @dev Returns the admin address for the SuperToken
+     * The admin account has the exclusive privilege of
+     * - updating the contract (change implementation)
+     * - enabling/disabling a yield backend
+     * - setting another admin
+     * If no admin is set (zero address), this privileges are delegated to the host contract.
      */
     function getAdmin() external view returns (address admin);
+
+    /**
+     * @dev Returns the address of the yield backend contract (see `IYieldBackend`).
+     * The yield backend contract is responsible for managing the yield of the SuperToken.
+     */
+    function getYieldBackend() external view returns (address yieldBackend);
+
+    /**
+     * @dev Yield backend enabled event
+     * @param yieldBackend The address of the yield backend that was enabled
+     * @param depositAmount The amount deposited to the yield backend
+     */
+    event YieldBackendEnabled(
+        address indexed yieldBackend,
+        uint256 depositAmount
+    );
+
+    /**
+     * @dev Yield backend disabled event
+     * @param yieldBackend The address of the yield backend that was disabled
+     */
+    event YieldBackendDisabled(
+        address indexed yieldBackend
+    );
 
     /**************************************************************************
     * Immutable variables
@@ -614,5 +649,4 @@ interface ISuperToken is ISuperfluidToken, IERC20Metadata, IERC777, IERC20Permit
 
     /// @dev The msg.sender must be the contract itself
     //modifier onlySelf() virtual
-
 }
