@@ -26,7 +26,7 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         //string language;
         //string disclaimer;
     }
-    bytes32 constant TYPEHASH_META = keccak256("Meta(string domain,string version)");
+    bytes32 internal constant _TYPEHASH_META = keccak256("Meta(string domain,string version)");
     struct PayloadMessage {
         string title;
         //string description;
@@ -39,7 +39,7 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         //uint256 validBefore;
         uint256 nonce;
     }
-    bytes32 constant TYPEHASH_SECURITY = keccak256("Security(string provider,uint256 nonce)");
+    bytes32 internal constant _TYPEHASH_SECURITY = keccak256("Security(string provider,uint256 nonce)");
 
     error InvalidPayload(string message);
     error InvalidProvider(string provider);
@@ -53,9 +53,10 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
      * @param m Target macro.
      * @param params Encoded payload
      */
-    function runMacro(IUserDefined712Macro m, bytes calldata params, address signer, bytes calldata signature) external payable returns (bool) {
-        //bytes memory appParams = abi.decode(params, (bytes));
-
+    function runMacro(IUserDefined712Macro m, bytes calldata params, address signer, bytes calldata signature)
+        external payable
+        returns (bool)
+    {
         // decode the payload
         Payload memory payload = abi.decode(params, (Payload));
         require(
@@ -64,14 +65,37 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         );
         // TODO: verify nonce (replay protection)
 
-        bytes32 metaStructHash = getMetaStructHash(payload.meta);
+        bytes32 digest = _getDigest(m, payload);
+
+        // verify the signature - this also works for ERC1271 (contract signatures)
+        if (!SignatureChecker.isValidSignatureNow(signer, digest, signature)) {
+            revert InvalidSignature();
+        }
+
+        // get the operations array from the user macro based on the payload message
+        ISuperfluid.Operation[] memory operations =
+            m.buildBatchOperations(_host, payload.message.customPayload, signer);
+
+        // forward the operations
+        bool retVal = _forwardBatchCallWithValue(operations, msg.value);
+        // TODO: is customPayload the correct argument here?
+        m.postCheck(_host, payload.message.customPayload, signer);
+        return retVal;
+    }
+
+    function getDigest(IUserDefined712Macro m, bytes calldata params) external view returns (bytes32) {
+        return _getDigest(m, abi.decode(params, (Payload)));
+    }
+
+    function _getDigest(IUserDefined712Macro m, Payload memory payload) internal view returns (bytes32) {
+        bytes32 metaStructHash = _getMetaStructHash(payload.meta);
 
         // the message fragment is handled by the user macro.
         bytes32 messageStructHash = m.getMessageStructHash(
             abi.encode(payload.message.title, payload.message.customPayload)
         );
 
-        bytes32 securityStructHash = getSecurityStructHash(payload.security);
+        bytes32 securityStructHash = _getSecurityStructHash(payload.security);
 
         // get the typehash
         bytes32 primaryTypeHash = keccak256(
@@ -80,8 +104,8 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
                 "Payload(Meta meta,Message message,Security security)",
                 // nested components need to be in alphabetical order
                 m.getMessageTypeHash(),
-                TYPEHASH_META,
-                TYPEHASH_SECURITY
+                _TYPEHASH_META,
+                _TYPEHASH_SECURITY
             )
         );
 
@@ -96,32 +120,20 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
                 )
             )      
         );
-
-        // verify the signature - this also works for ERC1271 (contract signatures)
-        if (!SignatureChecker.isValidSignatureNow(signer, digest, signature)) {
-            revert InvalidSignature(); // or custom error
-        }
-
-        // get the operations array from the user macro based on the payload message
-        ISuperfluid.Operation[] memory operations = m.buildBatchOperations(_host, payload.message.customPayload, msg.sender);
-
-        // forward the operations
-        bool retVal = _forwardBatchCallWithValue(operations, msg.value);
-        m.postCheck(_host, payload.message.customPayload, msg.sender);
-        return retVal;
+        return digest;
     }
 
-    function getMetaStructHash(PayloadMeta memory meta) internal pure returns (bytes32) {
+    function _getMetaStructHash(PayloadMeta memory meta) internal pure returns (bytes32) {
         return keccak256(abi.encode(
-            TYPEHASH_META,
+            _TYPEHASH_META,
             keccak256(bytes(meta.domain)),
             keccak256(bytes(meta.version))
         ));
     }
 
-    function getSecurityStructHash(PayloadSecurity memory security) internal pure returns (bytes32) {
+    function _getSecurityStructHash(PayloadSecurity memory security) internal pure returns (bytes32) {
         return keccak256(abi.encode(
-            TYPEHASH_SECURITY,
+            _TYPEHASH_SECURITY,
             keccak256(bytes(security.provider)),
             security.nonce
         ));

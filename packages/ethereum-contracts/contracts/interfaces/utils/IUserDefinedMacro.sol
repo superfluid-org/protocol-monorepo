@@ -44,3 +44,11 @@ interface IUserDefinedMacro {
      * You can consult the related test code in `MacroForwarderTest.t.sol` for examples.
      */
 }
+
+interface IUserDefined712Macro is IUserDefinedMacro {
+    // TODO: this probably needs to be a function of the message, for the dispatching pattern
+    // the metaphor being: a macro is like an api, an action is like an endpoint (defining the set of arguments)
+    function getMessageTypeHash() external view returns (bytes32);
+    // TODO: should it take the known and required fields already decoded instead?
+    function getMessageStructHash(bytes memory message) external view returns (bytes32);
+}
