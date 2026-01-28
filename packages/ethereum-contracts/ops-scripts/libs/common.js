@@ -50,23 +50,6 @@ function builtTruffleContractLoader(name) {
     }
 }
 
-//
-// Detect truffle environment
-//
-function detectTruffle() {
-    const stackTrace = require("stack-trace");
-    const trace = stackTrace.get();
-    //trace.forEach((callSite) => console.debug(callSite.getFileName()));
-    const truffleDetected =
-        trace.filter((callSite) =>
-            (callSite.getFileName() || "").match(
-                /node_modules\/truffle\/build\/[^/]+\.bundled\.js/
-            )
-        ).length > 0;
-    console.log("truffle detected", truffleDetected);
-    return truffleDetected;
-}
-
 // extracts the gas related config for the given network from the truffle config
 // returns an object with the relevant fields set in the config (empty if none)
 //
@@ -494,13 +477,11 @@ async function getPastEvents({config, contract, eventName, filter, topics}) {
  */
 function getScriptRunnerFactory(runnerOpts = {}) {
     return (logicFn) => {
-        const {detectTruffle} = require("./libs/common");
         return require("./libs/truffleScriptRunnerFactory")(
             () => ({
                 artifacts:
                     typeof artifacts !== "undefined" ? artifacts : undefined,
                 web3: typeof web3 !== "undefined" ? web3 : undefined,
-                truffleDetected: detectTruffle(),
             }),
             logicFn,
             runnerOpts
@@ -546,7 +527,6 @@ module.exports = {
     rl,
     extractWeb3Options,
     builtTruffleContractLoader,
-    detectTruffle,
     getGasConfig,
 
     hasCode,
