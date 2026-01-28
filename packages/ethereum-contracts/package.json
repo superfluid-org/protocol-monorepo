@@ -93,7 +93,7 @@
         "test-coverage:foundry": "yarn run-foundry coverage --gas-limit 999999999999 --report lcov",
         "test-slither": "tasks/test-slither.sh",
         "lint": "run-s lint:*",
-        "lint:sol": "solhint -w 0 `find contracts -name *.sol` && echo '✔  Your .sol files look good.'",
+        "lint:sol": "solhint --disc -w 0 `find contracts -name *.sol` && echo '✔  Your .sol files look good.'",
         "lint-js": "eslint test -c .eslintrc.json --ext .js",
         "lint:js-eslint": "yarn lint-js --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look good.'",
         "lint-ts": "eslint test -c .eslintrc.ts.json --ext .ts",
