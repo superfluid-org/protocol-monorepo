@@ -3050,10 +3050,10 @@
     ethereumjs-util "^7.1.4"
     fs-extra "^7.0.1"
 
-"@nomiclabs/hardhat-web3@^2.1.2":
-  version "2.1.2"
-  resolved "https://registry.yarnpkg.com/@nomiclabs/hardhat-web3/-/hardhat-web3-2.1.2.tgz#1e25ffe16b78dda36083d74cee13068d4199fa0a"
-  integrity sha512-ChnUInQ5AES1iJSNXq00JfWfQZkVUIkkSt2dtrB/8r+CfW/XeBTkvE5G+OTJTVSMme7lgqk9aieOI7d6GU6v1g==
+"@nomiclabs/hardhat-web3@^2.1.0":
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/@nomiclabs/hardhat-web3/-/hardhat-web3-2.1.0.tgz#5aacf9700a8bd7301293bf9a743977d6a4edf778"
+  integrity sha512-gd6PWaaIfFSNenxsbYVD21LGJvhyLA8MjbWb+pzhTHyYMyvf2IMRhd6Ff3fDMbR4ICwjVyj+7iztom9g+Pvi3g==
 
 "@nomiclabs/truffle-contract@^4.2.23":
   version "4.5.10"
