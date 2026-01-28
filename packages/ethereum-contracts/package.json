@@ -9,7 +9,7 @@
         "@truffle/contract": "4.6.31",
         "ethereumjs-tx": "2.1.2",
         "ethereumjs-util": "7.1.5",
-        "hardhat": "2.28.4"
+        "hardhat": "2.27.2"
     },
     "devDependencies": {
         "@d10r/truffle-plugin-verify": "^0.7.2",
