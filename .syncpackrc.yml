@@ -21,3 +21,11 @@ versionGroups:
     dependencies:
       - "stack-trace"
     pinVersion: "0.0.10"
+  - label: Pin hardhat-ethers due to a bug during deployment of contracts
+    dependencies:
+      - "@nomicfoundation/hardhat-ethers"
+    pinVersion: "3.1.2"
+  - label: Pin hardhat
+    dependencies:
+      - "hardhat"
+    pinVersion: "2.26.1"
