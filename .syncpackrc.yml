@@ -25,7 +25,3 @@ versionGroups:
     dependencies:
       - "@nomicfoundation/hardhat-ethers"
     pinVersion: "3.1.2"
-  - label: Pin hardhat
-    dependencies:
-      - "hardhat"
-    pinVersion: "2.26.1"
