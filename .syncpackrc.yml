@@ -16,3 +16,12 @@ semverGroups:
     range: ""
   - label: Use looser range by default
     range: "^"
+versionGroups:
+  - label: Pin hardhat due to a bug during deployment of contracts
+    dependencies:
+      - "hardhat"
+    pinVersion: "2.27.2"
+  - label: Pin hardhat-ethers due to it will require hardhat@^2.28.x
+    dependencies:
+      - "@nomicfoundation/hardhat-ethers"
+    pinVersion: "3.1.2"
