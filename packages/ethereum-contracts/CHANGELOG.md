@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - EVM target changed from _shanghai_ to _cancun_.
 - Update solhint to v6.
+- Updated to "hardhat@2.27.2".
 
 ## [v1.14.1]
 

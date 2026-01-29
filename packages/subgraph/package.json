@@ -3,17 +3,17 @@
     "description": "Subgraph for the Superfluid Ethereum contracts.",
     "version": "2.2.3",
     "dependencies": {
-        "@graphprotocol/graph-cli": "0.97.1",
-        "@graphprotocol/graph-ts": "0.38.0",
+        "@graphprotocol/graph-cli": "0.98.1",
+        "@graphprotocol/graph-ts": "0.38.2",
         "@superfluid-finance/sdk-core": "0.9.0",
         "mustache": "4.2.0"
     },
     "devDependencies": {
         "@superfluid-finance/metadata": "^1.6.2",
         "coingecko-api": "^1.0.10",
-        "graphql": "^16.9.0",
+        "graphql": "^16.12.0",
         "graphql-request": "^6.1.0",
-        "lodash": "^4.17.21",
+        "lodash": "^4.17.23",
         "matchstick-as": "^0.6.0"
     },
     "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/subgraph",
