@@ -33,7 +33,7 @@
         "nyc": "^17.0.0",
         "prettier": "^3.3.3",
         "prettier-eslint": "^16.3.0",
-        "solhint": "^5.0.3",
+        "solhint": "^6.0.2",
         "syncpack": "^13.0.0",
         "truffle": "^5.11.5",
         "ts-node": "^10.9.2",
@@ -52,7 +52,7 @@
     },
     "scripts": {
         "prepare": "husky && npm run git-submodule:init",
-        "postinstall": "ln -fs ../lib/openzeppelin-contracts node_modules/@openzeppelin-v5",
+        "postinstall": "ln -fs ../lib/openzeppelin-contracts node_modules/@openzeppelin-v5 && ln -fs ../lib/aave-v3 node_modules/aave-v3",
         "lint": "run-s -l lint:*",
         "lint:syncpack": "syncpack lint",
         "lint:shellcheck": "tasks/shellcheck-all-tasks.sh",

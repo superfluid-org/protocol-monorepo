@@ -171,8 +171,8 @@ const E = (module.exports = {
     networks: {
         // Useful for testing. The `development` name is special - truffle uses it by default
         // if it's defined here and no other network is specified at the command line.
-        // You should run a client (like ganache-cli, geth or parity) in a separate terminal
-        // tab if you use this network and you must also set the `host`, `port` and `network_id`
+        // You should run a client in a separate terminal tab
+        // if you use this network and you must also set the `host`, `port` and `network_id`
         // options below to some value.
 
         //
@@ -297,7 +297,7 @@ const E = (module.exports = {
             ...createNetworkDefaultConfiguration("degenchain"),
             network_id: 666666666,
             maxPriorityFeePerGas: 1e6, // 0.001 gwei
-            maxFeePerGas: 100e9, // 100 gwei
+            maxFeePerGas: 120e9, // 120 gwei
         },
 
         //
@@ -312,7 +312,7 @@ const E = (module.exports = {
         development: {
             host: "127.0.0.1",
             port: 47545,
-            network_id: "4447",
+            network_id: "31337", // hardhat default chainId
 
             // workaround to improve testing speed
             // see https://github.com/trufflesuite/truffle/issues/3522
@@ -389,7 +389,7 @@ const E = (module.exports = {
                     runs: 200,
                 },
                 // see https://docs.soliditylang.org/en/latest/using-the-compiler.html#target-options
-                evmVersion: "shanghai",
+                evmVersion: "cancun",
             },
         },
     },
@@ -397,6 +397,9 @@ const E = (module.exports = {
     contracts_build_directory: "./build/truffle",
 
     api_keys: {
+        // used by the truffle-plugin-verify v0.7+
+        etherscan_v2: process.env.ETHERSCAN_API_V2_KEY,
+        // the rest is now legacy and should likely be removed
         etherscan: process.env.ETHERSCAN_API_KEY,
         polygonscan: process.env.POLYGONSCAN_API_KEY,
         snowtrace: process.env.SNOWTRACE_API_KEY,

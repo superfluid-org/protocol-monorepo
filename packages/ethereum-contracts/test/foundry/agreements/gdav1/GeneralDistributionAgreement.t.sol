@@ -1105,6 +1105,19 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.stopPrank();
     }
 
+    function testConnectUnauthorizedPool() public {
+        FakePool pool = new FakePool(address(superToken));
+
+        vm.startPrank(eve);
+        vm.expectRevert(IGeneralDistributionAgreementV1.GDA_ONLY_SUPER_TOKEN_POOL.selector);
+        sf.host.callAgreement(
+            sf.gda,
+            abi.encodeWithSelector(IGeneralDistributionAgreementV1.connectPool.selector, pool, ""),
+            new bytes(0)
+        );
+        vm.stopPrank();
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
                                     Assertion Functions
     //////////////////////////////////////////////////////////////////////////*/
@@ -1211,5 +1224,26 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         }
 
         assertEq(flowRatesSum, 0, "GDAv1.t: flowRatesSum != 0");
+    }
+}
+
+/// Fake pool with `operatorConnectMember` not calling back into the GDA as expected
+contract FakePool {
+    address internal immutable _SUPER_TOKEN;
+
+    constructor(address superToken_) {
+        _SUPER_TOKEN = superToken_;
+    }
+
+    function superToken() external view returns (address) {
+        return _SUPER_TOKEN;
+    }
+
+    function getClaimable(address, uint32) public pure returns (int256) {
+        return type(int256).max;
+    }
+
+    function operatorConnectMember(address, bool, uint32) external pure returns (bool) {
+        return true;
     }
 }

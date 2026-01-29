@@ -376,10 +376,6 @@ abstract contract SuperfluidToken is ISuperfluidToken
         );
     }
 
-    function emitPseudoTransfer(address from, address to) external onlyAgreement {
-        emit IERC20.Transfer(from, to, 0);
-    }
-
     /**************************************************************************
     * Modifiers
     *************************************************************************/

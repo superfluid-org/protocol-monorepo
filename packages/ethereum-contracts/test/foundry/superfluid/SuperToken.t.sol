@@ -13,6 +13,17 @@ import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { TokenDeployerLibrary } from "../../../contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
+import { IYieldBackend } from "../../../contracts/interfaces/superfluid/IYieldBackend.sol";
+
+// Simple mock yield backend for testing access control
+contract MockYieldBackend is IYieldBackend {
+    function enable() external {}
+    function disable() external {}
+    function deposit(uint256) external {}
+    function withdraw(uint256) external {}
+    function withdrawMax() external {}
+    function withdrawSurplus(uint256) external {}
+}
 
 contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
@@ -260,53 +271,61 @@ contract SuperTokenIntegrationTest is FoundrySuperfluidTester {
         assertEq(localSuperToken.allowance(permitSigner, spender), amount, "Allowance should be set");
     }
 
-    // Verify zero Transfer events being emitted by CFA and GDA actions
-    function testEmitPseudoTransferEvent() public {
-        vm.startPrank(admin);
+    // ============ Helper for yield backend tests ============
 
-        // case 1: create flow
-        vm.expectEmit(address(superToken));
-        emit IERC20.Transfer(admin, alice, 0);
-        superToken.createFlow(alice, 1);
+    /// @notice Helper to deploy a SuperToken with yield backend functionality enabled
+    function _deploySuperTokenWithYieldBackendSupport(address admin) internal returns (SuperToken) {
+        (TestToken localTestToken, ISuperToken localSuperToken) =
+            sfDeployer.deployWrapperSuperToken("FTT", "FTT", 18, type(uint256).max, admin);
 
-        // case 2: delete flow
-        vm.expectEmit(address(superToken));
-        emit IERC20.Transfer(admin, alice, 0);
-        superToken.deleteFlow(admin, alice);
+        SuperToken newSuperTokenLogic =
+            _helperDeploySuperTokenAndInitialize(localSuperToken, localTestToken, 18, "FTT", "FTT", admin);
 
-        // create a pool for the next tests
-        ISuperfluidPool pool = superToken.createPool(
-            admin,
-            PoolConfig({
-                transferabilityForUnitsOwner: true,
-                distributionFromAnyAddress: true
-            })
-        );
-
-        // case 3: assign pool units
-        vm.expectEmit(address(superToken));
-        emit IERC20.Transfer(address(pool), alice, 0);
-        pool.updateMemberUnits(alice, 1);
-
+        address adminToUse = admin == address(0) ? address(sf.host) : admin;
+        vm.startPrank(adminToUse);
+        UUPSProxiable(address(localSuperToken)).updateCode(address(newSuperTokenLogic));
         vm.stopPrank();
 
-        // case 4: test pool token transfer
+        return SuperToken(address(localSuperToken));
+    }
+
+    // ============ Yield backend access control tests ============
+
+    function testOnlyAdminCanEnableYieldBackend() public {
+        SuperToken localSuperToken = _deploySuperTokenWithYieldBackendSupport(admin);
+        MockYieldBackend mockBackend = new MockYieldBackend();
+
         vm.startPrank(alice);
-        // This emits 2 Transfer events, because the sender's units toggle to 0 and the receiver units from 0
-        vm.expectEmit(address(superToken));
-        emit IERC20.Transfer(address(pool), alice, 0);
-        vm.expectEmit(address(superToken));
-        emit IERC20.Transfer(address(pool), bob, 0);
-        IERC20(pool).transfer(bob, 1);
+        vm.expectRevert(ISuperToken.SUPER_TOKEN_ONLY_ADMIN.selector);
+        localSuperToken.enableYieldBackend(IYieldBackend(address(mockBackend)));
+        vm.stopPrank();
+    }
 
+    function testOnlyAdminCanDisableYieldBackend() public {
+        SuperToken localSuperToken = _deploySuperTokenWithYieldBackendSupport(admin);
+        MockYieldBackend mockBackend = new MockYieldBackend();
+
+        vm.startPrank(admin);
+        localSuperToken.enableYieldBackend(IYieldBackend(address(mockBackend)));
         vm.stopPrank();
 
-        // case 5: remove pool units
-        vm.startPrank(admin);
-        vm.expectEmit(address(superToken));
-        emit IERC20.Transfer(address(pool), bob, 0);
-        pool.updateMemberUnits(bob, 0);
+        vm.startPrank(alice);
+        vm.expectRevert(ISuperToken.SUPER_TOKEN_ONLY_ADMIN.selector);
+        localSuperToken.disableYieldBackend();
+        vm.stopPrank();
+    }
 
+    function testOnlyAdminCanWithdrawSurplusFromYieldBackend() public {
+        SuperToken localSuperToken = _deploySuperTokenWithYieldBackendSupport(admin);
+        MockYieldBackend mockBackend = new MockYieldBackend();
+
+        vm.startPrank(admin);
+        localSuperToken.enableYieldBackend(IYieldBackend(address(mockBackend)));
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+        vm.expectRevert(ISuperToken.SUPER_TOKEN_ONLY_ADMIN.selector);
+        localSuperToken.withdrawSurplusFromYieldBackend();
         vm.stopPrank();
     }
 }
