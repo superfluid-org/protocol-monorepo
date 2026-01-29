@@ -17,7 +17,7 @@
     "devDependencies": {
         "@reduxjs/toolkit": "^2",
         "@types/promise-retry": "^1.1.6",
-        "@types/lodash.memoize": "^4.1.7",
+        "@types/lodash.memoize": "^4.1.9",
         "@types/lodash.uniqby": "^4.7.9",
         "@types/react": "^19",
         "@types/react-dom": "^19",

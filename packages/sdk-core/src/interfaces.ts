@@ -59,25 +59,21 @@ export interface EthersParams {
 
 // write request interfaces
 export interface ISuperTokenModifyFlowParams
-    extends ShouldUseCallAgreement,
-        EthersParams {
+    extends ShouldUseCallAgreement, EthersParams {
     readonly flowRate?: string;
     readonly receiver: string;
     readonly sender?: string;
     readonly userData?: string;
 }
-export interface ISuperTokenCreateFlowParams
-    extends ISuperTokenModifyFlowParams {
+export interface ISuperTokenCreateFlowParams extends ISuperTokenModifyFlowParams {
     readonly flowRate: string;
 }
 export type ISuperTokenUpdateFlowParams = ISuperTokenCreateFlowParams;
-export interface ISuperTokenDeleteFlowParams
-    extends ISuperTokenModifyFlowParams {
+export interface ISuperTokenDeleteFlowParams extends ISuperTokenModifyFlowParams {
     readonly sender: string;
 }
 
-export interface ISuperTokenCreateFlowByOperatorParams
-    extends ISuperTokenCreateFlowParams {
+export interface ISuperTokenCreateFlowByOperatorParams extends ISuperTokenCreateFlowParams {
     readonly sender: string;
 }
 export type ISuperTokenUpdateFlowByOperatorParams =
@@ -131,8 +127,7 @@ export interface ISuperTokenUpdateSubscriptionUnitsParams extends EthersParams {
 }
 
 export interface IModifyFlowParams
-    extends ShouldUseCallAgreement,
-        EthersParams {
+    extends ShouldUseCallAgreement, EthersParams {
     readonly flowRate?: string;
     readonly receiver: string;
     readonly sender?: string;
@@ -153,8 +148,7 @@ export interface IDeleteFlowParams extends IModifyFlowParams {
     readonly sender: string;
 }
 
-export interface ISuperTokenUpdateFlowOperatorPermissionsParams
-    extends EthersParams {
+export interface ISuperTokenUpdateFlowOperatorPermissionsParams extends EthersParams {
     readonly flowOperator: string;
     readonly permissions: number;
     readonly flowRateAllowance: string;
@@ -169,14 +163,14 @@ export interface ISuperTokenFullControlParams extends EthersParams {
 }
 
 export interface IUpdateFlowOperatorPermissionsParams
-    extends ISuperTokenUpdateFlowOperatorPermissionsParams,
+    extends
+        ISuperTokenUpdateFlowOperatorPermissionsParams,
         ShouldUseCallAgreement {
     readonly superToken: string;
 }
 
 export interface IFullControlParams
-    extends ISuperTokenFullControlParams,
-        ShouldUseCallAgreement {
+    extends ISuperTokenFullControlParams, ShouldUseCallAgreement {
     readonly superToken: string;
 }
 
@@ -600,8 +594,7 @@ export interface ERC20IncreaseAllowanceParams extends EthersParams {
 
 export type ERC20DecreaseAllowanceParams = ERC20IncreaseAllowanceParams;
 
-export interface SuperfluidPoolIncreaseAllowanceParams
-    extends ERC20IncreaseAllowanceParams {
+export interface SuperfluidPoolIncreaseAllowanceParams extends ERC20IncreaseAllowanceParams {
     readonly signer: ethers.Signer;
 }
 
@@ -613,8 +606,7 @@ export interface SuperTokenFlowRateAllowanceParams extends EthersParams {
     readonly flowRateAllowanceDelta: string;
     readonly userData?: string;
 }
-export interface FlowRateAllowanceParams
-    extends SuperTokenFlowRateAllowanceParams {
+export interface FlowRateAllowanceParams extends SuperTokenFlowRateAllowanceParams {
     readonly superToken: string;
 }
 
@@ -644,8 +636,7 @@ export interface SuperTokenEstimateDistributionActualFlowRateParams {
     readonly providerOrSigner: ethers.providers.Provider | ethers.Signer;
 }
 
-export interface EstimateFlowDistributionActualFlowRateParams
-    extends SuperTokenEstimateDistributionActualFlowRateParams {
+export interface EstimateFlowDistributionActualFlowRateParams extends SuperTokenEstimateDistributionActualFlowRateParams {
     readonly token: string;
 }
 
@@ -655,8 +646,7 @@ export interface SuperTokenEstimateDistributionActualAmountParams {
     readonly requestedAmount: string;
     readonly providerOrSigner: ethers.providers.Provider | ethers.Signer;
 }
-export interface EstimateDistributionActualAmountParams
-    extends SuperTokenEstimateDistributionActualAmountParams {
+export interface EstimateDistributionActualAmountParams extends SuperTokenEstimateDistributionActualAmountParams {
     readonly token: string;
 }
 
@@ -665,8 +655,7 @@ export interface SuperTokenGetPoolAdjustmentFlowRateParams {
     readonly providerOrSigner: ethers.providers.Provider | ethers.Signer;
 }
 
-export interface GetPoolAdjustmentFlowRateParams
-    extends SuperTokenGetPoolAdjustmentFlowRateParams {}
+export interface GetPoolAdjustmentFlowRateParams extends SuperTokenGetPoolAdjustmentFlowRateParams {}
 
 export interface SuperTokenIsPoolParams {
     readonly account: string;
@@ -704,22 +693,19 @@ export interface CreatePoolParams extends SuperTokenCreatePoolParams {
 }
 
 export interface ConnectPoolParams
-    extends EthersParams,
-        ShouldUseCallAgreement {
+    extends EthersParams, ShouldUseCallAgreement {
     readonly pool: string;
     readonly userData?: string;
 }
 
 export interface DisconnectPoolParams
-    extends EthersParams,
-        ShouldUseCallAgreement {
+    extends EthersParams, ShouldUseCallAgreement {
     readonly pool: string;
     readonly userData?: string;
 }
 
 export interface SuperTokenDistributeParams
-    extends EthersParams,
-        ShouldUseCallAgreement {
+    extends EthersParams, ShouldUseCallAgreement {
     readonly from: string;
     readonly pool: string;
     readonly requestedAmount: string;
@@ -730,8 +716,7 @@ export interface DistributeParams extends SuperTokenDistributeParams {
 }
 
 export interface SuperTokenDistributeFlowParams
-    extends EthersParams,
-        ShouldUseCallAgreement {
+    extends EthersParams, ShouldUseCallAgreement {
     readonly from: string;
     readonly pool: string;
     readonly requestedFlowRate: string;
@@ -793,12 +778,10 @@ export interface UpdateMemberParams {
     readonly newUnits: string;
     readonly signer: ethers.Signer;
 }
-export interface FlowRateAllowanceWithPermissionsParams
-    extends FlowRateAllowanceParams {
+export interface FlowRateAllowanceWithPermissionsParams extends FlowRateAllowanceParams {
     readonly permissionsDelta: number;
 }
 
-export interface SuperTokenFlowRateAllowanceWithPermissionsParams
-    extends SuperTokenFlowRateAllowanceParams {
+export interface SuperTokenFlowRateAllowanceWithPermissionsParams extends SuperTokenFlowRateAllowanceParams {
     readonly permissionsDelta: number;
 }
