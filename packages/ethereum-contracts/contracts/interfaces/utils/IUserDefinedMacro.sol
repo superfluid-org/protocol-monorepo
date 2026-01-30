@@ -45,10 +45,19 @@ interface IUserDefinedMacro {
      */
 }
 
+// Interface for a macro used with the Only712MacroForwarder.
+// Metaphor: a macro is like an api, an action is like an endpoint.
+// Each action can have its own type definition (list of arguments).
+// TODO: for multi-action macros, the getters probably all need to get the encoded message as an argument
 interface IUserDefined712Macro is IUserDefinedMacro {
-    // TODO: this probably needs to be a function of the message, for the dispatching pattern
-    // the metaphor being: a macro is like an api, an action is like an endpoint (defining the set of arguments)
-    function getMessageTypeHash() external view returns (bytes32);
-    // TODO: should it take the known and required fields already decoded instead?
+    // Primary type name (required by the EIP712 type definition), usually rendered prominently by wallets.
+    // From a users perspective, it should concisely name the action/intent to be signed.
+    function getPrimaryTypeName() external view returns (string memory);
+
+    // The EIP-712 type definition of the action, required by Only712MacroForwarder.
+    function getMessageTypeDefinition() external view returns (string memory);
+
+    // The struct hash of the action, required by Only712MacroForwarder.
+    // This hash must be constructed based on the type definition and the data, according to the EIP-712 standard.
     function getMessageStructHash(bytes memory message) external view returns (bytes32);
 }

@@ -15,6 +15,7 @@ import { ForwarderBase } from "./ForwarderBase.sol";
 contract Only712MacroForwarder is ForwarderBase, EIP712 {
 
     // top-level data structure
+    // TODO: is "payload" a good name? Does EIP-712 give a good hint for naming this? Something "primary"?
     struct Payload {
         PayloadMeta meta;
         PayloadMessage message;
@@ -26,7 +27,8 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         //string language;
         //string disclaimer;
     }
-    bytes32 internal constant _TYPEHASH_META = keccak256("Meta(string domain,string version)");
+    bytes internal constant _TYPEDEF_META = "Meta(string domain,string version)";
+    bytes32 internal constant _TYPEHASH_META = keccak256(_TYPEDEF_META);
     struct PayloadMessage {
         string title;
         //string description;
@@ -39,14 +41,16 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         //uint256 validBefore;
         uint256 nonce;
     }
-    bytes32 internal constant _TYPEHASH_SECURITY = keccak256("Security(string provider,uint256 nonce)");
+    bytes internal constant _TYPEDEF_SECURITY = "Security(string provider,uint256 nonce)";
+    bytes32 internal constant _TYPEHASH_SECURITY = keccak256(_TYPEDEF_SECURITY);
 
     error InvalidPayload(string message);
     error InvalidProvider(string provider);
     error InvalidSignature();
 
-    // TODO: should this be something like "Clear Sign" instead?
-    constructor(ISuperfluid host, address /*registry*/) ForwarderBase(host) EIP712("Only712MacroForwarder", "1") {}
+    // Here EIP712 domain name and version are set.
+    // TODO: should the name include "Superfluid"?
+    constructor(ISuperfluid host, address /*registry*/) ForwarderBase(host) EIP712("ClearSigning", "1") {}
 
     /**
      * @dev Run the macro with encoded payload (generic + macro specific fragments).
@@ -83,11 +87,41 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         return retVal;
     }
 
+    // TODO: should this exist?
+    function getTypeDefinition(IUserDefined712Macro m) external view returns (string memory) {
+        return _getTypeDefinition(m);
+    }
+
+    // TODO: should this exist?
+    function getTypeHash(IUserDefined712Macro m) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(_getTypeDefinition(m)));
+    }
+
+    // TODO: should this exist?
+    function getStructHash(IUserDefined712Macro m, bytes calldata params) external view returns (bytes32) {
+        return _getStructHash(m, abi.decode(params, (Payload)));
+    }
+
     function getDigest(IUserDefined712Macro m, bytes calldata params) external view returns (bytes32) {
         return _getDigest(m, abi.decode(params, (Payload)));
     }
 
-    function _getDigest(IUserDefined712Macro m, Payload memory payload) internal view returns (bytes32) {
+    // ==============================
+    // Internal functions
+    // ==============================
+
+    function _getTypeDefinition(IUserDefined712Macro m) internal view returns (string memory) {
+        return string(abi.encodePacked(
+            m.getPrimaryTypeName(),
+            "(Meta meta,Message message,Security security)",
+            // nested components need to be in alphabetical order
+            m.getMessageTypeDefinition(),
+            _TYPEDEF_META,
+            _TYPEDEF_SECURITY
+        ));
+    }
+
+    function _getStructHash(IUserDefined712Macro m, Payload memory payload) internal view returns (bytes32) {
         bytes32 metaStructHash = _getMetaStructHash(payload.meta);
 
         // the message fragment is handled by the user macro.
@@ -98,29 +132,23 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         bytes32 securityStructHash = _getSecurityStructHash(payload.security);
 
         // get the typehash
-        bytes32 primaryTypeHash = keccak256(
-            abi.encodePacked(
-                // TODO: shall we name it "ClearSign"?
-                "Payload(Meta meta,Message message,Security security)",
-                // nested components need to be in alphabetical order
-                m.getMessageTypeHash(),
-                _TYPEHASH_META,
-                _TYPEHASH_SECURITY
+        bytes32 primaryTypeHash = getTypeHash(m);
+
+        // calculate the struct hash
+        bytes32 structHash = keccak256(
+            abi.encode(
+                primaryTypeHash,
+                metaStructHash,
+                messageStructHash,
+                securityStructHash
             )
         );
+        return structHash;
+    }
 
-        // calculate the digest of the entire payload
-        bytes32 digest = _hashTypedDataV4(
-            keccak256(
-                abi.encode(
-                    primaryTypeHash,
-                    metaStructHash,
-                    messageStructHash,
-                    securityStructHash
-                )
-            )      
-        );
-        return digest;
+    function _getDigest(IUserDefined712Macro m, Payload memory payload) internal view returns (bytes32) {
+        bytes32 structHash = _getStructHash(m, payload);
+        return _hashTypedDataV4(structHash);
     }
 
     function _getMetaStructHash(PayloadMeta memory meta) internal pure returns (bytes32) {
