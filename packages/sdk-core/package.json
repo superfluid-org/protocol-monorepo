@@ -2,7 +2,7 @@
     "name": "@superfluid-finance/sdk-core",
     "description": "SDK Core for building with Superfluid Protocol",
     "version": "0.9.0",
-    "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
+    "bugs": "https://github.com/superfluid-org/protocol-monorepo/issues",
     "dependencies": {
         "@superfluid-finance/ethereum-contracts": "1.14.1",
         "@superfluid-finance/metadata": "^1.6.2",
@@ -31,7 +31,7 @@
         "LICENSE",
         "README.md"
     ],
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/sdk-core#readme",
+    "homepage": "https://github.com/superfluid-org/protocol-monorepo/tree/dev/packages/sdk-core#readme",
     "license": "MIT",
     "main": "dist/main/index.js",
     "module": "dist/module/index.js",
@@ -41,7 +41,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "url": "https://github.com/superfluid-org/protocol-monorepo.git",
         "directory": "packages/sdk-core"
     },
     "scripts": {

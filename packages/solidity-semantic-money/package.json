@@ -2,12 +2,12 @@
     "name": "@superfluid-finance/solidity-semantic-money",
     "description": "Semantic money implementation in solidity.",
     "version": "0.1.0",
-    "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
+    "bugs": "https://github.com/superfluid-org/protocol-monorepo/issues",
     "directories": {
         "src": "src",
         "test": "test"
     },
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo#readme",
+    "homepage": "https://github.com/superfluid-org/protocol-monorepo#readme",
     "keywords": [
         "money",
         "finance",
@@ -18,7 +18,7 @@
     "main": "index.js",
     "repository": {
         "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "url": "https://github.com/superfluid-org/protocol-monorepo.git",
         "directory": "packages/solidity-semantic-money"
     },
     "scripts": {

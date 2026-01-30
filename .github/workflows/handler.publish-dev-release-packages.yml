@@ -2,7 +2,7 @@ name: Publisher & CI
 
 on:
   push:
-    branches: ["dev"]
+    branches: ["dev", "workflow-consolidation"]
     paths:
       - ".github/workflows/handler.publish-dev-release-packages.yml"
       - ".github/workflows/call.*.yml"
@@ -195,6 +195,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
       - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Install dependencies
@@ -214,6 +219,7 @@ jobs:
           yarn lerna version prerelease --yes --no-git-tag-version --preid "${preId}"
 
       - name: Publish to npm
+        shell: bash
         run: |
           tasks/npm-publish.sh packages/ethereum-contracts/ dev --verbose
           tasks/npm-publish.sh packages/sdk-core/ dev --verbose
@@ -360,36 +366,48 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Publish ethereum-contracts package
+      - name: Build ethereum-contracts package
         if: env.PUBLISH_ETHEREUM_CONTRACTS == 1
         run: |
           yarn --cwd packages/ethereum-contracts build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Publish ethereum-contracts package
+        if: env.PUBLISH_ETHEREUM_CONTRACTS == 1
+        shell: bash
+        run: |
           tasks/npm-publish.sh packages/ethereum-contracts/ latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
-      - name: Publish sdk-core package
-        id: publish-sdk-core
+      - name: Build sdk-core package
         if: env.PUBLISH_SDK_CORE == 1
         run: |
           yarn --cwd packages/sdk-core get-graphql-schema:v1
           yarn --cwd packages/ethereum-contracts build
           yarn --cwd packages/sdk-core build
+          yarn --cwd packages/sdk-core doc:html
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish sdk-core package
+        id: publish-sdk-core
+        if: env.PUBLISH_SDK_CORE == 1
+        shell: bash
+        run: |
           tasks/npm-publish.sh packages/sdk-core/ latest
 
           PUBLISHED_VERSION=$(jq -r .version packages/sdk-core/package.json)
 
           echo "PUBLISHED_VERSION=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
 
-          # Build documentation with redirect from root
-          yarn --cwd packages/sdk-core doc:html
+          # Create redirect from root
           mkdir sdk-core-redirect
           printf '<!DOCTYPE html><html><head><title>Redirecting...</title><meta charset="UTF-8"><meta http-equiv="refresh" content="0;URL=%s" /><meta http-equiv="Cache-Control" content="no-store" /></head><body><p>Redirecting to latest documentation...</p></body></html>' "https://refs.superfluid.finance/sdk-core@$PUBLISHED_VERSION" \
           > sdk-core-redirect/index.html
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
       - name: Upload sdk-core HTML documentation
         if: env.PUBLISH_SDK_CORE == 1
@@ -413,28 +431,34 @@ jobs:
           s3_uri: ${{ format('{0}sdk-core', secrets.SITE_DEPLOYER_AWS_S3_DOCS_URI) }}
           cloudfront_distribution_id: E3JEO5R14CT8IH
 
-      - name: Publish sdk-redux package
-        id: publish-sdk-redux
+      - name: Build sdk-redux package
         if: env.PUBLISH_SDK_REDUX == 1
         run: |
           yarn --cwd packages/ethereum-contracts build
           yarn --cwd packages/sdk-core get-graphql-schema:v1
           yarn --cwd packages/sdk-core build
           yarn --cwd packages/sdk-redux build
+          yarn --cwd packages/sdk-redux doc:html
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish sdk-redux package
+        id: publish-sdk-redux
+        if: env.PUBLISH_SDK_REDUX == 1
+        shell: bash
+        run: |
           tasks/npm-publish.sh packages/sdk-redux/ latest
 
           PUBLISHED_VERSION=$(jq -r .version packages/sdk-redux/package.json)
 
           echo "PUBLISHED_VERSION=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
 
-          # Build documentation with redirect from root
-          yarn --cwd packages/sdk-redux doc:html
+          # Create redirect from root
           mkdir sdk-redux-redirect
           printf '<!DOCTYPE html><html><head><title>Redirecting...</title><meta charset="UTF-8"><meta http-equiv="refresh" content="0;URL=%s" /><meta http-equiv="Cache-Control" content="no-store" /></head><body><p>Redirecting to latest documentation...</p></body></html>' "https://refs.superfluid.finance/sdk-redux@$PUBLISHED_VERSION" \
           > sdk-redux-redirect/index.html
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
       - name: Upload sdk-redux HTML documentation
         if: env.PUBLISH_SDK_REDUX == 1
