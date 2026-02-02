@@ -2,7 +2,7 @@ name: Publisher & CI
 
 on:
   push:
-    branches: ["dev", "workflow-consolidation"]
+    branches: ["dev"]
     paths:
       - ".github/workflows/handler.publish-dev-release-packages.yml"
       - ".github/workflows/call.*.yml"
