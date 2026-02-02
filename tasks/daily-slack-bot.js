@@ -1620,8 +1620,8 @@ async function checkIndividualContractVerification(
     const lastWorkflowId = lastWorkflow.id;
     const lastWorkflowUsage = await getDataAsJson(
         "https://api.github.com/repos/superfluid-finance/protocol-monorepo/actions/runs/" +
-        lastWorkflowId +
-        "/timing",
+            lastWorkflowId +
+            "/timing",
     );
 
     const workflowStatus = lastWorkflow.status;
@@ -1642,8 +1642,8 @@ async function checkIndividualContractVerification(
     async function getPrOldestCommit(prJson) {
         let allCommits = await getDataAsJson(
             "https://api.github.com/repos/superfluid-finance/protocol-monorepo/pulls/" +
-            prJson.number +
-            "/commits",
+                prJson.number +
+                "/commits",
         );
         return allCommits[allCommits.length - 1];
     }
@@ -1835,14 +1835,14 @@ async function checkIndividualContractVerification(
             addSectionWithImage(
                 webhookPayload,
                 "Please have a look at: *<" +
-                oldestDraftPRUrl +
-                "|" +
-                oldestDraftPRTitle +
-                ">*\nColumbus would have went to America " +
-                americaTrips +
-                " times already by this time ,do something with this as this has been open for *" +
-                lastDraftPrUpdateBeforeDays +
-                "* days",
+                    oldestDraftPRUrl +
+                    "|" +
+                    oldestDraftPRTitle +
+                    ">*\nColumbus would have went to America " +
+                    americaTrips +
+                    " times already by this time ,do something with this as this has been open for *" +
+                    lastDraftPrUpdateBeforeDays +
+                    "* days",
                 redWarningIcon,
                 "It took them 36 days",
             );
@@ -1867,10 +1867,10 @@ async function checkIndividualContractVerification(
         } else {
             let draftMessage = oldestDraftPR
                 ? "There are no open PRs????? *<" +
-                allPullRequests +
-                "|" +
-                amountOfDraftPRs +
-                " pull requests are in draft , you might want to look into those>*"
+                  allPullRequests +
+                  "|" +
+                  amountOfDraftPRs +
+                  " pull requests are in draft , you might want to look into those>*"
                 : "There are no open and draft PRs? What is this, why u no work, you might want to read this:\n*<https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request|How to create a pull request>*";
             addSectionWithImage(
                 webhookPayload,
@@ -1901,9 +1901,9 @@ async function checkIndividualContractVerification(
             addContextWithImage(
                 webhookPayload,
                 "*The PR has been last updated before " +
-                lastUpdatedBeforeDays +
-                " days*\nLast commit: " +
-                oldestPRMessage,
+                    lastUpdatedBeforeDays +
+                    " days*\nLast commit: " +
+                    oldestPRMessage,
                 imageToAddToContext,
                 imageText,
             );
