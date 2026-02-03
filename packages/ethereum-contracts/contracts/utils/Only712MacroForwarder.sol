@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import { EIP712 } from "@openzeppelin-v5/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin-v5/contracts/utils/cryptography/SignatureChecker.sol";
+import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
 import { IUserDefined712Macro } from "../interfaces/utils/IUserDefinedMacro.sol";
 import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
 import { ForwarderBase } from "./ForwarderBase.sol";
@@ -43,7 +44,7 @@ abstract contract NonceManager {
  * Envelope verification, nonce, and registry checks to be added in follow-up.
  *
  * TODO:
- * -[] use SimpleACL as registry
+ * -[X] use SimpleACL for provider authorization
  * -[X] add nonce verification
  * -[] add missing fields
  * -[] extract interface definition
@@ -51,7 +52,7 @@ abstract contract NonceManager {
  */
 contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
 
-    // STRUCTS AND CONSTANTS
+    // STRUCTS, CONSTANTS, IMMUTABLES
 
     // top-level data structure
     // TODO: is "payload" a good name? Does EIP-712 give a good hint for naming this? Something "primary"?
@@ -83,17 +84,21 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     bytes internal constant _TYPEDEF_SECURITY = "Security(string provider,uint256 nonce)";
     bytes32 internal constant _TYPEHASH_SECURITY = keccak256(_TYPEDEF_SECURITY);
 
+    IAccessControl internal immutable _providerACL;
+
     // ERRORS
 
     error InvalidPayload(string message);
-    error InvalidProvider(string provider);
+    error ProviderNotAuthorized(string provider, address msgSender);
     error InvalidSignature();
 
     // INITIALIZATION
 
     // Here EIP712 domain name and version are set.
     // TODO: should the name include "Superfluid"?
-    constructor(ISuperfluid host, address /*registry*/) ForwarderBase(host) EIP712("ClearSigning", "1") {}
+    constructor(ISuperfluid host, address /*registry*/) ForwarderBase(host) EIP712("ClearSigning", "1") {
+        _providerACL = IAccessControl(host.getSimpleACL());
+    }
 
     // PUBLIC FUNCTIONS
 
@@ -111,10 +116,10 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     {
         // decode the payload
         Payload memory payload = abi.decode(params, (Payload));
-        require(
-            keccak256(bytes(payload.security.provider)) == keccak256(bytes("macros.superfluid.eth")),
-            InvalidProvider(payload.security.provider)
-        );
+        bytes32 providerRole = keccak256(bytes(payload.security.provider));
+        if (!_providerACL.hasRole(providerRole, msg.sender)) {
+            revert ProviderNotAuthorized(payload.security.provider, msg.sender);
+        }
 
         _validateAndUpdateNonce(signer, payload.security.nonce);
 
