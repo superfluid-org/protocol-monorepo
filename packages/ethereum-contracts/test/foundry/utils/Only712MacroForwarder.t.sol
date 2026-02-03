@@ -5,7 +5,7 @@ import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
 import { ISuperfluid, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IUserDefined712Macro } from "../../../contracts/interfaces/utils/IUserDefinedMacro.sol";
-import { Only712MacroForwarder } from "../../../contracts/utils/Only712MacroForwarder.sol";
+import { Only712MacroForwarder, NonceManager } from "../../../contracts/utils/Only712MacroForwarder.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 string constant MESSAGE_TITLE = "Hello 712";
@@ -14,12 +14,17 @@ string constant META_DOMAIN = "minimalmacro.xyz";
 string constant META_VERSION = "1";
 string constant SECURITY_PROVIDER = "macros.superfluid.eth";
 
-// returns the encoded payload for the example macro
+// returns the encoded payload for the example macro (nonce = key 1, sequence 0)
 function getTestPayload() pure returns (bytes memory) {
+    return getPayloadWithNonce(uint256(1) << 64);
+}
+
+// returns the encoded payload with the given nonce (for nonce tests)
+function getPayloadWithNonce(uint256 nonce) pure returns (bytes memory) {
     Only712MacroForwarder.Payload memory payload = Only712MacroForwarder.Payload({
         meta: Only712MacroForwarder.PayloadMeta({ domain: META_DOMAIN, version: META_VERSION }),
         message: Only712MacroForwarder.PayloadMessage({ title: MESSAGE_TITLE, customPayload: new bytes(0) }),
-        security: Only712MacroForwarder.PayloadSecurity({ provider: SECURITY_PROVIDER, nonce: 1 })
+        security: Only712MacroForwarder.PayloadSecurity({ provider: SECURITY_PROVIDER, nonce: nonce })
     });
     return abi.encode(payload);
 }
@@ -78,20 +83,10 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         sf.governance.enableTrustedForwarder(sf.host, ISuperfluidToken(address(0)), address(forwarder));
     }
 
-    /**
-     * @dev Smoke test: build payload, get digest via getDigest(), sign with vm.createWallet + vm.sign,
-     *      call runMacro(m, params, signer, signature), assert success.
-     */
     function testRunMacro() external {
         VmSafe.Wallet memory signer = vm.createWallet("signer");
-        bytes memory params = getTestPayload();
-        bytes32 digest = forwarder.getDigest(IUserDefined712Macro(address(minimal712Macro)), params);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
-        bytes memory signatureVRS = abi.encodePacked(r, s, v);
-
-        vm.prank(signer.addr);
-        bool ok = forwarder.runMacro(IUserDefined712Macro(address(minimal712Macro)), params, signer.addr, signatureVRS);
-        assertTrue(ok);
+        (bytes memory params, bytes memory signatureVRS) = _signPayload(signer, uint256(1) << 64);
+        assertTrue(_runMacroAs(signer.addr, params, signatureVRS));
     }
 
     function testDigestCalculation() external view {
@@ -117,6 +112,47 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         console.log(dataToBeSignedJson);
         bytes32 expectedDigest = vm.eip712HashTypedData(dataToBeSignedJson);
         assertEq(digest, expectedDigest, "digest mismatch");
+    }
+
+    function testGetNonce(uint192 key) external {
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+
+        for (uint256 i = 0; i < 10; i++) {
+            uint256 nonce = forwarder.getNonce(signer.addr, key);
+            (bytes memory params, bytes memory signatureVRS) = _signPayload(signer, nonce);
+            assertTrue(_runMacroAs(signer.addr, params, signatureVRS), "runMacro with getNonce() nonce should succeed");
+        }
+    }
+
+    function testCannotReuseNonce(uint192 key) external {
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+
+        uint256 nonce = forwarder.getNonce(signer.addr, key);
+        (bytes memory params, bytes memory signatureVRS) = _signPayload(signer, nonce);
+        assertTrue(_runMacroAs(signer.addr, params, signatureVRS));
+
+        vm.expectRevert(abi.encodeWithSelector(NonceManager.InvalidNonce.selector, signer.addr, nonce));
+        _runMacroAs(signer.addr, params, signatureVRS);
+    }
+
+    /// For a given key, nonces must be used in sequence (0, 1, 2, ...). Skipping must revert.
+    function testNonceEnforceInSequence(uint192 key) external {
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+
+        // Using seq=1 before seq=0 must revert
+        uint256 nonceSeq1 = (uint256(key) << 64) | 1;
+        (bytes memory paramsSeq1, bytes memory sig1) = _signPayload(signer, nonceSeq1);
+
+        vm.expectRevert(abi.encodeWithSelector(NonceManager.InvalidNonce.selector, signer.addr, nonceSeq1));
+        _runMacroAs(signer.addr, paramsSeq1, sig1);
+
+        // seq=0 must succeed
+        uint256 nonceSeq0 = uint256(key) << 64;
+        (bytes memory paramsSeq0, bytes memory sig0) = _signPayload(signer, nonceSeq0);
+        assertTrue(_runMacroAs(signer.addr, paramsSeq0, sig0));
+
+        // now seq=1 must succeed
+        assertTrue(_runMacroAs(signer.addr, paramsSeq1, sig1));
     }
 
     // example: https://github.com/vaquita-fi/vaquita-lisk/blob/c4964af9157c9cca9cfb167ac1a4450e36edb29e/contracts/test/VaquitaPool.t.sol#L142
@@ -216,9 +252,25 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function _getSecurityJson() internal pure returns (string memory) {
+        // Use string for nonce so Foundry's JSON parser accepts 2^64 as uint256 (avoids type mismatch)
         return string(abi.encodePacked(
             '"provider": "', SECURITY_PROVIDER, '",',
-            '"nonce": ', '1'
+            '"nonce": "', vm.toString(uint256(1) << 64), '"'
         ));
+    }
+
+    function _runMacroAs(address from, bytes memory params, bytes memory signatureVRS) internal returns (bool) {
+        vm.prank(from);
+        return forwarder.runMacro(minimal712Macro, params, from, signatureVRS);
+    }
+
+    function _signPayload(VmSafe.Wallet memory signer, uint256 nonce)
+        internal
+        returns (bytes memory params, bytes memory signatureVRS)
+    {
+        params = getPayloadWithNonce(nonce);
+        bytes32 digest = forwarder.getDigest(minimal712Macro, params);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
+        signatureVRS = abi.encodePacked(r, s, v);
     }
 }

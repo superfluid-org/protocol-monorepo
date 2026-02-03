@@ -7,12 +7,51 @@ import { IUserDefined712Macro } from "../interfaces/utils/IUserDefinedMacro.sol"
 import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
 import { ForwarderBase } from "./ForwarderBase.sol";
 
+
+/**
+ * Nonce management functionality following the semantics of ERC-4337.
+ * Each nonce consists of a 192-bit key and a 64-bit sequence number.
+ * This allows senders to both have a practically unlimited number of parallel operations
+ * (meaning signed pending transactions can't block each other), and also the option to enforce
+ * sequential execution according to the sequence number.
+ */
+abstract contract NonceManager {
+    /// nonce already used or out of sequence
+    error InvalidNonce(address sender, uint256 nonce);
+
+    /// data structure keeping track of the next sequence number by sender and key
+    mapping(address => mapping(uint192 => uint256)) internal _nonceSequenceNumber;
+
+    /// Returns the next nonce for a given sender and key
+    function getNonce(address sender, uint192 key) public virtual view returns (uint256 nonce) {
+        return _nonceSequenceNumber[sender][key] | (uint256(key) << 64);
+    }
+
+    /// validates the nonce and updates the data structure for correct sequencing
+    function _validateAndUpdateNonce(address sender, uint256 nonce) internal virtual {
+        uint192 key = uint192(nonce >> 64);
+        uint64 seq = uint64(nonce);
+        if (_nonceSequenceNumber[sender][key]++ != seq) {
+            revert InvalidNonce(sender, nonce);
+        }
+    }
+}
+
 /**
  * @dev EIP-712-aware macro forwarder (clear signing).
  * In this minimal iteration: decodes payload as appParams and passes through to the macro.
  * Envelope verification, nonce, and registry checks to be added in follow-up.
+ *
+ * TODO:
+ * -[] use SimpleACL as registry
+ * -[X] add nonce verification
+ * -[] add missing fields
+ * -[] extract interface definition
+ * -[] review naming
  */
-contract Only712MacroForwarder is ForwarderBase, EIP712 {
+contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
+
+    // STRUCTS AND CONSTANTS
 
     // top-level data structure
     // TODO: is "payload" a good name? Does EIP-712 give a good hint for naming this? Something "primary"?
@@ -44,18 +83,27 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
     bytes internal constant _TYPEDEF_SECURITY = "Security(string provider,uint256 nonce)";
     bytes32 internal constant _TYPEHASH_SECURITY = keccak256(_TYPEDEF_SECURITY);
 
+    // ERRORS
+
     error InvalidPayload(string message);
     error InvalidProvider(string provider);
     error InvalidSignature();
+
+    // INITIALIZATION
 
     // Here EIP712 domain name and version are set.
     // TODO: should the name include "Superfluid"?
     constructor(ISuperfluid host, address /*registry*/) ForwarderBase(host) EIP712("ClearSigning", "1") {}
 
+    // PUBLIC FUNCTIONS
+
     /**
      * @dev Run the macro with encoded payload (generic + macro specific fragments).
      * @param m Target macro.
      * @param params Encoded payload
+     * @param signer The signer of the payload
+     * @param signature The signature of the payload
+     * @return bool True if the macro was executed successfully
      */
     function runMacro(IUserDefined712Macro m, bytes calldata params, address signer, bytes calldata signature)
         external payable
@@ -67,7 +115,8 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
             keccak256(bytes(payload.security.provider)) == keccak256(bytes("macros.superfluid.eth")),
             InvalidProvider(payload.security.provider)
         );
-        // TODO: verify nonce (replay protection)
+
+        _validateAndUpdateNonce(signer, payload.security.nonce);
 
         bytes32 digest = _getDigest(m, payload);
 
@@ -106,9 +155,7 @@ contract Only712MacroForwarder is ForwarderBase, EIP712 {
         return _getDigest(m, abi.decode(params, (Payload)));
     }
 
-    // ==============================
-    // Internal functions
-    // ==============================
+    // INTERNAL FUNCTIONS
 
     function _getTypeDefinition(IUserDefined712Macro m) internal view returns (string memory) {
         return string(abi.encodePacked(
