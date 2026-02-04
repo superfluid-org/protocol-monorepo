@@ -23,10 +23,20 @@ function getTestPayload() pure returns (bytes memory) {
 
 // returns the encoded payload with the given nonce (for nonce tests)
 function getPayloadWithNonce(uint256 nonce) pure returns (bytes memory) {
+    return getPayloadWithNonceAndTimeframe(nonce, 0, 0);
+}
+
+// returns the encoded payload with the given nonce and timeframe
+function getPayloadWithNonceAndTimeframe(uint256 nonce, uint256 validAfter, uint256 validBefore) pure returns (bytes memory) {
     Only712MacroForwarder.Payload memory payload = Only712MacroForwarder.Payload({
         meta: Only712MacroForwarder.PayloadMeta({ domain: META_DOMAIN, version: META_VERSION }),
         message: Only712MacroForwarder.PayloadMessage({ title: MESSAGE_TITLE, customPayload: new bytes(0) }),
-        security: Only712MacroForwarder.PayloadSecurity({ provider: SECURITY_PROVIDER, nonce: nonce })
+        security: Only712MacroForwarder.PayloadSecurity({
+            provider: SECURITY_PROVIDER,
+            validAfter: validAfter,
+            validBefore: validBefore,
+            nonce: nonce
+        })
     });
     return abi.encode(payload);
 }
@@ -106,7 +116,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     function testDigestCalculation() external view {
         // check the type definition
         string memory typeDefinition = forwarder.getTypeDefinition(minimal712Macro);
-        string memory expectedTypeDefinition = "MinimalExample(Meta meta,Message message,Security security)Message(string title)Meta(string domain,string version)Security(string provider,uint256 nonce)";
+        string memory expectedTypeDefinition = "MinimalExample(Meta meta,Message message,Security security)Message(string title)Meta(string domain,string version)Security(string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
         assertEq(typeDefinition, expectedTypeDefinition, "typeDefinition mismatch");
 
         // check the type hash
@@ -146,6 +156,45 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         assertTrue(_runMacroAs(address(this), signer.addr, params, signatureVRS));
 
         vm.expectRevert(abi.encodeWithSelector(NonceManager.InvalidNonce.selector, signer.addr, nonce));
+        _runMacroAs(address(this), signer.addr, params, signatureVRS);
+    }
+
+    function testValidityWindow(uint32 t0_raw, uint32 t1_raw) external {
+        uint256 t0 = uint256(t0_raw);
+        uint256 t1 = uint256(t1_raw);
+
+        vm.warp(t0);
+
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+        uint256 nonce = forwarder.getNonce(signer.addr, 0);
+        (bytes memory params, bytes memory signatureVRS) = _signPayloadWithTimeframe(signer, nonce, t0, t1);
+
+        // Before validAfter: revert (skip when t0 == 0 to avoid underflow)
+        if (t0 > 0) {
+            vm.warp(t0 - 1);
+            vm.expectRevert(abi.encodeWithSelector(
+                Only712MacroForwarder.OutsideValidityWindow.selector, t0 - 1, t1, t0));
+            _runMacroAs(address(this), signer.addr, params, signatureVRS);
+        }
+
+        // Within window: success when non-empty (t1 == 0 or t1 >= t0); else revert
+        if (t1 == 0 || t1 >= t0) {
+            vm.warp(t1 == 0 ? t0 + 100 : t0 + (t1 - t0) / 2);
+            assertTrue(_runMacroAs(address(this), signer.addr, params, signatureVRS));
+        } else {
+            vm.warp(t0);
+            vm.expectRevert(abi.encodeWithSelector(
+                Only712MacroForwarder.OutsideValidityWindow.selector, t0, t1, t0));
+            _runMacroAs(address(this), signer.addr, params, signatureVRS);
+        }
+
+        // After validBefore: revert (use non-zero validBefore so 0 = unbounded is not used here)
+        uint256 expiry = t0 > 0 ? t0 : 1;
+        nonce = forwarder.getNonce(signer.addr, 0);
+        (params, signatureVRS) = _signPayloadWithTimeframe(signer, nonce, 0, expiry);
+        vm.warp(expiry + 1);
+        vm.expectRevert(abi.encodeWithSelector(
+            Only712MacroForwarder.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 
@@ -238,6 +287,8 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             '"Security": [',
             '{"name": "provider", "type": "string"},',
+            '{"name": "validAfter", "type": "uint256"},',
+            '{"name": "validBefore", "type": "uint256"},',
             '{"name": "nonce", "type": "uint256"}',
             ']'
         ));
@@ -269,6 +320,8 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         // Use string for nonce so Foundry's JSON parser accepts 2^64 as uint256 (avoids type mismatch)
         return string(abi.encodePacked(
             '"provider": "', SECURITY_PROVIDER, '",',
+            '"validAfter": "0",',
+            '"validBefore": "0",',
             '"nonce": "', vm.toString(DEFAULT_NONCE), '"'
         ));
     }
@@ -285,7 +338,14 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         internal
         returns (bytes memory params, bytes memory signatureVRS)
     {
-        params = getPayloadWithNonce(nonce);
+        return _signPayloadWithTimeframe(signer, nonce, 0, 0);
+    }
+
+    function _signPayloadWithTimeframe(VmSafe.Wallet memory signer, uint256 nonce, uint256 validAfter, uint256 validBefore)
+        internal
+        returns (bytes memory params, bytes memory signatureVRS)
+    {
+        params = getPayloadWithNonceAndTimeframe(nonce, validAfter, validBefore);
         bytes32 digest = forwarder.getDigest(minimal712Macro, params);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
         signatureVRS = abi.encodePacked(r, s, v);

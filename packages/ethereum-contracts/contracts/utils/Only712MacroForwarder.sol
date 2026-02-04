@@ -46,6 +46,7 @@ abstract contract NonceManager {
  * TODO:
  * -[X] use SimpleACL for provider authorization
  * -[X] add nonce verification
+ * -[X] add timeframe (validAfter, validBefore) validation
  * -[] add missing fields
  * -[] extract interface definition
  * -[] review naming
@@ -77,11 +78,13 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     // the message typehash is user macro specific
     struct PayloadSecurity {
         string provider;
-        //uint256 validAfter;
-        //uint256 validBefore;
+        uint256 validAfter;
+        uint256 validBefore;
         uint256 nonce;
     }
-    bytes internal constant _TYPEDEF_SECURITY = "Security(string provider,uint256 nonce)";
+    bytes internal constant _TYPEDEF_SECURITY = 
+        "Security(string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
+
     bytes32 internal constant _TYPEHASH_SECURITY = keccak256(_TYPEDEF_SECURITY);
 
     IAccessControl internal immutable _providerACL;
@@ -89,6 +92,7 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     // ERRORS
 
     error InvalidPayload(string message);
+    error OutsideValidityWindow(uint256 blockTimestamp, uint256 validBefore, uint256 validAfter);
     error ProviderNotAuthorized(string provider, address msgSender);
     error InvalidSignature();
 
@@ -122,6 +126,13 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
         }
 
         _validateAndUpdateNonce(signer, payload.security.nonce);
+
+        if (block.timestamp < payload.security.validAfter) {
+            revert OutsideValidityWindow(block.timestamp, payload.security.validBefore, payload.security.validAfter);
+        }
+        if (payload.security.validBefore != 0 && block.timestamp > payload.security.validBefore) {
+            revert OutsideValidityWindow(block.timestamp, payload.security.validBefore, payload.security.validAfter);
+        }
 
         bytes32 digest = _getDigest(m, payload);
 
@@ -215,6 +226,8 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
         return keccak256(abi.encode(
             _TYPEHASH_SECURITY,
             keccak256(bytes(security.provider)),
+            security.validAfter,
+            security.validBefore,
             security.nonce
         ));
     }

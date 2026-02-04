@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- `Only712MacroForwarder`: a new macro forwarder that executes EIP-712-signed meta-transactions with properties giving it additional security guarantees.
 - `SuperToken`: the contract admin can enable/disable a _Yield Backend_ in order to generate a yield on the underlying asset.
 - `SuperToken`: added `VERSION()` which returns the version string of the logic contract set for the SuperToken, and inline CHANGELOG.
 
