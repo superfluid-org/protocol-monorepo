@@ -283,7 +283,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
 
     function _signPayload(VmSafe.Wallet memory signer, uint256 nonce)
         internal
-        returns (bytes memory params, bytes memory signatureVRS) {
+        returns (bytes memory params, bytes memory signatureVRS)
     {
         params = getPayloadWithNonce(nonce);
         bytes32 digest = forwarder.getDigest(minimal712Macro, params);
