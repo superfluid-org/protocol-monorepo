@@ -9,11 +9,12 @@ import { IUserDefined712Macro } from "../../../contracts/interfaces/utils/IUserD
 import { Only712MacroForwarder, NonceManager } from "../../../contracts/utils/Only712MacroForwarder.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
-string constant MESSAGE_TITLE = "Hello 712";
 string constant PRIMARY_TYPE_NAME = "MinimalExample";
-string constant META_DOMAIN = "minimalmacro.xyz";
-string constant META_VERSION = "1";
+string constant ACTION_TYPEDEF = "Action(string description)";
+string constant ACTION_DESCRIPTION = "Hello 712";
+string constant SECURITY_DOMAIN = "minimalmacro.xyz";
 string constant SECURITY_PROVIDER = "macros.superfluid.eth";
+string constant SECURITY_TYPEDEF = "Security(string domain,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
 uint256 constant DEFAULT_NONCE = uint256(1) << 64;
 
 // returns the encoded payload for the example macro (nonce = key 1, sequence 0)
@@ -28,10 +29,10 @@ function getPayloadWithNonce(uint256 nonce) pure returns (bytes memory) {
 
 // returns the encoded payload with the given nonce and timeframe
 function getPayloadWithNonceAndTimeframe(uint256 nonce, uint256 validAfter, uint256 validBefore) pure returns (bytes memory) {
-    Only712MacroForwarder.Payload memory payload = Only712MacroForwarder.Payload({
-        meta: Only712MacroForwarder.PayloadMeta({ domain: META_DOMAIN, version: META_VERSION }),
-        message: Only712MacroForwarder.PayloadMessage({ title: MESSAGE_TITLE, customPayload: new bytes(0) }),
-        security: Only712MacroForwarder.PayloadSecurity({
+    Only712MacroForwarder.PrimaryType memory payload = Only712MacroForwarder.PrimaryType({
+        action: Only712MacroForwarder.ActionType({ actionParams: abi.encode(ACTION_DESCRIPTION) }),
+        security: Only712MacroForwarder.SecurityType({
+            domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
             validBefore: validBefore,
@@ -43,10 +44,10 @@ function getPayloadWithNonceAndTimeframe(uint256 nonce, uint256 validAfter, uint
 
 // ============== Minimal macro for Only712MacroForwarder ==============
 // Implements IUserDefined712Macro and uses *no* postCheck logic.
-// Message has only the required `title`; `customPayload` is expected to be empty.
+// The Action type has a description field with hardcoded string value.
 contract Minimal712Macro is IUserDefined712Macro {
 
-    string public constant MESSAGE_TYPE_DEFINITION = "Message(string title)";
+    string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
 
     function buildBatchOperations(ISuperfluid, bytes memory, address)
         external
@@ -61,20 +62,19 @@ contract Minimal712Macro is IUserDefined712Macro {
         // intentionally empty
     }
 
-    function getMessageTypeDefinition() external pure override returns (string memory) {
-        return MESSAGE_TYPE_DEFINITION;
+    function getActionTypeDefinition(bytes memory /*params*/) external pure override returns (string memory) {
+        return ACTION_TYPE_DEFINITION;
     }
 
-    function getPrimaryTypeName() external pure override returns (string memory) {
+    function getPrimaryTypeName(bytes memory /*params*/) external pure override returns (string memory) {
         return PRIMARY_TYPE_NAME;
     }
 
-    function getMessageStructHash(bytes memory message) external pure override returns (bytes32) {
-        (string memory title, bytes memory customPayload) = abi.decode(message, (string, bytes));
-        require(keccak256(bytes(title)) == keccak256(bytes(MESSAGE_TITLE)), "wrong title");
-        require(customPayload.length == 0, "customPayload not empty");
-        bytes32 messageTypeHash = keccak256(abi.encodePacked(MESSAGE_TYPE_DEFINITION));
-        return keccak256(abi.encode(messageTypeHash, keccak256(bytes(title))));
+    function getActionStructHash(bytes memory params) external pure override returns (bytes32) {
+        string memory description = abi.decode(params, (string));
+        require(keccak256(bytes(description)) == keccak256(bytes(ACTION_DESCRIPTION)), "wrong description");
+        bytes32 actionTypeHash = keccak256(abi.encodePacked(ACTION_TYPE_DEFINITION));
+        return keccak256(abi.encode(actionTypeHash, keccak256(bytes(description))));
     }
 }
 
@@ -114,20 +114,39 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function testDigestCalculation() external view {
-        // check the type definition
-        string memory typeDefinition = forwarder.getTypeDefinition(minimal712Macro);
-        string memory expectedTypeDefinition = "MinimalExample(Meta meta,Message message,Security security)Message(string title)Meta(string domain,string version)Security(string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
+        // check the type definition (build same way as forwarder: primary + action typedef + security typedef)
+        string memory typeDefinition = forwarder.getTypeDefinition(minimal712Macro, getTestPayload());
+        string memory expectedTypeDefinition = string(abi.encodePacked(
+            PRIMARY_TYPE_NAME,
+            "(Action action,Security security)",
+            ACTION_TYPEDEF,
+            SECURITY_TYPEDEF
+        ));
         assertEq(typeDefinition, expectedTypeDefinition, "typeDefinition mismatch");
 
         // check the type hash
-        bytes32 typeHash = forwarder.getTypeHash(minimal712Macro);
+        bytes32 typeHash = forwarder.getTypeHash(minimal712Macro, getTestPayload());
         bytes32 expectedTypeHash = vm.eip712HashType(expectedTypeDefinition);
         assertEq(typeHash, expectedTypeHash, "typeHash mismatch");
 
         // check the struct hash (includes type hash and the struct data)
         bytes memory payload = getTestPayload();
         bytes32 structHash = forwarder.getStructHash(minimal712Macro, payload);
-        bytes32 expectedStructHash = vm.eip712HashStruct(typeDefinition, payload);
+        bytes32 actionStructHash = minimal712Macro.getActionStructHash(abi.encode(ACTION_DESCRIPTION));
+        bytes32 securityTypeHash = keccak256(abi.encodePacked(SECURITY_TYPEDEF));
+        bytes32 securityStructHash = keccak256(abi.encode(
+            securityTypeHash,
+            keccak256(bytes(SECURITY_DOMAIN)),
+            keccak256(bytes(SECURITY_PROVIDER)),
+            uint256(0),
+            uint256(0),
+            DEFAULT_NONCE
+        ));
+        bytes32 expectedStructHash = keccak256(abi.encode(
+            expectedTypeHash,
+            actionStructHash,
+            securityStructHash
+        ));
         assertEq(structHash, expectedStructHash, "structHash mismatch");
 
         // check the digest
@@ -227,8 +246,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
             '"primaryType": "MinimalExample",', // leaving this as literal in order to fit onto the stack
             '"domain": {', _getDomainJson(), '},',
             '"message": {',
-            '"meta": {', _getMetaJson(), '},',
-            '"message": {', _getMessageJson(), '},',
+            '"action": {', _getActionJson(), '},',
             '"security": {', _getSecurityJson(), '}',
             '}',
             '}'
@@ -239,8 +257,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             _getEIP712DomainTypeJson(),
             _getMinimalExampleTypeJson(),
-            _getMessageTypeJson(),
-            _getMetaTypeJson(),
+            _getActionTypeJson(),
             _getSecurityTypeJson()
         ));
     }
@@ -259,26 +276,16 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     function _getMinimalExampleTypeJson() internal pure returns (string memory) {
         return string(abi.encodePacked(
             '"MinimalExample": [',
-            '{"name": "meta", "type": "Meta"},',
-            '{"name": "message", "type": "Message"},',
+            '{"name": "action", "type": "Action"},',
             '{"name": "security", "type": "Security"}',
             '],'
         ));
     }
 
-    function _getMessageTypeJson() internal pure returns (string memory) {
+    function _getActionTypeJson() internal pure returns (string memory) {
         return string(abi.encodePacked(
-            '"Message": [',
-            '{"name": "title", "type": "string"}',
-            '],'
-        ));
-    }
-
-    function _getMetaTypeJson() internal pure returns (string memory) {
-        return string(abi.encodePacked(
-            '"Meta": [',
-            '{"name": "domain", "type": "string"},',
-            '{"name": "version", "type": "string"}',
+            '"Action": [',
+            '{"name": "description", "type": "string"}',
             '],'
         ));
     }
@@ -286,6 +293,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     function _getSecurityTypeJson() internal pure returns (string memory) {
         return string(abi.encodePacked(
             '"Security": [',
+            '{"name": "domain", "type": "string"},',
             '{"name": "provider", "type": "string"},',
             '{"name": "validAfter", "type": "uint256"},',
             '{"name": "validBefore", "type": "uint256"},',
@@ -303,22 +311,16 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         ));
     }
 
-    function _getMetaJson() internal pure returns (string memory) {
+    function _getActionJson() internal pure returns (string memory) {
         return string(abi.encodePacked(
-            '"domain": "', META_DOMAIN, '",',
-            '"version": "', META_VERSION, '"'
-        ));
-    }
-
-    function _getMessageJson() internal pure returns (string memory) {
-        return string(abi.encodePacked(
-            '"title": "', MESSAGE_TITLE, '"'
+            '"description": "', ACTION_DESCRIPTION, '"'
         ));
     }
 
     function _getSecurityJson() internal pure returns (string memory) {
         // Use string for nonce so Foundry's JSON parser accepts 2^64 as uint256 (avoids type mismatch)
         return string(abi.encodePacked(
+            '"domain": "', SECURITY_DOMAIN, '",',
             '"provider": "', SECURITY_PROVIDER, '",',
             '"validAfter": "0",',
             '"validBefore": "0",',
