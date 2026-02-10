@@ -102,7 +102,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
 
     function setUp() public override {
         super.setUp();
-        forwarder = new Only712MacroForwarder(sf.host, address(0));
+        forwarder = new Only712MacroForwarder(sf.host);
         minimal712Macro = new Minimal712Macro();
 
         IAccessControl acl = IAccessControl(sf.host.getSimpleACL());

@@ -89,7 +89,7 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
 
     // Here EIP712 domain name and version are set.
     // TODO: should the name include "Superfluid"?
-    constructor(ISuperfluid host, address /*registry*/) ForwarderBase(host) EIP712("ClearSigning", "1") {
+    constructor(ISuperfluid host) ForwarderBase(host) EIP712("ClearSigning", "1") {
         _providerACL = IAccessControl(host.getSimpleACL());
     }
 
