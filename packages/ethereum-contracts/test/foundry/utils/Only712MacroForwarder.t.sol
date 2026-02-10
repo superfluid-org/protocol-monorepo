@@ -4,33 +4,30 @@ pragma solidity ^0.8.23;
 import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
-import { ISuperfluid, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { BatchOperation, ISuperfluid, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IUserDefined712Macro } from "../../../contracts/interfaces/utils/IUserDefinedMacro.sol";
+import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 import { Only712MacroForwarder, NonceManager } from "../../../contracts/utils/Only712MacroForwarder.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 string constant PRIMARY_TYPE_NAME = "MinimalExample";
 string constant ACTION_TYPEDEF = "Action(string description)";
-string constant ACTION_DESCRIPTION = "Hello 712";
 string constant SECURITY_DOMAIN = "minimalmacro.xyz";
 string constant SECURITY_PROVIDER = "macros.superfluid.eth";
 string constant SECURITY_TYPEDEF = "Security(string domain,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
 uint256 constant DEFAULT_NONCE = uint256(1) << 64;
+uint256 constant TEST_AMOUNT = 100e18;
 
-// returns the encoded payload for the example macro (nonce = key 1, sequence 0)
-function getTestPayload() pure returns (bytes memory) {
-    return getPayloadWithNonce(DEFAULT_NONCE);
-}
-
-// returns the encoded payload with the given nonce (for nonce tests)
-function getPayloadWithNonce(uint256 nonce) pure returns (bytes memory) {
-    return getPayloadWithNonceAndTimeframe(nonce, 0, 0);
-}
-
-// returns the encoded payload with the given nonce and timeframe
-function getPayloadWithNonceAndTimeframe(uint256 nonce, uint256 validAfter, uint256 validBefore) pure returns (bytes memory) {
+// returns the encoded payload with the given nonce, timeframe and upgrade params
+function getPayloadWithTokenAmount(
+    uint256 nonce,
+    uint256 validAfter,
+    uint256 validBefore,
+    address token,
+    uint256 amount
+) pure returns (bytes memory) {
     Only712MacroForwarder.PrimaryType memory payload = Only712MacroForwarder.PrimaryType({
-        action: Only712MacroForwarder.ActionType({ actionParams: abi.encode(ACTION_DESCRIPTION) }),
+        action: Only712MacroForwarder.ActionType({ actionParams: abi.encode(token, amount) }),
         security: Only712MacroForwarder.SecurityType({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
@@ -44,18 +41,35 @@ function getPayloadWithNonceAndTimeframe(uint256 nonce, uint256 validAfter, uint
 
 // ============== Minimal macro for Only712MacroForwarder ==============
 // Implements IUserDefined712Macro and uses *no* postCheck logic.
-// The Action type has a description field with hardcoded string value.
+// Expects params (token, amount); does a SuperToken upgrade from underlying.
+// Shows how the params can be different from the type definition, while still being part of the signed data
+// (via the dynamic construction of the description string from the params)
 contract Minimal712Macro is IUserDefined712Macro {
 
     string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
 
-    function buildBatchOperations(ISuperfluid, bytes memory, address)
+    function _buildDescription(address token, uint256 amount) internal pure returns (string memory) {
+        return string.concat(
+            "Upgrade ",
+            Strings.toString(amount),
+            " ",
+            Strings.toHexString(token)
+        );
+    }
+
+    function buildBatchOperations(ISuperfluid, bytes memory params, address /*signer*/)
         external
         pure
         override
         returns (ISuperfluid.Operation[] memory operations)
     {
-        operations = new ISuperfluid.Operation[](0);
+        (address token, uint256 amount) = abi.decode(params, (address, uint256));
+        operations = new ISuperfluid.Operation[](1);
+        operations[0] = ISuperfluid.Operation({
+            operationType: BatchOperation.OPERATION_TYPE_SUPERTOKEN_UPGRADE,
+            target: token,
+            data: abi.encode(amount)
+        });
     }
 
     function postCheck(ISuperfluid, bytes memory, address) external view override {
@@ -71,8 +85,8 @@ contract Minimal712Macro is IUserDefined712Macro {
     }
 
     function getActionStructHash(bytes memory params) external pure override returns (bytes32) {
-        string memory description = abi.decode(params, (string));
-        require(keccak256(bytes(description)) == keccak256(bytes(ACTION_DESCRIPTION)), "wrong description");
+        (address token, uint256 amount) = abi.decode(params, (address, uint256));
+        string memory description = _buildDescription(token, amount);
         bytes32 actionTypeHash = keccak256(abi.encodePacked(ACTION_TYPE_DEFINITION));
         return keccak256(abi.encode(actionTypeHash, keccak256(bytes(description))));
     }
@@ -99,15 +113,35 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         sf.governance.enableTrustedForwarder(sf.host, ISuperfluidToken(address(0)), address(forwarder));
     }
 
-    function testRunMacro() external {
-        VmSafe.Wallet memory signer = vm.createWallet("signer");
-        (bytes memory params, bytes memory signatureVRS) = _signPayload(signer, DEFAULT_NONCE);
+    function getTestPayload() internal view returns (bytes memory) {
+        return getPayloadWithTokenAmount(DEFAULT_NONCE, 0, 0, address(superToken), TEST_AMOUNT);
+    }
+
+    /// @dev Fund the signer with underlying and approve super token so the signer can have tokens upgraded.
+    function _fundSignerForUpgrade(VmSafe.Wallet memory signer, uint256 runs) internal {
+        uint256 total = TEST_AMOUNT * runs;
+        vm.prank(alice);
+        token.transfer(signer.addr, total);
+        vm.prank(signer.addr);
+        token.approve(address(superToken), total);
+    }
+
+    function testRunMacro(uint256 signerPrivateKey) external {
+        signerPrivateKey = bound(signerPrivateKey, 1, SECP256K1_ORDER - 1);
+        VmSafe.Wallet memory signer = vm.createWallet(signerPrivateKey);
+        _fundSignerForUpgrade(signer, 1);
+
+        uint256 signerSuperBalanceBefore = superToken.balanceOf(signer.addr);
+        bytes memory params = getTestPayload();
+        bytes memory signatureVRS = _signPayload(signer, params);
         assertTrue(_runMacroAs(address(this), signer.addr, params, signatureVRS));
+        assertEq(superToken.balanceOf(signer.addr), signerSuperBalanceBefore + TEST_AMOUNT, "signer super token balance should increase by TEST_AMOUNT");
     }
 
     function testRevertsWhenCallerMissingProviderRole() external {
         VmSafe.Wallet memory signer = vm.createWallet("signer");
-        (bytes memory params, bytes memory signatureVRS) = _signPayload(signer, DEFAULT_NONCE);
+        bytes memory params = getTestPayload();
+        bytes memory signatureVRS = _signPayload(signer, params);
         vm.expectRevert(abi.encodeWithSelector(
             Only712MacroForwarder.ProviderNotAuthorized.selector, SECURITY_PROVIDER, address(0xbad)));
         _runMacroAs(address(0xbad), signer.addr, params, signatureVRS);
@@ -132,7 +166,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         // check the struct hash (includes type hash and the struct data)
         bytes memory payload = getTestPayload();
         bytes32 structHash = forwarder.getStructHash(minimal712Macro, payload);
-        bytes32 actionStructHash = minimal712Macro.getActionStructHash(abi.encode(ACTION_DESCRIPTION));
+        bytes32 actionStructHash = minimal712Macro.getActionStructHash(abi.encode(address(superToken), TEST_AMOUNT));
         bytes32 securityTypeHash = keccak256(abi.encodePacked(SECURITY_TYPEDEF));
         bytes32 securityStructHash = keccak256(abi.encode(
             securityTypeHash,
@@ -159,19 +193,23 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
 
     function testGetNonce(uint192 key) external {
         VmSafe.Wallet memory signer = vm.createWallet("signer");
+        _fundSignerForUpgrade(signer, 10);
 
         for (uint256 i = 0; i < 10; i++) {
             uint256 nonce = forwarder.getNonce(signer.addr, key);
-            (bytes memory params, bytes memory signatureVRS) = _signPayload(signer, nonce);
+            bytes memory params = getPayloadWithTokenAmount(nonce, 0, 0, address(superToken), TEST_AMOUNT);
+            bytes memory signatureVRS = _signPayload(signer, params);
             assertTrue(_runMacroAs(address(this), signer.addr, params, signatureVRS), "runMacro with getNonce() nonce should succeed");
         }
     }
 
     function testCannotReuseNonce(uint192 key) external {
         VmSafe.Wallet memory signer = vm.createWallet("signer");
+        _fundSignerForUpgrade(signer, 2);
 
         uint256 nonce = forwarder.getNonce(signer.addr, key);
-        (bytes memory params, bytes memory signatureVRS) = _signPayload(signer, nonce);
+        bytes memory params = getPayloadWithTokenAmount(nonce, 0, 0, address(superToken), TEST_AMOUNT);
+        bytes memory signatureVRS = _signPayload(signer, params);
         assertTrue(_runMacroAs(address(this), signer.addr, params, signatureVRS));
 
         vm.expectRevert(abi.encodeWithSelector(NonceManager.InvalidNonce.selector, signer.addr, nonce));
@@ -185,8 +223,10 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         vm.warp(t0);
 
         VmSafe.Wallet memory signer = vm.createWallet("signer");
+        _fundSignerForUpgrade(signer, 2);
         uint256 nonce = forwarder.getNonce(signer.addr, 0);
-        (bytes memory params, bytes memory signatureVRS) = _signPayloadWithTimeframe(signer, nonce, t0, t1);
+        bytes memory params = getPayloadWithTokenAmount(nonce, t0, t1, address(superToken), TEST_AMOUNT);
+        bytes memory signatureVRS = _signPayload(signer, params);
 
         // Before validAfter: revert (skip when t0 == 0 to avoid underflow)
         if (t0 > 0) {
@@ -210,7 +250,8 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         // After validBefore: revert (use non-zero validBefore so 0 = unbounded is not used here)
         uint256 expiry = t0 > 0 ? t0 : 1;
         nonce = forwarder.getNonce(signer.addr, 0);
-        (params, signatureVRS) = _signPayloadWithTimeframe(signer, nonce, 0, expiry);
+        params = getPayloadWithTokenAmount(nonce, 0, expiry, address(superToken), TEST_AMOUNT);
+        signatureVRS = _signPayload(signer, params);
         vm.warp(expiry + 1);
         vm.expectRevert(abi.encodeWithSelector(
             Only712MacroForwarder.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
@@ -220,17 +261,20 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     /// For a given key, nonces must be used in sequence (0, 1, 2, ...). Skipping must revert.
     function testNonceEnforceInSequence(uint192 key) external {
         VmSafe.Wallet memory signer = vm.createWallet("signer");
+            _fundSignerForUpgrade(signer, 2);
 
         // Using seq=1 before seq=0 must revert
         uint256 nonceSeq1 = (uint256(key) << 64) | 1;
-        (bytes memory paramsSeq1, bytes memory sig1) = _signPayload(signer, nonceSeq1);
+        bytes memory paramsSeq1 = getPayloadWithTokenAmount(nonceSeq1, 0, 0, address(superToken), TEST_AMOUNT);
+        bytes memory sig1 = _signPayload(signer, paramsSeq1);
 
         vm.expectRevert(abi.encodeWithSelector(NonceManager.InvalidNonce.selector, signer.addr, nonceSeq1));
         _runMacroAs(address(this), signer.addr, paramsSeq1, sig1);
 
         // seq=0 must succeed
         uint256 nonceSeq0 = uint256(key) << 64;
-        (bytes memory paramsSeq0, bytes memory sig0) = _signPayload(signer, nonceSeq0);
+        bytes memory paramsSeq0 = getPayloadWithTokenAmount(nonceSeq0, 0, 0, address(superToken), TEST_AMOUNT);
+        bytes memory sig0 = _signPayload(signer, paramsSeq0);
         assertTrue(_runMacroAs(address(this), signer.addr, paramsSeq0, sig0));
 
         // now seq=1 must succeed
@@ -311,9 +355,18 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         ));
     }
 
-    function _getActionJson() internal pure returns (string memory) {
+    function _getExpectedDescription() internal view returns (string memory) {
+        return string.concat(
+            "Upgrade ",
+            Strings.toString(TEST_AMOUNT),
+            " ",
+            Strings.toHexString(address(superToken))
+        );
+    }
+
+    function _getActionJson() internal view returns (string memory) {
         return string(abi.encodePacked(
-            '"description": "', ACTION_DESCRIPTION, '"'
+            '"description": "', _getExpectedDescription(), '"'
         ));
     }
 
@@ -336,20 +389,9 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return forwarder.runMacro(minimal712Macro, params, signer, signatureVRS);
     }
 
-    function _signPayload(VmSafe.Wallet memory signer, uint256 nonce)
-        internal
-        returns (bytes memory params, bytes memory signatureVRS)
-    {
-        return _signPayloadWithTimeframe(signer, nonce, 0, 0);
-    }
-
-    function _signPayloadWithTimeframe(VmSafe.Wallet memory signer, uint256 nonce, uint256 validAfter, uint256 validBefore)
-        internal
-        returns (bytes memory params, bytes memory signatureVRS)
-    {
-        params = getPayloadWithNonceAndTimeframe(nonce, validAfter, validBefore);
+    function _signPayload(VmSafe.Wallet memory signer, bytes memory params) internal returns (bytes memory) {
         bytes32 digest = forwarder.getDigest(minimal712Macro, params);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
-        signatureVRS = abi.encodePacked(r, s, v);
+        return abi.encodePacked(r, s, v);
     }
 }

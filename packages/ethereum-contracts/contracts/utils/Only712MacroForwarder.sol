@@ -135,7 +135,7 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
             m.buildBatchOperations(_host, payload.action.actionParams, signer);
 
         // forward the operations
-        bool retVal = _forwardBatchCallWithValue(operations, msg.value);
+        bool retVal = _forwardBatchCallWithSenderAndValue(operations, signer, msg.value);
         m.postCheck(_host, payload.action.actionParams, signer);
         return retVal;
     }
