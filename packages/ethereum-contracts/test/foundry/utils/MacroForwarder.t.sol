@@ -65,7 +65,7 @@ contract GoodMacro is IUserDefinedMacro {
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
 
     // recommended view function for parameter encoding
-    function paramsCreateFlows(ISuperToken token, int96 flowRate, address[] calldata recipients) external pure returns (bytes memory) {
+    function encodeCreateFlows(ISuperToken token, int96 flowRate, address[] calldata recipients) external pure returns (bytes memory) {
         return abi.encode(token, flowRate, recipients);
     }
 }
@@ -103,7 +103,7 @@ contract MultiFlowDeleteMacro is IUserDefinedMacro {
     }
 
     // recommended view function for parameter encoding
-    function paramsDeleteFlows(ISuperToken superToken, address sender, address[] memory receivers, uint256 minBalanceAfter)
+    function encodeDeleteFlows(ISuperToken superToken, address sender, address[] memory receivers, uint256 minBalanceAfter)
         external pure
         returns (bytes memory)
     {
@@ -320,7 +320,7 @@ contract MacroForwarderTest is FoundrySuperfluidTester {
         vm.startPrank(admin);
         // NOTE! This is different from abi.encode(superToken, int96(42), [bob, carol]),
         //       which is a fixed array: address[2].
-        sf.macroForwarder.runMacro(m, m.paramsCreateFlows(superToken, int96(42), recipients));
+        sf.macroForwarder.runMacro(m, m.encodeCreateFlows(superToken, int96(42), recipients));
         assertEq(sf.cfa.getNetFlow(superToken, bob), 42);
         assertEq(sf.cfa.getNetFlow(superToken, carol), 42);
         vm.stopPrank();
@@ -355,7 +355,7 @@ contract MacroForwarderTest is FoundrySuperfluidTester {
             superToken.createFlow(recipients[i], 42);
         }
         // now batch-delete them
-        sf.macroForwarder.runMacro(m, m.paramsDeleteFlows(superToken, sender, recipients, 0));
+        sf.macroForwarder.runMacro(m, m.encodeDeleteFlows(superToken, sender, recipients, 0));
 
         for (uint i = 0; i < recipients.length; ++i) {
             assertEq(sf.cfa.getNetFlow(superToken, recipients[i]), 0);

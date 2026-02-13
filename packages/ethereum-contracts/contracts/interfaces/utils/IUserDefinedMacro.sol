@@ -33,7 +33,7 @@ interface IUserDefinedMacro {
     /*
      * Additional to the required interface, we recommend to implement one or multiple view functions
      * which take operation specific typed arguments and return the abi encoded bytes.
-     * As a convention, the name of those functions shall start with `params`.
+     * As a convention, the name of those functions shall start with `encode`.
      *
      * Implementing this view function(s) has several advantages:
      * - Allows to build more complex macros with internally encapsulated dispatching logic
