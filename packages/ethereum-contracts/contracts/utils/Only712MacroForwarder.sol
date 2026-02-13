@@ -96,23 +96,6 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     // PUBLIC FUNCTIONS
 
     /**
-     * @dev Encode action and security params into the payload bytes expected by runMacro.
-     * @param actionParams params specific to the macro action, already ABI-encoded by the caller.
-     * @param security security related parameters
-     * @return Encoded payload to pass to runMacro()
-     */
-    function encodeParams(bytes calldata actionParams, SecurityType calldata security)
-        external pure
-        returns (bytes memory)
-    {
-        PrimaryType memory payload = PrimaryType({
-            action: ActionType({ actionParams: actionParams }),
-            security: security
-        });
-        return abi.encode(payload);
-    }
-
-    /**
      * @dev Run the macro with encoded payload (generic + macro specific fragments).
      * @param m Target macro.
      * @param params Encoded payload
@@ -155,6 +138,23 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
         bool retVal = _forwardBatchCallWithSenderAndValue(operations, signer, msg.value);
         m.postCheck(_host, payload.action.actionParams, signer);
         return retVal;
+    }
+
+    /**
+     * @dev Encode action and security params into the payload bytes expected by runMacro.
+     * @param actionParams params specific to the macro action, already ABI-encoded by the caller.
+     * @param security security related parameters
+     * @return Encoded payload to pass to runMacro()
+     */
+    function encodeParams(bytes calldata actionParams, SecurityType calldata security)
+        external pure
+        returns (bytes memory)
+    {
+        PrimaryType memory payload = PrimaryType({
+            action: ActionType({ actionParams: actionParams }),
+            security: security
+        });
+        return abi.encode(payload);
     }
 
     // TODO: should this exist?
