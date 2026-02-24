@@ -331,7 +331,7 @@ module.exports =
             "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/polygon-mainnet/auto-wrap"
         },
         "publicRPCs": [
-            "https://polygon-rpc.com",
+            "https://polygon.drpc.org",
             "https://poly-rpc.gateway.pokt.network"
         ],
         "coinGeckoId": "polygon-pos"
