@@ -7,13 +7,13 @@
     },
     "bugs": "https://github.com/superfluid-org/protocol-monorepo/issues",
     "devDependencies": {
-        "@superfluid-finance/ethereum-contracts": "^1.14.1"
+        "@superfluid-finance/ethereum-contracts": "^1.15.0"
     },
     "homepage": "https://github.com/superfluid-org/protocol-monorepo#readme",
     "license": "AGPL-3.0",
     "main": "index.js",
     "peerDependencies": {
-        "@superfluid-finance/ethereum-contracts": "1.14.1"
+        "@superfluid-finance/ethereum-contracts": "1.15.0"
     },
     "repository": {
         "type": "git",

@@ -97,7 +97,7 @@ makeSuite("Framework Tests", (testEnv: TestEnvironment) => {
 
         it("Should be able to create a framework with chain id only", async () => {
             const customProvider = new ethers.providers.JsonRpcProvider(
-                "https://polygon-rpc.com/",
+                "https://polygon.drpc.org/",
                 "matic"
             );
             await Framework.create({
