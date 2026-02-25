@@ -347,6 +347,11 @@ jobs:
           repository: superfluid-finance/build-scripts
           path: build-scripts
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
       - uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Parse Tag
