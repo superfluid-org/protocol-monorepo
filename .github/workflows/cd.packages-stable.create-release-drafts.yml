@@ -36,12 +36,12 @@ jobs:
 
       - name: Create ethereum-contracts stable release draft
         if: env.SHOULD_PUBLISH_ETHEREUM_CONTRACTS == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: ethereum-contracts@v${{ env.ETHEREUM_CONTRACTS_NEW_VERSION }}
-          release_name: ethereum-contracts@v${{ env.ETHEREUM_CONTRACTS_NEW_VERSION }}
+          name: ethereum-contracts@v${{ env.ETHEREUM_CONTRACTS_NEW_VERSION }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
 
@@ -78,12 +78,12 @@ jobs:
 
       - name: Create subgraph stable release draft
         if: env.SHOULD_PUBLISH_SUBGRAPH == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: subgraph@v${{ env.SUBGRAPH_NEW_VERSION }}
-          release_name: subgraph@v${{ env.SUBGRAPH_NEW_VERSION }}
+          name: subgraph@v${{ env.SUBGRAPH_NEW_VERSION }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
 
@@ -111,12 +111,12 @@ jobs:
 
       - name: Create metadata stable release draft
         if: env.SHOULD_PUBLISH_METADATA == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: metadata@v${{ env.METADATA_NEW_VERSION }}
-          release_name: metadata@v${{ env.METADATA_NEW_VERSION }}
+          name: metadata@v${{ env.METADATA_NEW_VERSION }}
           body: |
             Please refer to the CHANGELOG.md file in metadata package for more details on the changeset.
           draft: false
@@ -185,12 +185,12 @@ jobs:
 
       - name: Create sdk-core stable release draft
         if: needs.check-sdk-core-version.outputs.publish_sdk_core == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: sdk-core@v${{ needs.check-sdk-core-version.outputs.sdk_core_new_version }}
-          release_name: sdk-core@v${{ needs.check-sdk-core-version.outputs.sdk_core_new_version }}
+          name: sdk-core@v${{ needs.check-sdk-core-version.outputs.sdk_core_new_version }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
 
@@ -216,11 +216,11 @@ jobs:
 
       - name: Create sdk-redux stable release draft
         if: env.SHOULD_PUBLISH_SDK_REDUX == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: sdk-redux@v${{ env.SDK_REDUX_NEW_VERSION }}
-          release_name: sdk-redux@v${{ env.SDK_REDUX_NEW_VERSION }}
+          name: sdk-redux@v${{ env.SDK_REDUX_NEW_VERSION }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
