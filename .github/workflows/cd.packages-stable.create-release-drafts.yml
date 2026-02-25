@@ -134,14 +134,18 @@ jobs:
     runs-on: ubuntu-22.04
 
     outputs:
-      publish_sdk_core: ${{ env.SHOULD_PUBLISH_SDK_CORE }}
-      sdk_core_new_version: ${{ env.SDK_CORE_NEW_VERSION }}
+      publish_sdk_core: ${{ steps.check-version.outputs.SHOULD_PUBLISH_SDK_CORE }}
+      sdk_core_new_version: ${{ steps.check-version.outputs.SDK_CORE_NEW_VERSION }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Check package versions
-        run: ./tasks/check-package-version.sh sdk-core SHOULD_PUBLISH_SDK_CORE SDK_CORE_NEW_VERSION >> "$GITHUB_ENV"
+        id: check-version
+        run: |
+          OUTPUT=$(./tasks/check-package-version.sh sdk-core SHOULD_PUBLISH_SDK_CORE SDK_CORE_NEW_VERSION)
+          echo "$OUTPUT" >> "$GITHUB_ENV"
+          echo "$OUTPUT" >> "$GITHUB_OUTPUT"
 
   test-sdk-core-query-schema-against-deployed-v1-subgraphs:
     uses: ./.github/workflows/call.check-query-schema-against-subgraph.yml
