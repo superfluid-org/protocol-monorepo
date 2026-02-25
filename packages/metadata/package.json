@@ -3,14 +3,14 @@
     "description": "Superfluid Metadata",
     "version": "1.6.2",
     "author": "Superfluid",
-    "bugs": "https://github.com/superfluid-finance/protocol-monorepo/issues",
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/metadata#readme",
+    "bugs": "https://github.com/superfluid-org/protocol-monorepo/issues",
+    "homepage": "https://github.com/superfluid-org/protocol-monorepo/tree/dev/packages/metadata#readme",
     "license": "MIT",
     "main": "main/index.cjs",
     "module": "module/index.js",
     "repository": {
         "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "url": "https://github.com/superfluid-org/protocol-monorepo.git",
         "directory": "packages/metadata"
     },
     "scripts": {

@@ -19,7 +19,8 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +50,9 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
+
 
     steps:
       - uses: actions/checkout@v4
@@ -89,7 +92,10 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
+      id-token: write
+
 
     steps:
       - uses: actions/checkout@v4
@@ -121,7 +127,6 @@ jobs:
           tasks/npm-publish.sh packages/metadata/ latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
 
   check-sdk-core-version:
     name: Checking if SDK-Core should be published
@@ -166,7 +171,8 @@ jobs:
         check-sdk-core-version,
       ]
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -193,7 +199,8 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
