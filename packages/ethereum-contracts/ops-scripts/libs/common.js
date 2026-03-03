@@ -388,11 +388,16 @@ async function executeSafeTransaction(safeAddr, targetContractAddr, safeTxData) 
 
     const data = safeTxData;
 
+    // Include nonce in safeTransactionData so standardizeSafeTransactionData uses it instead of
+    // fetching on-chain nonce (which ignores pending txs and would cause a replace, not a queue).
+    const nextNonce = await apiKit.getNextNonce(safeAddr);
     const safeTransactionData = {
         to: targetContractAddr,
         value: 0,
         data: data,
+        nonce: nextNonce,
     };
+
     const safeTransaction = await safeSdk.createTransaction({ safeTransactionData });
     console.log("Safe tx:", safeTransaction);
 
