@@ -26,11 +26,14 @@ const {
  * @param {string} options.outputFile Name of file where to log addresses of tokens (to be) updated
  *                  (overriding env: OUTPUT_FILE)
  * @param {string} options.superTokenLogic override address for the logic to upgrade to instead of the canonical one
- *                  (overriding env: SUPER_TOKEN_LOGIC
+ *                  (overriding env: SUPER_TOKEN_LOGIC)
+ * @param {string} options.superTokenScope "all" | "listed" - (overriding env: SUPER_TOKEN_SCOPE) - default "all"
  *
  * extra env vars:
  * - EXTRA_PAST_SUPER_TOKEN_LOGICS - comma-separated list of extra past canonical super token logics to be considered
  *                                   This is a workaround to the subgraph not containing all of them
+ * - SUPER_TOKEN_SCOPE - "all" (default) | "listed" - when "listed", only process SuperTokens that are listed
+ *                       on the Resolver (smaller set, fits in one batch on chains with many tokens)
  *
  * Usage: npx truffle exec ops-scripts/gov-upgrade-super-token-logic.js : ALL | {SUPER_TOKEN_ADDRESS} ...
  */
@@ -44,6 +47,12 @@ module.exports = eval(`(${S.toString()})()`)(async function (
     console.log("protocol release version:", protocolReleaseVersion);
     dryRun = dryRun || process.env.DRY_RUN !== undefined;
     console.log("dry run:", dryRun);
+
+    const superTokenScope = (options.superTokenScope || process.env.SUPER_TOKEN_SCOPE || "all").toLowerCase();
+    if (superTokenScope !== "all" && superTokenScope !== "listed") {
+        throw new Error(`Invalid SUPER_TOKEN_SCOPE: "${superTokenScope}". Must be "all" or "listed".`);
+    }
+    console.log("SuperToken scope:", superTokenScope);
 
     skipTokensFile = skipTokensFile || process.env.SKIP_OUTPUT_FILE || "./upgrade_skip_tokens.json";
     let skipTokens = [];
@@ -82,6 +91,7 @@ module.exports = eval(`(${S.toString()})()`)(async function (
         contractLoader: builtTruffleContractLoader,
     });
     await sf.initialize();
+    const governanceContext = await getGovernanceContext(sf);
 
     const canonicalSuperTokenLogic = await getCanonicalSuperTokenLogic(sf);
     console.log(`current canonical super token logic: ${canonicalSuperTokenLogic}`);
@@ -112,7 +122,15 @@ module.exports = eval(`(${S.toString()})()`)(async function (
     pastSuperTokenLogics.push(...extraPastSuperTokenLogics);
 
     let tokensToBeUpgraded = (args.length === 1 && args[0] === "ALL") ?
-        await getTokensToBeUpgraded(sf, newSuperTokenLogic, skipTokens, pastSuperTokenLogics) :
+        await getTokensToBeUpgraded(
+            sf,
+            newSuperTokenLogic,
+            skipTokens,
+            pastSuperTokenLogics,
+            governanceContext,
+            superTokenLogic !== undefined,
+            superTokenScope
+        ) :
         Array.from(args);
 
     console.log(`${tokensToBeUpgraded.length} tokens to be upgraded`);
@@ -155,6 +173,72 @@ async function getCanonicalSuperTokenLogic(sf) {
     return superTokenFactory.getSuperTokenLogic();
 }
 
+async function getGovernanceContext(sf) {
+    const govAddr = await sf.host.getGovernance.call();
+    const gov = sf.contracts.SuperfluidGovernanceII !== undefined ?
+        await sf.contracts.SuperfluidGovernanceII.at(govAddr) :
+        await sf.contracts.SuperfluidGovernanceBase.at(govAddr);
+    const govOwner = await (await sf.contracts.Ownable.at(gov.address)).owner();
+
+    console.log("Governance used for preflight:", gov.address);
+    console.log("Preflight simulated sender:", govOwner);
+
+    return {gov, govOwner};
+}
+
+function normalizeCallError(err) {
+    if (err?.reason) return err.reason;
+    if (typeof err?.message === "string") {
+        return err.message
+            .replace(/^Returned error:\s*/, "")
+            .replace(/^VM Exception while processing transaction:\s*/, "")
+            .trim();
+    }
+    try {
+        return JSON.stringify(err);
+    } catch (_) {
+        return "unknown preflight error";
+    }
+}
+
+async function canTokenBeUpgradedByGovernance(
+    sf,
+    governanceContext,
+    tokenAddress,
+    superTokenLogic,
+    useLogicOverride
+) {
+    const {gov, govOwner} = governanceContext;
+    try {
+        if (useLogicOverride) {
+            const method = gov.contract?.methods?.["batchUpdateSuperTokenLogic(address,address[],address[])"];
+            if (method === undefined) {
+                throw new Error("governance method batchUpdateSuperTokenLogic(address,address[],address[]) not found");
+            }
+            await method(
+                sf.host.address,
+                [tokenAddress],
+                [superTokenLogic]
+            ).call({from: govOwner});
+        } else {
+            const method = gov.contract?.methods?.["batchUpdateSuperTokenLogic(address,address[])"];
+            if (method === undefined) {
+                throw new Error("governance method batchUpdateSuperTokenLogic(address,address[]) not found");
+            }
+            await method(
+                sf.host.address,
+                [tokenAddress]
+            ).call({from: govOwner});
+        }
+        return {ok: true};
+    } catch (err) {
+        return {
+            ok: false,
+            reason: normalizeCallError(err),
+        };
+    }
+}
+
 // gets a list of tokens (addresses) to be upgraded
 // starts from the list of all SuperTokens returned by the subgraph,
 // from there filters out those
@@ -162,14 +246,27 @@ async function getCanonicalSuperTokenLogic(sf) {
 // - not being a proxy or not having a logic address
 // - already pointing to the latest logic
 // - in the skip list (e.g. because not managed by SF gov)
-async function getTokensToBeUpgraded(sf, newSuperTokenLogic, skipList, pastSuperTokenLogics) {
+async function getTokensToBeUpgraded(
+    sf,
+    newSuperTokenLogic,
+    skipList,
+    pastSuperTokenLogics,
+    governanceContext,
+    useLogicOverride,
+    superTokenScope = "all"
+) {
     const maxItems = parseInt(process.env.MAX_ITEMS) || 1000;
     const skipItems = parseInt(process.env.SKIP_ITEMS) || 0;
+    const preflightFailures = [];
 
     console.log(`Past SuperToken logic contracts we take into account: ${JSON.stringify(pastSuperTokenLogics, null, 2)}`);
 
+    const whereClause = superTokenScope === "listed"
+        ? "{isSuperToken: true, isListed: true}"
+        : "{isSuperToken: true}";
+
     const candidateTokens = (await sf.subgraphQuery(`{
-        tokens(where: {isSuperToken: true}, first: ${maxItems}, skip: ${skipItems}) {
+        tokens(where: ${whereClause}, first: ${maxItems}, skip: ${skipItems}) {
             id
         }
     }`)).tokens.map((i) => i.id);
@@ -179,7 +276,7 @@ async function getTokensToBeUpgraded(sf, newSuperTokenLogic, skipList, pastSuper
         console.warn("### There's more items than returned by the query");
     }
 
-    return (await async.mapLimit(
+    const tokens = (await async.mapLimit(
         candidateTokens,
         MAX_REQUESTS,
         async (superTokenAddress) => {
@@ -200,29 +297,41 @@ async function getTokensToBeUpgraded(sf, newSuperTokenLogic, skipList, pastSuper
                         `[SKIP] SuperToken@${superToken.address} (${symbol}) is likely an uninitalized proxy`
                     );
                 } else if (newSuperTokenLogic !== superTokenLogic) {
-                    if (!pastSuperTokenLogics.map(e => e.toLowerCase()).includes(superTokenLogic.toLowerCase())) {
-                        // if the previous logic isn't in our list of past canonical supertoken logics, we skip it
-                        // it likely means we don't have upgradability ownership
-                        console.log(
-                            `!!! [SKIP] SuperToken@${superToken.address} (${symbol}) alien previous logic ${superTokenLogic} - please manually check!`
+                    let adminAddr = ZERO_ADDRESS;
+                    try {
+                        adminAddr = await superToken.getAdmin();
+                    } catch(err) {
+                        console.log("### failed to get admin addr:", err.message);
+                    }
+                    if (adminAddr !== ZERO_ADDRESS) {
+                        console.warn(
+                            `!!! [SKIP] SuperToken@${superToken.address} admin override set to ${adminAddr}`
                         );
                     } else {
-                        let adminAddr = ZERO_ADDRESS;
-                        try {
-                            adminAddr = await superToken.getAdmin();
-                        } catch(err) {
-                            console.log("### failed to get admin addr:", err.message);
-                        }
-                        if (adminAddr !== ZERO_ADDRESS) {
+                        const canBeUpgraded = await canTokenBeUpgradedByGovernance(
+                            sf,
+                            governanceContext,
+                            superTokenAddress,
+                            newSuperTokenLogic,
+                            useLogicOverride
+                        );
+                        if (!canBeUpgraded.ok) {
+                            const failure = {
+                                token: superToken.address,
+                                symbol,
+                                currentLogic: superTokenLogic,
+                                reason: canBeUpgraded.reason,
+                            };
+                            preflightFailures.push(failure);
                             console.warn(
-                                `!!! [SKIP] SuperToken@${superToken.address} admin override set to ${adminAddr}`
+                                `!!! [SKIP] SuperToken@${superToken.address} (${symbol}) preflight failed: ${canBeUpgraded.reason}`
                             );
-                        } else {
-                            console.log(
-                                `SuperToken@${superToken.address} (${symbol}) logic needs upgrade from ${superTokenLogic}`
-                            );
-                            return superTokenAddress;
+                            return;
                         }
+                        console.log(
+                            `SuperToken@${superToken.address} (${symbol}) logic needs upgrade from ${superTokenLogic}`
+                        );
+                        return superTokenAddress;
                     }
                 } else {
                     console.log(
@@ -235,6 +344,15 @@ async function getTokensToBeUpgraded(sf, newSuperTokenLogic, skipList, pastSuper
                 );
             }
         }
-    )).filter((i) => typeof i !== "undefined")
+    )).filter((i) => typeof i !== "undefined");
+
+    if (preflightFailures.length > 0) {
+        console.warn(`Preflight failures (${preflightFailures.length}):`);
+        for (const failure of preflightFailures) {
+            console.warn(JSON.stringify(failure));
+        }
+    }
+
+    return tokens
     .filter((item) => !skipList.map(e => e.toLowerCase()).includes(item.toLowerCase()));
 }
