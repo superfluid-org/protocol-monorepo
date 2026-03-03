@@ -1,5 +1,5 @@
 {
-    "name": "@superfluid-finance/protocol-monorepo",
+    "name": "@superfluid-org/protocol-monorepo",
     "description": "Superfluid Protocol monorepo",
     "version": "0.0.0",
     "devDependencies": {
@@ -46,7 +46,7 @@
     "license": "MIT",
     "npmClient": "yarn",
     "private": true,
-    "repository": "github:superfluid-finance/protocol-monorepo",
+    "repository": "github:superfluid-org/protocol-monorepo",
     "resolutions": {
         "cross-fetch": "^4.0.0"
     },

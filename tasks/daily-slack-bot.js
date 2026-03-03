@@ -17,7 +17,7 @@ const sadPepeKidImage =
     "https://www.pngmart.com/files/11/Sad-Pepe-The-Frog-PNG-Transparent-Picture.png";
 const topSectionMessage =
     "Looks like there are some lonely pull requests open in your area";
-const workflowFileName = ".github/workflows/ci.canary.yml";
+const workflowFileName = ".github/workflows/handler.publish-dev-release-packages.yml";
 const metadataLink =
     "https://raw.githubusercontent.com/superfluid-finance/protocol-monorepo/dev/packages/metadata/networks.json";
 const redImage =
