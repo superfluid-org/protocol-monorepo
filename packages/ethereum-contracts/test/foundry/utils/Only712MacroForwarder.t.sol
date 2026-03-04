@@ -14,8 +14,8 @@ string constant PRIMARY_TYPE_NAME = "MinimalExample";
 string constant ACTION_TYPEDEF = "Action(string description)";
 string constant SECURITY_DOMAIN = "minimalmacro.xyz";
 string constant SECURITY_PROVIDER = "macros.superfluid.eth";
-string constant SECURITY_TYPEDEF = "Security(string domain,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
 uint256 constant DEFAULT_NONCE = uint256(1) << 64;
+string constant NONCE_STR = "18446744073709551616"; // 2^64
 uint256 constant TEST_AMOUNT = 100e18;
 
 // ============== Minimal macro for Only712MacroForwarder ==============
@@ -101,25 +101,21 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     ) external view {
         Only712MacroForwarder.PrimaryType memory payload = Only712MacroForwarder.PrimaryType({
             action: Only712MacroForwarder.ActionType({ actionParams: abi.encode(token, amount) }),
-            security: Only712MacroForwarder.SecurityType({
-                domain: SECURITY_DOMAIN,
-                provider: SECURITY_PROVIDER,
-                validAfter: validAfter,
-                validBefore: validBefore,
-                nonce: nonce
-            })
+            domain: SECURITY_DOMAIN,
+            nonce: nonce,
+            provider: SECURITY_PROVIDER,
+            validAfter: validAfter,
+            validBefore: validBefore
         });
         bytes memory localPayload = abi.encode(payload);
-        
+
         bytes memory forwarderPayload = forwarder.encodeParams(
             abi.encode(token, amount),
-            Only712MacroForwarder.SecurityType({
-                domain: SECURITY_DOMAIN,
-                provider: SECURITY_PROVIDER,
-                validAfter: validAfter,
-                validBefore: validBefore,
-                nonce: nonce
-            })
+            SECURITY_DOMAIN,
+            SECURITY_PROVIDER,
+            validAfter,
+            validBefore,
+            nonce
         );
         assertEq(localPayload, forwarderPayload, "encodeParams output must match manual PrimaryType encoding");
     }
@@ -146,13 +142,12 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function testDigestCalculation() external view {
-        // check the type definition (build same way as forwarder: primary + action typedef + security typedef)
+        // check the type definition (primary with flattened security fields + action typedef)
         string memory typeDefinition = forwarder.getTypeDefinition(minimal712Macro, _getTestPayload());
         string memory expectedTypeDefinition = string(abi.encodePacked(
             PRIMARY_TYPE_NAME,
-            "(Action action,Security security)",
-            ACTION_TYPEDEF,
-            SECURITY_TYPEDEF
+            "(Action action,string domain,uint256 nonce,string provider,uint256 validAfter,uint256 validBefore)",
+            ACTION_TYPEDEF
         ));
         assertEq(typeDefinition, expectedTypeDefinition, "typeDefinition mismatch");
 
@@ -161,29 +156,28 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         bytes32 expectedTypeHash = vm.eip712HashType(expectedTypeDefinition);
         assertEq(typeHash, expectedTypeHash, "typeHash mismatch");
 
-        // check the struct hash (includes type hash and the struct data)
+        // check the struct hash (type hash + action + flattened security fields in type order)
         bytes memory payload = _getTestPayload();
         bytes32 structHash = forwarder.getStructHash(minimal712Macro, payload);
         bytes32 actionStructHash = minimal712Macro.getActionStructHash(abi.encode(address(superToken), TEST_AMOUNT));
-        bytes32 securityTypeHash = keccak256(abi.encodePacked(SECURITY_TYPEDEF));
-        bytes32 securityStructHash = keccak256(abi.encode(
-            securityTypeHash,
-            keccak256(bytes(SECURITY_DOMAIN)),
-            keccak256(bytes(SECURITY_PROVIDER)),
-            uint256(0),
-            uint256(0),
-            DEFAULT_NONCE
-        ));
         bytes32 expectedStructHash = keccak256(abi.encode(
             expectedTypeHash,
             actionStructHash,
-            securityStructHash
+            keccak256(bytes(SECURITY_DOMAIN)),
+            DEFAULT_NONCE,
+            keccak256(bytes(SECURITY_PROVIDER)),
+            uint256(0),
+            uint256(0)
         ));
         assertEq(structHash, expectedStructHash, "structHash mismatch");
 
         // check the digest
         bytes32 digest = forwarder.getDigest(minimal712Macro, payload);
-        string memory dataToBeSignedJson = _getDataToBeSignedJson();
+        string memory dataToBeSignedJson = _getDataToBeSignedJson(
+            vm.toString(block.chainid),
+            vm.toString(address(forwarder)),
+            _getExpectedDescription()
+        );
         console.log(dataToBeSignedJson);
         bytes32 expectedDigest = vm.eip712HashTypedData(dataToBeSignedJson);
         assertEq(digest, expectedDigest, "digest mismatch");
@@ -296,13 +290,11 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
     ) internal view returns (bytes memory) {
         return forwarder.encodeParams(
             abi.encode(token, amount),
-            Only712MacroForwarder.SecurityType({
-                domain: SECURITY_DOMAIN,
-                provider: SECURITY_PROVIDER,
-                validAfter: validAfter,
-                validBefore: validBefore,
-                nonce: nonce
-            })
+            SECURITY_DOMAIN,
+            SECURITY_PROVIDER,
+            validAfter,
+            validBefore,
+            nonce
         );
     }
 
@@ -310,18 +302,61 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return _getPayloadWithTokenAmount(DEFAULT_NONCE, 0, 0, address(superToken), TEST_AMOUNT);
     }
 
-    // example: https://github.com/vaquita-fi/vaquita-lisk/blob/c4964af9157c9cca9cfb167ac1a4450e36edb29e/contracts/test/VaquitaPool.t.sol#L142
-    // The splitting up into many functions avoids stack too deep error.
-    function _getDataToBeSignedJson() internal view returns (string memory) {
+    function _getExpectedDescription() internal view returns (string memory) {
+        return string.concat(
+            "Upgrade ",
+            Strings.toString(TEST_AMOUNT),
+            " ",
+            Strings.toHexString(address(superToken))
+        );
+    }
+
+    // EIP-712 typed data JSON generation for vm.eip712HashTypedData
+    function _getDataToBeSignedJson(
+        string memory chainIdStr,
+        string memory forwarderStr,
+        string memory description
+    ) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            _getPrefixJson(),
+            _getDomainJson(chainIdStr, forwarderStr),
+            _getMessageJson(description),
+            '}'
+        ));
+    }
+
+    function _getPrefixJson() internal pure returns (string memory) {
         return string(abi.encodePacked(
             '{',
             '"types": {', _getTypesJson(), '},',
-            '"primaryType": "MinimalExample",', // leaving this as literal in order to fit onto the stack
-            '"domain": {', _getDomainJson(), '},',
+            '"primaryType": "MinimalExample",'
+        ));
+    }
+
+    function _getDomainJson(string memory chainIdStr, string memory forwarderStr)
+        internal
+        pure
+        returns (string memory)
+    {
+        return string(abi.encodePacked(
+            '"domain": {',
+            '"name": "ClearSigning",',
+            '"version": "1",',
+            '"chainId": ', chainIdStr, ',',
+            '"verifyingContract": "', forwarderStr, '"'
+        ));
+    }
+
+    function _getMessageJson(string memory description) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            '},',
             '"message": {',
-            '"action": {', _getActionJson(), '},',
-            '"security": {', _getSecurityJson(), '}',
-            '}',
+            '"action": {"description": "', description, '"},',
+            '"domain": "', SECURITY_DOMAIN, '",',
+            '"nonce": "', NONCE_STR, '",',
+            '"provider": "', SECURITY_PROVIDER, '",',
+            '"validAfter": "0",',
+            '"validBefore": "0"',
             '}'
         ));
     }
@@ -330,8 +365,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             _getEIP712DomainTypeJson(),
             _getMinimalExampleTypeJson(),
-            _getActionTypeJson(),
-            _getSecurityTypeJson()
+            _getActionTypeJson()
         ));
     }
 
@@ -350,7 +384,11 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             '"MinimalExample": [',
             '{"name": "action", "type": "Action"},',
-            '{"name": "security", "type": "Security"}',
+            '{"name": "domain", "type": "string"},',
+            '{"name": "nonce", "type": "uint256"},',
+            '{"name": "provider", "type": "string"},',
+            '{"name": "validAfter", "type": "uint256"},',
+            '{"name": "validBefore", "type": "uint256"}',
             '],'
         ));
     }
@@ -359,54 +397,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             '"Action": [',
             '{"name": "description", "type": "string"}',
-            '],'
-        ));
-    }
-
-    function _getSecurityTypeJson() internal pure returns (string memory) {
-        return string(abi.encodePacked(
-            '"Security": [',
-            '{"name": "domain", "type": "string"},',
-            '{"name": "provider", "type": "string"},',
-            '{"name": "validAfter", "type": "uint256"},',
-            '{"name": "validBefore", "type": "uint256"},',
-            '{"name": "nonce", "type": "uint256"}',
             ']'
-        ));
-    }
-
-    function _getDomainJson() internal view returns (string memory) {
-        return string(abi.encodePacked(
-            '"name": "ClearSigning",',
-            '"version": "1",',
-            '"chainId": ', vm.toString(block.chainid), ',',
-            '"verifyingContract": "', vm.toString(address(forwarder)), '"'
-        ));
-    }
-
-    function _getExpectedDescription() internal view returns (string memory) {
-        return string.concat(
-            "Upgrade ",
-            Strings.toString(TEST_AMOUNT),
-            " ",
-            Strings.toHexString(address(superToken))
-        );
-    }
-
-    function _getActionJson() internal view returns (string memory) {
-        return string(abi.encodePacked(
-            '"description": "', _getExpectedDescription(), '"'
-        ));
-    }
-
-    function _getSecurityJson() internal pure returns (string memory) {
-        // Use string for nonce so Foundry's JSON parser accepts 2^64 as uint256 (avoids type mismatch)
-        return string(abi.encodePacked(
-            '"domain": "', SECURITY_DOMAIN, '",',
-            '"provider": "', SECURITY_PROVIDER, '",',
-            '"validAfter": "0",',
-            '"validBefore": "0",',
-            '"nonce": "', vm.toString(DEFAULT_NONCE), '"'
         ));
     }
 

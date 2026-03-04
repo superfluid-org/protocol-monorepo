@@ -55,26 +55,18 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
 
     // STRUCTS, CONSTANTS, IMMUTABLES
 
-    // top-level data structure
+    // top-level data structure (security fields flattened; Action remains nested)
     struct PrimaryType {
         ActionType action;
-        SecurityType security;
+        string domain;
+        uint256 nonce;
+        string provider;
+        uint256 validAfter;
+        uint256 validBefore;
     }
     struct ActionType {
         bytes actionParams;
     }
-    // the action typehash is macro specific
-    struct SecurityType {
-        string domain;
-        string provider;
-        uint256 validAfter;
-        uint256 validBefore;
-        uint256 nonce;
-    }
-    bytes internal constant _TYPEDEF_SECURITY =
-        "Security(string domain,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
-
-    bytes32 internal constant _TYPEHASH_SECURITY = keccak256(_TYPEDEF_SECURITY);
 
     IAccessControl internal immutable _providerACL;
 
@@ -109,18 +101,18 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     {
         // decode the payload
         PrimaryType memory payload = abi.decode(params, (PrimaryType));
-        bytes32 providerRole = keccak256(bytes(payload.security.provider));
+        bytes32 providerRole = keccak256(bytes(payload.provider));
         if (!_providerACL.hasRole(providerRole, msg.sender)) {
-            revert ProviderNotAuthorized(payload.security.provider, msg.sender);
+            revert ProviderNotAuthorized(payload.provider, msg.sender);
         }
 
-        _validateAndUpdateNonce(signer, payload.security.nonce);
+        _validateAndUpdateNonce(signer, payload.nonce);
 
-        if (block.timestamp < payload.security.validAfter) {
-            revert OutsideValidityWindow(block.timestamp, payload.security.validBefore, payload.security.validAfter);
+        if (block.timestamp < payload.validAfter) {
+            revert OutsideValidityWindow(block.timestamp, payload.validBefore, payload.validAfter);
         }
-        if (payload.security.validBefore != 0 && block.timestamp > payload.security.validBefore) {
-            revert OutsideValidityWindow(block.timestamp, payload.security.validBefore, payload.security.validAfter);
+        if (payload.validBefore != 0 && block.timestamp > payload.validBefore) {
+            revert OutsideValidityWindow(block.timestamp, payload.validBefore, payload.validAfter);
         }
 
         bytes32 digest = _getDigest(m, params);
@@ -143,16 +135,28 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     /**
      * @dev Encode action and security params into the payload bytes expected by runMacro.
      * @param actionParams params specific to the macro action, already ABI-encoded by the caller.
-     * @param security security related parameters
+     * @param domain security domain
+     * @param provider security provider (must be authorized via ACL)
+     * @param validAfter block timestamp after which the payload is valid
+     * @param validBefore block timestamp before which the payload is valid (0 = unbounded)
+     * @param nonce replay-protection nonce
      * @return Encoded payload to pass to runMacro()
      */
-    function encodeParams(bytes calldata actionParams, SecurityType calldata security)
-        external pure
-        returns (bytes memory)
-    {
+    function encodeParams(
+        bytes calldata actionParams,
+        string calldata domain,
+        string calldata provider,
+        uint256 validAfter,
+        uint256 validBefore,
+        uint256 nonce
+    ) external pure returns (bytes memory) {
         PrimaryType memory payload = PrimaryType({
             action: ActionType({ actionParams: actionParams }),
-            security: security
+            domain: domain,
+            nonce: nonce,
+            provider: provider,
+            validAfter: validAfter,
+            validBefore: validBefore
         });
         return abi.encode(payload);
     }
@@ -181,10 +185,8 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     function _getTypeDefinition(IUserDefined712Macro m, bytes calldata params) internal view returns (string memory) {
         return string(abi.encodePacked(
             m.getPrimaryTypeName(params),
-            "(Action action,Security security)",
-            // nested components need to be in alphabetical order
-            m.getActionTypeDefinition(params),
-            _TYPEDEF_SECURITY
+            "(Action action,string domain,uint256 nonce,string provider,uint256 validAfter,uint256 validBefore)",
+            m.getActionTypeDefinition(params)
         ));
     }
 
@@ -193,17 +195,19 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
         // the action fragment is handled by the user macro.
         bytes32 actionStructHash = m.getActionStructHash(payload.action.actionParams);
 
-        bytes32 securityStructHash = _getSecurityStructHash(payload.security);
-
         // get the typehash
         bytes32 primaryTypeHash = getTypeHash(m, params);
 
-        // calculate the struct hash
+        // struct hash: fields in type-def order (action, domain, nonce, provider, validAfter, validBefore)
         bytes32 structHash = keccak256(
             abi.encode(
                 primaryTypeHash,
                 actionStructHash,
-                securityStructHash
+                keccak256(bytes(payload.domain)),
+                payload.nonce,
+                keccak256(bytes(payload.provider)),
+                payload.validAfter,
+                payload.validBefore
             )
         );
         return structHash;
@@ -212,16 +216,5 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     function _getDigest(IUserDefined712Macro m, bytes calldata params) internal view returns (bytes32) {
         bytes32 structHash = _getStructHash(m, params);
         return _hashTypedDataV4(structHash);
-    }
-
-    function _getSecurityStructHash(SecurityType memory security) internal pure returns (bytes32) {
-        return keccak256(abi.encode(
-            _TYPEHASH_SECURITY,
-            keccak256(bytes(security.domain)),
-            keccak256(bytes(security.provider)),
-            security.validAfter,
-            security.validBefore,
-            security.nonce
-        ));
     }
 }
