@@ -9,7 +9,7 @@ set -o pipefail
 #
 # important ENV vars:
 # RELEASE_VERSION, ONLY712MACROFWD_DEPLOYER_PK
-# ONLY712MACROFWD_EXPECTED_ADDRESS: set after generating deployer with vanity-eth
+# EXPECTED_ADDRESS: set after generating deployer with vanity-eth
 #   (e.g. npx vanityeth -i 712f --contract), or set SKIP_ADDRESS_CHECK=1 to skip.
 #
 # You can use the npm package vanity-eth to get a deployer account for a given contract address:
@@ -26,7 +26,7 @@ source .env
 set -x
 
 network=$1
-expectedContractAddr="0x712F228ba2638FF22B383d97B0d0D210a06F6547"
+expectedContractAddr=${EXPECTED_ADDRESS:-"0x712Fc5863F53AFBa980207006cfd74F6c25fE055"}
 deployerPk=$ONLY712MACROFWD_DEPLOYER_PK
 
 tmpfile="/tmp/$(basename "$0").addr"

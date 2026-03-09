@@ -68,6 +68,9 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
         bytes actionParams;
     }
 
+    /// Reserved provider value: when set, allows the signer to submit their own signed transaction.
+    string public constant SELF_PROVIDER = "self";
+
     IAccessControl internal immutable _providerACL;
 
     // ERRORS
@@ -101,9 +104,17 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
     {
         // decode the payload
         PrimaryType memory payload = abi.decode(params, (PrimaryType));
-        bytes32 providerRole = keccak256(bytes(payload.provider));
-        if (!_providerACL.hasRole(providerRole, msg.sender)) {
-            revert ProviderNotAuthorized(payload.provider, msg.sender);
+
+        // Provider authorization: either ACL role, or self-relay when provider is "self"
+        if (keccak256(bytes(payload.provider)) == keccak256(bytes(SELF_PROVIDER))) {
+            if (msg.sender != signer) {
+                revert ProviderNotAuthorized(payload.provider, msg.sender);
+            }
+        } else {
+            bytes32 providerRole = keccak256(bytes(payload.provider));
+            if (!_providerACL.hasRole(providerRole, msg.sender)) {
+                revert ProviderNotAuthorized(payload.provider, msg.sender);
+            }
         }
 
         _validateAndUpdateNonce(signer, payload.nonce);
@@ -136,7 +147,7 @@ contract Only712MacroForwarder is ForwarderBase, EIP712, NonceManager {
      * @dev Encode action and security params into the payload bytes expected by runMacro.
      * @param actionParams params specific to the macro action, already ABI-encoded by the caller.
      * @param domain security domain
-     * @param provider security provider (must be authorized via ACL)
+     * @param provider security provider (must be authorized via ACL, or "self" for signer self-relay)
      * @param validAfter block timestamp after which the payload is valid
      * @param validBefore block timestamp before which the payload is valid (0 = unbounded)
      * @param nonce replay-protection nonce

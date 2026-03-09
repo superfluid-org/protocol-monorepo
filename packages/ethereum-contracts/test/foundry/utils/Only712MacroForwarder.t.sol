@@ -141,6 +141,32 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         _runMacroAs(address(0xbad), signer.addr, params, signatureVRS);
     }
 
+    function testSelfRelaySucceeds() external {
+        VmSafe.Wallet memory signer = vm.createWallet("selfRelaySigner");
+        _fundSignerForUpgrade(signer, 1);
+
+        uint256 signerSuperBalanceBefore = superToken.balanceOf(signer.addr);
+        bytes memory params = _getSelfRelayPayload();
+        bytes memory signatureVRS = _signPayload(signer, params);
+
+        // Signer submits their own signed transaction (no ACL role needed)
+        assertTrue(_runMacroAs(signer.addr, signer.addr, params, signatureVRS));
+        assertEq(superToken.balanceOf(signer.addr), signerSuperBalanceBefore + TEST_AMOUNT);
+    }
+
+    function testSelfRelayRevertsWhenDifferentCaller() external {
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+        _fundSignerForUpgrade(signer, 1);
+
+        bytes memory params = _getSelfRelayPayload();
+        bytes memory signatureVRS = _signPayload(signer, params);
+
+        // Caller is not the signer - should revert even if caller has other provider role
+        vm.expectRevert(abi.encodeWithSelector(
+            Only712MacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
+        _runMacroAs(address(this), signer.addr, params, signatureVRS);
+    }
+
     function testDigestCalculation() external view {
         // check the type definition (primary with flattened security fields + action typedef)
         string memory typeDefinition = forwarder.getTypeDefinition(minimal712Macro, _getTestPayload());
@@ -295,6 +321,17 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
             validAfter,
             validBefore,
             nonce
+        );
+    }
+
+    function _getSelfRelayPayload() internal view returns (bytes memory) {
+        return forwarder.encodeParams(
+            abi.encode(address(superToken), TEST_AMOUNT),
+            SECURITY_DOMAIN,
+            "self",
+            uint256(0),
+            uint256(0),
+            DEFAULT_NONCE
         );
     }
 
