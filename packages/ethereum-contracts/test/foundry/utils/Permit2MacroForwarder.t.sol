@@ -146,27 +146,23 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
         string memory result = forwarder.getPermit2WitnessTypeString(minimal712Macro, params);
 
         string memory expected = string(abi.encodePacked(
-            PRIMARY_TYPE_NAME,
+            "ClearSigning",
             " witness)",
             ACTION_TYPEDEF,
-            PRIMARY_TYPE_NAME,
-            "(Action action,string domain,uint256 nonce,string provider,uint256 validAfter,uint256 validBefore)",
+            "ClearSigning(Action action,string domain,uint256 nonce,string provider,uint256 validAfter,uint256 validBefore)",
             "TokenPermissions(address token,uint256 amount)"
         ));
         assertEq(result, expected, "witness type string mismatch");
     }
 
     function testGetPermit2WitnessTypeStringOrderingForDifferentPrimaryNames() public view {
-        // For "AMacro" (A before M before T): Action, AMacro, TokenPermissions
-        // For "ZooWitness" (A before T before Z): Action, TokenPermissions, ZooWitness
-        // We test that MinimalExample gives Action, MinimalExample, TokenPermissions
+        // Uses constant "ClearSigning" for deterministic alphabetical order:
+        // Action, ClearSigning, TokenPermissions (regardless of macro primary name).
         bytes memory params = _getTestPayload();
         string memory result = forwarder.getPermit2WitnessTypeString(minimal712Macro, params);
 
-        // Verify Action comes before MinimalExample (alphabetically)
-        assertTrue(_indexOf(result, "Action(") < _indexOf(result, "MinimalExample("), "Action should precede MinimalExample");
-        // Verify MinimalExample comes before TokenPermissions
-        assertTrue(_indexOf(result, "MinimalExample(") < _indexOf(result, "TokenPermissions("), "MinimalExample should precede TokenPermissions");
+        assertTrue(_indexOf(result, "Action(") < _indexOf(result, "ClearSigning("), "Action should precede ClearSigning");
+        assertTrue(_indexOf(result, "ClearSigning(") < _indexOf(result, "TokenPermissions("), "ClearSigning should precede TokenPermissions");
     }
 
     function _indexOf(string memory haystack, string memory needle) internal pure returns (int256) {
@@ -195,13 +191,8 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
 
         uint256 signerSuperBalanceBefore = superToken.balanceOf(signer.addr);
         bytes memory params = _getTestPayload();
-        IPermit2.PermitTransferFrom memory permit = _makePermit(address(token), TEST_AMOUNT);
-        (bytes32 witness, string memory witnessTypeString, bytes memory signature) =
-            _signPermit(signer, permit, address(this), minimal712Macro, params);
-        IPermit2.SignatureTransferDetails memory transferDetails =
-            IPermit2.SignatureTransferDetails({ to: signer.addr, requestedAmount: TEST_AMOUNT });
-
-        assertTrue(_runPermit2AndMacro(permit, transferDetails, signer.addr, witness, witnessTypeString, signature, minimal712Macro, params));
+        Permit2MacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(signer, address(this), address(0), minimal712Macro, params);
+        assertTrue(forwarder.runPermit2AndMacro(p, minimal712Macro, params));
         assertEq(superToken.balanceOf(signer.addr), signerSuperBalanceBefore + TEST_AMOUNT, "signer super token balance should increase by TEST_AMOUNT");
     }
 
@@ -213,14 +204,19 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
         _fundSignerWithPermit2Approval(signer, 1);
 
         bytes memory params = _getTestPayload();
-        IPermit2.PermitTransferFrom memory permit = _makePermit(address(token), TEST_AMOUNT);
-        (bytes32 witness, string memory witnessTypeString, bytes memory signature) =
-            _signPermit(signer, permit, address(forwarder), minimal712MacroEmptyOps, params);
-        IPermit2.SignatureTransferDetails memory transferDetails =
-            IPermit2.SignatureTransferDetails({ to: address(forwarder), requestedAmount: TEST_AMOUNT });
-
-        assertTrue(_runPermit2AndMacro(permit, transferDetails, signer.addr, witness, witnessTypeString, signature, minimal712MacroEmptyOps, params));
+        Permit2MacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(signer, address(forwarder), address(superToken), minimal712MacroEmptyOps, params);
+        assertTrue(forwarder.runPermit2AndMacro(p, minimal712MacroEmptyOps, params));
         assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "signer should have received upgraded SuperTokens");
+    }
+
+    /// When upgradeSuperToken is zero and spender is forwarder: verify signature, run macro (no pull).
+    function testRunPermit2AndMacroNoUpgradeWhenSpenderIsForwarder() external {
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+        _fundSignerWithPermit2Approval(signer, 1);
+
+        bytes memory params = _getTestPayload();
+        Permit2MacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(signer, address(forwarder), address(0), minimal712MacroEmptyOps, params);
+        assertTrue(forwarder.runPermit2AndMacro(p, minimal712MacroEmptyOps, params));
     }
 
     function testRunPermit2AndMacroRevertsOnInvalidSignature() external {
@@ -237,7 +233,7 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
             deadline: block.timestamp + 3600
         });
 
-        bytes32 witness = forwarder.getStructHash(minimal712Macro, params);
+        bytes32 witness = forwarder.getPermit2WitnessStructHash(minimal712Macro, params);
         string memory witnessTypeString = forwarder.getPermit2WitnessTypeString(minimal712Macro, params);
 
         bytes memory badSignature = abi.encodePacked(bytes32(0), bytes32(0), uint8(27));
@@ -248,10 +244,10 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
         });
 
         vm.expectRevert(Only712MacroForwarder.InvalidSignature.selector);
-        forwarder.runPermit2AndMacro(
-            permit, transferDetails, signer.addr, witness, witnessTypeString, badSignature,
-            minimal712Macro, params
+        Permit2MacroForwarder.Permit2MacroParams memory p = _toPermit2MacroParams(
+            permit, transferDetails, signer.addr, witness, witnessTypeString, badSignature, address(this), address(0)
         );
+        forwarder.runPermit2AndMacro(p, minimal712Macro, params);
     }
 
     function testRunPermit2AndMacroRevertsOnWitnessMismatch() external {
@@ -272,10 +268,10 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
         });
 
         vm.expectRevert(abi.encodeWithSelector(Only712MacroForwarder.InvalidPayload.selector, "witness mismatch"));
-        forwarder.runPermit2AndMacro(
-            permit, transferDetails, signer.addr, wrongWitness, witnessTypeString, signature,
-            minimal712Macro, params
+        Permit2MacroForwarder.Permit2MacroParams memory p = _toPermit2MacroParams(
+            permit, transferDetails, signer.addr, wrongWitness, witnessTypeString, signature, address(this), address(0)
         );
+        forwarder.runPermit2AndMacro(p, minimal712Macro, params);
     }
 
     function _getPermitAndSignatureForWitnessMismatch(VmSafe.Wallet memory signer, bytes memory params)
@@ -305,7 +301,7 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
             0,
             DEFAULT_NONCE
         );
-        wrongWitness = forwarder.getStructHash(minimal712Macro, otherParams);
+        wrongWitness = forwarder.getPermit2WitnessStructHash(minimal712Macro, otherParams);
         bytes32 digest = _computePermit2Digest(permit, address(this), wrongWitness, witnessTypeString);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
         signature = abi.encodePacked(r, s, v);
@@ -368,7 +364,7 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
         IUserDefined712Macro m,
         bytes memory params
     ) internal returns (bytes32 witness, string memory witnessTypeString, bytes memory signature) {
-        witness = forwarder.getStructHash(m, params);
+        witness = forwarder.getPermit2WitnessStructHash(m, params);
         witnessTypeString = forwarder.getPermit2WitnessTypeString(m, params);
         bytes32 digest = _computePermit2Digest(permit, spender, witness, witnessTypeString);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
@@ -386,18 +382,43 @@ contract Permit2MacroForwarderTest is FoundrySuperfluidTester {
         );
     }
 
-    function _runPermit2AndMacro(
+    function _buildPermit2Params(
+        VmSafe.Wallet memory signer,
+        address spender,
+        address upgradeSuperToken,
+        IUserDefined712Macro m,
+        bytes memory params
+    ) internal returns (Permit2MacroForwarder.Permit2MacroParams memory p) {
+        p.permit = _makePermit(address(token), TEST_AMOUNT);
+        (p.witness, p.witnessTypeString, p.signature) = _signPermit(signer, p.permit, spender, m, params);
+        p.transferDetails = IPermit2.SignatureTransferDetails({
+            to: spender == address(forwarder) ? address(forwarder) : signer.addr,
+            requestedAmount: TEST_AMOUNT
+        });
+        p.owner = signer.addr;
+        p.spender = spender;
+        p.upgradeSuperToken = upgradeSuperToken;
+    }
+
+    function _toPermit2MacroParams(
         IPermit2.PermitTransferFrom memory permit,
         IPermit2.SignatureTransferDetails memory transferDetails,
         address owner,
         bytes32 witness,
         string memory witnessTypeString,
         bytes memory signature,
-        IUserDefined712Macro m,
-        bytes memory params
-    ) internal returns (bool) {
-        return forwarder.runPermit2AndMacro(
-            permit, transferDetails, owner, witness, witnessTypeString, signature, m, params
-        );
+        address spender,
+        address upgradeSuperToken
+    ) internal pure returns (Permit2MacroForwarder.Permit2MacroParams memory) {
+        return Permit2MacroForwarder.Permit2MacroParams({
+            permit: permit,
+            transferDetails: transferDetails,
+            owner: owner,
+            witness: witness,
+            witnessTypeString: witnessTypeString,
+            signature: signature,
+            spender: spender,
+            upgradeSuperToken: upgradeSuperToken
+        });
     }
 }
