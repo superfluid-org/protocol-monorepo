@@ -2,29 +2,24 @@
 pragma solidity ^0.8.23;
 
 import { SignatureChecker } from "@openzeppelin-v5/contracts/utils/cryptography/SignatureChecker.sol";
-import { IUserDefined712Macro } from "../interfaces/utils/IUserDefinedMacro.sol";
+import { IClearSigningMacro } from "../interfaces/utils/IClearSigningMacro.sol";
 import { IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ISuperfluid, BatchOperation, ISuperToken, IERC20 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IPermit2 } from "../interfaces/external/IPermit2.sol";
-import { Only712MacroForwarder } from "./Only712MacroForwarder.sol";
+import { IClearSigningForwarder } from "../interfaces/utils/IClearSigningForwarder.sol";
+import { ClearSigningMacroForwarder } from "./ClearSigningMacroForwarder.sol";
 
 /**
- * @dev Permit2-aware macro forwarder.
- * Single entry point: runPermit2AndMacro.
- *
- * When the signer designated this forwarder as the Permit2 spender and recipient,
- * we: (1) pull underlying via Permit2 to self, (2) upgrade to the signer, (3) run the macro.
- * Otherwise we only verify the witness and run the macro (caller must have handled funding).
- *
- * Use getPermit2WitnessTypeString to build the witness type string for signing.
+ * @dev Permit2-aware extension of ClearSigningMacroForwarder.
+ * Supports Permit2 witness validation and, optionally, pulling underlying tokens
+ * via Permit2 before upgrading and executing the macro.
  */
-contract Permit2MacroForwarder is Only712MacroForwarder {
-
+contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
     /// @dev Canonical Permit2 address (same across all EVM chains)
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     /// @dev Constant witness type name for nested ClearSigning payloads. Ensures deterministic
-    /// alphabetical ordering (Action, ClearSigning, TokenPermissions) regardless of macro.
+    /// alphabetical ordering (Action, ClearSigning, Security, TokenPermissions) regardless of macro.
     string private constant _CLEAR_SIGNING_WITNESS_TYPE = "ClearSigning";
 
     bytes32 private constant _TOKEN_PERMISSIONS_TYPEHASH =
@@ -43,27 +38,29 @@ contract Permit2MacroForwarder is Only712MacroForwarder {
         address upgradeSuperToken;
     }
 
-    constructor(ISuperfluid host) Only712MacroForwarder(host) {}
+    constructor(ISuperfluid host) ClearSigningMacroForwarder(host) {}
 
     /**
-     * @dev Run macro with Permit2 witness.
-     * @param p Permit2 data: permit, transferDetails, owner, witness, witnessTypeString, signature,
-     *   spender (the address the owner signed for), upgradeSuperToken (when spender is self).
-     * @param m Target macro
-     * @param params Encoded ClearSigning payload
+     * @dev Runs the macro with Permit2 witness validation.
+     * If `upgradeSuperToken` is set, underlying tokens are first pulled via Permit2
+     * and upgraded before the macro is executed.
+     * @param  p       Permit2 data and optional upgrade configuration.
+     * @param  m       Target macro.
+     * @param  params  ABI-encoded `IClearSigningForwarder.Payload`.
      */
     function runPermit2AndMacro(
         Permit2MacroParams calldata p,
-        IUserDefined712Macro m,
+        IClearSigningMacro m,
         bytes calldata params
     ) external payable returns (bool) {
         _validatePermitAndMaybePull(p, m, params);
-        return _executeMacroLogic(m, params, p.owner);
+        _validatePayload(m, params, p.owner, msg.sender);
+        return _executeValidatedMacro(m, params, p.owner);
     }
 
     function _validatePermitAndMaybePull(
         Permit2MacroParams calldata p,
-        IUserDefined712Macro m,
+        IClearSigningMacro m,
         bytes calldata params
     ) internal {
         if (p.witness != this.getPermit2WitnessStructHash(m, params)) {
@@ -146,40 +143,12 @@ contract Permit2MacroForwarder is Only712MacroForwarder {
         return keccak256(abi.encodePacked("\x19\x01", IPermit2(PERMIT2).DOMAIN_SEPARATOR(), structHash));
     }
 
-    /// Duplicated from Only712MacroForwarder — consider extracting _executeMacro in base.
-    function _executeMacroLogic(IUserDefined712Macro m, bytes calldata params, address signer)
-        internal
-        returns (bool)
-    {
-        PrimaryType memory payload = abi.decode(params, (PrimaryType));
-        bytes32 providerRole = keccak256(bytes(payload.provider));
-        if (!_providerACL.hasRole(providerRole, msg.sender)) {
-            revert ProviderNotAuthorized(payload.provider, msg.sender);
-        }
-
-        _validateAndUpdateNonce(signer, payload.nonce);
-
-        if (block.timestamp < payload.validAfter) {
-            revert OutsideValidityWindow(block.timestamp, payload.validBefore, payload.validAfter);
-        }
-        if (payload.validBefore != 0 && block.timestamp > payload.validBefore) {
-            revert OutsideValidityWindow(block.timestamp, payload.validBefore, payload.validAfter);
-        }
-
-        ISuperfluid.Operation[] memory operations =
-            m.buildBatchOperations(_host, payload.action.actionParams, signer);
-
-        bool retVal = _forwardBatchCallWithSenderAndValue(operations, signer, msg.value);
-        m.postCheck(_host, payload.action.actionParams, signer);
-        return retVal;
-    }
-
     /**
      * @dev Struct hash of the ClearSigning payload for use as Permit2 witness.
-     * Uses constant type name "ClearSigning" so the witness type string has deterministic
-     * alphabetical ordering regardless of the macro's primary type name.
+     * Uses constant type name "ClearSigning" with nested Security so the witness type string
+     * has deterministic alphabetical ordering regardless of the macro's primary type name.
      */
-    function getPermit2WitnessStructHash(IUserDefined712Macro m, bytes calldata params)
+    function getPermit2WitnessStructHash(IClearSigningMacro m, bytes calldata params)
         external
         view
         returns (bytes32)
@@ -187,36 +156,35 @@ contract Permit2MacroForwarder is Only712MacroForwarder {
         return _getPermit2WitnessStructHash(m, params);
     }
 
-    function _getPermit2WitnessStructHash(IUserDefined712Macro m, bytes calldata params)
+    function _getPermit2WitnessStructHash(IClearSigningMacro m, bytes calldata params)
         internal
         view
         returns (bytes32)
     {
-        PrimaryType memory payload = abi.decode(params, (PrimaryType));
-        bytes32 actionStructHash = m.getActionStructHash(payload.action.actionParams);
+        IClearSigningForwarder.Payload memory payload =
+            abi.decode(params, (IClearSigningForwarder.Payload));
+        bytes32 actionStructHash = m.getActionStructHash(payload.action.params);
+        bytes32 securityStructHash = _getSecurityStructHash(payload.security);
         string memory typeDef = string(abi.encodePacked(
             _CLEAR_SIGNING_WITNESS_TYPE,
-            "(Action action,string domain,uint256 nonce,string provider,uint256 validAfter,uint256 validBefore)",
-            m.getActionTypeDefinition(params)
+            "(Action action,Security security)",
+            m.getActionTypeDefinition(params),
+            _TYPEDEF_SECURITY
         ));
         bytes32 primaryTypeHash = keccak256(abi.encodePacked(typeDef));
         return keccak256(abi.encode(
             primaryTypeHash,
             actionStructHash,
-            keccak256(bytes(payload.domain)),
-            payload.nonce,
-            keccak256(bytes(payload.provider)),
-            payload.validAfter,
-            payload.validBefore
+            securityStructHash
         ));
     }
 
     /**
      * @dev Witness type string for Permit2 PermitWitnessTransferFrom.
-     * Uses constant "ClearSigning" for deterministic alphabetical order:
-     * Action, ClearSigning, TokenPermissions.
+     * Uses constant "ClearSigning" with nested Security for deterministic alphabetical order:
+     * Action, ClearSigning, Security, TokenPermissions.
      */
-    function getPermit2WitnessTypeString(IUserDefined712Macro m, bytes calldata params)
+    function getPermit2WitnessTypeString(IClearSigningMacro m, bytes calldata params)
         external
         view
         returns (string memory)
@@ -224,7 +192,7 @@ contract Permit2MacroForwarder is Only712MacroForwarder {
         string memory actionDef = m.getActionTypeDefinition(params);
         string memory clearSigningDef = string(abi.encodePacked(
             _CLEAR_SIGNING_WITNESS_TYPE,
-            "(Action action,string domain,uint256 nonce,string provider,uint256 validAfter,uint256 validBefore)"
+            "(Action action,Security security)"
         ));
         string memory tokenPermDef = "TokenPermissions(address token,uint256 amount)";
 
@@ -233,6 +201,7 @@ contract Permit2MacroForwarder is Only712MacroForwarder {
             " witness)",
             actionDef,
             clearSigningDef,
+            _TYPEDEF_SECURITY,
             tokenPermDef
         ));
     }

@@ -5,25 +5,27 @@ import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
 import { BatchOperation, ISuperfluid, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
-import { IUserDefined712Macro } from "../../../contracts/interfaces/utils/IUserDefinedMacro.sol";
+import { IClearSigningForwarder } from "../../../contracts/interfaces/utils/IClearSigningForwarder.sol";
+import { IClearSigningMacro } from "../../../contracts/interfaces/utils/IClearSigningMacro.sol";
 import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
-import { Only712MacroForwarder, NonceManager } from "../../../contracts/utils/Only712MacroForwarder.sol";
+import { ClearSigningMacroForwarder, NonceManager } from "../../../contracts/utils/ClearSigningMacroForwarder.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 string constant PRIMARY_TYPE_NAME = "MinimalExample";
 string constant ACTION_TYPEDEF = "Action(string description)";
+string constant SECURITY_TYPEDEF = "Security(string domain,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
 string constant SECURITY_DOMAIN = "minimalmacro.xyz";
 string constant SECURITY_PROVIDER = "macros.superfluid.eth";
 uint256 constant DEFAULT_NONCE = uint256(1) << 64;
 string constant NONCE_STR = "18446744073709551616"; // 2^64
 uint256 constant TEST_AMOUNT = 100e18;
 
-// ============== Minimal macro for Only712MacroForwarder ==============
-// Implements IUserDefined712Macro and uses *no* postCheck logic.
+// ============== Minimal macro for ClearSigningMacroForwarder ==============
+// Implements IClearSigningMacro and uses *no* postCheck logic.
 // Expects params (token, amount); does a SuperToken upgrade from underlying.
 // Shows how the params can be different from the type definition, while still being part of the signed data
 // (via the dynamic construction of the description string from the params)
-contract Minimal712Macro is IUserDefined712Macro {
+contract Minimal712Macro is IClearSigningMacro {
 
     string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
 
@@ -73,15 +75,15 @@ contract Minimal712Macro is IUserDefined712Macro {
 
 // ============== Test Contract ==============
 
-contract Only712MacroForwarderTest is FoundrySuperfluidTester {
-    Only712MacroForwarder internal forwarder;
+contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
+    ClearSigningMacroForwarder internal forwarder;
     Minimal712Macro internal minimal712Macro;
 
     constructor() FoundrySuperfluidTester(5) { }
 
     function setUp() public override {
         super.setUp();
-        forwarder = new Only712MacroForwarder(sf.host);
+        forwarder = new ClearSigningMacroForwarder(sf.host);
         minimal712Macro = new Minimal712Macro();
 
         IAccessControl acl = IAccessControl(sf.host.getSimpleACL());
@@ -99,25 +101,27 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         address token,
         uint256 amount
     ) external view {
-        Only712MacroForwarder.PrimaryType memory payload = Only712MacroForwarder.PrimaryType({
-            action: Only712MacroForwarder.ActionType({ actionParams: abi.encode(token, amount) }),
-            domain: SECURITY_DOMAIN,
-            nonce: nonce,
-            provider: SECURITY_PROVIDER,
-            validAfter: validAfter,
-            validBefore: validBefore
+        IClearSigningForwarder.Payload memory payload = IClearSigningForwarder.Payload({
+            action: IClearSigningForwarder.EncodedAction({ params: abi.encode(token, amount) }),
+            security: IClearSigningForwarder.Security({
+                domain: SECURITY_DOMAIN,
+                provider: SECURITY_PROVIDER,
+                validAfter: validAfter,
+                validBefore: validBefore,
+                nonce: nonce
+            })
         });
         bytes memory localPayload = abi.encode(payload);
 
-        bytes memory forwarderPayload = forwarder.encodeParams(
-            abi.encode(token, amount),
-            SECURITY_DOMAIN,
-            SECURITY_PROVIDER,
-            validAfter,
-            validBefore,
-            nonce
-        );
-        assertEq(localPayload, forwarderPayload, "encodeParams output must match manual PrimaryType encoding");
+        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+            domain: SECURITY_DOMAIN,
+            provider: SECURITY_PROVIDER,
+            validAfter: validAfter,
+            validBefore: validBefore,
+            nonce: nonce
+        });
+        bytes memory forwarderPayload = forwarder.encodeParams(abi.encode(token, amount), security);
+        assertEq(localPayload, forwarderPayload, "encodeParams output must match manual Payload encoding");
     }
 
     function testRunMacro(uint256 signerPrivateKey) external {
@@ -137,7 +141,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         bytes memory params = _getTestPayload();
         bytes memory signatureVRS = _signPayload(signer, params);
         vm.expectRevert(abi.encodeWithSelector(
-            Only712MacroForwarder.ProviderNotAuthorized.selector, SECURITY_PROVIDER, address(0xbad)));
+            ClearSigningMacroForwarder.ProviderNotAuthorized.selector, SECURITY_PROVIDER, address(0xbad)));
         _runMacroAs(address(0xbad), signer.addr, params, signatureVRS);
     }
 
@@ -163,37 +167,42 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
 
         // Caller is not the signer - should revert even if caller has other provider role
         vm.expectRevert(abi.encodeWithSelector(
-            Only712MacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
+            ClearSigningMacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 
     function testDigestCalculation() external view {
-        // check the type definition (primary with flattened security fields + action typedef)
+        // check the type definition (primary with nested Security + action typedef + Security typedef)
         string memory typeDefinition = forwarder.getTypeDefinition(minimal712Macro, _getTestPayload());
         string memory expectedTypeDefinition = string(abi.encodePacked(
             PRIMARY_TYPE_NAME,
-            "(Action action,string domain,uint256 nonce,string provider,uint256 validAfter,uint256 validBefore)",
-            ACTION_TYPEDEF
+            "(Action action,Security security)",
+            ACTION_TYPEDEF,
+            SECURITY_TYPEDEF
         ));
         assertEq(typeDefinition, expectedTypeDefinition, "typeDefinition mismatch");
 
         // check the type hash
         bytes32 typeHash = forwarder.getTypeHash(minimal712Macro, _getTestPayload());
-        bytes32 expectedTypeHash = vm.eip712HashType(expectedTypeDefinition);
+        bytes32 expectedTypeHash = keccak256(abi.encodePacked(expectedTypeDefinition));
         assertEq(typeHash, expectedTypeHash, "typeHash mismatch");
 
-        // check the struct hash (type hash + action + flattened security fields in type order)
+        // check the struct hash (type hash + action + security struct hash)
         bytes memory payload = _getTestPayload();
         bytes32 structHash = forwarder.getStructHash(minimal712Macro, payload);
         bytes32 actionStructHash = minimal712Macro.getActionStructHash(abi.encode(address(superToken), TEST_AMOUNT));
+        bytes32 securityStructHash = keccak256(abi.encode(
+            keccak256(abi.encodePacked(SECURITY_TYPEDEF)),
+            keccak256(bytes(SECURITY_DOMAIN)),
+            keccak256(bytes(SECURITY_PROVIDER)),
+            uint256(0),
+            uint256(0),
+            DEFAULT_NONCE
+        ));
         bytes32 expectedStructHash = keccak256(abi.encode(
             expectedTypeHash,
             actionStructHash,
-            keccak256(bytes(SECURITY_DOMAIN)),
-            DEFAULT_NONCE,
-            keccak256(bytes(SECURITY_PROVIDER)),
-            uint256(0),
-            uint256(0)
+            securityStructHash
         ));
         assertEq(structHash, expectedStructHash, "structHash mismatch");
 
@@ -250,7 +259,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         if (t0 > 0) {
             vm.warp(t0 - 1);
             vm.expectRevert(abi.encodeWithSelector(
-                Only712MacroForwarder.OutsideValidityWindow.selector, t0 - 1, t1, t0));
+                ClearSigningMacroForwarder.OutsideValidityWindow.selector, t0 - 1, t1, t0));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -261,7 +270,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         } else {
             vm.warp(t0);
             vm.expectRevert(abi.encodeWithSelector(
-                Only712MacroForwarder.OutsideValidityWindow.selector, t0, t1, t0));
+                ClearSigningMacroForwarder.OutsideValidityWindow.selector, t0, t1, t0));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -272,7 +281,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         signatureVRS = _signPayload(signer, params);
         vm.warp(expiry + 1);
         vm.expectRevert(abi.encodeWithSelector(
-            Only712MacroForwarder.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
+            ClearSigningMacroForwarder.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 
@@ -314,25 +323,25 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         address token,
         uint256 amount
     ) internal view returns (bytes memory) {
-        return forwarder.encodeParams(
-            abi.encode(token, amount),
-            SECURITY_DOMAIN,
-            SECURITY_PROVIDER,
-            validAfter,
-            validBefore,
-            nonce
-        );
+        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+            domain: SECURITY_DOMAIN,
+            provider: SECURITY_PROVIDER,
+            validAfter: validAfter,
+            validBefore: validBefore,
+            nonce: nonce
+        });
+        return forwarder.encodeParams(abi.encode(token, amount), security);
     }
 
     function _getSelfRelayPayload() internal view returns (bytes memory) {
-        return forwarder.encodeParams(
-            abi.encode(address(superToken), TEST_AMOUNT),
-            SECURITY_DOMAIN,
-            "self",
-            uint256(0),
-            uint256(0),
-            DEFAULT_NONCE
-        );
+        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+            domain: SECURITY_DOMAIN,
+            provider: "self",
+            validAfter: uint256(0),
+            validBefore: uint256(0),
+            nonce: DEFAULT_NONCE
+        });
+        return forwarder.encodeParams(abi.encode(address(superToken), TEST_AMOUNT), security);
     }
 
     function _getTestPayload() internal view returns (bytes memory) {
@@ -389,12 +398,13 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
             '},',
             '"message": {',
             '"action": {"description": "', description, '"},',
+            '"security": {',
             '"domain": "', SECURITY_DOMAIN, '",',
-            '"nonce": "', NONCE_STR, '",',
             '"provider": "', SECURITY_PROVIDER, '",',
             '"validAfter": "0",',
-            '"validBefore": "0"',
-            '}'
+            '"validBefore": "0",',
+            '"nonce": "', NONCE_STR, '"',
+            '}}'
         ));
     }
 
@@ -402,7 +412,8 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             _getEIP712DomainTypeJson(),
             _getMinimalExampleTypeJson(),
-            _getActionTypeJson()
+            _getActionTypeJson(),
+            _getSecurityTypeJson()
         ));
     }
 
@@ -421,11 +432,7 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             '"MinimalExample": [',
             '{"name": "action", "type": "Action"},',
-            '{"name": "domain", "type": "string"},',
-            '{"name": "nonce", "type": "uint256"},',
-            '{"name": "provider", "type": "string"},',
-            '{"name": "validAfter", "type": "uint256"},',
-            '{"name": "validBefore", "type": "uint256"}',
+            '{"name": "security", "type": "Security"}',
             '],'
         ));
     }
@@ -434,6 +441,18 @@ contract Only712MacroForwarderTest is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             '"Action": [',
             '{"name": "description", "type": "string"}',
+            '],'
+        ));
+    }
+
+    function _getSecurityTypeJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            '"Security": [',
+            '{"name": "domain", "type": "string"},',
+            '{"name": "provider", "type": "string"},',
+            '{"name": "validAfter", "type": "uint256"},',
+            '{"name": "validBefore", "type": "uint256"},',
+            '{"name": "nonce", "type": "uint256"}',
             ']'
         ));
     }

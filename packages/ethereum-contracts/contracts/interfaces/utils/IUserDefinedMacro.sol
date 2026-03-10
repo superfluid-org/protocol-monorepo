@@ -44,20 +44,3 @@ interface IUserDefinedMacro {
      * You can consult the related test code in `MacroForwarderTest.t.sol` for examples.
      */
 }
-
-// Interface for a macro used with the Only712MacroForwarder.
-// Metaphor: a macro is like an api, an action is like an endpoint.
-// Each action can have its own type definition (list of arguments).
-interface IUserDefined712Macro is IUserDefinedMacro {
-    // Primary type name (required by the EIP712 type definition), usually rendered prominently by wallets.
-    // From a users perspective, it should concisely name the action/intent to be signed.
-    function getPrimaryTypeName(bytes memory params) external view returns (string memory);
-
-    // The EIP-712 type definition of the action, required by Only712MacroForwarder.
-    // Note that the name of this type must be "Action", only its content is free to choose.
-    function getActionTypeDefinition(bytes memory params) external view returns (string memory);
-
-    // The struct hash of the action, required by Only712MacroForwarder.
-    // This hash must be constructed based on the type definition and the data, according to the EIP-712 standard.
-    function getActionStructHash(bytes memory params) external view returns (bytes32);
-}
