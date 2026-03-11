@@ -175,11 +175,45 @@ elif [ -n "$ADDRESSES_URL" ]; then
     fi
 fi
 
-# Fall back to fetching from chain using Truffle (existing script)
+# Fall back to extracting addresses from local @superfluid-finance/metadata package
 if [ ! -s "$WORK_ADDRESSES_FILE" ]; then
-    print_info "Fetching addresses from chain..."
-    npx truffle exec --network "$NETWORK" ops-scripts/info-print-contract-addresses.js : "$WORK_ADDRESSES_FILE"
-    print_success "Addresses fetched from chain"
+    print_info "Extracting addresses from local metadata for network: $NETWORK"
+    METADATA_FILE="$(dirname "$CONTRACTS_DIR")/metadata/networks.json"
+
+    if [ -f "$METADATA_FILE" ]; then
+        # Convert metadata JSON to addresses.vars format
+        # The metadata uses proxy addresses; verify-bytecode.ts auto-resolves to logic via getCodeAddress()
+        METADATA_FILE="$METADATA_FILE" METADATA_NETWORK="$NETWORK" node -e '
+            const path = require("path");
+            const metaFile = path.resolve(process.env.METADATA_FILE);
+            const networks = require(metaFile);
+            const net = networks.find(n => n.name === process.env.METADATA_NETWORK);
+            if (!net) { console.error("Network " + process.env.METADATA_NETWORK + " not found in metadata"); process.exit(1); }
+            const c = net.contractsV1;
+            const map = {
+                SUPERFLUID_HOST_PROXY: c.host,
+                CFA_PROXY: c.cfaV1,
+                IDA_PROXY: c.idaV1,
+                GDA_PROXY: c.gdaV1,
+                SUPER_TOKEN_FACTORY_PROXY: c.superTokenFactory,
+                SUPERFLUID_GOVERNANCE: c.governance,
+                RESOLVER: c.resolver,
+                SUPERFLUID_LOADER: c.superfluidLoader,
+                CFAV1_FORWARDER: c.cfaV1Forwarder,
+                GDAV1_FORWARDER: c.gdaV1Forwarder,
+                TOGA: c.toga,
+                BATCH_LIQUIDATOR: c.batchLiquidator,
+            };
+            const lines = Object.entries(map)
+                .filter(([,v]) => v)
+                .map(([k,v]) => k + "=" + v);
+            process.stdout.write(lines.join("\n") + "\n");
+        ' > "$WORK_ADDRESSES_FILE"
+        print_success "Addresses extracted from metadata"
+    else
+        print_error "No address source available (no --addresses-url, --addresses-file, or local metadata)"
+        exit 1
+    fi
 fi
 
 print_info "Addresses file contents:"
