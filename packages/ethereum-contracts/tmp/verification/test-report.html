@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Governance Action Verification Report</title>
+<style>
+:root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #252836;
+    --border: #2e3142;
+    --text: #e2e4ed;
+    --text-dim: #8b8fa3;
+    --accent: #6366f1;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --purple: #8b5cf6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 0;
+}
+.header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+}
+.header h1 { font-size: 1.4rem; font-weight: 600; }
+.header .meta { color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; }
+.tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    padding: 0 32px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-wrap: nowrap;
+}
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text); background: var(--surface2); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-content { display: none; padding: 24px 32px; }
+.tab-content.active { display: block; }
+.network-header { margin-bottom: 20px; }
+.network-header h2 { font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
+.network-header .meta { color: var(--text-dim); font-size: 0.8rem; margin-top: 4px; }
+.overall-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 4px;
+    color: #fff;
+    letter-spacing: 0.05em;
+}
+.summary-cards {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    min-width: 100px;
+    text-align: center;
+}
+.card-value { font-size: 1.8rem; font-weight: 700; }
+.card-label { font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+.card-verified .card-value { color: var(--green); }
+.card-mismatch .card-value { color: var(--red); }
+.card-errors .card-value { color: var(--red); }
+.card-total .card-value { color: var(--accent); }
+.card-other .card-value { color: var(--text-dim); }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+th { background: var(--surface); color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+td { font-size: 0.875rem; }
+.overview-table { background: var(--surface); border-radius: 8px; overflow: hidden; }
+.overview-row { cursor: pointer; transition: background 0.1s; }
+.overview-row:hover { background: var(--surface2); }
+.contracts-table { background: var(--surface); border-radius: 8px; overflow: hidden; }
+
+.badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #fff;
+    letter-spacing: 0.03em;
+}
+.text-red { color: var(--red); font-weight: 600; }
+code { font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 0.8rem; }
+.addr { word-break: break-all; }
+.hash { word-break: break-all; font-size: 0.7rem; color: var(--text-dim); }
+.expand-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+}
+.expand-btn:hover { background: var(--accent); color: #fff; }
+.bc-row td { padding: 0; background: var(--bg); }
+.bc-panel { padding: 16px 20px; }
+.bc-panel-empty { padding: 12px; color: var(--text-dim); font-style: italic; }
+.bc-table { width: auto; margin-bottom: 12px; }
+.bc-table td { padding: 4px 12px 4px 0; border: none; font-size: 0.85rem; }
+.bc-table td:first-child { color: var(--text-dim); white-space: nowrap; }
+.bc-section { margin-top: 12px; }
+.bc-section strong { font-size: 0.85rem; }
+.hint { color: var(--text-dim); font-size: 0.75rem; }
+.segment-map {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    margin-top: 6px;
+    max-height: 80px;
+    overflow-y: auto;
+    padding: 4px;
+    background: var(--surface);
+    border-radius: 4px;
+}
+.segment-map span {
+    width: 6px;
+    height: 12px;
+    display: inline-block;
+    border-radius: 1px;
+}
+.seg-match { background: var(--green); opacity: 0.7; }
+.seg-diff { background: var(--red); opacity: 0.9; }
+.diff-context {
+    margin-top: 8px;
+    background: var(--surface);
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+}
+.diff-context div { margin-bottom: 4px; }
+.diff-context code { color: var(--text); }
+
+.safe-tx-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+}
+.safe-tx-card h3 { font-size: 1rem; margin-bottom: 10px; }
+.safe-tx-card h4 { font-size: 0.85rem; margin: 12px 0 6px; color: var(--text-dim); }
+.info-table { width: auto; }
+.info-table td { padding: 3px 12px 3px 0; border: none; font-size: 0.85rem; }
+.info-table td:first-child { color: var(--text-dim); white-space: nowrap; }
+
+@media (max-width: 768px) {
+    .tabs { padding: 0 12px; }
+    .tab-content { padding: 16px 12px; }
+    .header { padding: 16px 12px; }
+    .summary-cards { gap: 8px; }
+    .card { min-width: 70px; padding: 10px 8px; }
+    .card-value { font-size: 1.3rem; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>Governance Action Verification Report</h1>
+    <div class="meta">Generated: 2026-03-11T09:47:16.529Z | Networks: 1</div>
+</div>
+<div class="tabs"><button class="tab-btn active" onclick="showTab('verification')">&#x274C; verification</button></div>
+<div class="tab-content active" id="tab-verification">
+            <div class="network-content" id="net-verification">
+        <div class="network-header">
+            <h2>verification <span class="overall-badge" style="background:#ef4444">FAILED</span></h2>
+            <div class="meta">Chain ID: 8453 | Verified at: 2026-03-10T13:21:09.332Z</div>
+        </div>
+        <div class="summary-cards">
+            <div class="card card-total"><div class="card-value">1</div><div class="card-label">Total</div></div>
+            <div class="card card-verified"><div class="card-value">0</div><div class="card-label">Verified</div></div>
+            <div class="card card-mismatch"><div class="card-value">1</div><div class="card-label">Mismatch</div></div>
+            <div class="card card-errors"><div class="card-value">0</div><div class="card-label">Errors</div></div>
+            <div class="card card-other"><div class="card-value">0</div><div class="card-label">Not Deployed</div></div>
+            <div class="card card-other"><div class="card-value">0</div><div class="card-label">No Artifact</div></div>
+        </div>
+        <div class="safe-tx-card">
+        <h3>Pending Safe Transaction</h3>
+        <table class="info-table">
+            <tr><td>Safe</td><td><code>0x06a858185b3B2ABB246128Bb9415D57e5C09aEB6</code></td></tr>
+            <tr><td>Nonce</td><td>2</td></tr>
+            <tr><td>To</td><td><code>0x55F7758dd99d5e185f4CC08d4Ad95B71f598264D</code></td></tr>
+            <tr><td>Confirmations</td><td>1 / 2</td></tr>
+            <tr><td>Function</td><td><strong>batchUpdateSuperTokenLogic</strong></td></tr>
+            <tr><td>Submitted</td><td>2026-03-03T09:31:36.184195Z</td></tr>
+        </table><h4>Extracted Addresses</h4><table class="info-table"><tr><td>SUPER_TOKEN_LOGIC</td><td><code>0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80</code></td></tr></table></div>
+        <h3>Contract Verification</h3>
+        <table class="contracts-table">
+        <thead><tr>
+            <th>Contract</th>
+            <th>Address</th>
+            <th>Status</th>
+            <th>Message</th>
+            <th>Details</th>
+        </tr></thead><tbody><tr>
+            <td><strong>SUPER_TOKEN_LOGIC</strong><br><small>SuperToken</small></td>
+            <td><code class="addr">0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80</code></td>
+            <td><span class="badge" style="background:#ef4444">Mismatch</span></td>
+            <td>Bytecode mismatch</td>
+            <td>-</td>
+        </tr></tbody></table>
+    </div>
+        </div>
+<script>
+var DATA = [{"name":"verification","bytecodeReport":{"network":8453,"timestamp":"2026-03-10T13:21:09.332Z","contracts":[{"key":"SUPER_TOKEN_LOGIC","contractName":"SuperToken","address":"0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","status":"mismatch","message":"Bytecode mismatch"}],"summary":{"total":1,"verified":0,"mismatch":1,"notDeployed":0,"noArtifact":0,"errors":0}},"safeTx":{"safe":"0x06a858185b3B2ABB246128Bb9415D57e5C09aEB6","chainId":8453,"transaction":{"nonce":2,"to":"0x55F7758dd99d5e185f4CC08d4Ad95B71f598264D","value":"0","data":"0x870299c00000000000000000000000004c073b3bab6d8826b8c5b229f3cfdc1ec6e47e74000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000006e0000000000000000000000000000000000000000000000000000000000000003300000000000000000000000004ffb9ce95af003a3aa3611be6c6ca1431151fb500000000000000000000000009b1ad979d093377e201d804fa9ac0a9a07cfb0b0000000000000000000000001783b0f81e2f2278155a643370e6b3ace789f2c900000000000000000000000019354cd4efbb746d2dfbc6144f18cd392d7d92550000000000000000000000001a589e9c3eee580f87117c513b2c8282926f18830000000000000000000000001c4f69f14cf754333c302246d25a48a13224118a0000000000000000000000001c6d287b8b10f472dbeb84ee262deb1a0e18969c0000000000000000000000001eff3dd78f4a14abfa9fa66579bd3ce9e1b305290000000000000000000000002099b5457fac10541cf07fe51798563abe5350c80000000000000000000000002112b92a4f6496b7b2f10850857ffa270464d05400000000000000000000000022f1cd353441351911691ee4049c7b773abb1ecf0000000000000000000000002576f2c0a5744c5d7d99fd2bc1a51285c8704250000000000000000000000000268bcdbb314f767def616529b974fd1fe70a134a0000000000000000000000002800f7bbdd38e84f38ef0a556705a62b5104e91b00000000000000000000000028a4b2bb3ceb599a13c5b294b26c1c49b12528600000000000000000000000002ec495906b4cc0956793d53f2bd581441683d14d000000000000000000000000304989da2adc80a6568170567d477af5e48dbaae000000000000000000000000307d8225c6428a1e505f824b1c97cf9127351f0c0000000000000000000000003b3cd21242ba44e9865b066e5ef5d1cc1030cc580000000000000000000000003e5c4fa0caa794516ed0df77f31daa534918d49200000000000000000000000046fd5cfb4c12d87acd3a13e92baa53240c661d930000000000000000000000004db26c973fae52f43bd96a8776c2bf1b0dc295560000000000000000000000004e395ec7b71dd87a23dd836edb3efe15a6c2002b0000000000000000000000005721b31f7b2f323d3916cc26bc815373c3a5749100000000000000000000000058122a048878f25c8c5d4b562419500ed74c6f750000000000000000000000005f2fab273f1f64b6bc6ab8f35314cd21501f35c500000000000000000000000065e9b4ae7885bd3e4e1cc4f280863b859d231fc20000000000000000000000006c90a582c166f59de91f97fa7aef7315a968b342000000000000000000000000708169c8c87563ce904e0a7f3bfc1f3b0b767f410000000000000000000000007d2e87324c9b2cc983804fe53df67f1add3f913c0000000000000000000000007ef392131c3ab326016cf7b560f96c91f4f9d4fa0000000000000000000000008414ab8c70c7b16a46012d49b8111959baf2fc420000000000000000000000008829d71855546c3712022baee7b9c50f7972a890000000000000000000000000882ac9e5339b4a5b4985a5e0e0ae9e459f73458b0000000000000000000000009097e4a4d75a611b65ab21d98a7d5b1177c050f7000000000000000000000000a2a2b26d2d630e4dcf51fc909d19b5bbf6b76641000000000000000000000000a3666ccb1c004060bccc4df7c97c7e6c4979bbe4000000000000000000000000a4299883d927d751694f5122f288e80db9850b61000000000000000000000000a69f80524381275a7ffdb3ae01c54150644c8792000000000000000000000000a7a18da18d511d72e12d4c507e105dccd1acdaa7000000000000000000000000c325a14b9a2a7e25864195fdd42d05ce3e68e7f6000000000000000000000000cc6bce523c20f582daaf0ccafaae981df46ceb41000000000000000000000000d04383398dd2426297da660f9cca3d439af9ce1b000000000000000000000000d6ce178751fc6c1d13fa203a0c8162b6ccbd5f14000000000000000000000000dfd428908909cb5e24f5e79e6ad6bde10bdf2327000000000000000000000000e58267cd7299c29a1b77f4e66cd12dd24a2cd2fd000000000000000000000000e858fc86df9895dbeb823e01e9dada6d46d444bb000000000000000000000000edf89f2612a5b07fef051e1a0444342b5410c405000000000000000000000000efbe11336b0008dce3797c515e6457cc4841645c000000000000000000000000faabef7ec0135b43dc731609b2b9ca4a6fa358e7000000000000000000000000fcdecfe37463912c03a644128eb02a1147715e3600000000000000000000000000000000000000000000000000000000000000330000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e800000000000000000000000003e834ac987635976beb4ab944cf683db5c0e3e80","safeTxHash":"0x547ef6ceb933d202d37db607b1b8f0c084b640fd02fc11a370c070c8e1a881e4","confirmations":1,"confirmationsRequired":2,"submissionDate":"2026-03-03T09:31:36.184195Z"},"decodedAction":{"selector":"0x870299c0","functionName":"batchUpdateSuperTokenLogic","params":{"host":"0x4C073B3baB6d8826b8C5b229f3cfdC1eC6E47E74","tokens":["0x04fFB9ce95af003A3AA3611be6c6Ca1431151FB5","0x09b1AD979d093377e201d804Fa9aC0a9a07cfB0b","0x1783B0F81E2F2278155A643370E6b3ace789f2c9","0x19354Cd4eFBB746d2DfbC6144f18cd392D7d9255","0x1a589e9c3EEE580F87117C513B2c8282926f1883","0x1C4f69f14cf754333C302246d25A48a13224118A","0x1C6d287B8b10F472DbeB84EE262deB1a0E18969C","0x1efF3Dd78F4A14aBfa9Fa66579bD3Ce9E1B30529","0x2099b5457faC10541cf07fE51798563AbE5350c8","0x2112b92A4f6496B7b2f10850857FfA270464d054","0x22F1cd353441351911691EE4049c7b773abb1ecF","0x2576f2C0a5744c5d7D99Fd2Bc1a51285c8704250","0x268BCDbb314F767deF616529b974FD1Fe70A134A","0x2800f7BBDd38e84f38Ef0a556705a62B5104e91B","0x28a4b2bB3ceb599A13C5B294B26c1c49B1252860","0x2Ec495906B4Cc0956793D53F2BD581441683d14D","0x304989dA2AdC80a6568170567D477Af5E48DBaAe","0x307d8225C6428A1E505f824b1c97CF9127351f0c","0x3B3Cd21242BA44e9865B066e5EF5d1cC1030CC58","0x3e5c4FA0cAA794516eD0DF77f31daA534918d492","0x46fd5cfB4c12D87acD3a13e92BAa53240C661D93","0x4dB26C973FaE52f43Bd96A8776C2bf1b0DC29556","0x4E395eC7b71Dd87A23dD836edb3eFE15A6c2002B","0x5721b31F7B2F323d3916cC26bc815373C3A57491","0x58122a048878F25C8C5d4b562419500ED74C6f75","0x5f2Fab273F1F64b6bc6ab8F35314CD21501F35C5","0x65e9B4Ae7885BD3E4e1CC4f280863b859d231FC2","0x6c90A582C166F59dE91f97fA7Aef7315A968B342","0x708169c8C87563Ce904E0a7F3BFC1F3b0b767f41","0x7d2E87324C9B2cC983804Fe53DF67f1aDd3F913C","0x7Ef392131c3ab326016cF7B560F96C91f4f9D4fA","0x8414Ab8C70c7b16a46012d49b8111959Baf2fC42","0x8829d71855546C3712022BaeE7b9C50F7972A890","0x882AC9E5339b4a5b4985A5E0e0Ae9e459f73458b","0x9097E4A4D75A611b65aB21d98A7D5b1177C050F7","0xa2A2b26D2d630e4Dcf51FC909d19B5BBF6b76641","0xa3666ccB1c004060BccC4DF7c97C7e6C4979BBE4","0xA4299883D927d751694F5122f288E80Db9850b61","0xa69f80524381275A7fFdb3AE01c54150644c8792","0xA7A18DA18D511d72E12D4C507E105dcCd1ACdaa7","0xc325a14b9A2A7e25864195Fdd42D05Ce3e68E7F6","0xCc6bCe523c20F582daAF0CcAFAAe981Df46cEB41","0xD04383398dD2426297da660F9CCA3d439AF9ce1b","0xD6CE178751FC6c1D13FA203A0c8162b6CCBd5F14","0xDFd428908909CB5E24F5e79E6aD6BDE10bdf2327","0xe58267cd7299c29a1b77F4E66Cd12Dd24a2Cd2FD","0xE858fC86dF9895Dbeb823E01e9DadA6D46d444Bb","0xedF89f2612a5B07FEF051e1a0444342B5410C405","0xefbE11336b0008dCE3797C515E6457cC4841645c","0xfaaBEF7eC0135b43dc731609b2B9ca4A6Fa358e7","0xfCDecfe37463912C03A644128EB02A1147715E36"],"tokenLogics":["0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80","0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80"]}},"extractedAddresses":{"SUPER_TOKEN_LOGIC":"0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80"},"allPendingTransactions":[{"nonce":2,"to":"0x55F7758dd99d5e185f4CC08d4Ad95B71f598264D","safeTxHash":"0x547ef6ceb933d202d37db607b1b8f0c084b640fd02fc11a370c070c8e1a881e4","confirmations":1},{"nonce":1,"to":"0x55F7758dd99d5e185f4CC08d4Ad95B71f598264D","safeTxHash":"0x46681b3e3f409a1fba6615ff7f6be5c7730bed6a9eaf874056023d87ac67413c","confirmations":1}]}}];
+
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(function(el) { el.classList.remove('active'); });
+
+    var tabId = name === 'overview' ? 'tab-overview' : 'tab-' + name;
+    var tab = document.getElementById(tabId);
+    if (tab) tab.classList.add('active');
+
+    // Activate corresponding button
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        if (btn.textContent.indexOf(name) !== -1 || (name === 'overview' && btn.textContent === 'Overview')) {
+            btn.classList.add('active');
+        }
+    });
+}
+
+function togglePanel(id) {
+    var row = document.getElementById(id);
+    if (!row) return;
+    if (row.style.display === 'none') {
+        row.style.display = 'table-row';
+    } else {
+        row.style.display = 'none';
+    }
+}
+</script>
+</body>
+</html>

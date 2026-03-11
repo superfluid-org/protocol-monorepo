@@ -43,8 +43,22 @@
 
 set -e
 
+# Check required dependencies
+for cmd in jq curl node; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Error: '$cmd' is required but not found in PATH"
+        exit 1
+    fi
+done
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTRACTS_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Resolve hardhat CLI path - npx can be unreliable in yarn workspaces
+HARDHAT_CLI="$(node -e "console.log(require.resolve('hardhat/internal/cli/cli'))")"
+run_hardhat() {
+    node "$HARDHAT_CLI" "$@"
+}
 
 # Default values
 NETWORK=""
@@ -173,6 +187,11 @@ cat "$WORK_ADDRESSES_FILE"
 echo ""
 
 # Step 2: Optionally fetch Safe pending transaction
+# When --verify-safe is used, the extracted addresses from the Safe tx become
+# the PRIMARY target for bytecode verification. The point is to verify that the
+# pending governance action upgrades contracts to bytecode matching the repo.
+SAFE_ADDRESSES_FILE=""
+
 if [ "$VERIFY_SAFE" = true ]; then
     print_info "Fetching pending Safe governance transaction..."
 
@@ -181,7 +200,7 @@ if [ "$VERIFY_SAFE" = true ]; then
     # Set up environment for Hardhat script
     export OUTPUT_FILE="$SAFE_TX_FILE"
 
-    if npx hardhat run scripts/fetch-safe-pending-tx.ts 2>/dev/null; then
+    if run_hardhat run --no-compile scripts/fetch-safe-pending-tx.ts 2>/dev/null; then
         if [ -f "$SAFE_TX_FILE" ] && [ -s "$SAFE_TX_FILE" ]; then
             print_success "Safe pending transaction fetched"
 
@@ -195,15 +214,21 @@ if [ "$VERIFY_SAFE" = true ]; then
                 "  Function: \(.decodedAction.functionName // "unknown")"
             ' "$SAFE_TX_FILE"
 
-            # Extract addresses and append to addresses file
+            # Extract new contract addresses from the pending Safe transaction
             SAFE_ADDRESSES=$(jq -r '.extractedAddresses | to_entries | .[] | "\(.key)=\(.value)"' "$SAFE_TX_FILE" 2>/dev/null)
             if [ -n "$SAFE_ADDRESSES" ]; then
-                echo "" >> "$WORK_ADDRESSES_FILE"
-                echo "# Addresses from pending Safe transaction" >> "$WORK_ADDRESSES_FILE"
-                echo "$SAFE_ADDRESSES" >> "$WORK_ADDRESSES_FILE"
+                # Write extracted addresses to a separate file for targeted verification
+                SAFE_ADDRESSES_FILE="$OUTPUT_DIR/safe-addresses.vars"
+                echo "# New contract addresses from pending Safe governance transaction" > "$SAFE_ADDRESSES_FILE"
+                echo "$SAFE_ADDRESSES" >> "$SAFE_ADDRESSES_FILE"
 
-                print_info "Extracted addresses from Safe transaction:"
+                # Also include library addresses from the base addresses file (needed for linking)
+                grep -E "^(SLOTS_BITMAP_LIBRARY|SUPERFLUID_POOL_DEPLOYER_LIBRARY)=" "$WORK_ADDRESSES_FILE" >> "$SAFE_ADDRESSES_FILE" 2>/dev/null || true
+
+                print_info "New addresses from Safe transaction (these will be verified):"
                 echo "$SAFE_ADDRESSES" | sed 's/^/  /'
+            else
+                print_warning "No contract addresses found in Safe transaction calldata"
             fi
         else
             print_warning "No pending Safe transaction found"
@@ -216,15 +241,25 @@ fi
 echo ""
 
 # Step 3: Verify bytecode using Hardhat
-print_info "Verifying bytecode..."
+# When --verify-safe was used and addresses were extracted, verify ONLY those
+# addresses (the new contracts the governance action will upgrade to).
+# Otherwise, fall back to verifying all addresses from the base addresses file.
+VERIFY_ADDRESSES_FILE="$WORK_ADDRESSES_FILE"
+
+if [ -n "$SAFE_ADDRESSES_FILE" ] && [ -s "$SAFE_ADDRESSES_FILE" ]; then
+    VERIFY_ADDRESSES_FILE="$SAFE_ADDRESSES_FILE"
+    print_info "Verifying bytecode of NEW contracts from Safe transaction..."
+else
+    print_info "Verifying bytecode of existing deployed contracts..."
+fi
 
 BYTECODE_REPORT="$OUTPUT_DIR/bytecode-report.json"
 
 # Set up environment for Hardhat script
-export ADDRESSES_FILE="$WORK_ADDRESSES_FILE"
+export ADDRESSES_FILE="$VERIFY_ADDRESSES_FILE"
 export JSON_OUTPUT=true
 
-if npx hardhat run scripts/verify-bytecode.ts > "$BYTECODE_REPORT" 2>&1; then
+if run_hardhat run --no-compile scripts/verify-bytecode.ts > "$BYTECODE_REPORT"; then
     BYTECODE_STATUS=0
 else
     BYTECODE_STATUS=$?
@@ -350,6 +385,17 @@ EOF
 
 print_success "Report generated: $REPORT_FILE"
 
+# Generate self-contained HTML report
+HTML_REPORT="$OUTPUT_DIR/verification-report.html"
+if node "$CONTRACTS_DIR/scripts/generate-report.js" \
+    --input-dir "$OUTPUT_DIR" \
+    --output "$HTML_REPORT" \
+    --title "Verification Report: $NETWORK"; then
+    print_success "HTML report generated: $HTML_REPORT"
+else
+    print_warning "Failed to generate HTML report"
+fi
+
 echo ""
 print_info "=== Verification Summary ==="
 
@@ -361,6 +407,7 @@ if [ "${MISMATCH:-0}" -gt 0 ] || [ "${ERRORS:-0}" -gt 0 ]; then
     echo "  - Addresses: $WORK_ADDRESSES_FILE"
     echo "  - Bytecode report: $BYTECODE_REPORT"
     echo "  - Full report: $REPORT_FILE"
+    [ -f "$HTML_REPORT" ] && echo "  - HTML report: $HTML_REPORT"
     [ -f "$SAFE_TX_FILE" ] && echo "  - Safe TX: $SAFE_TX_FILE"
     [ -f "$ETHERSCAN_LOG" ] && echo "  - Etherscan log: $ETHERSCAN_LOG"
     exit 1
@@ -371,6 +418,7 @@ else
     echo "  - Addresses: $WORK_ADDRESSES_FILE"
     echo "  - Bytecode report: $BYTECODE_REPORT"
     echo "  - Full report: $REPORT_FILE"
+    [ -f "$HTML_REPORT" ] && echo "  - HTML report: $HTML_REPORT"
     [ -f "$SAFE_TX_FILE" ] && echo "  - Safe TX: $SAFE_TX_FILE"
     [ -f "$ETHERSCAN_LOG" ] && echo "  - Etherscan log: $ETHERSCAN_LOG"
     exit 0

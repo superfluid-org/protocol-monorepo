@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Governance Action Verification Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; padding: 32px; }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 24px; color: #f0f6fc; margin-bottom: 8px; }
+  .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 24px; }
+  .meta { display: flex; gap: 24px; margin-bottom: 32px; flex-wrap: wrap; }
+  .meta-item { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 200px; }
+  .meta-label { color: #8b949e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .meta-value { color: #f0f6fc; font-size: 14px; margin-top: 4px; font-family: monospace; word-break: break-all; }
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 18px; color: #f0f6fc; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #21262d; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .summary-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; text-align: center; }
+  .summary-card.verified { border-color: #238636; }
+  .summary-card.mismatch { border-color: #da3633; }
+  .summary-card.errors { border-color: #d29922; }
+  .summary-card .count { font-size: 32px; font-weight: 700; }
+  .summary-card.verified .count { color: #3fb950; }
+  .summary-card.mismatch .count { color: #f85149; }
+  .summary-card.errors .count { color: #d29922; }
+  .summary-card .label { color: #8b949e; font-size: 12px; margin-top: 4px; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; }
+  th { background: #21262d; color: #8b949e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 16px; text-align: left; }
+  td { padding: 10px 16px; border-top: 1px solid #21262d; font-size: 14px; }
+  td.address { font-family: monospace; font-size: 13px; color: #79c0ff; }
+  .status { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .status.verified { background: rgba(56,139,54,0.15); color: #3fb950; }
+  .status.mismatch { background: rgba(218,54,51,0.15); color: #f85149; }
+  .status.no_artifact { background: rgba(210,153,34,0.15); color: #d29922; }
+  .status.error { background: rgba(218,54,51,0.15); color: #f85149; }
+  .status.not_deployed { background: rgba(139,148,158,0.15); color: #8b949e; }
+  .safe-box { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
+  .safe-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #21262d; }
+  .safe-row:last-child { border-bottom: none; }
+  .safe-label { color: #8b949e; }
+  .safe-value { color: #f0f6fc; font-family: monospace; font-size: 14px; }
+  .safe-value.fn { color: #d2a8ff; }
+</style>
+</head>
+<body>
+<div class="container" id="app">Loading...</div>
+<script>
+async function load() {
+  const app = document.getElementById('app');
+  let report, safeTx;
+  try {
+    report = await fetch('bytecode-report.json').then(r => r.json());
+  } catch(e) { app.innerHTML = '<p>Could not load bytecode-report.json</p>'; return; }
+  try {
+    safeTx = await fetch('safe-pending-tx.json').then(r => r.json());
+  } catch(e) {}
+
+  const s = report.summary;
+  const statusIcon = { verified: '\u2705', mismatch: '\u274c', no_artifact: '\u2753', error: '\u26a0\ufe0f', not_deployed: '\u23f8\ufe0f' };
+
+  let html = `<h1>Governance Action Verification Report</h1>
+    <p class="subtitle">Network Chain ID: ${report.network} &middot; ${report.timestamp}</p>
+    <div class="meta">
+      <div class="meta-item"><div class="meta-label">Network</div><div class="meta-value">${report.network}</div></div>
+      <div class="meta-item"><div class="meta-label">Timestamp</div><div class="meta-value">${new Date(report.timestamp).toLocaleString()}</div></div>
+      ${safeTx ? `<div class="meta-item"><div class="meta-label">Safe</div><div class="meta-value">${safeTx.safe}</div></div>` : ''}
+    </div>`;
+
+  if (safeTx && safeTx.transaction) {
+    const tx = safeTx.transaction;
+    const da = safeTx.decodedAction || {};
+    html += `<div class="section">
+      <h2 class="section-title">Pending Safe Transaction</h2>
+      <div class="safe-box">
+        <div class="safe-row"><span class="safe-label">Function</span><span class="safe-value fn">${da.functionName || 'unknown'}</span></div>
+        <div class="safe-row"><span class="safe-label">To</span><span class="safe-value">${tx.to}</span></div>
+        <div class="safe-row"><span class="safe-label">Nonce</span><span class="safe-value">${tx.nonce}</span></div>
+        <div class="safe-row"><span class="safe-label">Confirmations</span><span class="safe-value">${tx.confirmations} / ${tx.confirmationsRequired}</span></div>
+        <div class="safe-row"><span class="safe-label">Submitted</span><span class="safe-value">${new Date(tx.submissionDate).toLocaleString()}</span></div>
+      </div>
+    </div>`;
+    const addrs = safeTx.extractedAddresses || {};
+    if (Object.keys(addrs).length) {
+      html += `<div class="section"><h2 class="section-title">Addresses to Verify (from Safe tx)</h2><div class="safe-box">`;
+      for (const [k,v] of Object.entries(addrs)) {
+        html += `<div class="safe-row"><span class="safe-label">${k}</span><span class="safe-value">${v}</span></div>`;
+      }
+      html += `</div></div>`;
+    }
+  }
+
+  html += `<div class="section">
+    <h2 class="section-title">Bytecode Verification Summary</h2>
+    <div class="summary-grid">
+      <div class="summary-card"><div class="count">${s.total}</div><div class="label">Total</div></div>
+      <div class="summary-card verified"><div class="count">${s.verified}</div><div class="label">Verified</div></div>
+      <div class="summary-card mismatch"><div class="count">${s.mismatch}</div><div class="label">Mismatch</div></div>
+      <div class="summary-card errors"><div class="count">${s.noArtifact || 0}</div><div class="label">No Artifact</div></div>
+      <div class="summary-card errors"><div class="count">${s.errors}</div><div class="label">Errors</div></div>
+    </div>
+  </div>`;
+
+  html += `<div class="section">
+    <h2 class="section-title">Contract Details</h2>
+    <table><thead><tr><th>Contract</th><th>Address</th><th>Status</th><th>Details</th></tr></thead><tbody>`;
+  for (const c of report.contracts) {
+    html += `<tr>
+      <td>${c.key}</td>
+      <td class="address">${c.address}</td>
+      <td><span class="status ${c.status}">${statusIcon[c.status] || ''} ${c.status}</span></td>
+      <td style="color:#8b949e;font-size:13px">${c.message}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+  app.innerHTML = html;
+}
+load();
+</script>
+</body>
+</html>

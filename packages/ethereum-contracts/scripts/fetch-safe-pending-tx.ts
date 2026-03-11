@@ -37,28 +37,33 @@ const SAFE_TX_SERVICE_URLS: Record<number, string> = {
     11155111: "https://safe-transaction-sepolia.safe.global",
 };
 
-// Known governance function selectors
+// Known governance function selectors → human-readable name for reporting.
+// These are looked up by the 4-byte selector extracted from calldata.
 const GOVERNANCE_SELECTORS: Record<string, string> = {
-    // SuperfluidGovernanceII functions
-    "0x91ebc872": "batchUpdateSuperTokenLogic",
-    "0x5f9e7d77": "updateContracts",
-    "0x8d6e2782": "replaceGovernance",
-    "0x2467cf55": "registerAgreementClass",
-    "0x7b1039d5": "updateCode", // UUPSProxiable
+    "0x42148deb": "batchUpdateSuperTokenLogic",
+    "0x01a89b38": "batchUpdateSuperTokenLogic",
+    "0x870299c0": "batchUpdateSuperTokenLogic",
+    "0x8e12552f": "updateContracts",
+    "0x44864b25": "replaceGovernance",
+    "0xcadf8f85": "registerAgreementClass",
+    "0x46951954": "updateCode", // UUPSProxiable
     "0x3659cfe6": "upgradeTo", // UUPSUpgradeable
     "0x4f1ef286": "upgradeToAndCall",
 };
 
-// ABI fragments for decoding governance calls
-const GOVERNANCE_ABI = [
-    "function batchUpdateSuperTokenLogic(address host, address[] tokens)",
-    "function updateContracts(address host, address hostNewLogic, address[] agreementClassNewLogics, address superTokenFactoryNewLogic, address poolBeaconNewLogic)",
-    "function replaceGovernance(address host, address newGov)",
-    "function registerAgreementClass(address host, address agreementClass)",
-    "function updateCode(address newAddress)",
-    "function upgradeTo(address newImplementation)",
-    "function upgradeToAndCall(address newImplementation, bytes data)",
-];
+// ABI fragments for decoding governance calls.
+// Each overload is a separate ABI entry so ethers can match by selector.
+const GOVERNANCE_ABIS: Record<string, string[]> = {
+    "0x42148deb": ["function batchUpdateSuperTokenLogic(address host, address[] tokens)"],
+    "0x01a89b38": ["function batchUpdateSuperTokenLogic(address host, address[] tokens, address tokenLogic)"],
+    "0x870299c0": ["function batchUpdateSuperTokenLogic(address host, address[] tokens, address[] tokenLogics)"],
+    "0x8e12552f": ["function updateContracts(address host, address hostNewLogic, address[] agreementClassNewLogics, address superTokenFactoryNewLogic, address poolBeaconNewLogic)"],
+    "0x44864b25": ["function replaceGovernance(address host, address newGov)"],
+    "0xcadf8f85": ["function registerAgreementClass(address host, address agreementClass)"],
+    "0x46951954": ["function updateCode(address newAddress)"],
+    "0x3659cfe6": ["function upgradeTo(address newImplementation)"],
+    "0x4f1ef286": ["function upgradeToAndCall(address newImplementation, bytes data)"],
+};
 
 interface SafeTransaction {
     nonce: number;
@@ -106,10 +111,10 @@ interface FetchResult {
 /**
  * Get the provider - either from Hardhat network or from PROVIDER_URL env var
  */
-function getProvider(): ethers.Provider {
+function getProvider(): ethers.providers.Provider {
     // If PROVIDER_URL is set, use it directly
     if (process.env.PROVIDER_URL) {
-        return new ethers.JsonRpcProvider(process.env.PROVIDER_URL);
+        return new ethers.providers.JsonRpcProvider(process.env.PROVIDER_URL);
     }
     // Otherwise use Hardhat's configured provider
     return ethers.provider;
@@ -159,7 +164,16 @@ function decodeGovernanceAction(data: string): DecodedAction {
     }
 
     try {
-        const iface = new ethers.Interface(GOVERNANCE_ABI);
+        const abi = GOVERNANCE_ABIS[selector];
+        if (!abi) {
+            return {
+                selector,
+                functionName,
+                decodeError: "No ABI for selector",
+                raw: data,
+            };
+        }
+        const iface = new ethers.utils.Interface(abi);
         const decoded = iface.parseTransaction({ data });
 
         if (!decoded) {
@@ -172,7 +186,8 @@ function decodeGovernanceAction(data: string): DecodedAction {
         }
 
         const params: Record<string, any> = {};
-        decoded.fragment.inputs.forEach((input, i) => {
+        const fragment = decoded.functionFragment || (decoded as any).fragment;
+        fragment.inputs.forEach((input: any, i: number) => {
             const value = decoded.args[i];
             // Convert BigInt and arrays to strings for JSON serialization
             if (typeof value === "bigint") {
@@ -236,6 +251,28 @@ function extractAddressesFromAction(decoded: DecodedAction): Record<string, stri
             }
             break;
 
+        case "batchUpdateSuperTokenLogic":
+            // Three overloads:
+            //   (host, tokens[])                - uses default logic from factory
+            //   (host, tokens[], tokenLogic)    - single new logic for all tokens
+            //   (host, tokens[], tokenLogics[]) - per-token logic addresses
+            if (params.tokenLogic && params.tokenLogic !== ZERO_ADDRESS) {
+                addresses.SUPER_TOKEN_LOGIC = params.tokenLogic;
+            }
+            if (Array.isArray(params.tokenLogics)) {
+                const uniqueLogics = [...new Set(
+                    params.tokenLogics.filter((a: string) => a !== ZERO_ADDRESS)
+                )];
+                if (uniqueLogics.length === 1) {
+                    addresses.SUPER_TOKEN_LOGIC = uniqueLogics[0] as string;
+                } else {
+                    uniqueLogics.forEach((addr, i) => {
+                        addresses[`SUPER_TOKEN_LOGIC_${i}`] = addr as string;
+                    });
+                }
+            }
+            break;
+
         case "replaceGovernance":
             if (params.newGov) {
                 addresses.SUPERFLUID_GOVERNANCE_LOGIC = params.newGov;
@@ -273,14 +310,14 @@ function extractAddressesFromAction(decoded: DecodedAction): Record<string, stri
 /**
  * Auto-detect Safe address from governance contract ownership
  */
-async function detectSafeAddress(provider: ethers.Provider, resolverAddress?: string): Promise<string> {
+async function detectSafeAddress(provider: ethers.providers.Provider, resolverAddress?: string): Promise<string> {
     // If resolver address provided, use SDK pattern
     if (resolverAddress) {
         const resolverABI = ["function get(string key) view returns (address)"];
         const resolver = new ethers.Contract(resolverAddress, resolverABI, provider);
 
         const hostAddr = await resolver.get("Superfluid.v1");
-        if (hostAddr === ethers.ZeroAddress) {
+        if (hostAddr === ethers.constants.AddressZero) {
             throw new Error("Could not find Superfluid host from resolver");
         }
 

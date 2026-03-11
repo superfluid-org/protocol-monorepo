@@ -1,0 +1,98 @@
+{
+  "network": 137,
+  "timestamp": "2026-03-10T11:27:32.016Z",
+  "contracts": [
+    {
+      "key": "RESOLVER",
+      "contractName": "Resolver",
+      "address": "0x8bDCb5613153f41B2856F71Bd7A7e0432F6dbe58",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "SUPERFLUID_LOADER",
+      "contractName": "SuperfluidLoader",
+      "address": "0x444A48dA32649Ed03eeC9B9cD416748262c320E6",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "CFAV1_FORWARDER",
+      "contractName": "CFAv1Forwarder",
+      "address": "0xcfA132E353cB4E398080B9700609bb008eceB125",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "GDAV1_FORWARDER",
+      "contractName": "GDAv1Forwarder",
+      "address": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "TOGA",
+      "contractName": "TOGA",
+      "address": "0x6AEAeE5Fd4D05A741723D752D30EE4D72690A8f7",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "BATCH_LIQUIDATOR",
+      "contractName": "BatchLiquidator",
+      "address": "0xA7afDc46999076C295cfC6812dd73d103cF64e19",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "SUPERFLUID_HOST_LOGIC",
+      "contractName": "Superfluid",
+      "address": "0x372B31667C9aE399fF4e57c5eE0C500386681a93",
+      "status": "verified",
+      "message": "Match (99.2% similar, likely immutable differences)"
+    },
+    {
+      "key": "CFA_LOGIC",
+      "contractName": "ConstantFlowAgreementV1",
+      "address": "0x81325cBfe9Af41b67BEcdCC29e235140702E309C",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "IDA_LOGIC",
+      "contractName": "InstantDistributionAgreementV1",
+      "address": "0x86E8ac788E9997B4e0e43A4C8FB12f69aD4BAcbF",
+      "status": "verified",
+      "message": "Match (99.4% similar, likely immutable differences)"
+    },
+    {
+      "key": "GDA_LOGIC",
+      "contractName": "GeneralDistributionAgreementV1",
+      "address": "0xFE8f378A2E0c1074D7BB018c9e28bC5c1F3aFDBc",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    },
+    {
+      "key": "SUPER_TOKEN_FACTORY_LOGIC",
+      "contractName": "SuperTokenFactory",
+      "address": "0x96704627eE5563b48B45695aBE52921945272D47",
+      "status": "verified",
+      "message": "Match (96.0% similar, likely immutable differences)"
+    },
+    {
+      "key": "SUPERFLUID_GOVERNANCE_LOGIC",
+      "contractName": "SuperfluidGovernanceII",
+      "address": "0x491B808fbc0d8972BD5C88a533dA9Cab98447382",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "verified": 3,
+    "mismatch": 9,
+    "notDeployed": 0,
+    "noArtifact": 0,
+    "errors": 0
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "network": 8453,
+  "timestamp": "2026-03-10T13:21:09.332Z",
+  "contracts": [
+    {
+      "key": "SUPER_TOKEN_LOGIC",
+      "contractName": "SuperToken",
+      "address": "0x3e834Ac987635976BEb4Ab944CF683Db5c0E3E80",
+      "status": "mismatch",
+      "message": "Bytecode mismatch"
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "verified": 0,
+    "mismatch": 1,
+    "notDeployed": 0,
+    "noArtifact": 0,
+    "errors": 0
+  }
+}

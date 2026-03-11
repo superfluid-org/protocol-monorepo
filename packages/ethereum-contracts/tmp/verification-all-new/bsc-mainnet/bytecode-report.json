@@ -1,0 +1,620 @@
+{
+  "network": 56,
+  "timestamp": "2026-03-11T12:37:54.558Z",
+  "contracts": [
+    {
+      "key": "RESOLVER",
+      "contractName": "Resolver",
+      "address": "0x69604aA4e9e8BF44A73C680997205Edb03A92E41",
+      "status": "mismatch",
+      "message": "Solc version mismatch: deployed=0.8.14 expected=0.8.30",
+      "bytecodeComparison": {
+        "deployedLength": 3249,
+        "expectedLength": 2620,
+        "deployedHash": "33bb20a771de0f429d8efc8aa90af4cd5ccab6c046f0c2c18442052270bc3831",
+        "expectedHash": "783bae23dbd449a51b3cda0c4c6e22754b539d5286b06de4bef052c9e41d3d83",
+        "similarityPercent": 14.37,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "matchMethod": "none",
+        "immutables": [],
+        "metadata": {
+          "deployedSolcVersion": "0.8.14",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": false,
+          "deployedIpfsHash": "d5ca9ccac978fcea3074fb5f9709293216d272b02926fc03110df6c712ad7db9",
+          "expectedIpfsHash": "b1eb6619499d9dfb98020447b9f3dc0e2486fac803004f82b23494e75957dbe8",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "SUPERFLUID_LOADER",
+      "contractName": "SuperfluidLoader",
+      "address": "0xF353978890204756fc5fa6dfbD16a91eac9E6f4d",
+      "status": "mismatch",
+      "message": "Solc version mismatch: deployed=0.8.19 expected=0.8.30",
+      "bytecodeComparison": {
+        "deployedLength": 1285,
+        "expectedLength": 1238,
+        "deployedHash": "884e8fe2e9d0b354e31fd35ab1cd5260c470e251942a91b0d6ab45ebfc927c74",
+        "expectedHash": "f61ebb69f47137e36f9b24685275758b1e45d93a18a187583abc84913db9c7ce",
+        "similarityPercent": 15.67,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "matchMethod": "none",
+        "immutables": [
+          {
+            "name": "_resolver",
+            "value": "0x9091527f00000000000000000000000069604aa4e9e8bf44a73c680997205edb",
+            "positions": [
+              196
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.19",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": false,
+          "deployedIpfsHash": "7e1a411e809b31bc4e1e72cd9c556f2a793ddf72edb0d20b5b6caffb8564d7b4",
+          "expectedIpfsHash": "7c69da9d8e468b4a4ad93b54335b201d78b21ee5bd7fd0962f47718ff96d4a5e",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "CFAV1_FORWARDER",
+      "contractName": "CFAv1Forwarder",
+      "address": "0xcfA132E353cB4E398080B9700609bb008eceB125",
+      "status": "mismatch",
+      "message": "Solc version mismatch: deployed=0.8.16 expected=0.8.30",
+      "bytecodeComparison": {
+        "deployedLength": 5672,
+        "expectedLength": 5552,
+        "deployedHash": "543363120aaa46b8958b25496e743f3851baaa58e96bab8c0bb7fbe288def962",
+        "expectedHash": "398b331d8e8cb12b969b1fed423cf77cc984b328b92648c1d3e01fe13b17b669",
+        "similarityPercent": 23.36,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "matchMethod": "none",
+        "immutables": [
+          {
+            "name": "_cfa",
+            "value": "0x8301526000917f00000000000000000000000049c38108870e74cb9420c0991a",
+            "positions": [
+              659,
+              857,
+              1003,
+              1176,
+              1289,
+              1475,
+              1734,
+              1858,
+              1925,
+              2091,
+              2248,
+              2301,
+              2697,
+              2829,
+              2940,
+              3006,
+              3063
+            ]
+          },
+          {
+            "name": "_host",
+            "value": "0x57610d066114e8565b602002602001018190525060007f000000000000000000",
+            "positions": [
+              3326,
+              3439
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.16",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": false,
+          "deployedIpfsHash": "a0c1c529333797349b5ec212cb7fcb57b06d7c1a39e211da36f599a4248c43a1",
+          "expectedIpfsHash": "f89ba540f28c820d61651021bc8d7df75c50f1b45c9cbcc82ac852ff93380f4a",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "GDAV1_FORWARDER",
+      "contractName": "GDAv1Forwarder",
+      "address": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
+      "status": "mismatch",
+      "message": "Solc version mismatch: deployed=0.8.19 expected=0.8.30",
+      "bytecodeComparison": {
+        "deployedLength": 5919,
+        "expectedLength": 5781,
+        "deployedHash": "f6202cc599ef4145d4fc4f41e9ac21fce897ea6684b57c30ba05c21f94106122",
+        "expectedHash": "cc8a9fb224dc9cec4c97a0ff5b9af09b08ecf0b2241f6e47089fa78895dd2f80",
+        "similarityPercent": 24.57,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "matchMethod": "none",
+        "immutables": [
+          {
+            "name": "_host",
+            "value": "0x0081518110610c6457610c646115df565b602002602001018190525060007f00",
+            "positions": [
+              3156,
+              3269
+            ]
+          },
+          {
+            "name": "_gda",
+            "value": "0x5260009182917f0000000000000000000000003bbfa4c406719424c7f66cd97a",
+            "positions": [
+              744,
+              875,
+              1027,
+              1110,
+              1257,
+              1367,
+              1463,
+              1631,
+              1781,
+              1921,
+              2033,
+              2109,
+              2210,
+              2366,
+              2442,
+              2550,
+              2638,
+              2801,
+              2920
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.19",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": false,
+          "deployedIpfsHash": "a6adacf26c3ff6b5e9aa413bb3d72ffe5aed507906cfc07c16a158b8f03c97d3",
+          "expectedIpfsHash": "8ec3208f78234c1a1e788683aad0eef4bda64d6c19092c42677982fcf501a403",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "TOGA",
+      "contractName": "TOGA",
+      "address": "0xFCD84210f5d51Cd40a30443d44d6A5500d5D10dF",
+      "status": "mismatch",
+      "message": "Solc version mismatch: deployed=0.8.14 expected=0.8.30",
+      "bytecodeComparison": {
+        "deployedLength": 5764,
+        "expectedLength": 5069,
+        "deployedHash": "d55f84dd9135f0665e0993c46c7555194396c6e4ca878c062efaa21e718292dd",
+        "expectedHash": "ed488afe1d133b6e623b0f6d63ff9b880e6c501c7131c1485ee849ec47952cea",
+        "similarityPercent": 23.78,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "matchMethod": "none",
+        "immutables": [
+          {
+            "name": "_host",
+            "value": "0x0000000000000000000049c38108870e74cb9420c0991a85d3edd6363f759091",
+            "positions": [
+              1031,
+              1359,
+              1498,
+              2752,
+              3206
+            ]
+          },
+          {
+            "name": "_cfa",
+            "value": "0x00000000000000000000000000093a80600b85900b611301565b11156103d557",
+            "positions": [
+              884,
+              1073,
+              1401,
+              1540,
+              2008,
+              2605,
+              2794,
+              3248
+            ]
+          },
+          {
+            "name": "minBondDuration",
+            "value": "0x04611242565b6107bc565b604051600b9190910b8152602001610106565b6101",
+            "positions": [
+              280,
+              724,
+              1826,
+              1905,
+              2318
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.14",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": false,
+          "deployedIpfsHash": "6460fd646eeada0492224ea7aad15f8480c2724c7af96ef9f774bea9ae4f3de7",
+          "expectedIpfsHash": "f35dc79ee0da5f0eaced8db22c6dcf7eb5da2c7b141067c54f74d1533098cd31",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "BATCH_LIQUIDATOR",
+      "contractName": "BatchLiquidator",
+      "address": "0x27636F8E129cdd4ccA0F30E2b4C116DDaC773bE5",
+      "status": "mismatch",
+      "message": "Solc version mismatch: deployed=0.8.19 expected=0.8.30",
+      "bytecodeComparison": {
+        "deployedLength": 2761,
+        "expectedLength": 2679,
+        "deployedHash": "87ac03982943c1f61237e2cd1f09c5c640e74785270709a39bb34805dfb1ecd8",
+        "expectedHash": "4d1744dd6485168e057c5baac309bfec0b1e6e2467f5ba7d1cd4eada9a75bd67",
+        "similarityPercent": 25.7,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "matchMethod": "none",
+        "immutables": [
+          {
+            "name": "host",
+            "value": "0x00837f000000000000000000000000d1e2cfb6441680002eb7a44223160ab9b6",
+            "positions": [
+              240,
+              872,
+              914,
+              1339,
+              1381
+            ]
+          },
+          {
+            "name": "cfa",
+            "value": "0x00837f00000000000000000000000049c38108870e74cb9420c0991a85d3edd6",
+            "positions": [
+              94,
+              961,
+              994
+            ]
+          },
+          {
+            "name": "gda",
+            "value": "0x00837f0000000000000000000000003bbfa4c406719424c7f66cd97a8fe27af3",
+            "positions": [
+              182,
+              1428,
+              1461
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.19",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": false,
+          "deployedIpfsHash": "ca16cc559b94e9e9d2b59f21c387c2d19cf4046285ec0f12924cc0b87cb7684f",
+          "expectedIpfsHash": "269ffc99e7de25ab7e34757ea342e432483415f11cd484cca4dae948e0d3d041",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "SUPERFLUID_HOST_LOGIC",
+      "contractName": "Superfluid",
+      "address": "0x24e822D3dBf06F2d6FfF64F4452885F819e1e1c4",
+      "status": "verified",
+      "message": "Exact match (6 immutables extracted, solc 0.8.30 verified)",
+      "bytecodeComparison": {
+        "deployedLength": 23304,
+        "expectedLength": 23304,
+        "deployedHash": "ae276712f998e921597c2e57b02a4d6e955d07e40568884d791d4c2a424af31c",
+        "expectedHash": "ae276712f998e921597c2e57b02a4d6e955d07e40568884d791d4c2a424af31c",
+        "similarityPercent": 100,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "=========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================",
+        "matchMethod": "exact+immutables+metadata",
+        "immutables": [
+          {
+            "name": "NON_UPGRADABLE_DEPLOYMENT",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "positions": [
+              2730,
+              3052,
+              3830,
+              5816,
+              6127,
+              6463,
+              10849
+            ]
+          },
+          {
+            "name": "APP_WHITE_LISTING_ENABLED",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "positions": [
+              2216,
+              8839,
+              10071,
+              10739,
+              11061
+            ]
+          },
+          {
+            "name": "CALLBACK_GAS_LIMIT",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000e4e1c0",
+            "positions": [
+              1270,
+              11771
+            ]
+          },
+          {
+            "name": "SIMPLE_FORWARDER",
+            "value": "0x000000000000000000000000dcf916cf9d2a8184c3d8f62efe5cfbd5eb3fcbe8",
+            "positions": [
+              2877,
+              16905
+            ]
+          },
+          {
+            "name": "_ERC2771_FORWARDER",
+            "value": "0x00000000000000000000000049a092a2c96e27df69b6e61f324aa7e307df0da1",
+            "positions": [
+              1186,
+              17196
+            ]
+          },
+          {
+            "name": "_SIMPLE_ACL",
+            "value": "0x00000000000000000000000007efa4e436ee9c3a6ff1f0a3a7b4135aabb2fecb",
+            "positions": [
+              1342,
+              17543
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.30",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": true,
+          "deployedIpfsHash": "ff785a490f9bb11ec799e843551026119061acda028147d26cefef60eb9fc602",
+          "expectedIpfsHash": "affc929d947ba5216f94737f254addc04be8da527a278b9199afd27d50f7d67f",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "CFA_LOGIC",
+      "contractName": "ConstantFlowAgreementV1",
+      "address": "0x130F449DF824F7721995292128Df6e3d5cD70520",
+      "status": "verified",
+      "message": "Exact match (1 immutables extracted, solc 0.8.30 verified)",
+      "bytecodeComparison": {
+        "deployedLength": 20598,
+        "expectedLength": 20598,
+        "deployedHash": "3d052a6e5ac9023681bed3ebfb1aead05968e17df50c20740e104561dbf39677",
+        "expectedHash": "3d052a6e5ac9023681bed3ebfb1aead05968e17df50c20740e104561dbf39677",
+        "similarityPercent": 100,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================",
+        "matchMethod": "exact+immutables+metadata",
+        "immutables": [
+          {
+            "name": "_host",
+            "value": "0x000000000000000000000000d1e2cfb6441680002eb7a44223160ab9b67d7e6e",
+            "positions": [
+              1471,
+              2106,
+              2323,
+              2654,
+              3719,
+              3865,
+              4043,
+              13612,
+              14751
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.30",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": true,
+          "deployedIpfsHash": "4e652174f04f82264530907423ba5708b4360fc99add04f4426c445484d793d9",
+          "expectedIpfsHash": "c844a3900114d957cecb7cbf3453ab5f3c48282cd3e81999de7450455144f62b",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "IDA_LOGIC",
+      "contractName": "InstantDistributionAgreementV1",
+      "address": "0x265FDF458B423935A3F3E44A0BecD96D6e32073D",
+      "status": "verified",
+      "message": "Exact match (1 immutables extracted, solc 0.8.30 verified)",
+      "bytecodeComparison": {
+        "deployedLength": 20494,
+        "expectedLength": 20494,
+        "deployedHash": "638265e5bd8d78548a050211325ef72d8626189c41091217be1bec0ea3ecbc88",
+        "expectedHash": "638265e5bd8d78548a050211325ef72d8626189c41091217be1bec0ea3ecbc88",
+        "similarityPercent": 100,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "=================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================",
+        "matchMethod": "exact+immutables+metadata",
+        "immutables": [
+          {
+            "name": "_host",
+            "value": "0x000000000000000000000000d1e2cfb6441680002eb7a44223160ab9b67d7e6e",
+            "positions": [
+              4260
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.30",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": true,
+          "deployedIpfsHash": "ccd03c2d88bd36e783b0a6e7153a21de768b131303068d85857808a022510ef3",
+          "expectedIpfsHash": "8c7abc9bbed9e0646d944610fb674d786aa16579d22a9fe4a09b4233a0d77656",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "GDA_LOGIC",
+      "contractName": "GeneralDistributionAgreementV1",
+      "address": "0x6144B0dad5B08CAE10b8004982b886CD2E40dF0f",
+      "status": "verified",
+      "message": "Exact match (2 immutables extracted, solc 0.8.30 verified)",
+      "bytecodeComparison": {
+        "deployedLength": 24447,
+        "expectedLength": 24447,
+        "deployedHash": "8f17ad0c61de4ac7a3457ab1b5fd7c6861b09c4b8c049bb1809dd4be398cff5d",
+        "expectedHash": "8f17ad0c61de4ac7a3457ab1b5fd7c6861b09c4b8c049bb1809dd4be398cff5d",
+        "similarityPercent": 100,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================",
+        "matchMethod": "exact+immutables+metadata",
+        "immutables": [
+          {
+            "name": "_host",
+            "value": "0x000000000000000000000000d1e2cfb6441680002eb7a44223160ab9b67d7e6e",
+            "positions": [
+              1923,
+              3309,
+              3526,
+              4060,
+              6917,
+              13898,
+              14405,
+              14692
+            ]
+          },
+          {
+            "name": "superfluidPoolBeacon",
+            "value": "0x0000000000000000000000002dd77061791d229705d67ccb92be1a7739c4a196",
+            "positions": [
+              1083,
+              9613
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.30",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": true,
+          "deployedIpfsHash": "2f72bf0599fab0ad6034ad93d4c2544538c9faac35b854b758b84309a8cac9a3",
+          "expectedIpfsHash": "d610da4efe5ba0d2e6aa1680dd3aa5c0e70e25587c210a10464fac602ee98bba",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "SUPER_TOKEN_FACTORY_LOGIC",
+      "contractName": "SuperTokenFactory",
+      "address": "0xB7A582646e83B81a9a65583762f52814f837D39F",
+      "status": "verified",
+      "message": "Exact match (4 immutables extracted, solc 0.8.30 verified)",
+      "bytecodeComparison": {
+        "deployedLength": 7695,
+        "expectedLength": 7695,
+        "deployedHash": "b0d7e13502c68e337dfc043b4a959577a7b8b6eec1412ba09df4cea9f21997bb",
+        "expectedHash": "b0d7e13502c68e337dfc043b4a959577a7b8b6eec1412ba09df4cea9f21997bb",
+        "similarityPercent": 100,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "=================================================================================================================================================================================================================================================",
+        "matchMethod": "exact+immutables+metadata",
+        "immutables": [
+          {
+            "name": "_SUPER_TOKEN_LOGIC",
+            "value": "0x00000000000000000000000091b577553b5390d47a1984ee500663ee7671dce6",
+            "positions": [
+              536,
+              704,
+              1110,
+              2096,
+              3665,
+              3994
+            ]
+          },
+          {
+            "name": "_host",
+            "value": "0x000000000000000000000000d1e2cfb6441680002eb7a44223160ab9b67d7e6e",
+            "positions": [
+              338,
+              1867,
+              2859
+            ]
+          },
+          {
+            "name": "POOL_ADMIN_NFT_LOGIC",
+            "value": "0x000000000000000000000000a180dc9bc83acf8846d68308e778964a8e7c9d2d",
+            "positions": [
+              473,
+              2049
+            ]
+          },
+          {
+            "name": "POOL_MEMBER_NFT_LOGIC",
+            "value": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "positions": [
+              577
+            ]
+          }
+        ],
+        "metadata": {
+          "deployedSolcVersion": "0.8.30",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": true,
+          "deployedIpfsHash": "4408180a0e5a4d7b93f805520c1d7142dd84d5f6938b9928050cac7bea1569e7",
+          "expectedIpfsHash": "4329d9c27278dd90427f07ce8a7670850b8096ac782084b4c8c76b6b02611afe",
+          "ipfsMatch": false
+        }
+      }
+    },
+    {
+      "key": "SUPERFLUID_GOVERNANCE_LOGIC",
+      "contractName": "SuperfluidGovernanceII",
+      "address": "0x9A65E8d1115d246130BAD2f1162ca69C5fEE7b3d",
+      "status": "mismatch",
+      "message": "Solc version mismatch: deployed=0.8.19 expected=0.8.30",
+      "bytecodeComparison": {
+        "deployedLength": 8999,
+        "expectedLength": 8476,
+        "deployedHash": "e69e8a109377cbc6708267fa638489131cbcad812957eba08e7080c6ab07dfda",
+        "expectedHash": "bbeef14e6e58722dfd17b3b6f8a4800ab6750b0d3389dc188708604bd011fc05",
+        "similarityPercent": 11.9,
+        "firstDiffOffset": null,
+        "diffContext": null,
+        "segmentMap": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "matchMethod": "none",
+        "immutables": [],
+        "metadata": {
+          "deployedSolcVersion": "0.8.19",
+          "expectedSolcVersion": "0.8.30",
+          "solcMatch": false,
+          "deployedIpfsHash": "83f47b26e22b0f8706b3ba314bf5c701ae9fa288d15f00568b21680ec83fab4e",
+          "expectedIpfsHash": "4fb6de710bc2d85f6387c433c77287332a41a074b2d811d149902a73d6d3e70e",
+          "ipfsMatch": false
+        }
+      }
+    }
+  ],
+  "summary": {
+    "total": 12,
+    "verified": 5,
+    "mismatch": 7,
+    "notDeployed": 0,
+    "noArtifact": 0,
+    "errors": 0
+  }
+}
