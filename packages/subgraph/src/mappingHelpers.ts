@@ -1081,8 +1081,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
     tokenAddress: Address,
     event: ethereum.Event,
     balanceDelta: BigInt | null,
-    eventName: string
-): void {
+): boolean {
     const block = event.block;
 
     let ats = getOrInitAccountTokenSnapshot(
@@ -1116,7 +1115,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
         && balanceUntilUpdatedAtBeforeUpdate.equals(balanceUntilUpdatedAtAfterUpdate)
     ) {
         // ATS has already been updated in the block and no new balance change discovered. It's safe to return early.
-        return;
+        return false;
     }
 
     //////////////// CFA + GDA streamed amounts ////////////////
@@ -1210,12 +1209,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
     // update the updatedAt property of the account that just made an update
     updateAccountUpdatedAt(accountAddress, block);
 
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        accountAddress,
-        tokenAddress,
-        eventName
-    );
+    return true;
 }
 
 /**
