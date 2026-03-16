@@ -1,7 +1,7 @@
 {
     "name": "@superfluid-finance/subgraph",
     "description": "Subgraph for the Superfluid Ethereum contracts.",
-    "version": "2.2.3",
+    "version": "2.2.4",
     "dependencies": {
         "@graphprotocol/graph-cli": "0.98.1",
         "@graphprotocol/graph-ts": "0.38.2",
