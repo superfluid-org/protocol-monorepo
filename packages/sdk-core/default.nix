@@ -3,6 +3,7 @@
     dependencies = [
       ../..
       ../ethereum-contracts
+      ../subgraph
     ];
     outputs = [
       "dist"
