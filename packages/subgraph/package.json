@@ -47,7 +47,7 @@
         "remove-local": "graph remove superfluid-test --node http://localhost:8020/",
         "deploy-local": "graph deploy superfluid-test --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label v1.0.0",
         "prepare-local": "run-s prepare-local:*",
-        "prepare-local:deploy-contracts": "cd ../ethereum-contracts && npx hardhat run dev-scripts/run-deploy-contracts-and-token.js && cd ../subgraph",
+        "prepare-local:deploy-contracts": "cd ../ethereum-contracts && npx hardhat run dev-scripts/run-deploy-contracts-and-token.js --network localhost && cd ../subgraph",
         "prepare-local:manifest": "yarn prepare-manifest-local",
         "prepare-local:network": "yarn set-network-local",
         "prepare-local:abi": "yarn getAbi",

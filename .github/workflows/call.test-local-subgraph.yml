@@ -88,11 +88,6 @@ jobs:
         run: ./tasks/startHardhatNode.sh start
         working-directory: ${{ env.sdk-core-working-directory }}
 
-      - name: Deploy framework and tokens
-        if: steps.base.outputs.cache-hit != 'true'
-        run: npx hardhat run dev-scripts/run-deploy-contracts-and-token.js --network localhost
-        working-directory: ${{ env.ethereum-contracts-working-directory }}
-
       - name: Prepare files for local testing
         if: steps.base.outputs.cache-hit != 'true'
         run: yarn prepare-local
