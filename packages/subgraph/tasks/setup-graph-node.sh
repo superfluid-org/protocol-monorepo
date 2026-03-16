@@ -24,6 +24,3 @@ DOCKER_HOST_IP=$(docker network inspect subgraph_default | jq -r '.[0].IPAM.Conf
 
 # docker compose with required variables
 DOCKER_HOST_IP=$DOCKER_HOST_IP docker compose up --detach
-
-# extra sleep to let things setup
-sleep 5
