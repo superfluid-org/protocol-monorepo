@@ -119,16 +119,12 @@ jobs:
         if: steps.base.outputs.cache-hit != 'true'
         run: |
           ./tasks/setup-graph-node.sh &
-          # wait for it to warm up
-          sleep 15
         working-directory: ${{ env.subgraph-working-directory }}
 
       - name: Build and deploy local subgraph
         if: steps.base.outputs.cache-hit != 'true'
         run: |
           yarn build-and-deploy-local
-          # wait for it to sync
-          sleep 15
         working-directory: ${{ env.subgraph-working-directory }}
 
       - name: Run test suite

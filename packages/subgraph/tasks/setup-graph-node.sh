@@ -23,4 +23,4 @@ docker compose up --no-start
 DOCKER_HOST_IP=$(docker network inspect subgraph_default | jq -r '.[0].IPAM.Config[].Gateway')
 
 # docker compose with required variables
-DOCKER_HOST_IP=$DOCKER_HOST_IP docker compose up
+DOCKER_HOST_IP=$DOCKER_HOST_IP docker compose up -d
