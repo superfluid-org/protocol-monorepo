@@ -108,5 +108,3 @@ jobs:
         if: steps.base.outputs.cache-hit != 'true'
         run: yarn test --network localhost
         working-directory: ${{ env.subgraph-working-directory }}
-        #TODO: Fix integration test cases errors
-        continue-on-error: true
