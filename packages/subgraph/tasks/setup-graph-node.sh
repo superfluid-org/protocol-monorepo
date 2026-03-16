@@ -18,9 +18,9 @@ if ! which jq >/dev/null 2>&1; then
 fi
 
 # this creates the bridged network for the composed ervices (network id: subgraph_default)
-docker compose up --no-start
+docker compose up --no-start --wait
 # we then extract the gateway ip address and export it
 DOCKER_HOST_IP=$(docker network inspect subgraph_default | jq -r '.[0].IPAM.Config[].Gateway')
 
 # docker compose with required variables
-DOCKER_HOST_IP=$DOCKER_HOST_IP docker compose up -d
+DOCKER_HOST_IP=$DOCKER_HOST_IP docker compose up --detach
