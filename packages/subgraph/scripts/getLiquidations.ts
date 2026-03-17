@@ -443,7 +443,7 @@ const getLiquidatedStreams = async (
     for (let i = 7; i < 30; i += 7) {
         await getLiquidatedStreams(
             137,
-            "https://polygon-rpc.com/",
+            "https://polygon.drpc.org/",
             nowInSecs - (30 - i + 7) * DAY_IN_SECS, // lagging start time
             nowInSecs - (30 - i) * DAY_IN_SECS
         );

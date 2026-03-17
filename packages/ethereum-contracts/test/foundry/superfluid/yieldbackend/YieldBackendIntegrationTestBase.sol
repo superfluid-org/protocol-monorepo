@@ -30,7 +30,7 @@ abstract contract YieldBackendIntegrationTestBase is Test {
     // ============ Abstract hooks ============
 
     function _chainId() internal pure virtual returns (uint256);
-    function _rpcUrl() internal pure virtual returns (string memory);
+    function _rpcUrl() internal view virtual returns (string memory);
     function _superToken() internal pure virtual returns (address);
     function _underlyingToken() internal pure virtual returns (address);
     function _createBackend() internal virtual returns (IYieldBackend);

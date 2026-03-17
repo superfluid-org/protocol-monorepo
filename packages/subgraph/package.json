@@ -1,7 +1,7 @@
 {
     "name": "@superfluid-finance/subgraph",
     "description": "Subgraph for the Superfluid Ethereum contracts.",
-    "version": "2.2.3",
+    "version": "2.2.4",
     "dependencies": {
         "@graphprotocol/graph-cli": "0.98.1",
         "@graphprotocol/graph-ts": "0.38.2",
@@ -16,11 +16,11 @@
         "lodash": "^4.17.23",
         "matchstick-as": "^0.6.0"
     },
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/subgraph",
+    "homepage": "https://github.com/superfluid-org/protocol-monorepo/tree/dev/packages/subgraph",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "url": "https://github.com/superfluid-org/protocol-monorepo.git",
         "directory": "packages/subgraph"
     },
     "scripts": {
@@ -47,7 +47,7 @@
         "remove-local": "graph remove superfluid-test --node http://localhost:8020/",
         "deploy-local": "graph deploy superfluid-test --node http://localhost:8020/ --ipfs http://localhost:5001 --version-label v1.0.0",
         "prepare-local": "run-s prepare-local:*",
-        "prepare-local:deploy-contracts": "cd ../ethereum-contracts && npx hardhat run dev-scripts/run-deploy-contracts-and-token.js && cd ../subgraph",
+        "prepare-local:deploy-contracts": "cd ../ethereum-contracts && npx hardhat run dev-scripts/run-deploy-contracts-and-token.js --network localhost && cd ../subgraph",
         "prepare-local:manifest": "yarn prepare-manifest-local",
         "prepare-local:network": "yarn set-network-local",
         "prepare-local:abi": "yarn getAbi",

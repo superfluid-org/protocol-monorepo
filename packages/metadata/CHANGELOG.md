@@ -3,6 +3,10 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+### Changed
+- replaced public RPC https://polygon-rpc.com (nomore available) with https://polygon.drpc.org
+
 ## [v1.6.2]
 ### Added
 - `VestingSchedulerV3` now also available on eth-sepolia and base-sepolia

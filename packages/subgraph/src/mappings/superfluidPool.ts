@@ -6,6 +6,7 @@ import {
 import { DistributionClaimedEvent, MemberUnitsUpdatedEvent } from "../../generated/schema";
 import {
     _createTokenStatisticLogEntity,
+    _createAccountTokenSnapshotLogEntity,
     getOrInitPool,
     getOrInitOrUpdatePoolMember,
     settlePDPoolMemberMU,
@@ -41,10 +42,12 @@ export function handleDistributionClaimed(event: DistributionClaimed): void {
     updateTokenStatsStreamedUntilUpdatedAt(token, event, eventName);
 
     // Update ATS
-    updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, token, event, event.params.claimedAmount, eventName);
+    const memberUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, token, event, event.params.claimedAmount);
 
     // Create Event Entity
     _createDistributionClaimedEntity(event, poolMember.id);
+
+    if (memberUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.member, token, eventName);
 }
 
 export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
@@ -141,7 +144,9 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
     const eventName = "MemberUnitsUpdated";
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, event.params.token, event, BigInt.fromI32(0), eventName);
+    const memberUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(event.params.member, event.params.token, event, BigInt.fromI32(0));
+
+    if (memberUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.member, event.params.token, eventName);
 }
 
 function _createDistributionClaimedEntity(event: DistributionClaimed, poolMemberId: string): DistributionClaimedEvent {
