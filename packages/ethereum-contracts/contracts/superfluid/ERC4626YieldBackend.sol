@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
+import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
 import { IYieldBackend } from "../interfaces/superfluid/IYieldBackend.sol";
 import { IERC20, ISuperToken } from "../interfaces/superfluid/ISuperfluid.sol";
-import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
 
 
 /**
@@ -31,7 +31,7 @@ contract ERC4626YieldBackend is IYieldBackend {
         ASSET_TOKEN.approve(address(VAULT), 0);
     }
 
-    function deposit(uint256 amount) external {
+    function deposit(uint256 amount) external virtual {
         require(amount > 0, "amount must be greater than 0");
         VAULT.deposit(amount, address(this));
     }
