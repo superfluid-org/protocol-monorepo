@@ -32,6 +32,7 @@ import {
     updateATSStreamedAndBalanceUntilUpdatedAt,
     updateTokenStatisticStreamData,
     updateTokenStatsStreamedUntilUpdatedAt,
+    _createAccountTokenSnapshotLogEntity,
 } from "../mappingHelpers";
 import { getHostAddress } from "../addresses";
 
@@ -128,19 +129,17 @@ export function handleFlowUpdated(event: FlowUpdated): void {
     );
     
     // update streamed and balance until updated at for sender and receiver
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const senderUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         senderAddress,
         tokenAddress,
         event,
         depositDelta,
-        "FlowUpdated"
     );
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const receiverUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         receiverAddress,
         tokenAddress,
         event,
         BigInt.fromI32(0),
-        "FlowUpdated"
     );
 
     // update stream counter data for sender and receiver ATS
@@ -179,6 +178,10 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         true,
         event.block
     );
+
+    // create ATS log entities AFTER all ATS updates are complete
+    if (senderUpdated) _createAccountTokenSnapshotLogEntity(event, senderAddress, tokenAddress, "FlowUpdated");
+    if (receiverUpdated) _createAccountTokenSnapshotLogEntity(event, receiverAddress, tokenAddress, "FlowUpdated");
 }
 
 // NOTE: This handler is run right after handleStreamUpdated as the FlowUpdatedExtension
