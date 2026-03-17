@@ -3,6 +3,7 @@
     dependencies = [
       ../..
       ../ethereum-contracts
+      # cyclic dependency:
       ../subgraph
     ];
     outputs = [
