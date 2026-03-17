@@ -3,6 +3,15 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+### Added
+
+- `Permit2ClearMacroForwarder`: a new macro forwarder that executes EIP-712-signed meta-transactions with properties giving it additional security guarantees, optionally with Permit2 support (allowing to have underlying upgraded + a macro executed, all with one wallet action).
+
+### Breaking
+- `IUserDefinedMacro` renamed to `IMacro`.
+
 ## [v1.15.0]
 
 ### Added
