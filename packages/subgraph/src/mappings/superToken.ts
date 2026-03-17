@@ -37,6 +37,7 @@ import {
     updateAggregateEntitiesTransferData,
     updateATSStreamedAndBalanceUntilUpdatedAt,
     updateTokenStatsStreamedUntilUpdatedAt,
+    _createAccountTokenSnapshotLogEntity,
 } from "../mappingHelpers";
 import { getHostAddress } from "../addresses";
 import { Address, BigInt, ethereum, log } from "@graphprotocol/graph-ts";
@@ -99,14 +100,15 @@ export function handleTokenUpgraded(event: TokenUpgraded): void {
 
     getOrInitSuperToken(event, event.address, eventName);
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const accountUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.account,
         event.address,
         event,
         event.params.amount,
-        eventName
     );
     updateTokenStatsStreamedUntilUpdatedAt(event.address, event, eventName);
+
+    if (accountUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.account, event.address, eventName);
 }
 
 export function handleTokenDowngraded(event: TokenDowngraded): void {
@@ -124,14 +126,15 @@ export function handleTokenDowngraded(event: TokenDowngraded): void {
 
     getOrInitSuperToken(event, event.address, eventName);
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const accountUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.account,
         event.address,
         event,
         event.params.amount.times(BigInt.fromI32(-1)),
-        eventName
     );
     updateTokenStatsStreamedUntilUpdatedAt(event.address, event, eventName);
+
+    if (accountUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.account, event.address, eventName);
 }
 
 export function handleTransfer(event: Transfer): void {
@@ -147,21 +150,22 @@ export function handleTransfer(event: Transfer): void {
     const eventName = "Transfer";
     getOrInitSuperToken(event, event.address, eventName);
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const toUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.to,
         event.address,
         event,
         event.params.value,
-        eventName
     );
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const fromUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.from,
         event.address,
         event,
         event.params.value.times(BigInt.fromI32(-1)),
-        eventName
     );
     updateTokenStatsStreamedUntilUpdatedAt(tokenId, event, eventName);
+
+    if (toUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.to, event.address, eventName);
+    if (fromUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.from, event.address, eventName);
 
     updateAggregateEntitiesTransferData(
         event.params.from,
@@ -224,28 +228,29 @@ function updateHOLEntitiesForLiquidation(
 ): void {
     getOrInitSuperToken(event, event.address, eventName);
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const liquidatorUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         liquidatorAccount,
         event.address,
         event,
         null, // will always do RPC - don't want to leak liquidation logic here
-        eventName
     );
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const targetUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         targetAccount,
         event.address,
         event,
         null, // will always do RPC - don't want to leak liquidation logic here
-        eventName
     );
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const bondUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         bondAccount,
         event.address,
         event,
         null, // will always do RPC - don't want to leak liquidation logic here
-        eventName
     );
     updateTokenStatsStreamedUntilUpdatedAt(event.address, event, eventName);
+
+    if (liquidatorUpdated) _createAccountTokenSnapshotLogEntity(event, liquidatorAccount, event.address, eventName);
+    if (targetUpdated) _createAccountTokenSnapshotLogEntity(event, targetAccount, event.address, eventName);
+    if (bondUpdated) _createAccountTokenSnapshotLogEntity(event, bondAccount, event.address, eventName);
 }
 
 /****************************************
