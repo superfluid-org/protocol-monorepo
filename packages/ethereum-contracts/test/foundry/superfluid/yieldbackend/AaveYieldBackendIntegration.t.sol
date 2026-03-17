@@ -25,8 +25,8 @@ contract AaveYieldBackendIntegrationTest is YieldBackendIntegrationTestBase {
         return 8453;
     }
 
-    function _rpcUrl() internal pure override returns (string memory) {
-        return "https://mainnet.base.org";
+    function _rpcUrl() internal view override returns (string memory) {
+        return vm.envOr("BASE_MAINNET_ARCHIVE_RPC_URL", string("https://mainnet.base.org"));
     }
 
     function _superToken() internal pure override returns (address) {
