@@ -11,10 +11,10 @@ import {
     ISuperfluid,
     ISuperfluidToken
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
-import { IClearSigningForwarder } from "../../../contracts/interfaces/utils/IClearSigningForwarder.sol";
-import { IClearSigningMacro } from "../../../contracts/interfaces/utils/IClearSigningMacro.sol";
-import { ClearSigningMacroForwarder } from "../../../contracts/utils/ClearSigningMacroForwarder.sol";
-import { Permit2ClearSigningMacroForwarder } from "../../../contracts/utils/Permit2ClearSigningMacroForwarder.sol";
+import { IClearMacroForwarder } from "../../../contracts/interfaces/utils/IClearMacroForwarder.sol";
+import { IClearMacro } from "../../../contracts/interfaces/utils/IClearMacro.sol";
+import { ClearMacroForwarder } from "../../../contracts/utils/ClearMacroForwarder.sol";
+import { Permit2ClearMacroForwarder } from "../../../contracts/utils/Permit2ClearMacroForwarder.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 address constant PERMIT2_CANONICAL = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -28,11 +28,11 @@ string constant SECURITY_PROVIDER = "macros.superfluid.eth";
 uint256 constant DEFAULT_NONCE = uint256(1) << 64;
 uint256 constant TEST_AMOUNT = 100e18;
 
-// ============== Minimal macros for Permit2ClearSigningMacroForwarder ==============
-// Implements IClearSigningMacro. Expects params (token, amount); does a SuperToken upgrade from underlying.
+// ============== Minimal macros for Permit2ClearMacroForwarder ==============
+// Implements IClearMacro. Expects params (token, amount); does a SuperToken upgrade from underlying.
 // Shows how the params can be different from the type definition, while still being part of the signed data
 // (via the dynamic construction of the description string from the params)
-contract Minimal712MacroForPermit2Test is IClearSigningMacro {
+contract Minimal712MacroForPermit2Test is IClearMacro {
     string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
 
     function _buildDescription(address token, uint256 amount) internal pure returns (string memory) {
@@ -81,7 +81,7 @@ contract Minimal712MacroForPermit2Test is IClearSigningMacro {
 
 /// Same types as Minimal712MacroForPermit2Test but returns no ops.
 /// Used when upgrade is implied (forwarder pulls via Permit2 and upgrades).
-contract Minimal712MacroEmptyOps is IClearSigningMacro {
+contract Minimal712MacroEmptyOps is IClearMacro {
     string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
 
     function _buildDescription(address token, uint256 amount) internal pure returns (string memory) {
@@ -124,8 +124,8 @@ contract Minimal712MacroEmptyOps is IClearSigningMacro {
 
 // ============== Test Contract ==============
 
-contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
-    Permit2ClearSigningMacroForwarder internal forwarder;
+contract Permit2ClearMacroForwarderTest is FoundrySuperfluidTester {
+    Permit2ClearMacroForwarder internal forwarder;
     Minimal712MacroForPermit2Test internal minimal712Macro;
     Minimal712MacroEmptyOps internal minimal712MacroEmptyOps;
 
@@ -136,7 +136,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         // Etch Permit2 bytecode at canonical address for local testing
         address deployed = DeployPermit2.deployPermit2();
         vm.etch(PERMIT2_CANONICAL, deployed.code);
-        forwarder = new Permit2ClearSigningMacroForwarder(sf.host);
+        forwarder = new Permit2ClearMacroForwarder(sf.host);
         minimal712Macro = new Minimal712MacroForPermit2Test();
         minimal712MacroEmptyOps = new Minimal712MacroEmptyOps();
 
@@ -153,10 +153,10 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         string memory result = forwarder.getPermit2WitnessTypeString(minimal712Macro, params);
 
         string memory expected = string(abi.encodePacked(
-            "ClearSigning",
+            "ClearMacro",
             " witness)",
             ACTION_TYPEDEF,
-            "ClearSigning(Action action,Security security)",
+            "ClearMacro(Action action,Security security)",
             SECURITY_TYPEDEF,
             "TokenPermissions(address token,uint256 amount)"
         ));
@@ -164,18 +164,18 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function testGetPermit2WitnessTypeStringOrderingForDifferentPrimaryNames() public view {
-        // Uses constant "ClearSigning" with nested Security for deterministic alphabetical order:
-        // Action, ClearSigning, Security, TokenPermissions (regardless of macro primary name).
+        // Uses constant "ClearMacro" with nested Security for deterministic alphabetical order:
+        // Action, ClearMacro, Security, TokenPermissions (regardless of macro primary name).
         bytes memory params = _getTestPayload();
         string memory result = forwarder.getPermit2WitnessTypeString(minimal712Macro, params);
 
         assertTrue(
-            _indexOf(result, "Action(") < _indexOf(result, "ClearSigning("),
-            "Action should precede ClearSigning"
+            _indexOf(result, "Action(") < _indexOf(result, "ClearMacro("),
+            "Action should precede ClearMacro"
         );
         assertTrue(
-            _indexOf(result, "ClearSigning(") < _indexOf(result, "Security("),
-            "ClearSigning should precede Security"
+            _indexOf(result, "ClearMacro(") < _indexOf(result, "Security("),
+            "ClearMacro should precede Security"
         );
         assertTrue(
             _indexOf(result, "Security(") < _indexOf(result, "TokenPermissions("),
@@ -209,7 +209,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
 
         uint256 signerSuperBalanceBefore = superToken.balanceOf(signer.addr);
         bytes memory params = _getTestPayload();
-        Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p =
+        Permit2ClearMacroForwarder.Permit2MacroParams memory p =
             _buildPermit2Params(signer, address(this), address(0), minimal712Macro, params);
         assertTrue(forwarder.runPermit2AndMacro(p, minimal712Macro, params));
         assertEq(
@@ -227,7 +227,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         _fundSignerWithPermit2Approval(signer, 1);
 
         bytes memory params = _getTestPayload();
-        Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(
+        Permit2ClearMacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(
             signer, address(forwarder), address(superToken), minimal712MacroEmptyOps, params
         );
         assertTrue(forwarder.runPermit2AndMacro(p, minimal712MacroEmptyOps, params));
@@ -240,7 +240,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         _fundSignerWithPermit2Approval(signer, 1);
 
         bytes memory params = _getSelfRelayPayload();
-        Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(
+        Permit2ClearMacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(
             signer, address(forwarder), address(superToken), minimal712MacroEmptyOps, params
         );
         vm.prank(signer.addr);
@@ -254,12 +254,12 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         _fundSignerWithPermit2Approval(signer, 1);
 
         bytes memory params = _getSelfRelayPayload();
-        Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(
+        Permit2ClearMacroForwarder.Permit2MacroParams memory p = _buildPermit2Params(
             signer, address(forwarder), address(superToken), minimal712MacroEmptyOps, params
         );
 
         vm.expectRevert(abi.encodeWithSelector(
-            ClearSigningMacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
+            ClearMacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
         vm.prank(address(this));
         forwarder.runPermit2AndMacro(p, minimal712MacroEmptyOps, params);
     }
@@ -270,7 +270,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         _fundSignerWithPermit2Approval(signer, 1);
 
         bytes memory params = _getTestPayload();
-        Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p =
+        Permit2ClearMacroForwarder.Permit2MacroParams memory p =
             _buildPermit2Params(signer, address(forwarder), address(0), minimal712MacroEmptyOps, params);
         assertTrue(forwarder.runPermit2AndMacro(p, minimal712MacroEmptyOps, params));
     }
@@ -299,8 +299,8 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
             requestedAmount: TEST_AMOUNT
         });
 
-        vm.expectRevert(ClearSigningMacroForwarder.InvalidSignature.selector);
-        Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p = _toPermit2MacroParams(
+        vm.expectRevert(ClearMacroForwarder.InvalidSignature.selector);
+        Permit2ClearMacroForwarder.Permit2MacroParams memory p = _toPermit2MacroParams(
             permit, transferDetails, signer.addr, witness, witnessTypeString, badSignature, address(this), address(0)
         );
         forwarder.runPermit2AndMacro(p, minimal712Macro, params);
@@ -323,8 +323,8 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
             requestedAmount: TEST_AMOUNT
         });
 
-        vm.expectRevert(abi.encodeWithSelector(ClearSigningMacroForwarder.InvalidPayload.selector, "witness mismatch"));
-        Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p = _toPermit2MacroParams(
+        vm.expectRevert(abi.encodeWithSelector(ClearMacroForwarder.InvalidPayload.selector, "witness mismatch"));
+        Permit2ClearMacroForwarder.Permit2MacroParams memory p = _toPermit2MacroParams(
             permit, transferDetails, signer.addr, wrongWitness, witnessTypeString, signature, address(this), address(0)
         );
         forwarder.runPermit2AndMacro(p, minimal712Macro, params);
@@ -349,7 +349,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         });
 
         witnessTypeString = forwarder.getPermit2WitnessTypeString(minimal712Macro, params);
-        IClearSigningForwarder.Security memory otherSecurity = IClearSigningForwarder.Security({
+        IClearMacroForwarder.Security memory otherSecurity = IClearMacroForwarder.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: 0,
@@ -420,7 +420,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         VmSafe.Wallet memory signer,
         IPermit2.PermitTransferFrom memory permit,
         address spender,
-        IClearSigningMacro m,
+        IClearMacro m,
         bytes memory params
     ) internal returns (bytes32 witness, string memory witnessTypeString, bytes memory signature) {
         witness = forwarder.getPermit2WitnessStructHash(m, params);
@@ -431,7 +431,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function _getTestPayload() internal view returns (bytes memory) {
-        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: 0,
@@ -442,7 +442,7 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function _getSelfRelayPayload() internal view returns (bytes memory) {
-        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
             domain: SECURITY_DOMAIN,
             provider: "self",
             validAfter: 0,
@@ -456,9 +456,9 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         VmSafe.Wallet memory signer,
         address spender,
         address upgradeSuperToken,
-        IClearSigningMacro m,
+        IClearMacro m,
         bytes memory params
-    ) internal returns (Permit2ClearSigningMacroForwarder.Permit2MacroParams memory p) {
+    ) internal returns (Permit2ClearMacroForwarder.Permit2MacroParams memory p) {
         p.permit = _makePermit(address(token), TEST_AMOUNT);
         (p.witness, p.witnessTypeString, p.signature) = _signPermit(signer, p.permit, spender, m, params);
         p.transferDetails = IPermit2.SignatureTransferDetails({
@@ -479,8 +479,8 @@ contract Permit2ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         bytes memory signature,
         address spender,
         address upgradeSuperToken
-    ) internal pure returns (Permit2ClearSigningMacroForwarder.Permit2MacroParams memory) {
-        return Permit2ClearSigningMacroForwarder.Permit2MacroParams({
+    ) internal pure returns (Permit2ClearMacroForwarder.Permit2MacroParams memory) {
+        return Permit2ClearMacroForwarder.Permit2MacroParams({
             permit: permit,
             transferDetails: transferDetails,
             owner: owner,

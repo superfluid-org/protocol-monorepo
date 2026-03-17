@@ -5,10 +5,10 @@ import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
 import { BatchOperation, ISuperfluid, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
-import { IClearSigningForwarder } from "../../../contracts/interfaces/utils/IClearSigningForwarder.sol";
-import { IClearSigningMacro } from "../../../contracts/interfaces/utils/IClearSigningMacro.sol";
+import { IClearMacroForwarder } from "../../../contracts/interfaces/utils/IClearMacroForwarder.sol";
+import { IClearMacro } from "../../../contracts/interfaces/utils/IClearMacro.sol";
 import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
-import { ClearSigningMacroForwarder, NonceManager } from "../../../contracts/utils/ClearSigningMacroForwarder.sol";
+import { ClearMacroForwarder, NonceManager } from "../../../contracts/utils/ClearMacroForwarder.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 string constant PRIMARY_TYPE_NAME = "MinimalExample";
@@ -20,12 +20,12 @@ uint256 constant DEFAULT_NONCE = uint256(1) << 64;
 string constant NONCE_STR = "18446744073709551616"; // 2^64
 uint256 constant TEST_AMOUNT = 100e18;
 
-// ============== Minimal macro for ClearSigningMacroForwarder ==============
-// Implements IClearSigningMacro and uses *no* postCheck logic.
+// ============== Minimal macro for ClearMacroForwarder ==============
+// Implements IClearMacro and uses *no* postCheck logic.
 // Expects params (token, amount); does a SuperToken upgrade from underlying.
 // Shows how the params can be different from the type definition, while still being part of the signed data
 // (via the dynamic construction of the description string from the params)
-contract Minimal712Macro is IClearSigningMacro {
+contract Minimal712Macro is IClearMacro {
 
     string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
 
@@ -75,15 +75,15 @@ contract Minimal712Macro is IClearSigningMacro {
 
 // ============== Test Contract ==============
 
-contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
-    ClearSigningMacroForwarder internal forwarder;
+contract ClearMacroForwarderTest is FoundrySuperfluidTester {
+    ClearMacroForwarder internal forwarder;
     Minimal712Macro internal minimal712Macro;
 
     constructor() FoundrySuperfluidTester(5) { }
 
     function setUp() public override {
         super.setUp();
-        forwarder = new ClearSigningMacroForwarder(sf.host);
+        forwarder = new ClearMacroForwarder(sf.host);
         minimal712Macro = new Minimal712Macro();
 
         IAccessControl acl = IAccessControl(sf.host.getSimpleACL());
@@ -101,9 +101,9 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         address token,
         uint256 amount
     ) external view {
-        IClearSigningForwarder.Payload memory payload = IClearSigningForwarder.Payload({
-            action: IClearSigningForwarder.EncodedAction({ params: abi.encode(token, amount) }),
-            security: IClearSigningForwarder.Security({
+        IClearMacroForwarder.Payload memory payload = IClearMacroForwarder.Payload({
+            action: IClearMacroForwarder.EncodedAction({ params: abi.encode(token, amount) }),
+            security: IClearMacroForwarder.Security({
                 domain: SECURITY_DOMAIN,
                 provider: SECURITY_PROVIDER,
                 validAfter: validAfter,
@@ -113,7 +113,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         });
         bytes memory localPayload = abi.encode(payload);
 
-        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
@@ -141,7 +141,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         bytes memory params = _getTestPayload();
         bytes memory signatureVRS = _signPayload(signer, params);
         vm.expectRevert(abi.encodeWithSelector(
-            ClearSigningMacroForwarder.ProviderNotAuthorized.selector, SECURITY_PROVIDER, address(0xbad)));
+            ClearMacroForwarder.ProviderNotAuthorized.selector, SECURITY_PROVIDER, address(0xbad)));
         _runMacroAs(address(0xbad), signer.addr, params, signatureVRS);
     }
 
@@ -167,7 +167,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
 
         // Caller is not the signer - should revert even if caller has other provider role
         vm.expectRevert(abi.encodeWithSelector(
-            ClearSigningMacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
+            ClearMacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 
@@ -259,7 +259,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         if (t0 > 0) {
             vm.warp(t0 - 1);
             vm.expectRevert(abi.encodeWithSelector(
-                ClearSigningMacroForwarder.OutsideValidityWindow.selector, t0 - 1, t1, t0));
+                ClearMacroForwarder.OutsideValidityWindow.selector, t0 - 1, t1, t0));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -270,7 +270,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         } else {
             vm.warp(t0);
             vm.expectRevert(abi.encodeWithSelector(
-                ClearSigningMacroForwarder.OutsideValidityWindow.selector, t0, t1, t0));
+                ClearMacroForwarder.OutsideValidityWindow.selector, t0, t1, t0));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -281,7 +281,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         signatureVRS = _signPayload(signer, params);
         vm.warp(expiry + 1);
         vm.expectRevert(abi.encodeWithSelector(
-            ClearSigningMacroForwarder.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
+            ClearMacroForwarder.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 
@@ -323,7 +323,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
         address token,
         uint256 amount
     ) internal view returns (bytes memory) {
-        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
@@ -334,7 +334,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function _getSelfRelayPayload() internal view returns (bytes memory) {
-        IClearSigningForwarder.Security memory security = IClearSigningForwarder.Security({
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
             domain: SECURITY_DOMAIN,
             provider: "self",
             validAfter: uint256(0),
@@ -386,7 +386,7 @@ contract ClearSigningMacroForwarderTest is FoundrySuperfluidTester {
     {
         return string(abi.encodePacked(
             '"domain": {',
-            '"name": "ClearSigning",',
+            '"name": "ClearMacro",',
             '"version": "1",',
             '"chainId": ', chainIdStr, ',',
             '"verifyingContract": "', forwarderStr, '"'

@@ -7,8 +7,8 @@ const SuperfluidLoader = artifacts.require("SuperfluidLoader");
 const CFAv1Forwarder = artifacts.require("CFAv1Forwarder");
 const GDAv1Forwarder = artifacts.require("GDAv1Forwarder");
 const MacroForwarder = artifacts.require("MacroForwarder");
-const ClearSigningMacroForwarder = artifacts.require("ClearSigningMacroForwarder");
-const Permit2ClearSigningMacroForwarder = artifacts.require("Permit2ClearSigningMacroForwarder");
+const ClearMacroForwarder = artifacts.require("ClearMacroForwarder");
+const Permit2ClearMacroForwarder = artifacts.require("Permit2ClearMacroForwarder");
 
 /**
  * @dev Deploy specified contract at a deterministic address (defined by sender, nonce)
@@ -91,17 +91,17 @@ module.exports = eval(`(${S.toString()})()`)(async function (
         console.log(
             `setting up MacroForwarder for chainId ${chainId}, host ${hostAddr}`
         );
-    } else if (contractName === "ClearSigningMacroForwarder") {
-        ContractArtifact = ClearSigningMacroForwarder;
+    } else if (contractName === "ClearMacroForwarder") {
+        ContractArtifact = ClearMacroForwarder;
         deployArgs = [hostAddr];
         console.log(
-            `setting up ClearSigningMacroForwarder for chainId ${chainId}, host ${hostAddr}`
+            `setting up ClearMacroForwarder for chainId ${chainId}, host ${hostAddr}`
         );
-    } else if (contractName === "Permit2ClearSigningMacroForwarder") {
-        ContractArtifact = Permit2ClearSigningMacroForwarder;
+    } else if (contractName === "Permit2ClearMacroForwarder") {
+        ContractArtifact = Permit2ClearMacroForwarder;
         deployArgs = [hostAddr];
         console.log(
-            `setting up Permit2ClearSigningMacroForwarder for chainId ${chainId}, host ${hostAddr}`
+            `setting up Permit2ClearMacroForwarder for chainId ${chainId}, host ${hostAddr}`
         );
     } else {
         throw new Error("Contract unknown / not supported");

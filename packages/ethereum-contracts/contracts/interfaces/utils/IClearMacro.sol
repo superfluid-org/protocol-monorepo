@@ -4,11 +4,11 @@ pragma solidity >=0.8.11;
 import { IUserDefinedMacro } from "./IUserDefinedMacro.sol";
 
 /**
- * @dev Interface for a macro used with the ClearSigningMacroForwarder.
+ * @dev Interface for a macro used with the ClearMacroForwarder.
  * Implementations provide the EIP-712 metadata and hashing logic for the
  * macro-specific action encoded in `params`.
  */
-interface IClearSigningMacro is IUserDefinedMacro {
+interface IClearMacro is IUserDefinedMacro {
     /**
      * @dev Returns the primary EIP-712 type name.
      * This is usually rendered prominently by wallets and should concisely

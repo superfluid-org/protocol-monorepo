@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { IClearSigningMacro } from "./IClearSigningMacro.sol";
+import { IClearMacro } from "./IClearMacro.sol";
 
 /**
- * @dev Interface for ClearSigning macro forwarders.
- * A ClearSigning forwarder executes EIP-712 signed meta-transactions whose
+ * @dev Interface for ClearMacro forwarders.
+ * A ClearMacro forwarder executes EIP-712 signed meta-transactions whose
  * payload consists of macro-specific action data and additional security
  * parameters.
  */
-interface IClearSigningForwarder {
+interface IClearMacroForwarder {
     /**
      * @dev Opaque macro-specific action payload, ABI-encoded for transport.
      * The forwarder does not decode these fields itself; the macro defines the
@@ -30,7 +30,7 @@ interface IClearSigningForwarder {
     }
 
     /**
-     * @dev Security parameters for a ClearSigning payload.
+     * @dev Security parameters for a ClearMacro payload.
      * Includes the provider identifier, validity window, and ERC-4337-style nonce.
      */
     struct Security {
@@ -51,7 +51,7 @@ interface IClearSigningForwarder {
      * @return success    True if the macro execution succeeded.
      */
     function runMacro(
-        IClearSigningMacro m,
+        IClearMacro m,
         bytes calldata params,
         address signer,
         bytes calldata signature
@@ -74,7 +74,7 @@ interface IClearSigningForwarder {
      * @param  params     ABI-encoded `Payload`.
      * @return typeDef    Full EIP-712 type definition string.
      */
-    function getTypeDefinition(IClearSigningMacro m, bytes calldata params)
+    function getTypeDefinition(IClearMacro m, bytes calldata params)
         external
         view
         returns (string memory);
@@ -85,7 +85,7 @@ interface IClearSigningForwarder {
      * @param  params     ABI-encoded `Payload`.
      * @return typeHash   keccak256 hash of the type definition.
      */
-    function getTypeHash(IClearSigningMacro m, bytes calldata params)
+    function getTypeHash(IClearMacro m, bytes calldata params)
         external
         view
         returns (bytes32);
@@ -96,7 +96,7 @@ interface IClearSigningForwarder {
      * @param  params       ABI-encoded `Payload`.
      * @return structHash   EIP-712 struct hash of the payload.
      */
-    function getStructHash(IClearSigningMacro m, bytes calldata params)
+    function getStructHash(IClearMacro m, bytes calldata params)
         external
         view
         returns (bytes32);
@@ -108,7 +108,7 @@ interface IClearSigningForwarder {
      * @param  params     ABI-encoded `Payload`.
      * @return digest     EIP-712 digest of the payload.
      */
-    function getDigest(IClearSigningMacro m, bytes calldata params)
+    function getDigest(IClearMacro m, bytes calldata params)
         external
         view
         returns (bytes32);

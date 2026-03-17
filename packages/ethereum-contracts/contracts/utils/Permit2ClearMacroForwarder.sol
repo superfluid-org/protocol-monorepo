@@ -2,25 +2,25 @@
 pragma solidity ^0.8.23;
 
 import { SignatureChecker } from "@openzeppelin-v5/contracts/utils/cryptography/SignatureChecker.sol";
-import { IClearSigningMacro } from "../interfaces/utils/IClearSigningMacro.sol";
+import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
 import { IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ISuperfluid, BatchOperation, ISuperToken, IERC20 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IPermit2 } from "../interfaces/external/IPermit2.sol";
-import { IClearSigningForwarder } from "../interfaces/utils/IClearSigningForwarder.sol";
-import { ClearSigningMacroForwarder } from "./ClearSigningMacroForwarder.sol";
+import { IClearMacroForwarder } from "../interfaces/utils/IClearMacroForwarder.sol";
+import { ClearMacroForwarder } from "./ClearMacroForwarder.sol";
 
 /**
- * @dev Permit2-aware extension of ClearSigningMacroForwarder.
+ * @dev Permit2-aware extension of ClearMacroForwarder.
  * Supports Permit2 witness validation and, optionally, pulling underlying tokens
  * via Permit2 before upgrading and executing the macro.
  */
-contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
+contract Permit2ClearMacroForwarder is ClearMacroForwarder {
     /// @dev Canonical Permit2 address (same across all EVM chains)
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
-    /// @dev Constant witness type name for nested ClearSigning payloads. Ensures deterministic
-    /// alphabetical ordering (Action, ClearSigning, Security, TokenPermissions) regardless of macro.
-    string private constant _CLEAR_SIGNING_WITNESS_TYPE = "ClearSigning";
+    /// @dev Constant witness type name for nested ClearMacro payloads. Ensures deterministic
+    /// alphabetical ordering (Action, ClearMacro, Security, TokenPermissions) regardless of macro.
+    string private constant _CLEAR_MACRO_WITNESS_TYPE = "ClearMacro";
 
     bytes32 private constant _TOKEN_PERMISSIONS_TYPEHASH =
         keccak256("TokenPermissions(address token,uint256 amount)");
@@ -38,7 +38,7 @@ contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
         address upgradeSuperToken;
     }
 
-    constructor(ISuperfluid host) ClearSigningMacroForwarder(host) {}
+    constructor(ISuperfluid host) ClearMacroForwarder(host) {}
 
     /**
      * @dev Runs the macro with Permit2 witness validation.
@@ -46,11 +46,11 @@ contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
      * and upgraded before the macro is executed.
      * @param  p       Permit2 data and optional upgrade configuration.
      * @param  m       Target macro.
-     * @param  params  ABI-encoded `IClearSigningForwarder.Payload`.
+     * @param  params  ABI-encoded `IClearMacroForwarder.Payload`.
      */
     function runPermit2AndMacro(
         Permit2MacroParams calldata p,
-        IClearSigningMacro m,
+        IClearMacro m,
         bytes calldata params
     ) external payable returns (bool) {
         _validatePermitAndMaybePull(p, m, params);
@@ -60,7 +60,7 @@ contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
 
     function _validatePermitAndMaybePull(
         Permit2MacroParams calldata p,
-        IClearSigningMacro m,
+        IClearMacro m,
         bytes calldata params
     ) internal {
         if (p.witness != this.getPermit2WitnessStructHash(m, params)) {
@@ -144,11 +144,11 @@ contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
     }
 
     /**
-     * @dev Struct hash of the ClearSigning payload for use as Permit2 witness.
-     * Uses constant type name "ClearSigning" with nested Security so the witness type string
+     * @dev Struct hash of the ClearMacro payload for use as Permit2 witness.
+     * Uses constant type name "ClearMacro" with nested Security so the witness type string
      * has deterministic alphabetical ordering regardless of the macro's primary type name.
      */
-    function getPermit2WitnessStructHash(IClearSigningMacro m, bytes calldata params)
+    function getPermit2WitnessStructHash(IClearMacro m, bytes calldata params)
         external
         view
         returns (bytes32)
@@ -156,17 +156,17 @@ contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
         return _getPermit2WitnessStructHash(m, params);
     }
 
-    function _getPermit2WitnessStructHash(IClearSigningMacro m, bytes calldata params)
+    function _getPermit2WitnessStructHash(IClearMacro m, bytes calldata params)
         internal
         view
         returns (bytes32)
     {
-        IClearSigningForwarder.Payload memory payload =
-            abi.decode(params, (IClearSigningForwarder.Payload));
+        IClearMacroForwarder.Payload memory payload =
+            abi.decode(params, (IClearMacroForwarder.Payload));
         bytes32 actionStructHash = m.getActionStructHash(payload.action.params);
         bytes32 securityStructHash = _getSecurityStructHash(payload.security);
         string memory typeDef = string(abi.encodePacked(
-            _CLEAR_SIGNING_WITNESS_TYPE,
+            _CLEAR_MACRO_WITNESS_TYPE,
             "(Action action,Security security)",
             m.getActionTypeDefinition(params),
             _TYPEDEF_SECURITY
@@ -181,26 +181,26 @@ contract Permit2ClearSigningMacroForwarder is ClearSigningMacroForwarder {
 
     /**
      * @dev Witness type string for Permit2 PermitWitnessTransferFrom.
-     * Uses constant "ClearSigning" with nested Security for deterministic alphabetical order:
-     * Action, ClearSigning, Security, TokenPermissions.
+     * Uses constant "ClearMacro" with nested Security for deterministic alphabetical order:
+     * Action, ClearMacro, Security, TokenPermissions.
      */
-    function getPermit2WitnessTypeString(IClearSigningMacro m, bytes calldata params)
+    function getPermit2WitnessTypeString(IClearMacro m, bytes calldata params)
         external
         view
         returns (string memory)
     {
         string memory actionDef = m.getActionTypeDefinition(params);
-        string memory clearSigningDef = string(abi.encodePacked(
-            _CLEAR_SIGNING_WITNESS_TYPE,
+        string memory clearMacroDef = string(abi.encodePacked(
+            _CLEAR_MACRO_WITNESS_TYPE,
             "(Action action,Security security)"
         ));
         string memory tokenPermDef = "TokenPermissions(address token,uint256 amount)";
 
         return string(abi.encodePacked(
-            _CLEAR_SIGNING_WITNESS_TYPE,
+            _CLEAR_MACRO_WITNESS_TYPE,
             " witness)",
             actionDef,
-            clearSigningDef,
+            clearMacroDef,
             _TYPEDEF_SECURITY,
             tokenPermDef
         ));

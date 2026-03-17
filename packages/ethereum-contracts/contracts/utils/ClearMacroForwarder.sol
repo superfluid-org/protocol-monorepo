@@ -4,10 +4,10 @@ pragma solidity ^0.8.23;
 import { EIP712 } from "@openzeppelin-v5/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin-v5/contracts/utils/cryptography/SignatureChecker.sol";
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
-import { IClearSigningMacro } from "../interfaces/utils/IClearSigningMacro.sol";
+import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
 import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
 import { ForwarderBase } from "./ForwarderBase.sol";
-import { IClearSigningForwarder } from "../interfaces/utils/IClearSigningForwarder.sol";
+import { IClearMacroForwarder } from "../interfaces/utils/IClearMacroForwarder.sol";
 
 
 /**
@@ -41,10 +41,10 @@ abstract contract NonceManager {
 
 /**
  * @dev EIP-712-aware macro forwarder.
- * Decodes a ClearSigning payload, verifies the signature, enforces the
+ * Decodes a ClearMacro payload, verifies the signature, enforces the
  * security checks, and executes the macro on behalf of the signer.
  */
-contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearSigningForwarder {
+contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacroForwarder {
 
     // CONSTANTS, IMMUTABLES
 
@@ -67,7 +67,7 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
 
     // INITIALIZATION
 
-    constructor(ISuperfluid host) ForwarderBase(host) EIP712("ClearSigning", "1") {
+    constructor(ISuperfluid host) ForwarderBase(host) EIP712("ClearMacro", "1") {
         _providerACL = IAccessControl(host.getSimpleACL());
     }
 
@@ -77,12 +77,12 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
      * @dev Runs the macro with an EIP-712 signed payload.
      * Reverts if the signature is invalid or if the payload fails security checks.
      * @param  m          Target macro.
-     * @param  params     ABI-encoded `IClearSigningForwarder.Payload`.
+     * @param  params     ABI-encoded `IClearMacroForwarder.Payload`.
      * @param  signer     Address which signed the payload and on whose behalf the macro runs.
      * @param  signature  EIP-712 signature over the payload digest.
      * @return success    True if the macro execution succeeded.
      */
-    function runMacro(IClearSigningMacro m, bytes calldata params, address signer, bytes calldata signature)
+    function runMacro(IClearMacro m, bytes calldata params, address signer, bytes calldata signature)
         external payable override
         returns (bool)
     {
@@ -101,20 +101,20 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
      * @dev Encodes the action and security data into the payload bytes expected by `runMacro`.
      * @param  params     ABI-encoded macro-specific parameters, opaque to the forwarder.
      * @param  security   Security parameters (domain, provider, validAfter, validBefore, nonce).
-     * @return payload    ABI-encoded `IClearSigningForwarder.Payload`.
+     * @return payload    ABI-encoded `IClearMacroForwarder.Payload`.
      */
     function encodeParams(
         bytes calldata params,
-        IClearSigningForwarder.Security calldata security
+        IClearMacroForwarder.Security calldata security
     ) external pure override returns (bytes memory) {
-        IClearSigningForwarder.Payload memory payload = IClearSigningForwarder.Payload({
-            action: IClearSigningForwarder.EncodedAction({ params: params }),
+        IClearMacroForwarder.Payload memory payload = IClearMacroForwarder.Payload({
+            action: IClearMacroForwarder.EncodedAction({ params: params }),
             security: security
         });
         return abi.encode(payload);
     }
 
-    function getTypeDefinition(IClearSigningMacro m, bytes calldata params)
+    function getTypeDefinition(IClearMacro m, bytes calldata params)
         external
         view
         override
@@ -123,22 +123,22 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
         return _getTypeDefinition(m, params);
     }
 
-    function getTypeHash(IClearSigningMacro m, bytes calldata params) public view override returns (bytes32) {
+    function getTypeHash(IClearMacro m, bytes calldata params) public view override returns (bytes32) {
         return keccak256(abi.encodePacked(_getTypeDefinition(m, params)));
     }
 
-    function getStructHash(IClearSigningMacro m, bytes calldata params) external view override returns (bytes32) {
+    function getStructHash(IClearMacro m, bytes calldata params) external view override returns (bytes32) {
         return _getStructHash(m, params);
     }
 
-    function getDigest(IClearSigningMacro m, bytes calldata params) external view override returns (bytes32) {
+    function getDigest(IClearMacro m, bytes calldata params) external view override returns (bytes32) {
         return _getDigest(m, params);
     }
 
     function getNonce(address sender, uint192 key)
         public
         view
-        override(NonceManager, IClearSigningForwarder)
+        override(NonceManager, IClearMacroForwarder)
         returns (uint256)
     {
         return NonceManager.getNonce(sender, key);
@@ -147,12 +147,12 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
     // INTERNAL FUNCTIONS
 
     function _validatePayload(
-        IClearSigningMacro,
+        IClearMacro,
         bytes calldata params,
         address signer,
         address executor
     ) internal {
-        IClearSigningForwarder.Payload memory payload = abi.decode(params, (IClearSigningForwarder.Payload));
+        IClearMacroForwarder.Payload memory payload = abi.decode(params, (IClearMacroForwarder.Payload));
 
         // Provider authorization: either ACL role, or self-relay when provider is "self"
         if (keccak256(bytes(payload.security.provider)) == keccak256(bytes(SELF_PROVIDER))) {
@@ -176,11 +176,11 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
         }
     }
 
-    function _executeValidatedMacro(IClearSigningMacro m, bytes calldata params, address signer)
+    function _executeValidatedMacro(IClearMacro m, bytes calldata params, address signer)
         internal
         returns (bool)
     {
-        IClearSigningForwarder.Payload memory payload = abi.decode(params, (IClearSigningForwarder.Payload));
+        IClearMacroForwarder.Payload memory payload = abi.decode(params, (IClearMacroForwarder.Payload));
 
         ISuperfluid.Operation[] memory operations =
             m.buildBatchOperations(_host, payload.action.params, signer);
@@ -190,7 +190,7 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
         return retVal;
     }
 
-    function _getTypeDefinition(IClearSigningMacro m, bytes calldata params) internal view returns (string memory) {
+    function _getTypeDefinition(IClearMacro m, bytes calldata params) internal view returns (string memory) {
         return string(abi.encodePacked(
             m.getPrimaryTypeName(params),
             "(Action action,Security security)",
@@ -199,8 +199,8 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
         ));
     }
 
-    function _getStructHash(IClearSigningMacro m, bytes calldata params) internal view returns (bytes32) {
-        IClearSigningForwarder.Payload memory payload = abi.decode(params, (IClearSigningForwarder.Payload));
+    function _getStructHash(IClearMacro m, bytes calldata params) internal view returns (bytes32) {
+        IClearMacroForwarder.Payload memory payload = abi.decode(params, (IClearMacroForwarder.Payload));
         bytes32 actionStructHash = m.getActionStructHash(payload.action.params);
         bytes32 securityStructHash = _getSecurityStructHash(payload.security);
 
@@ -216,7 +216,7 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
         return structHash;
     }
 
-    function _getSecurityStructHash(IClearSigningForwarder.Security memory security) internal pure returns (bytes32) {
+    function _getSecurityStructHash(IClearMacroForwarder.Security memory security) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             _TYPEHASH_SECURITY,
             keccak256(bytes(security.domain)),
@@ -227,7 +227,7 @@ contract ClearSigningMacroForwarder is ForwarderBase, EIP712, NonceManager, ICle
         ));
     }
 
-    function _getDigest(IClearSigningMacro m, bytes calldata params) internal view returns (bytes32) {
+    function _getDigest(IClearMacro m, bytes calldata params) internal view returns (bytes32) {
         bytes32 structHash = _getStructHash(m, params);
         return _hashTypedDataV4(structHash);
     }
