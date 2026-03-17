@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: AGPLv3
-pragma solidity ^0.8.23;
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.11;
 
 import { IClearMacro } from "./IClearMacro.sol";
 
