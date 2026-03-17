@@ -20,6 +20,6 @@
     "IPureSuperToken",
     "IResolver", "Resolver", "TestResolver",
     "SuperfluidLoader",
-    "IUserDefinedMacro",
+    "IMacro",
     "SimpleACL"
 ]

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11;
 
-import { IUserDefinedMacro } from "./IUserDefinedMacro.sol";
+import { IMacro } from "./IMacro.sol";
 
 /**
  * @dev Interface for a macro used with the ClearMacroForwarder.
  * Implementations provide the EIP-712 metadata and hashing logic for the
  * macro-specific action encoded in `params`.
  */
-interface IClearMacro is IUserDefinedMacro {
+interface IClearMacro is IMacro {
     /**
      * @dev Returns the primary EIP-712 type name.
      * This is usually rendered prominently by wallets and should concisely

@@ -4,14 +4,15 @@ pragma solidity ^0.8.23;
 import { ISuperfluid, BatchOperation } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
-import { MacroForwarder, IUserDefinedMacro } from "../../../contracts/utils/MacroForwarder.sol";
+import { IMacro } from "../../../contracts/interfaces/utils/IMacro.sol";
+import { MacroForwarder } from "../../../contracts/utils/MacroForwarder.sol";
 import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 
 using SuperTokenV1Library for ISuperToken;
 
 // ============== Macro Contracts ==============
 
-// not overriding IUserDefinedMacro here in order to avoid the compiler enforcing the function to be view-only.
+// not overriding IMacro here in order to avoid the compiler enforcing the function to be view-only.
 contract NaugthyMacro {
     int naughtyCounter = -1;
 
@@ -33,7 +34,7 @@ contract NaugthyMacro {
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
 }
 
-contract GoodMacro is IUserDefinedMacro {
+contract GoodMacro is IMacro {
     function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/) external override view
         returns (ISuperfluid.Operation[] memory operations)
     {
@@ -71,7 +72,7 @@ contract GoodMacro is IUserDefinedMacro {
 }
 
 // deletes a bunch of flows from one sender to muliple receivers
-contract MultiFlowDeleteMacro is IUserDefinedMacro {
+contract MultiFlowDeleteMacro is IMacro {
     error InsufficientReward();
 
     function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/) external override view
@@ -125,7 +126,7 @@ contract MultiFlowDeleteMacro is IUserDefinedMacro {
  * in the context of batch calls.
  * Important: state changes do NOT take place in the context of macro calls.
  */
-contract StatefulMacro is IUserDefinedMacro {
+contract StatefulMacro is IMacro {
     struct Config {
         MacroForwarder macroForwarder;
         ISuperToken superToken;
@@ -170,7 +171,7 @@ contract StatefulMacro is IUserDefinedMacro {
 }
 
 /// Example for a macro which takes a fee for CFA operations
-contract PaidCFAOpsMacro is IUserDefinedMacro {
+contract PaidCFAOpsMacro is IMacro {
     uint8 constant ACTION_CODE_CREATE_FLOW = 0;
     uint8 constant ACTION_CODE_UPDATE_FLOW = 1;
     uint8 constant ACTION_CODE_DELETE_FLOW = 2;
@@ -302,14 +303,14 @@ contract MacroForwarderTest is FoundrySuperfluidTester {
 
     function testDummyMacro() external {
         NaugthyMacro m = new NaugthyMacro(false /* not naughty */);
-        sf.macroForwarder.runMacro(IUserDefinedMacro(address(m)), new bytes(0));
+        sf.macroForwarder.runMacro(IMacro(address(m)), new bytes(0));
     }
 
     function testNaugtyMacro() external {
         NaugthyMacro m = new NaugthyMacro(true /* naughty */);
         vm.expectRevert();
         // Note: need to cast the naughty macro
-        sf.macroForwarder.runMacro(IUserDefinedMacro(address(m)), new bytes(0));
+        sf.macroForwarder.runMacro(IMacro(address(m)), new bytes(0));
     }
 
     function testGoodMacro() external {
