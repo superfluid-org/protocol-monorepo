@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 /// @notice Minimal interface for Uniswap Permit2 (SignatureTransfer).
 /// @dev Canonical address: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+/// For the full Permit2 interface, see https://github.com/Uniswap/permit2/blob/main/src/interfaces/IPermit2.sol
 interface IPermit2 {
     struct TokenPermissions {
         address token;
