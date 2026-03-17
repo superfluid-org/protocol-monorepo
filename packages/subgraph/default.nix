@@ -2,6 +2,7 @@
   halfBoardModule = {
     dependencies = [
       ../ethereum-contracts
+      # cyclic dependency:
       ../sdk-core
     ];
     outputs = [

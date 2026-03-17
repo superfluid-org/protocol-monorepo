@@ -6,6 +6,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Fix AccountTokenSnapshotLog capturing intermediate state instead of final state after ATS updates
+- Skip deprecated TokenStatisticLog validation in integration tests
+
+## [2.2.0]
+
 - Fix `adjustmentFlowRate` on Pool
 - Improve `poolTotalAmountReceivedUntilUpdatedAt` accuracy on PoolMember
 - Fix `poolTotalAmountDistributedUntilUpdatedAt` on PoolMember
@@ -14,9 +19,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Use declarative eth calls for indexing optimization
 - Remove `receipt: true` from handlers, resulting in `gasUsed` staying null, but improving indexing performance
 - Disable indexing of `Send` events. Use `Transfer` instead.
-
-## [2.2.0]
-
 - Fix missing Token name/symbol in some cases
 - Fix Pool's `totalAmountDistributed` being wrong in some cases
 - Add `adminOfPoolCount` to AccountTokenSnapshot to count how many pools the account is admin of

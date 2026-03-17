@@ -38,6 +38,7 @@ import {
     updateAggregateDistributionAgreementData,
     updateATSStreamedAndBalanceUntilUpdatedAt,
     updateTokenStatsStreamedUntilUpdatedAt,
+    _createAccountTokenSnapshotLogEntity,
 } from "../mappingHelpers";
 import { getHostAddress } from "../addresses";
 
@@ -75,15 +76,16 @@ export function handleIndexCreated(event: IndexCreated): void {
 
     tokenStatistic.save();
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const publisherUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
         event,
         BigInt.fromI32(0), // will do RPC if any units exist anyways (balance isn't impacted by index creation)
-        eventName
     );
 
     _createIndexCreatedEventEntity(event, eventName, index.id);
+
+    if (publisherUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.publisher, event.params.token, eventName);
 }
 
 export function handleIndexDistributionClaimed(
@@ -153,15 +155,16 @@ export function handleIndexUpdated(event: IndexUpdated): void {
     tokenStatistic.updatedAtBlockNumber = event.block.number;
     tokenStatistic.save();
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const publisherUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
         event,
         null, // will do RPC if any units exist anyways
-        eventName
     );
 
     _createIndexUpdatedEventEntity(event, eventName, index.id);
+
+    if (publisherUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.publisher, event.params.token, eventName);
 }
 
 export function handleIndexSubscribed(event: IndexSubscribed): void {
@@ -245,14 +248,14 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
     );
 
     // this must be done whether subscription exists or not
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const subscriberUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
         event,
         balanceDelta,
-        eventName
     );
 
+    let publisherUpdated = false;
     if (hasSubscriptionWithUnits) {
         index.totalUnitsApproved = index.totalUnitsApproved.plus(
             subscription.units
@@ -264,12 +267,11 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
         subscription.totalAmountReceivedUntilUpdatedAt =
             subscription.totalAmountReceivedUntilUpdatedAt.plus(balanceDelta);
 
-        updateATSStreamedAndBalanceUntilUpdatedAt(
+        publisherUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
             event.params.publisher,
             event.params.token,
             event,
             BigInt.fromI32(0),
-            eventName
         );
     }
 
@@ -293,6 +295,9 @@ export function handleSubscriptionApproved(event: SubscriptionApproved): void {
     index.save();
 
     _createSubscriptionApprovedEventEntity(event, eventName, subscription.id);
+
+    if (subscriberUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.subscriber, event.params.token, eventName);
+    if (publisherUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.publisher, event.params.token, eventName);
 }
 
 export function handleSubscriptionDistributionClaimed(
@@ -337,20 +342,21 @@ export function handleSubscriptionDistributionClaimed(
     // // update streamed until updated at field
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const publisherUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
         event,
         BigInt.fromI32(0),
-        eventName
     );
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const subscriberUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
         event,
         event.params.amount,
-        eventName
     );
+
+    if (publisherUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.publisher, event.params.token, eventName);
+    if (subscriberUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.subscriber, event.params.token, eventName);
 }
 
 /**
@@ -406,12 +412,11 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
     }
     subscription.indexValueUntilUpdatedAt = index.indexValue;
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const subscriberUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
         event,
         balanceDelta,
-        eventName
     );
 
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
@@ -429,12 +434,11 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
         true // isIDA
     );
     // mimic ida logic more closely
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const publisherUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
         event,
         BigInt.fromI32(0),
-        eventName
     );
 
     // occurs on revoke or delete
@@ -446,6 +450,9 @@ export function handleSubscriptionRevoked(event: SubscriptionRevoked): void {
     subscription.save();
 
     _createSubscriptionRevokedEventEntity(event, eventName, subscription.id);
+
+    if (subscriberUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.subscriber, event.params.token, eventName);
+    if (publisherUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.publisher, event.params.token, eventName);
 }
 
 /**
@@ -513,19 +520,17 @@ export function handleSubscriptionUnitsUpdated(
 
     // We move both of these in here as we handle this in revoke or delete
     // as well, so if we put it outside it will be a duplicate call
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const publisherUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.publisher,
         event.params.token,
         event,
         BigInt.fromI32(0),
-        eventName
     );
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const subscriberUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.subscriber,
         event.params.token,
         event,
         balanceDelta,
-        eventName
     );
 
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
@@ -584,6 +589,9 @@ export function handleSubscriptionUnitsUpdated(
         subscription.id,
         oldUnits
     );
+
+    if (publisherUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.publisher, event.params.token, eventName);
+    if (subscriberUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.subscriber, event.params.token, eventName);
 }
 
 /****************************************

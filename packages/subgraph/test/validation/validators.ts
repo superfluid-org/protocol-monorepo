@@ -58,8 +58,8 @@ export async function validateFlowUpdated(
     // validate receiver ATS
     await fetchATSAndValidate(updatedReceiverATS, false); // Boolean flag to decide, whether to check log entries or not.
 
-    // validate token stats
-    await fetchTokenStatsAndValidate(updatedTokenStats, false);
+    // validate token stats (TSLog validation skipped - TokenStatisticLog creation is deprecated)
+    await fetchTokenStatsAndValidate(updatedTokenStats, true);
 }
 
 export async function validateUpdateFlowOperatorPermissions({
