@@ -9,6 +9,9 @@ import { IClearMacroForwarder } from "../../../contracts/interfaces/utils/IClear
 import { IClearMacro } from "../../../contracts/interfaces/utils/IClearMacro.sol";
 import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 import { ClearMacroForwarder, NonceManager } from "../../../contracts/utils/ClearMacroForwarder.sol";
+import { ClearMacroBase } from "../../../contracts/utils/ClearMacroBase.sol";
+import { MinimalClearMacro } from "../macros/MinimalClearMacro.t.sol";
+import { MultiActionClearMacroTest } from "../macros/MultiActionClearMacroTest.t.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 string constant PRIMARY_TYPE_NAME = "MinimalExample";
@@ -19,72 +22,22 @@ string constant SECURITY_PROVIDER = "macros.superfluid.eth";
 uint256 constant DEFAULT_NONCE = uint256(1) << 64;
 string constant NONCE_STR = "18446744073709551616"; // 2^64
 uint256 constant TEST_AMOUNT = 100e18;
-
-// ============== Minimal macro for ClearMacroForwarder ==============
-// Implements IClearMacro and uses *no* postCheck logic.
-// Expects params (token, amount); does a SuperToken upgrade from underlying.
-// Shows how the params can be different from the type definition, while still being part of the signed data
-// (via the dynamic construction of the description string from the params)
-contract Minimal712Macro is IClearMacro {
-
-    string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
-
-    function _buildDescription(address token, uint256 amount) internal pure returns (string memory) {
-        return string.concat(
-            "Upgrade ",
-            Strings.toString(amount),
-            " ",
-            Strings.toHexString(token)
-        );
-    }
-
-    function buildBatchOperations(ISuperfluid, bytes memory params, address /*signer*/)
-        external
-        pure
-        override
-        returns (ISuperfluid.Operation[] memory operations)
-    {
-        (address token, uint256 amount) = abi.decode(params, (address, uint256));
-        operations = new ISuperfluid.Operation[](1);
-        operations[0] = ISuperfluid.Operation({
-            operationType: BatchOperation.OPERATION_TYPE_SUPERTOKEN_UPGRADE,
-            target: token,
-            data: abi.encode(amount)
-        });
-    }
-
-    function postCheck(ISuperfluid, bytes memory, address) external view override {
-        // intentionally empty
-    }
-
-    function getActionTypeDefinition(bytes memory /*params*/) external pure override returns (string memory) {
-        return ACTION_TYPE_DEFINITION;
-    }
-
-    function getPrimaryTypeName(bytes memory /*params*/) external pure override returns (string memory) {
-        return PRIMARY_TYPE_NAME;
-    }
-
-    function getActionStructHash(bytes memory params) external pure override returns (bytes32) {
-        (address token, uint256 amount) = abi.decode(params, (address, uint256));
-        string memory description = _buildDescription(token, amount);
-        bytes32 actionTypeHash = keccak256(abi.encodePacked(ACTION_TYPE_DEFINITION));
-        return keccak256(abi.encode(actionTypeHash, keccak256(bytes(description))));
-    }
-}
+int96 constant TEST_FLOW_RATE = 1e12;
 
 // ============== Test Contract ==============
 
 contract ClearMacroForwarderTest is FoundrySuperfluidTester {
     ClearMacroForwarder internal forwarder;
-    Minimal712Macro internal minimal712Macro;
+    MinimalClearMacro internal minimalClearMacro;
+    MultiActionClearMacroTest internal multiActionMacro;
 
     constructor() FoundrySuperfluidTester(5) { }
 
     function setUp() public override {
         super.setUp();
         forwarder = new ClearMacroForwarder(sf.host);
-        minimal712Macro = new Minimal712Macro();
+        minimalClearMacro = new MinimalClearMacro();
+        multiActionMacro = new MultiActionClearMacroTest();
 
         IAccessControl acl = IAccessControl(sf.host.getSimpleACL());
         vm.prank(address(sfDeployer));
@@ -173,7 +126,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
 
     function testDigestCalculation() external view {
         // check the type definition (primary with nested Security + action typedef + Security typedef)
-        string memory typeDefinition = forwarder.getTypeDefinition(minimal712Macro, _getTestPayload());
+        string memory typeDefinition = forwarder.getTypeDefinition(minimalClearMacro, _getTestPayload());
         string memory expectedTypeDefinition = string(abi.encodePacked(
             PRIMARY_TYPE_NAME,
             "(Action action,Security security)",
@@ -183,14 +136,14 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         assertEq(typeDefinition, expectedTypeDefinition, "typeDefinition mismatch");
 
         // check the type hash
-        bytes32 typeHash = forwarder.getTypeHash(minimal712Macro, _getTestPayload());
+        bytes32 typeHash = forwarder.getTypeHash(minimalClearMacro, _getTestPayload());
         bytes32 expectedTypeHash = keccak256(abi.encodePacked(expectedTypeDefinition));
         assertEq(typeHash, expectedTypeHash, "typeHash mismatch");
 
         // check the struct hash (type hash + action + security struct hash)
         bytes memory payload = _getTestPayload();
-        bytes32 structHash = forwarder.getStructHash(minimal712Macro, payload);
-        bytes32 actionStructHash = minimal712Macro.getActionStructHash(abi.encode(address(superToken), TEST_AMOUNT));
+        bytes32 structHash = forwarder.getStructHash(minimalClearMacro, payload);
+        bytes32 actionStructHash = minimalClearMacro.getActionStructHash(abi.encode(address(superToken), TEST_AMOUNT));
         bytes32 securityStructHash = keccak256(abi.encode(
             keccak256(abi.encodePacked(SECURITY_TYPEDEF)),
             keccak256(bytes(SECURITY_DOMAIN)),
@@ -207,7 +160,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         assertEq(structHash, expectedStructHash, "structHash mismatch");
 
         // check the digest
-        bytes32 digest = forwarder.getDigest(minimal712Macro, payload);
+        bytes32 digest = forwarder.getDigest(minimalClearMacro, payload);
         string memory dataToBeSignedJson = _getDataToBeSignedJson(
             vm.toString(block.chainid),
             vm.toString(address(forwarder)),
@@ -308,6 +261,78 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         assertTrue(_runMacroAs(address(this), signer.addr, paramsSeq1, sig1));
     }
 
+    // ---------- Multi-action macro (ClearMacroBase) tests ----------
+
+    function testRunMacroMultiActionUpgrade(uint256 signerPrivateKey) external {
+        signerPrivateKey = bound(signerPrivateKey, 1, SECP256K1_ORDER - 1);
+        VmSafe.Wallet memory signer = vm.createWallet(signerPrivateKey);
+        _fundSignerForUpgrade(signer, 1);
+
+        uint256 balanceBefore = superToken.balanceOf(signer.addr);
+        uint256 nonce = forwarder.getNonce(signer.addr, 0);
+        bytes memory params = _getMultiActionPayloadUpgrade(nonce, 0, 0, address(superToken), TEST_AMOUNT);
+        bytes memory sig = _signPayloadForMacro(multiActionMacro, signer, params);
+
+        assertTrue(_runMultiActionMacroAs(address(this), signer.addr, params, sig));
+        assertEq(superToken.balanceOf(signer.addr), balanceBefore + TEST_AMOUNT);
+    }
+
+    function testRunMacroMultiActionUpgradeWithLang() external {
+        // Same as upgrade but with Hungarian description; operations are unchanged.
+        VmSafe.Wallet memory signer = vm.createWallet("huSigner");
+        _fundSignerForUpgrade(signer, 1);
+
+        uint256 balanceBefore = superToken.balanceOf(signer.addr);
+        uint256 nonce = forwarder.getNonce(signer.addr, 0);
+        bytes32 langHu = bytes32("hu");
+        bytes memory macroParams = multiActionMacro.encodeUpgrade(langHu, address(superToken), TEST_AMOUNT);
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+            domain: SECURITY_DOMAIN,
+            provider: SECURITY_PROVIDER,
+            validAfter: 0,
+            validBefore: 0,
+            nonce: nonce
+        });
+        bytes memory params = forwarder.encodeParams(macroParams, security);
+        bytes memory sig = _signPayloadForMacro(multiActionMacro, signer, params);
+
+        assertTrue(_runMultiActionMacroAs(address(this), signer.addr, params, sig));
+        assertEq(superToken.balanceOf(signer.addr), balanceBefore + TEST_AMOUNT);
+    }
+
+    function testRunMacroMultiActionCreateFlow() external {
+        VmSafe.Wallet memory signer = vm.createWallet("createFlowSigner");
+        _fundSignerForUpgrade(signer, 1);
+
+        // Run upgrade first so signer has super tokens to stream
+        uint256 nonceUp = forwarder.getNonce(signer.addr, 0);
+        bytes memory paramsUp = _getMultiActionPayloadUpgrade(nonceUp, 0, 0, address(superToken), TEST_AMOUNT);
+        bytes memory sigUp = _signPayloadForMacro(multiActionMacro, signer, paramsUp);
+        assertTrue(_runMultiActionMacroAs(address(this), signer.addr, paramsUp, sigUp));
+
+        (, int96 flowRateBefore,,) = sf.cfa.getFlow(superToken, signer.addr, bob);
+        assertEq(flowRateBefore, 0, "flow should not exist yet");
+
+        uint256 nonce = forwarder.getNonce(signer.addr, 0);
+        bytes memory params =
+            _getMultiActionPayloadCreateFlow(nonce, 0, 0, address(superToken), bob, TEST_FLOW_RATE);
+        bytes memory sig = _signPayloadForMacro(multiActionMacro, signer, params);
+
+        assertTrue(_runMultiActionMacroAs(address(this), signer.addr, params, sig));
+        (, int96 flowRateAfter,,) = sf.cfa.getFlow(superToken, signer.addr, bob);
+        assertEq(flowRateAfter, TEST_FLOW_RATE, "CreateFlow: flow rate mismatch");
+    }
+
+    function testMultiActionUnknownActionCodeReverts() external {
+        uint8 unknownCode = 99;
+        uint256 nonce = forwarder.getNonce(address(1), 0);
+        bytes memory params = _getMultiActionPayloadWithActionCode(nonce, unknownCode, abi.encode(bytes32(0)));
+
+        // Building the digest requires the macro to hash the action; unknown action code reverts there.
+        vm.expectRevert(abi.encodeWithSelector(ClearMacroBase.UnknownActionCode.selector, unknownCode));
+        forwarder.getDigest(multiActionMacro, params);
+    }
+
     function _fundSignerForUpgrade(VmSafe.Wallet memory signer, uint256 runs) internal {
         uint256 total = TEST_AMOUNT * runs;
         vm.prank(alice);
@@ -342,6 +367,65 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
             nonce: DEFAULT_NONCE
         });
         return forwarder.encodeParams(abi.encode(address(superToken), TEST_AMOUNT), security);
+    }
+
+    function _getMultiActionPayloadUpgrade(
+        uint256 nonce,
+        uint256 validAfter,
+        uint256 validBefore,
+        address supertoken,
+        uint256 amount
+    ) internal view returns (bytes memory) {
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+            domain: SECURITY_DOMAIN,
+            provider: SECURITY_PROVIDER,
+            validAfter: validAfter,
+            validBefore: validBefore,
+            nonce: nonce
+        });
+        return forwarder.encodeParams(
+            multiActionMacro.encodeUpgrade(bytes32("en"), supertoken, amount),
+            security
+        );
+    }
+
+    function _getMultiActionPayloadCreateFlow(
+        uint256 nonce,
+        uint256 validAfter,
+        uint256 validBefore,
+        address supertoken,
+        address receiver,
+        int96 flowRate
+    ) internal view returns (bytes memory) {
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+            domain: SECURITY_DOMAIN,
+            provider: SECURITY_PROVIDER,
+            validAfter: validAfter,
+            validBefore: validBefore,
+            nonce: nonce
+        });
+        return forwarder.encodeParams(
+            multiActionMacro.encodeCreateFlow(bytes32("en"), supertoken, receiver, flowRate),
+            security
+        );
+    }
+
+    function _getMultiActionPayloadWithActionCode(
+        uint256 nonce,
+        uint8 actionCode,
+        bytes memory actionParams
+    ) internal view returns (bytes memory) {
+        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+            domain: SECURITY_DOMAIN,
+            provider: SECURITY_PROVIDER,
+            validAfter: 0,
+            validBefore: 0,
+            nonce: nonce
+        });
+        return forwarder.encodeParams(
+            abi.encode(actionCode, bytes32("en"), actionParams),
+            security
+        );
     }
 
     function _getTestPayload() internal view returns (bytes memory) {
@@ -462,11 +546,28 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         returns (bool)
     {
         vm.prank(relayer);
-        return forwarder.runMacro(minimal712Macro, params, signer, signatureVRS);
+        return forwarder.runMacro(minimalClearMacro, params, signer, signatureVRS);
+    }
+
+    function _runMultiActionMacroAs(address relayer, address signer, bytes memory params, bytes memory signatureVRS)
+        internal
+        returns (bool)
+    {
+        vm.prank(relayer);
+        return forwarder.runMacro(multiActionMacro, params, signer, signatureVRS);
     }
 
     function _signPayload(VmSafe.Wallet memory signer, bytes memory params) internal returns (bytes memory) {
-        bytes32 digest = forwarder.getDigest(minimal712Macro, params);
+        bytes32 digest = forwarder.getDigest(minimalClearMacro, params);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _signPayloadForMacro(IClearMacro m, VmSafe.Wallet memory signer, bytes memory params)
+        internal
+        returns (bytes memory)
+    {
+        bytes32 digest = forwarder.getDigest(m, params);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
         return abi.encodePacked(r, s, v);
     }

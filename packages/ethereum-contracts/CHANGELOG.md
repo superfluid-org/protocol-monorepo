@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 
 - `Permit2ClearMacroForwarder`: a new macro forwarder that executes EIP-712-signed meta-transactions with properties giving it additional security guarantees, optionally with Permit2 support (allowing to have underlying upgraded + a macro executed, all with one wallet action).
+- `ClearMacroBase`: a new base contract for clear macro implementations that support multiple actions.
 
 ### Breaking
 - `IUserDefinedMacro` renamed to `IMacro`.

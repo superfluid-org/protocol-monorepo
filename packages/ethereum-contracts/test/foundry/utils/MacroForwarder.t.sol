@@ -6,6 +6,9 @@ import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { IMacro } from "../../../contracts/interfaces/utils/IMacro.sol";
 import { MacroForwarder } from "../../../contracts/utils/MacroForwarder.sol";
+import { GoodMacro } from "../macros/GoodMacro.t.sol";
+import { MultiFlowDeleteMacro } from "../macros/MultiFlowDeleteMacro.t.sol";
+import { PaidCFAOpsMacro } from "../macros/PaidCFAOpsMacro.t.sol";
 import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 
 using SuperTokenV1Library for ISuperToken;
@@ -32,93 +35,6 @@ contract NaugthyMacro {
     }
 
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
-}
-
-contract GoodMacro is IMacro {
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/) external override view
-        returns (ISuperfluid.Operation[] memory operations)
-    {
-        // host-agnostic deployment. alternatively, you may hard code cfa too
-        IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(address(host.getAgreementClass(
-            keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
-        )));
-        // parse params
-        (ISuperToken token, int96 flowRate, address[] memory recipients) =
-            abi.decode(params, (ISuperToken, int96, address[]));
-        // construct batch operations
-        operations = new ISuperfluid.Operation[](recipients.length);
-        // Build batch call operations here
-        for (uint i = 0; i < recipients.length; ++i) {
-            bytes memory callData = abi.encodeCall(cfa.createFlow,
-                                                   (token,
-                                                    recipients[i],
-                                                    flowRate,
-                                                    new bytes(0) // placeholder
-                                                   ));
-            operations[i] = ISuperfluid.Operation({
-                operationType : BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT, // type
-                target: address(cfa),
-                data: abi.encode(callData, new bytes(0))
-            });
-        }
-    }
-
-    function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
-
-    // recommended view function for parameter encoding
-    function encodeCreateFlows(ISuperToken token, int96 flowRate, address[] calldata recipients) external pure returns (bytes memory) {
-        return abi.encode(token, flowRate, recipients);
-    }
-}
-
-// deletes a bunch of flows from one sender to muliple receivers
-contract MultiFlowDeleteMacro is IMacro {
-    error InsufficientReward();
-
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/) external override view
-        returns (ISuperfluid.Operation[] memory operations)
-    {
-        IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(address(host.getAgreementClass(
-            keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
-        )));
-
-        // parse params
-        (ISuperToken token, address sender, address[] memory receivers,) =
-            abi.decode(params, (ISuperToken, address, address[], uint256));
-
-        // construct batch operations
-        operations = new ISuperfluid.Operation[](receivers.length);
-        for (uint i = 0; i < receivers.length; ++i) {
-            bytes memory callData = abi.encodeCall(cfa.deleteFlow,
-                                                   (token,
-                                                    sender,
-                                                    receivers[i],
-                                                    new bytes(0) // placeholder
-                                                   ));
-            operations[i] = ISuperfluid.Operation({
-                operationType : BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT, // type
-                target: address(cfa),
-                data: abi.encode(callData, new bytes(0))
-            });
-        }
-    }
-
-    // recommended view function for parameter encoding
-    function encodeDeleteFlows(ISuperToken superToken, address sender, address[] memory receivers, uint256 minBalanceAfter)
-        external pure
-        returns (bytes memory)
-    {
-        return abi.encode(superToken, sender, receivers, minBalanceAfter);
-    }
-
-    function postCheck(ISuperfluid /*host*/, bytes memory params, address msgSender) external view {
-        // parse params
-        (ISuperToken superToken,,, uint256 minBalanceAfter) =
-            abi.decode(params, (ISuperToken, address, address[], uint256));
-        if (superToken.balanceOf(msgSender) < minBalanceAfter) {
-            revert InsufficientReward();
-        }
-    }
 }
 
 /*
@@ -168,131 +84,6 @@ contract StatefulMacro is IMacro {
     }
 
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
-}
-
-/// Example for a macro which takes a fee for CFA operations
-contract PaidCFAOpsMacro is IMacro {
-    uint8 constant ACTION_CODE_CREATE_FLOW = 0;
-    uint8 constant ACTION_CODE_UPDATE_FLOW = 1;
-    uint8 constant ACTION_CODE_DELETE_FLOW = 2;
-
-    address payable immutable FEE_RECEIVER;
-    uint256 immutable FEE_AMOUNT;
-
-    error UnknownAction();
-    error FeeOverpaid();
-
-    constructor(address payable feeReceiver, uint256 feeAmount) {
-        FEE_RECEIVER = feeReceiver;
-        FEE_AMOUNT = feeAmount;
-    }
-
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/) external override view
-        returns (ISuperfluid.Operation[] memory operations)
-    {
-        IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(address(host.getAgreementClass(
-            keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
-        )));
-
-        // first operation: take fee
-        operations = new ISuperfluid.Operation[](2);
-
-        operations[0] = ISuperfluid.Operation({
-            operationType: BatchOperation.OPERATION_TYPE_SIMPLE_FORWARD_CALL,
-            target: address(this),
-            data: abi.encodeCall(this.takeFee, (FEE_AMOUNT))
-        });
-
-        // second operation: manage flow
-        // param parsing is now a 2-step process.
-        // first we parse the actionCode, then depending on its value the arguments
-        (uint8 actionCode, bytes memory actionArgs) = abi.decode(params, (uint8, bytes));
-        if (actionCode == ACTION_CODE_CREATE_FLOW) {
-            (ISuperToken token, address receiver, int96 flowRate) =
-                abi.decode(actionArgs, (ISuperToken, address, int96));
-            operations[1] = ISuperfluid.Operation({
-                operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT,
-                target: address(cfa),
-                data: abi.encode(
-                    abi.encodeCall(
-                        cfa.createFlow,
-                        (token, receiver, flowRate, new bytes(0))
-                    ),
-                    new bytes(0) // userdata
-                )
-            });
-        } else if (actionCode == ACTION_CODE_UPDATE_FLOW) {
-            (ISuperToken token, address receiver, int96 flowRate) =
-                abi.decode(actionArgs, (ISuperToken, address, int96));
-            operations[1] = ISuperfluid.Operation({
-                operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT,
-                target: address(cfa),
-                data: abi.encode(
-                    abi.encodeCall(
-                        cfa.updateFlow,
-                        (token, receiver, flowRate, new bytes(0))
-                    ),
-                    new bytes(0) // userdata
-                )
-            });
-        } else if (actionCode == ACTION_CODE_DELETE_FLOW) {
-            (ISuperToken token, address sender, address receiver) =
-                abi.decode(actionArgs, (ISuperToken, address, address));
-            operations[1] = ISuperfluid.Operation({
-                operationType: BatchOperation.OPERATION_TYPE_SUPERFLUID_CALL_AGREEMENT,
-                target: address(cfa),
-                data: abi.encode(
-                    abi.encodeCall(
-                        cfa.deleteFlow,
-                        (token, sender, receiver, new bytes(0))
-                    ),
-                    new bytes(0) // userdata
-                )
-            });
-        } else {
-            revert UnknownAction();
-        }
-    }
-
-    // Forwards a fee in native tokens to the FEE_RECEIVER.
-    // Will fail if less than `amount` is provided.
-    function takeFee(uint256 amount) external payable {
-        FEE_RECEIVER.transfer(amount);
-    }
-
-    // Don't allow native tokens in excess of the required fee
-    // Note: this is safe only as long as this contract can't receive native tokens through other means,
-    // e.g. by implementing a fallback or receive function.
-    function postCheck(ISuperfluid /*host*/, bytes memory /*params*/, address /*msgSender*/) external view {
-        if (address(this).balance != 0) revert FeeOverpaid();
-    }
-
-    // recommended view functions for parameter construction
-    // since this is a multi-method macro, a dispatch logic using actionCode codes is applied.
-
-    // view function for getting params for createFlow
-    function encodeCreateFlow(ISuperToken token, address receiver, int96 flowRate) external pure returns (bytes memory) {
-        return abi.encode(
-            ACTION_CODE_CREATE_FLOW, // actionCode
-            abi.encode(token, receiver, flowRate) // actionArgs
-        );
-    }
-
-    // view function for getting params for updateFlow
-    function encodeUpdateFlow(ISuperToken token, address receiver, int96 flowRate) external pure returns (bytes memory) {
-        return abi.encode(
-            ACTION_CODE_UPDATE_FLOW, // actionCode
-            abi.encode(token, receiver, flowRate) // actionArgs
-        );
-    }
-
-    // view function for getting params for deleteFlow
-    function encodeDeleteFlow(ISuperToken token, address sender, address receiver) external pure returns (bytes memory) {
-        return abi.encode(
-            ACTION_CODE_DELETE_FLOW, // actionCode
-            abi.encode(token, sender, receiver) // actionArgs
-        );
-    }
 }
 
 // ============== Test Contract ==============
