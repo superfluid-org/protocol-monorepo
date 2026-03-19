@@ -20,7 +20,7 @@ contract AaveETHYieldBackendIntegrationTest is Test {
 
     // Base network constants
     uint256 internal constant CHAIN_ID = 8453;
-    string internal constant RPC_URL = "https://mainnet.base.org";
+    uint256 internal constant FORK_BLOCK_BASE = 43_400_000;
 
     // Aave V3 Pool on Base (verified address)
     address internal constant AAVE_POOL = 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5;
@@ -44,7 +44,10 @@ contract AaveETHYieldBackendIntegrationTest is Test {
 
     /// @notice Set up the test environment by forking the chain and deploying AaveETHYieldBackend
     function setUp() public {
-        vm.createSelectFork(RPC_URL);
+        vm.createSelectFork(
+            vm.envOr("BASE_MAINNET_ARCHIVE_RPC_URL", string("https://mainnet.base.org")),
+            FORK_BLOCK_BASE
+        );
 
         // Verify chain id
         assertEq(block.chainid, CHAIN_ID, "Chainid mismatch");
