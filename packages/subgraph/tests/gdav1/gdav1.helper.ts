@@ -10,7 +10,13 @@ import {
     DistributionClaimed,
     MemberUnitsUpdated,
 } from "../../generated/GeneralDistributionAgreementV1/ISuperfluidPool";
-import { getAddressEventParam, getBigIntEventParam, getBooleanEventParam, getBytesEventParam } from "../converters";
+import {
+    getAddressEventParam,
+    getBigIntEventParam,
+    getBooleanEventParam,
+    getBytesEventParam,
+    getSignedBigIntEventParam,
+} from "../converters";
 import { BigInt, Bytes } from "@graphprotocol/graph-ts";
 import { handlePoolConnectionUpdated, handlePoolCreated } from "../../src/mappings/gdav1";
 import { BIG_INT_ZERO } from "../../src/utils";
@@ -131,7 +137,7 @@ export function createBufferAdjustedEvent(
     newBufferAdjustedEvent.parameters.push(getAddressEventParam("token", token));
     newBufferAdjustedEvent.parameters.push(getAddressEventParam("pool", pool));
     newBufferAdjustedEvent.parameters.push(getAddressEventParam("poolDistributor", poolDistributor));
-    newBufferAdjustedEvent.parameters.push(getBigIntEventParam("bufferDelta", bufferDelta));
+    newBufferAdjustedEvent.parameters.push(getSignedBigIntEventParam("bufferDelta", bufferDelta));
     newBufferAdjustedEvent.parameters.push(getBigIntEventParam("newBufferAmount", newBufferAmount));
     newBufferAdjustedEvent.parameters.push(getBigIntEventParam("totalBufferAmount", totalBufferAmount));
 

@@ -197,10 +197,27 @@ export function handleBufferAdjusted(event: BufferAdjusted): void {
         event.params.token,
         event.block
     );
+    tokenStatistic.totalDeposit = tokenStatistic.totalDeposit.plus(
+        event.params.bufferDelta
+    );
     tokenStatistic.totalGDADeposit = tokenStatistic.totalGDADeposit.plus(
         event.params.bufferDelta
     );
     tokenStatistic.save();
+
+    // Update AccountTokenSnapshot for the pool distributor (fixes #2155)
+    const accountTokenSnapshot = getOrInitAccountTokenSnapshot(
+        event.params.from,
+        event.params.token,
+        event.block
+    );
+    accountTokenSnapshot.totalGDADeposit = accountTokenSnapshot.totalGDADeposit.plus(
+        event.params.bufferDelta
+    );
+    accountTokenSnapshot.totalDeposit = accountTokenSnapshot.totalDeposit.plus(
+        event.params.bufferDelta
+    );
+    accountTokenSnapshot.save();
 
     // Create Event Entity
     _createBufferAdjustedEntity(event, poolDistributor.id);

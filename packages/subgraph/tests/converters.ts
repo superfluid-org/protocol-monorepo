@@ -149,6 +149,22 @@ export function getBigIntEventParam(
 }
 
 /**
+ * Takes a signed BigInt value and returns a BigInt ethereum.EventParam object
+ * @param name the name of the parameter (must match actual value from contracts)
+ * @param value BigInt parameter value
+ * @returns ethereum.EventParam
+ */
+export function getSignedBigIntEventParam(
+    name: string,
+    value: BigInt
+): ethereum.EventParam {
+    return new ethereum.EventParam(
+        name,
+        ethereum.Value.fromSignedBigInt(value)
+    );
+}
+
+/**
  * Takes an i32 value and returns an i32 ethereum.EventParam object
  * @param name the name of the parameter (must match actual value from contracts)
  * @param value i32 parameter value
