@@ -26,6 +26,8 @@ export SIMULATE=1
 output=$(mktemp)
 trap 'rm -f "$output"' EXIT
 
+NATIVE_UNDERLYING=0x0000000000000000000000000000000000000000
+
 if ! "$DEPLOY_SCRIPT" base-mainnet aave "$USDC" "$AAVE_POOL" "$SURPLUS_RECEIVER" 2>&1 | tee "$output"; then
     echo "deploy-yield-backend.sh failed (exit $?)" >&2
     exit 1
@@ -33,6 +35,16 @@ fi
 
 if ! grep -q "Deployed AaveYieldBackend at:" "$output"; then
     echo "Expected output to contain 'Deployed AaveYieldBackend at:'" >&2
+    exit 1
+fi
+
+if ! "$DEPLOY_SCRIPT" base-mainnet aave "$NATIVE_UNDERLYING" "$AAVE_POOL" "$SURPLUS_RECEIVER" 2>&1 | tee "$output"; then
+    echo "deploy-yield-backend.sh (native underlying) failed (exit $?)" >&2
+    exit 1
+fi
+
+if ! grep -q "Deployed AaveETHYieldBackend at:" "$output"; then
+    echo "Expected output to contain 'Deployed AaveETHYieldBackend at:'" >&2
     exit 1
 fi
 

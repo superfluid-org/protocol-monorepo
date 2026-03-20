@@ -4,16 +4,18 @@ pragma solidity ^0.8.23;
 import { Script } from "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 import { AaveYieldBackend } from "../contracts/superfluid/AaveYieldBackend.sol";
+import { AaveETHYieldBackend } from "../contracts/superfluid/AaveETHYieldBackend.sol";
 import { SparkYieldBackend, ISparkVault } from "../contracts/superfluid/SparkYieldBackend.sol";
 import { IERC20 } from "../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
 
 /**
  * @title DeployYieldBackend
- * @dev Deploys AaveYieldBackend or SparkYieldBackend for a given SuperToken.
+ * @dev Deploys AaveYieldBackend, AaveETHYieldBackend (native underlying), or SparkYieldBackend.
  *
  * Usage (with wrapper):
- *   tasks/deploy-yield-backend.sh <network> aave <assetToken> <aavePool> <surplusReceiver>
+ *   tasks/deploy-yield-backend.sh <network> aave <underlyingToken> <aavePool> <surplusReceiver>
+ *   Use underlyingToken = address(0) for native token (e.g. ETHx) -> AaveETHYieldBackend.
  *   tasks/deploy-yield-backend.sh <network> spark <vault> <surplusReceiver> <referralId>
  *
  * Or directly:
@@ -21,6 +23,8 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
  *     <assetToken> <aavePool> <surplusReceiver> --rpc-url <url> --broadcast
  *   forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runSpark(address,address,uint16)" \\
  *     <vault> <surplusReceiver> <referralId> --rpc-url <url> --broadcast
+ *   forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runAaveETH(address,address)" \\
+ *     <aavePool> <surplusReceiver> --rpc-url <url> --broadcast
  */
 contract DeployYieldBackend is Script {
     function runAave(
@@ -50,6 +54,26 @@ contract DeployYieldBackend is Script {
 
         deployed = address(backend);
         console.log("Deployed AaveYieldBackend at:", deployed);
+        console.log(deployed); // for scripting: capture with tail -n 1
+    }
+
+    function runAaveETH(address aavePool, address surplusReceiver)
+        external
+        returns (address deployed)
+    {
+        _requireNonZero(aavePool, "aavePool");
+        _requireNonZero(surplusReceiver, "surplusReceiver");
+
+        console.log("Deploying AaveETHYieldBackend");
+        console.log("  aavePool:       ", aavePool);
+        console.log("  surplusReceiver:", surplusReceiver);
+
+        vm.startBroadcast();
+        AaveETHYieldBackend backend = new AaveETHYieldBackend(IPool(aavePool), surplusReceiver);
+        vm.stopBroadcast();
+
+        deployed = address(backend);
+        console.log("Deployed AaveETHYieldBackend at:", deployed);
         console.log(deployed); // for scripting: capture with tail -n 1
     }
 
