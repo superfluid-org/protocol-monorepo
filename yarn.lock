@@ -8490,9 +8490,9 @@ ee-first@1.1.1:
   integrity sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==
 
 effect@^3.13.7:
-  version "3.19.15"
-  resolved "https://registry.yarnpkg.com/effect/-/effect-3.19.15.tgz#2fe45be5687af8ba8884a465ea227e888e52d0c5"
-  integrity sha512-vzMmgfZKLcojmUjBdlQx+uaKryO7yULlRxjpDnHdnvcp1NPHxJyoM6IOXBLlzz2I/uPtZpGKavt5hBv7IvGZkA==
+  version "3.21.0"
+  resolved "https://registry.yarnpkg.com/effect/-/effect-3.21.0.tgz#ce222ce8f785b9e63f104b9a4ead985e7965f2c0"
+  integrity sha512-PPN80qRokCd1f015IANNhrwOnLO7GrrMQfk4/lnZRE/8j7UPWrNNjPV0uBrZutI/nHzernbW+J0hdqQysHiSnQ==
   dependencies:
     "@standard-schema/spec" "^1.0.0"
     fast-check "^3.23.1"
