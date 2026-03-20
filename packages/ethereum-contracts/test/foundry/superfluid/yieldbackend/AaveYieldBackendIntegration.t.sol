@@ -13,6 +13,8 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
  * @author Superfluid
  */
 contract AaveYieldBackendIntegrationTest is YieldBackendIntegrationTestBase {
+    uint256 internal constant FORK_BLOCK_BASE = 43_400_000;
+
     // Aave V3 Pool on Base (verified address)
     address internal constant AAVE_POOL = 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5;
 
@@ -23,6 +25,10 @@ contract AaveYieldBackendIntegrationTest is YieldBackendIntegrationTestBase {
 
     function _chainId() internal pure override returns (uint256) {
         return 8453;
+    }
+
+    function _forkBlockNumber() internal pure override returns (uint256) {
+        return FORK_BLOCK_BASE;
     }
 
     function _rpcUrl() internal view override returns (string memory) {
