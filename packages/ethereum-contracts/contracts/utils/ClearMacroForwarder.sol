@@ -6,6 +6,7 @@ import { SignatureChecker } from "@openzeppelin-v5/contracts/utils/cryptography/
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
 import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
 import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
+import { IReverseRegistrar } from "../interfaces/ens/IReverseRegistrar.sol";
 import { ForwarderBase } from "./ForwarderBase.sol";
 import { IClearMacroForwarder } from "../interfaces/utils/IClearMacroForwarder.sol";
 
@@ -67,8 +68,19 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
 
     // INITIALIZATION
 
-    constructor(ISuperfluid host) ForwarderBase(host) EIP712("ClearMacro", "1") {
+    /**
+     * @param host              Superfluid host contract.
+     * @param reverseRegistrar  ENS Reverse Registrar address (e.g. from ENSIP-19). Pass address(0) to skip.
+     * @param ensName           ENS domain for reverse resolution (e.g. "clearmacro.base.eth"). Ignored if reverseRegistrar is zero.
+     */
+    constructor(ISuperfluid host, address reverseRegistrar, string memory ensName)
+        ForwarderBase(host)
+        EIP712("ClearMacro", "1")
+    {
         _providerACL = IAccessControl(host.getSimpleACL());
+        if (reverseRegistrar != address(0) && bytes(ensName).length > 0) {
+            IReverseRegistrar(reverseRegistrar).setName(ensName);
+        }
     }
 
     // PUBLIC FUNCTIONS

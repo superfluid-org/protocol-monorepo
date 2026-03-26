@@ -1,4 +1,8 @@
 const {getScriptRunnerFactory: S} = require("./libs/common");
+const {
+    assertReverseRegistrarUsable,
+    resolveReverseRegistrarAddress,
+} = require("./libs/ens");
 
 const SuperfluidSDK = require("@superfluid-finance/js-sdk");
 const Resolver = artifacts.require("Resolver");
@@ -35,6 +39,9 @@ const Permit2ClearMacroForwarder = artifacts.require("Permit2ClearMacroForwarder
  *        EST_TX_COST: override the estimated tx cost (amount to be sent to deployer)
  *                   for networks with different cost derivation structure (Optimism)
  *        NONCE: if NONCE is not defined, 0 is assumed (-> first tx done from the deployer account)
+ *        ENS_NAME: ENS domain for reverse resolution (e.g. "clearmacro.base.eth").
+ *                  The reverse registrar is resolved from the ENS reverse namespace on the target chain.
+ *        REVERSE_REGISTRAR: Explicit registrar address override
  */
 module.exports = eval(`(${S.toString()})()`)(async function (
     args,
@@ -55,7 +62,10 @@ module.exports = eval(`(${S.toString()})()`)(async function (
     console.log("deployer:", deployer.address);
     console.log("nonce:", nonce);
 
-    const chainId = await web3.eth.getChainId();
+    const chainIdRaw = await web3.eth.getChainId();
+    const chainId = typeof chainIdRaw === "string" && chainIdRaw.startsWith("0x")
+        ? parseInt(chainIdRaw, 16)
+        : Number(chainIdRaw);
     const resolverAddr = SuperfluidSDK.getConfig(
         chainId,
         protocolReleaseVersion
@@ -91,17 +101,31 @@ module.exports = eval(`(${S.toString()})()`)(async function (
         console.log(
             `setting up MacroForwarder for chainId ${chainId}, host ${hostAddr}`
         );
-    } else if (contractName === "ClearMacroForwarder") {
-        ContractArtifact = ClearMacroForwarder;
-        deployArgs = [hostAddr];
+    } else if (contractName === "ClearMacroForwarder" || contractName === "Permit2ClearMacroForwarder") {
+        ContractArtifact = contractName === "ClearMacroForwarder" ? ClearMacroForwarder : Permit2ClearMacroForwarder;
+        const ensName = process.env.ENS_NAME || "";
+        let reverseRegistrar = "0x0000000000000000000000000000000000000000";
+        if (ensName) {
+            reverseRegistrar = await resolveReverseRegistrarAddress({
+                web3,
+                chainId,
+                override: process.env.REVERSE_REGISTRAR,
+            });
+            if (!reverseRegistrar) {
+                throw new Error(
+                    `ENS_NAME="${ensName}" set but no reverse registrar was found for chainId ${chainId}. Set REVERSE_REGISTRAR.`
+                );
+            }
+            await assertReverseRegistrarUsable({
+                web3,
+                registrarAddress: reverseRegistrar,
+                name: ensName,
+                caller: deployer.address,
+            });
+        }
+        deployArgs = [hostAddr, reverseRegistrar, ensName];
         console.log(
-            `setting up ClearMacroForwarder for chainId ${chainId}, host ${hostAddr}`
-        );
-    } else if (contractName === "Permit2ClearMacroForwarder") {
-        ContractArtifact = Permit2ClearMacroForwarder;
-        deployArgs = [hostAddr];
-        console.log(
-            `setting up Permit2ClearMacroForwarder for chainId ${chainId}, host ${hostAddr}`
+            `setting up ${contractName} for chainId ${chainId}, host ${hostAddr}, ENS: ${ensName || "none"}`
         );
     } else {
         throw new Error("Contract unknown / not supported");

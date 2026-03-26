@@ -134,7 +134,7 @@ contract Permit2ClearMacroForwarderTest is FoundrySuperfluidTester {
         // Etch Permit2 bytecode at canonical address for local testing
         address deployed = DeployPermit2.deployPermit2();
         vm.etch(PERMIT2_CANONICAL, deployed.code);
-        forwarder = new Permit2ClearMacroForwarder(sf.host);
+        forwarder = new Permit2ClearMacroForwarder(sf.host, address(0), "");
         minimalClearMacro = new MinimalClearMacroForPermit2Test();
         minimalClearMacroEmptyOps = new MinimalClearMacroEmptyOps();
 

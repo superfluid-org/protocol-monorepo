@@ -38,7 +38,9 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
         address upgradeSuperToken;
     }
 
-    constructor(ISuperfluid host) ClearMacroForwarder(host) {}
+    constructor(ISuperfluid host, address reverseRegistrar, string memory ensName)
+        ClearMacroForwarder(host, reverseRegistrar, ensName)
+    {}
 
     /**
      * @dev Runs the macro with Permit2 witness validation.

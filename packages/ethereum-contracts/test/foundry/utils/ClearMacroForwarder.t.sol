@@ -35,7 +35,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
 
     function setUp() public override {
         super.setUp();
-        forwarder = new ClearMacroForwarder(sf.host);
+        forwarder = new ClearMacroForwarder(sf.host, address(0), "");
         minimalClearMacro = new MinimalClearMacro();
         multiActionMacro = new MultiActionClearMacroTest();
 
