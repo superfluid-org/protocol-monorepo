@@ -20,7 +20,7 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
 
     /// @dev Constant witness type name for nested ClearMacro payloads. Ensures deterministic
     /// alphabetical ordering (Action, ClearMacro, Security, TokenPermissions) regardless of macro.
-    string private constant _CLEAR_MACRO_WITNESS_TYPE = "ClearMacro";
+    string private constant _CLEAR_MACRO_WITNESS_TYPE_NAME = "ClearMacro";
 
     bytes32 private constant _TOKEN_PERMISSIONS_TYPEHASH =
         keccak256("TokenPermissions(address token,uint256 amount)");
@@ -166,7 +166,7 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
         bytes32 actionStructHash = m.getActionStructHash(payload.action.params);
         bytes32 securityStructHash = _getSecurityStructHash(payload.security);
         string memory typeDef = string(abi.encodePacked(
-            _CLEAR_MACRO_WITNESS_TYPE,
+            _CLEAR_MACRO_WITNESS_TYPE_NAME,
             "(Action action,Security security)",
             m.getActionTypeDefinition(params),
             _TYPEDEF_SECURITY
@@ -191,13 +191,13 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
     {
         string memory actionDef = m.getActionTypeDefinition(params);
         string memory clearMacroDef = string(abi.encodePacked(
-            _CLEAR_MACRO_WITNESS_TYPE,
+            _CLEAR_MACRO_WITNESS_TYPE_NAME,
             "(Action action,Security security)"
         ));
         string memory tokenPermDef = "TokenPermissions(address token,uint256 amount)";
 
         return string(abi.encodePacked(
-            _CLEAR_MACRO_WITNESS_TYPE,
+            _CLEAR_MACRO_WITNESS_TYPE_NAME,
             " witness)",
             actionDef,
             clearMacroDef,
