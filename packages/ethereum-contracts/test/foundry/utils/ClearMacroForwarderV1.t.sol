@@ -89,6 +89,16 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         assertEq(superToken.balanceOf(signer.addr), signerSuperBalanceBefore + TEST_AMOUNT, "signer super token balance should increase by TEST_AMOUNT");
     }
 
+    function testRunMacroRevertsOnInvalidSignature() external {
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+        VmSafe.Wallet memory wrongSigner = vm.createWallet("wrongSigner");
+        bytes memory params = _getTestPayload();
+        bytes memory wrongSignatureVRS = _signPayload(wrongSigner, params);
+
+        vm.expectRevert(ClearMacroForwarderV1.InvalidSignature.selector);
+        _runMacroAs(address(this), signer.addr, params, wrongSignatureVRS);
+    }
+
     function testRevertsWhenCallerMissingProviderRole() external {
         VmSafe.Wallet memory signer = vm.createWallet("signer");
         bytes memory params = _getTestPayload();
@@ -122,6 +132,25 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         vm.expectRevert(abi.encodeWithSelector(
             ClearMacroForwarderV1.ProviderNotAuthorized.selector, "self", address(this)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
+    }
+
+    function testClearSignedActionParamsCanRunViaBlindForwarderSelfRelay() external {
+        VmSafe.Wallet memory signer = vm.createWallet("selfRelaySigner");
+        _fundSignerForUpgrade(signer, 1);
+
+        uint256 signerSuperBalanceBefore = superToken.balanceOf(signer.addr);
+        bytes memory clearParams = _getSelfRelayPayload();
+        _signPayload(signer, clearParams);
+
+        IClearMacroForwarderV1.Payload memory payload =
+            abi.decode(clearParams, (IClearMacroForwarderV1.Payload));
+
+        // BlindMacroForwarder ignores the Clear wrapper and signature semantics entirely.
+        // If the app extracts the raw action params and the signer self-relays, the macro should succeed.
+        vm.prank(signer.addr);
+        assertTrue(sf.macroForwarder.runMacro(minimalClearMacro, payload.action.params));
+
+        assertEq(superToken.balanceOf(signer.addr), signerSuperBalanceBefore + TEST_AMOUNT);
     }
 
     function testDigestCalculation() external view {
