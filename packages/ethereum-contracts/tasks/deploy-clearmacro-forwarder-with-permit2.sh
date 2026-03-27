@@ -3,7 +3,7 @@ set -eu
 set -o pipefail
 
 # Usage:
-# tasks/deploy-permit2-clearmacro-forwarder.sh <network>
+# tasks/deploy-clearmacro-forwarder-with-permit2.sh <network>
 #
 # The invoking account needs to be (co-)owner of the resolver and governance
 #
@@ -37,7 +37,7 @@ tmpfile="/tmp/$(basename "$0").addr"
 
 # deploy
 if [ "$skipDeploy" -eq 0 ]; then
-    DETERMINISTIC_DEPLOYER_PK=$deployerPk npx truffle exec --network "$network" ops-scripts/deploy-deterministically.js : Permit2ClearMacroForwarder | tee "$tmpfile"
+    DETERMINISTIC_DEPLOYER_PK=$deployerPk npx truffle exec --network "$network" ops-scripts/deploy-deterministically.js : ClearMacroForwarderV1WithPermit2 | tee "$tmpfile"
     contractAddr=$(tail -n 1 "$tmpfile")
     rm "$tmpfile"
 else
@@ -56,11 +56,11 @@ fi
 sleep 5
 # allow to fail
 set +e
-npx truffle run --network "$network" verify Permit2ClearMacroForwarder@"$contractAddr"
+npx truffle run --network "$network" verify ClearMacroForwarderV1WithPermit2@"$contractAddr"
 set -e
 
 # set resolver
-ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : Permit2ClearMacroForwarder "$contractAddr"
+ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : ClearMacroForwarderV1WithPermit2 "$contractAddr"
 
 # create gov action
 npx truffle exec --network "$network" ops-scripts/gov-set-trusted-forwarder.js : 0x0000000000000000000000000000000000000000 "$contractAddr" 1

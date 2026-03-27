@@ -31,9 +31,11 @@ interface IMacro {
     function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view;
 
     /*
-     * Additional to the required interface, we recommend to implement one or multiple view functions
+     * function encode<ActionName>(...args) external view returns (bytes memory);
+     *
+     * Additional to the required interface, it is recommended to implement one or multiple view functions
      * which take operation specific typed arguments and return the abi encoded bytes.
-     * As a convention, the name of those functions shall start with `encode`.
+     * As a convention, the name of those functions shall start with `encode` and have the action name(s) appended.
      *
      * Implementing this view function(s) has several advantages:
      * - Allows to build more complex macros with internally encapsulated dispatching logic
@@ -41,6 +43,6 @@ interface IMacro {
      * - Allows to build auto-generated UIs based on the contract ABI
      * - Makes it easier to interface with the macro from Dapps
      *
-     * You can consult the related test code in `MacroForwarderTest.t.sol` for examples.
+     * See example implementations in the test macro contracts.
      */
 }

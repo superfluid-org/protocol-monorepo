@@ -5,10 +5,10 @@ import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
 import { BatchOperation, ISuperfluid, ISuperfluidToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
-import { IClearMacroForwarder } from "../../../contracts/interfaces/utils/IClearMacroForwarder.sol";
+import { IClearMacroForwarderV1 } from "../../../contracts/interfaces/utils/IClearMacroForwarderV1.sol";
 import { IClearMacro } from "../../../contracts/interfaces/utils/IClearMacro.sol";
 import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
-import { ClearMacroForwarder, NonceManager } from "../../../contracts/utils/ClearMacroForwarder.sol";
+import { ClearMacroForwarderV1, NonceManager } from "../../../contracts/utils/ClearMacroForwarderV1.sol";
 import { ClearMacroBase } from "../../../contracts/utils/ClearMacroBase.sol";
 import { MinimalClearMacro } from "../macros/MinimalClearMacro.t.sol";
 import { MultiActionClearMacroTest } from "../macros/MultiActionClearMacroTest.t.sol";
@@ -26,8 +26,8 @@ int96 constant TEST_FLOW_RATE = 1e12;
 
 // ============== Test Contract ==============
 
-contract ClearMacroForwarderTest is FoundrySuperfluidTester {
-    ClearMacroForwarder internal forwarder;
+contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
+    ClearMacroForwarderV1 internal forwarder;
     MinimalClearMacro internal minimalClearMacro;
     MultiActionClearMacroTest internal multiActionMacro;
 
@@ -35,7 +35,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
 
     function setUp() public override {
         super.setUp();
-        forwarder = new ClearMacroForwarder(sf.host);
+        forwarder = new ClearMacroForwarderV1(sf.host);
         minimalClearMacro = new MinimalClearMacro();
         multiActionMacro = new MultiActionClearMacroTest();
 
@@ -54,9 +54,9 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         address token,
         uint256 amount
     ) external view {
-        IClearMacroForwarder.Payload memory payload = IClearMacroForwarder.Payload({
-            action: IClearMacroForwarder.EncodedAction({ params: abi.encode(token, amount) }),
-            security: IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Payload memory payload = IClearMacroForwarderV1.Payload({
+            action: IClearMacroForwarderV1.EncodedAction({ params: abi.encode(token, amount) }),
+            security: IClearMacroForwarderV1.Security({
                 domain: SECURITY_DOMAIN,
                 provider: SECURITY_PROVIDER,
                 validAfter: validAfter,
@@ -66,7 +66,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         });
         bytes memory localPayload = abi.encode(payload);
 
-        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
@@ -94,7 +94,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         bytes memory params = _getTestPayload();
         bytes memory signatureVRS = _signPayload(signer, params);
         vm.expectRevert(abi.encodeWithSelector(
-            ClearMacroForwarder.ProviderNotAuthorized.selector, SECURITY_PROVIDER, address(0xbad)));
+            ClearMacroForwarderV1.ProviderNotAuthorized.selector, SECURITY_PROVIDER, address(0xbad)));
         _runMacroAs(address(0xbad), signer.addr, params, signatureVRS);
     }
 
@@ -120,7 +120,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
 
         // Caller is not the signer - should revert even if caller has other provider role
         vm.expectRevert(abi.encodeWithSelector(
-            ClearMacroForwarder.ProviderNotAuthorized.selector, "self", address(this)));
+            ClearMacroForwarderV1.ProviderNotAuthorized.selector, "self", address(this)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 
@@ -212,7 +212,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         if (t0 > 0) {
             vm.warp(t0 - 1);
             vm.expectRevert(abi.encodeWithSelector(
-                ClearMacroForwarder.OutsideValidityWindow.selector, t0 - 1, t1, t0));
+                ClearMacroForwarderV1.OutsideValidityWindow.selector, t0 - 1, t1, t0));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -223,7 +223,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         } else {
             vm.warp(t0);
             vm.expectRevert(abi.encodeWithSelector(
-                ClearMacroForwarder.OutsideValidityWindow.selector, t0, t1, t0));
+                ClearMacroForwarderV1.OutsideValidityWindow.selector, t0, t1, t0));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -234,7 +234,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         signatureVRS = _signPayload(signer, params);
         vm.warp(expiry + 1);
         vm.expectRevert(abi.encodeWithSelector(
-            ClearMacroForwarder.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
+            ClearMacroForwarderV1.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 
@@ -286,7 +286,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         uint256 nonce = forwarder.getNonce(signer.addr, 0);
         bytes32 langHu = bytes32("hu");
         bytes memory macroParams = multiActionMacro.encodeUpgrade(langHu, address(superToken), TEST_AMOUNT);
-        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: 0,
@@ -348,7 +348,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         address token,
         uint256 amount
     ) internal view returns (bytes memory) {
-        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
@@ -359,7 +359,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
     }
 
     function _getSelfRelayPayload() internal view returns (bytes memory) {
-        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
             provider: "self",
             validAfter: uint256(0),
@@ -376,7 +376,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         address supertoken,
         uint256 amount
     ) internal view returns (bytes memory) {
-        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
@@ -397,7 +397,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         address receiver,
         int96 flowRate
     ) internal view returns (bytes memory) {
-        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
@@ -415,7 +415,7 @@ contract ClearMacroForwarderTest is FoundrySuperfluidTester {
         uint8 actionCode,
         bytes memory actionParams
     ) internal view returns (bytes memory) {
-        IClearMacroForwarder.Security memory security = IClearMacroForwarder.Security({
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
             provider: SECURITY_PROVIDER,
             validAfter: 0,

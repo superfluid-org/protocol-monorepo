@@ -7,10 +7,10 @@ import { ForwarderBase } from "../utils/ForwarderBase.sol";
 
 
 /**
- * @dev This is a minimal version of a trusted forwarder with high degree of extensibility
- * through permissionless "macro contracts".
+ * @dev This is a minimal macro forwarder without meta-tx capabilities,
+ * requiring users to _blind sign_ encoded macro actions.
  */
-contract MacroForwarder is ForwarderBase {
+contract BlindMacroForwarder is ForwarderBase {
     constructor(ISuperfluid host) ForwarderBase(host) {}
 
     /**

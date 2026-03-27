@@ -16,7 +16,7 @@ using AmountFormatter for uint256;
 
 /**
  * @title MultiActionClearMacroTest
- * @dev Test macro with two actions: CreateFlow and Upgrade, for use with ClearMacroForwarder.
+ * @dev Test macro with two actions: CreateFlow and Upgrade, for use with ClearMacroForwarderV1.
  * Description from (lang, actionParams); "en"/"hu" for Upgrade, "en" for CreateFlow.
  */
 contract MultiActionClearMacroTest is ClearMacroBase {

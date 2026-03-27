@@ -5,7 +5,7 @@ import { ISuperfluid, BatchOperation } from "../../../contracts/interfaces/super
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { IMacro } from "../../../contracts/interfaces/utils/IMacro.sol";
-import { MacroForwarder } from "../../../contracts/utils/MacroForwarder.sol";
+import { BlindMacroForwarder } from "../../../contracts/utils/BlindMacroForwarder.sol";
 import { GoodMacro } from "../macros/GoodMacro.t.sol";
 import { MultiFlowDeleteMacro } from "../macros/MultiFlowDeleteMacro.t.sol";
 import { PaidCFAOpsMacro } from "../macros/PaidCFAOpsMacro.t.sol";
@@ -44,7 +44,7 @@ contract NaugthyMacro {
  */
 contract StatefulMacro is IMacro {
     struct Config {
-        MacroForwarder macroForwarder;
+        BlindMacroForwarder macroForwarder;
         ISuperToken superToken;
         int96 flowRate;
         address[] recipients;
@@ -88,7 +88,7 @@ contract StatefulMacro is IMacro {
 
 // ============== Test Contract ==============
 
-contract MacroForwarderTest is FoundrySuperfluidTester {
+contract BlindMacroForwarderTest is FoundrySuperfluidTester {
     constructor() FoundrySuperfluidTester(5) {
     }
 

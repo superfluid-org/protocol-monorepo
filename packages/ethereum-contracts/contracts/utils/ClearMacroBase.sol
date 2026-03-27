@@ -3,7 +3,7 @@
 pragma solidity ^0.8.23;
 
 import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
-import { IClearMacroForwarder } from "../interfaces/utils/IClearMacroForwarder.sol";
+import { IClearMacroForwarderV1 } from "../interfaces/utils/IClearMacroForwarderV1.sol";
 import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
 
 /**
@@ -57,7 +57,7 @@ abstract contract ClearMacroBase is IClearMacro {
         pure
         returns (uint8 actionCode, bytes32 lang, bytes memory actionParams)
     {
-        IClearMacroForwarder.Payload memory payload = abi.decode(params, (IClearMacroForwarder.Payload));
+        IClearMacroForwarderV1.Payload memory payload = abi.decode(params, (IClearMacroForwarderV1.Payload));
         (actionCode, lang, actionParams) = abi.decode(payload.action.params, (uint8, bytes32, bytes));
     }
 

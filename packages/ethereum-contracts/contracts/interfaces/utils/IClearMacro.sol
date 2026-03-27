@@ -4,7 +4,7 @@ pragma solidity >=0.8.11;
 import { IMacro } from "./IMacro.sol";
 
 /**
- * @dev Interface for a macro used with the ClearMacroForwarder.
+ * @dev Interface for a macro used with the ClearMacroForwarderV1.
  * Implementations provide the EIP-712 metadata and hashing logic for the
  * macro-specific action encoded in `params`.
  */

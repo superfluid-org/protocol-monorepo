@@ -30,7 +30,7 @@ deployerPk=$MACROFWD_DEPLOYER_PK
 tmpfile="/tmp/$(basename "$0").addr"
 
 # deploy
-DETERMINISTIC_DEPLOYER_PK=$deployerPk npx truffle exec --network "$network" ops-scripts/deploy-deterministically.js : MacroForwarder | tee "$tmpfile"
+DETERMINISTIC_DEPLOYER_PK=$deployerPk npx truffle exec --network "$network" ops-scripts/deploy-deterministically.js : BlindMacroForwarder | tee "$tmpfile"
 contractAddr=$(tail -n 1 "$tmpfile")
 rm "$tmpfile"
 
@@ -46,11 +46,11 @@ fi
 sleep 5
 # allow to fail
 set +e
-npx truffle run --network "$network" verify MacroForwarder@"$contractAddr"
+npx truffle run --network "$network" verify BlindMacroForwarder@"$contractAddr"
 set -e
 
 # set resolver
-ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : MacroForwarder "$contractAddr"
+ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : BlindMacroForwarder "$contractAddr"
 
 # create gov action
 npx truffle exec --network "$network" ops-scripts/gov-set-trusted-forwarder.js : 0x0000000000000000000000000000000000000000 "$contractAddr" 1

@@ -7,7 +7,7 @@ import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl
 import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
 import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
 import { ForwarderBase } from "./ForwarderBase.sol";
-import { IClearMacroForwarder } from "../interfaces/utils/IClearMacroForwarder.sol";
+import { IClearMacroForwarderV1 } from "../interfaces/utils/IClearMacroForwarderV1.sol";
 
 
 /**
@@ -44,7 +44,7 @@ abstract contract NonceManager {
  * Decodes a ClearMacro payload, verifies the signature, enforces the
  * security checks, and executes the macro on behalf of the signer.
  */
-contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacroForwarder {
+contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMacroForwarderV1 {
 
     // CONSTANTS, IMMUTABLES
 
@@ -77,7 +77,7 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
      * @dev Runs the macro with an EIP-712 signed payload.
      * Reverts if the signature is invalid or if the payload fails security checks.
      * @param  m          Target macro.
-     * @param  params     ABI-encoded `IClearMacroForwarder.Payload`.
+     * @param  params     ABI-encoded `IClearMacroForwarderV1.Payload`.
      * @param  signer     Address which signed the payload and on whose behalf the macro runs.
      * @param  signature  EIP-712 signature over the payload digest.
      * @return success    True if the macro execution succeeded.
@@ -101,14 +101,14 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
      * @dev Encodes the action and security data into the payload bytes expected by `runMacro`.
      * @param  params     ABI-encoded macro-specific parameters, opaque to the forwarder.
      * @param  security   Security parameters (domain, provider, validAfter, validBefore, nonce).
-     * @return payload    ABI-encoded `IClearMacroForwarder.Payload`.
+     * @return payload    ABI-encoded `IClearMacroForwarderV1.Payload`.
      */
     function encodeParams(
         bytes calldata params,
-        IClearMacroForwarder.Security calldata security
+        IClearMacroForwarderV1.Security calldata security
     ) external pure override returns (bytes memory) {
-        IClearMacroForwarder.Payload memory payload = IClearMacroForwarder.Payload({
-            action: IClearMacroForwarder.EncodedAction({ params: params }),
+        IClearMacroForwarderV1.Payload memory payload = IClearMacroForwarderV1.Payload({
+            action: IClearMacroForwarderV1.EncodedAction({ params: params }),
             security: security
         });
         return abi.encode(payload);
@@ -138,7 +138,7 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
     function getNonce(address sender, uint192 key)
         public
         view
-        override(NonceManager, IClearMacroForwarder)
+        override(NonceManager, IClearMacroForwarderV1)
         returns (uint256)
     {
         return NonceManager.getNonce(sender, key);
@@ -152,7 +152,7 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
         address signer,
         address executor
     ) internal {
-        IClearMacroForwarder.Payload memory payload = abi.decode(params, (IClearMacroForwarder.Payload));
+        IClearMacroForwarderV1.Payload memory payload = abi.decode(params, (IClearMacroForwarderV1.Payload));
 
         // Provider authorization: either ACL role, or self-relay when provider is "self"
         if (keccak256(bytes(payload.security.provider)) == keccak256(bytes(SELF_PROVIDER))) {
@@ -180,7 +180,7 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
         internal
         returns (bool)
     {
-        IClearMacroForwarder.Payload memory payload = abi.decode(params, (IClearMacroForwarder.Payload));
+        IClearMacroForwarderV1.Payload memory payload = abi.decode(params, (IClearMacroForwarderV1.Payload));
 
         ISuperfluid.Operation[] memory operations =
             m.buildBatchOperations(_host, payload.action.params, signer);
@@ -200,7 +200,7 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
     }
 
     function _getStructHash(IClearMacro m, bytes calldata params) internal view returns (bytes32) {
-        IClearMacroForwarder.Payload memory payload = abi.decode(params, (IClearMacroForwarder.Payload));
+        IClearMacroForwarderV1.Payload memory payload = abi.decode(params, (IClearMacroForwarderV1.Payload));
         bytes32 actionStructHash = m.getActionStructHash(payload.action.params);
         bytes32 securityStructHash = _getSecurityStructHash(payload.security);
 
@@ -216,7 +216,7 @@ contract ClearMacroForwarder is ForwarderBase, EIP712, NonceManager, IClearMacro
         return structHash;
     }
 
-    function _getSecurityStructHash(IClearMacroForwarder.Security memory security) internal pure returns (bytes32) {
+    function _getSecurityStructHash(IClearMacroForwarderV1.Security memory security) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             _TYPEHASH_SECURITY,
             keccak256(bytes(security.domain)),

@@ -9,7 +9,7 @@ import { IClearMacro } from "./IClearMacro.sol";
  * payload consists of macro-specific action data and additional security
  * parameters.
  */
-interface IClearMacroForwarder {
+interface IClearMacroForwarderV1 {
     /**
      * @dev Opaque macro-specific action payload, ABI-encoded for transport.
      * The forwarder does not decode these fields itself; the macro defines the

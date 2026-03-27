@@ -7,17 +7,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
-- `Permit2ClearMacroForwarder`: a new macro forwarder that executes EIP-712-signed meta-transactions with properties giving it additional security guarantees, optionally with Permit2 support (allowing to have underlying upgraded + a macro executed, all with one wallet action).
+- `ClearMacroForwarderV1`: a new macro forwarder that executes EIP-712-signed meta-transactions with properties giving it additional security guarantees.
+- `ClearMacroForwarderV1WithPermit2`: variant of `ClearMacroForwarderV1` which supports Permit2 for upgrading underlying tokens and executing a macro with just one wallet action.
 - `ClearMacroBase`: a new base contract for clear macro implementations that support multiple actions.
 
 ### Breaking
 - `IUserDefinedMacro` renamed to `IMacro`.
+- `MacroForwarder` renamed to `BlindMacroForwarder`.
 
 ## [v1.15.0]
 
 ### Added
 
-- `[Permit2]ClearMacroForwarder`: a new macro forwarder that executes EIP-712-signed meta-transactions with properties giving it additional security guarantees, optionally with Permit2 support (allowing to have underlying upgraded + a macro executed, all with one wallet action).
 - `SuperToken`: the contract admin can enable/disable a _Yield Backend_ in order to generate a yield on the underlying asset.
 - `SuperToken`: added `VERSION()` which returns the version string of the logic contract set for the SuperToken, and inline CHANGELOG.
 

@@ -6,15 +6,16 @@ import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
 import { IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { ISuperfluid, BatchOperation, ISuperToken, IERC20 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IPermit2 } from "../interfaces/external/IPermit2.sol";
-import { IClearMacroForwarder } from "../interfaces/utils/IClearMacroForwarder.sol";
-import { ClearMacroForwarder } from "./ClearMacroForwarder.sol";
+import { IClearMacroForwarderV1 } from "../interfaces/utils/IClearMacroForwarderV1.sol";
+import { IClearMacroPermit2Extension } from "../interfaces/utils/IClearMacroForwarderV1WithPermit2.sol";
+import { ClearMacroForwarderV1 } from "./ClearMacroForwarderV1.sol";
 
 /**
- * @dev Permit2-aware extension of ClearMacroForwarder.
+ * @dev Permit2-aware extension of ClearMacroForwarderV1.
  * Supports Permit2 witness validation and, optionally, pulling underlying tokens
  * via Permit2 before upgrading and executing the macro.
  */
-contract Permit2ClearMacroForwarder is ClearMacroForwarder {
+contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroPermit2Extension {
     /// @dev Canonical Permit2 address (same across all EVM chains)
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -27,18 +28,7 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
     string private constant _PERMIT_WITNESS_TRANSFER_FROM_STUB =
         "PermitWitnessTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline,";
 
-    struct Permit2MacroParams {
-        IPermit2.PermitTransferFrom permit;
-        IPermit2.SignatureTransferDetails transferDetails;
-        address owner;
-        bytes32 witness;
-        string witnessTypeString;
-        bytes signature;
-        address spender;
-        address upgradeSuperToken;
-    }
-
-    constructor(ISuperfluid host) ClearMacroForwarder(host) {}
+    constructor(ISuperfluid host) ClearMacroForwarderV1(host) {}
 
     /**
      * @dev Runs the macro with Permit2 witness validation.
@@ -46,13 +36,13 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
      * and upgraded before the macro is executed.
      * @param  p       Permit2 data and optional upgrade configuration.
      * @param  m       Target macro.
-     * @param  params  ABI-encoded `IClearMacroForwarder.Payload`.
+     * @param  params  ABI-encoded `IClearMacroForwarderV1.Payload`.
      */
     function runPermit2AndMacro(
         Permit2MacroParams calldata p,
         IClearMacro m,
         bytes calldata params
-    ) external payable returns (bool) {
+    ) external payable override returns (bool) {
         _validatePermitAndMaybePull(p, m, params);
         _validatePayload(m, params, p.owner, msg.sender);
         return _executeValidatedMacro(m, params, p.owner);
@@ -151,6 +141,7 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
     function getPermit2WitnessStructHash(IClearMacro m, bytes calldata params)
         external
         view
+        override
         returns (bytes32)
     {
         return _getPermit2WitnessStructHash(m, params);
@@ -161,8 +152,8 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
         view
         returns (bytes32)
     {
-        IClearMacroForwarder.Payload memory payload =
-            abi.decode(params, (IClearMacroForwarder.Payload));
+        IClearMacroForwarderV1.Payload memory payload =
+            abi.decode(params, (IClearMacroForwarderV1.Payload));
         bytes32 actionStructHash = m.getActionStructHash(payload.action.params);
         bytes32 securityStructHash = _getSecurityStructHash(payload.security);
         string memory typeDef = string(abi.encodePacked(
@@ -187,6 +178,7 @@ contract Permit2ClearMacroForwarder is ClearMacroForwarder {
     function getPermit2WitnessTypeString(IClearMacro m, bytes calldata params)
         external
         view
+        override
         returns (string memory)
     {
         string memory actionDef = m.getActionTypeDefinition(params);

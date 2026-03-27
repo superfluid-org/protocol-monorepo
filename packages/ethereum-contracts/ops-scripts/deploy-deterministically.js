@@ -6,9 +6,9 @@ const Resolver = artifacts.require("Resolver");
 const SuperfluidLoader = artifacts.require("SuperfluidLoader");
 const CFAv1Forwarder = artifacts.require("CFAv1Forwarder");
 const GDAv1Forwarder = artifacts.require("GDAv1Forwarder");
-const MacroForwarder = artifacts.require("MacroForwarder");
-const ClearMacroForwarder = artifacts.require("ClearMacroForwarder");
-const Permit2ClearMacroForwarder = artifacts.require("Permit2ClearMacroForwarder");
+const BlindMacroForwarder = artifacts.require("BlindMacroForwarder");
+const ClearMacroForwarderV1 = artifacts.require("ClearMacroForwarderV1");
+const ClearMacroForwarderV1WithPermit2 = artifacts.require("ClearMacroForwarderV1WithPermit2");
 
 /**
  * @dev Deploy specified contract at a deterministic address (defined by sender, nonce)
@@ -85,23 +85,23 @@ module.exports = eval(`(${S.toString()})()`)(async function (
         console.log(
             `setting up GDAv1Forwarder for chainId ${chainId}, host ${hostAddr}`
         );
-    } else if (contractName === "MacroForwarder") {
-        ContractArtifact = MacroForwarder;
+    } else if (contractName === "BlindMacroForwarder") {
+        ContractArtifact = BlindMacroForwarder;
         deployArgs = [hostAddr];
         console.log(
-            `setting up MacroForwarder for chainId ${chainId}, host ${hostAddr}`
+            `setting up BlindMacroForwarder for chainId ${chainId}, host ${hostAddr}`
         );
-    } else if (contractName === "ClearMacroForwarder") {
-        ContractArtifact = ClearMacroForwarder;
+    } else if (contractName === "ClearMacroForwarderV1") {
+        ContractArtifact = ClearMacroForwarderV1;
         deployArgs = [hostAddr];
         console.log(
-            `setting up ClearMacroForwarder for chainId ${chainId}, host ${hostAddr}`
+            `setting up ClearMacroForwarderV1 for chainId ${chainId}, host ${hostAddr}`
         );
-    } else if (contractName === "Permit2ClearMacroForwarder") {
-        ContractArtifact = Permit2ClearMacroForwarder;
+    } else if (contractName === "ClearMacroForwarderV1WithPermit2") {
+        ContractArtifact = ClearMacroForwarderV1WithPermit2;
         deployArgs = [hostAddr];
         console.log(
-            `setting up Permit2ClearMacroForwarder for chainId ${chainId}, host ${hostAddr}`
+            `setting up ClearMacroForwarderV1WithPermit2 for chainId ${chainId}, host ${hostAddr}`
         );
     } else {
         throw new Error("Contract unknown / not supported");

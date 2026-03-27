@@ -21,6 +21,10 @@ contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
         assertTrue(address(sf.cfaV1Forwarder) != address(0), "SFDeployer: cfaV1Forwarder not deployed");
         assertTrue(address(sf.gdaV1Forwarder) != address(0), "SFDeployer: gdaV1Forwarder not deployed");
         assertTrue(address(sf.macroForwarder) != address(0), "SFDeployer: macroForwarder not deployed");
+        assertTrue(
+            address(sf.clearMacroForwarderV1WithPermit2) != address(0),
+            "SFDeployer: clearMacroForwarderV1WithPermit2 not deployed"
+        );
         assertTrue(address(sf.batchLiquidator) != address(0), "SFDeployer: batchLiquidator not deployed");
     }
 
@@ -48,6 +52,14 @@ contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
         assertEq(address(loadedSf.superfluid), address(sf.host), "SFDeployer: host not loaded");
         assertEq(address(loadedSf.agreementCFAv1), address(sf.cfa), "SFDeployer: cfa not loaded");
         assertEq(address(loadedSf.agreementIDAv1), address(sf.ida), "SFDeployer: ida not loaded");
+    }
+
+    function testResolverGetsClearMacroForwarderV1WithPermit2() public view {
+        assertEq(
+            sf.resolver.get("ClearMacroForwarderV1WithPermit2"),
+            address(sf.clearMacroForwarderV1WithPermit2),
+            "SFDeployer: clearMacroForwarderV1WithPermit2 not registered"
+        );
     }
 
     function testTransferOwnership() public {
