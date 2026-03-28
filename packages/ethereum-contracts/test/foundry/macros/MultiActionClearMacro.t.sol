@@ -7,6 +7,7 @@ import {
     ISuperToken
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { ClearMacroBase } from "../../../contracts/utils/ClearMacroBase.sol";
 import { FlowRateFormatter, AmountFormatter } from "../libs/FormatterLibs.sol";
@@ -15,13 +16,22 @@ using FlowRateFormatter for int96;
 using AmountFormatter for uint256;
 
 /**
- * @title MultiActionClearMacroTest
- * @dev Test macro with two actions: CreateFlow and Upgrade, for use with ClearMacroForwarderV1.
- * Description from (lang, actionParams); "en"/"hu" for Upgrade, "en" for CreateFlow.
+ * @title MultiActionClearMacro
+ * @dev Reference example for a ClearMacro with multiple actions.
+ *
+ * Demonstrates:
+ * - declaring a stable action id enum used on the wire
+ * - registering per-action metadata and handlers in `_registerActions()`
+ * - exposing typed `encode...()` helpers for callers
+ * - deriving localized EIP-712 descriptions from `(lang, actionParams)`
  */
-contract MultiActionClearMacroTest is ClearMacroBase {
-    uint8 public constant ACTION_CREATE_FLOW = 1;
-    uint8 public constant ACTION_UPGRADE = 2;
+contract MultiActionClearMacro is ClearMacroBase {
+
+    // Stable action ids used both during registration and in the encoded payload.
+    enum ActionId {
+        CreateFlow,
+        Upgrade
+    }
 
     bytes32 private constant _LANG_EN = bytes32("en");
     bytes32 private constant _LANG_HU = bytes32("hu");
@@ -31,61 +41,44 @@ contract MultiActionClearMacroTest is ClearMacroBase {
     string private constant _TYPEDEF_UPGRADE =
         "Action(string description,address token,uint256 amount)";
 
-    function _getActions() internal pure override returns (ClearMacroBase.Action[] memory) {
-        ClearMacroBase.Action[] memory actions = new ClearMacroBase.Action[](2);
-        actions[0] = ClearMacroBase.Action({
-            actionCode: ACTION_CREATE_FLOW,
-            exists: true,
-            getPrimaryTypeName: _getPrimaryTypeNameCreateFlow,
-            getActionTypeDefinition: _getActionTypeDefinitionCreateFlow,
+    // Each registration entry must match the action id used by the corresponding encode helper.
+    function _registerActions() internal override {
+        _registerAction(uint8(ActionId.CreateFlow), ClearMacroBase.ActionSpec({
+            primaryTypeName: "DashboardCreateFlow",
+            actionTypeDefinition: _TYPEDEF_CREATE_FLOW,
             getActionStructHash: _getActionStructHashCreateFlow,
             buildOperations: _buildOperationsCreateFlow,
-            skipPostCheck: true,
-            postCheckHandler: _noOpPostCheck
-        });
-        actions[1] = ClearMacroBase.Action({
-            actionCode: ACTION_UPGRADE,
-            exists: true,
-            getPrimaryTypeName: _getPrimaryTypeNameUpgrade,
-            getActionTypeDefinition: _getActionTypeDefinitionUpgrade,
+            postCheck: _noOpPostCheck
+        }));
+        _registerAction(uint8(ActionId.Upgrade), ClearMacroBase.ActionSpec({
+            primaryTypeName: "DashboardUpgrade",
+            actionTypeDefinition: _TYPEDEF_UPGRADE,
             getActionStructHash: _getActionStructHashUpgrade,
             buildOperations: _buildOperationsUpgrade,
-            skipPostCheck: true,
-            postCheckHandler: _noOpPostCheck
-        });
-        return actions;
+            postCheck: _noOpPostCheck
+        }));
     }
 
-    function _encodeRaw(uint8 actionCode, bytes32 lang, bytes memory actionParams)
+    // ClearMacroBase expects `abi.encode(uint8 actionId, bytes32 lang, bytes actionParams)`.
+    function _encodeRaw(ActionId actionId, bytes32 lang, bytes memory actionParams)
         private
         pure
         returns (bytes memory)
     {
-        return abi.encode(actionCode, lang, actionParams);
+        return abi.encode(uint8(actionId), lang, actionParams);
     }
+
+    // ---------- CreateFlow ----------
 
     function encodeCreateFlow(bytes32 lang, address token, address receiver, int96 flowRate)
         public
         pure
         returns (bytes memory)
     {
-        return _encodeRaw(ACTION_CREATE_FLOW, lang, abi.encode(token, receiver, flowRate));
+        return _encodeRaw(ActionId.CreateFlow, lang, abi.encode(token, receiver, flowRate));
     }
 
-    function encodeUpgrade(bytes32 lang, address token, uint256 amount)
-        public
-        pure
-        returns (bytes memory)
-    {
-        return _encodeRaw(ACTION_UPGRADE, lang, abi.encode(token, amount));
-    }
-
-    function _noOpPostCheck(ISuperfluid, bytes memory, address) internal pure {
-        // no-op
-    }
-
-    // ---------- CreateFlow ----------
-    function _descriptionCreateFlow(bytes32 lang, address token, address /* receiver */, int96 flowRate)
+    function _descriptionCreateFlow(bytes32 lang, address token, address receiver, int96 flowRate)
         internal
         view
         returns (string memory)
@@ -96,16 +89,9 @@ contract MultiActionClearMacroTest is ClearMacroBase {
             flowRate.toFlowRatePerDay(),
             " ",
             ISuperToken(token).symbol(),
-            "/day"
+            "/day to ",
+            Strings.toHexString(receiver)
         );
-    }
-
-    function _getPrimaryTypeNameCreateFlow(bytes memory) internal pure returns (string memory) {
-        return "DashboardCreateFlow";
-    }
-
-    function _getActionTypeDefinitionCreateFlow(bytes memory) internal pure returns (string memory) {
-        return _TYPEDEF_CREATE_FLOW;
     }
 
     function _getActionStructHashCreateFlow(bytes memory actionParams, bytes32 lang)
@@ -149,6 +135,15 @@ contract MultiActionClearMacroTest is ClearMacroBase {
     }
 
     // ---------- Upgrade ----------
+
+    function encodeUpgrade(bytes32 lang, address token, uint256 amount)
+        public
+        pure
+        returns (bytes memory)
+    {
+        return _encodeRaw(ActionId.Upgrade, lang, abi.encode(token, amount));
+    }
+
     function _descriptionUpgrade(bytes32 lang, address token, uint256 amount)
         internal
         view
@@ -170,14 +165,6 @@ contract MultiActionClearMacroTest is ClearMacroBase {
             );
         }
         revert UnsupportedLanguage();
-    }
-
-    function _getPrimaryTypeNameUpgrade(bytes memory) internal pure returns (string memory) {
-        return "DashboardUpgrade";
-    }
-
-    function _getActionTypeDefinitionUpgrade(bytes memory) internal pure returns (string memory) {
-        return _TYPEDEF_UPGRADE;
     }
 
     function _getActionStructHashUpgrade(bytes memory actionParams, bytes32 lang)

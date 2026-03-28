@@ -11,7 +11,7 @@ import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 import { ClearMacroForwarderV1, NonceManager } from "../../../contracts/utils/ClearMacroForwarderV1.sol";
 import { ClearMacroBase } from "../../../contracts/utils/ClearMacroBase.sol";
 import { MinimalClearMacro } from "../macros/MinimalClearMacro.t.sol";
-import { MultiActionClearMacroTest } from "../macros/MultiActionClearMacroTest.t.sol";
+import { MultiActionClearMacro } from "../macros/MultiActionClearMacro.t.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 string constant PRIMARY_TYPE_NAME = "MinimalExample";
@@ -29,7 +29,7 @@ int96 constant TEST_FLOW_RATE = 1e12;
 contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
     ClearMacroForwarderV1 internal forwarder;
     MinimalClearMacro internal minimalClearMacro;
-    MultiActionClearMacroTest internal multiActionMacro;
+    MultiActionClearMacro internal multiActionMacro;
 
     constructor() FoundrySuperfluidTester(5) { }
 
@@ -37,7 +37,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         super.setUp();
         forwarder = new ClearMacroForwarderV1(sf.host);
         minimalClearMacro = new MinimalClearMacro();
-        multiActionMacro = new MultiActionClearMacroTest();
+        multiActionMacro = new MultiActionClearMacro();
 
         IAccessControl acl = IAccessControl(sf.host.getSimpleACL());
         vm.prank(address(sfDeployer));
@@ -352,13 +352,13 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         assertEq(flowRateAfter, TEST_FLOW_RATE, "CreateFlow: flow rate mismatch");
     }
 
-    function testMultiActionUnknownActionCodeReverts() external {
-        uint8 unknownCode = 99;
+    function testMultiActionUnknownActionIdReverts() external {
+        uint8 unknownId = 99;
         uint256 nonce = forwarder.getNonce(address(1), 0);
-        bytes memory params = _getMultiActionPayloadWithActionCode(nonce, unknownCode, abi.encode(bytes32(0)));
+        bytes memory params = _getMultiActionPayloadWithActionId(nonce, unknownId, abi.encode(bytes32(0)));
 
-        // Building the digest requires the macro to hash the action; unknown action code reverts there.
-        vm.expectRevert(abi.encodeWithSelector(ClearMacroBase.UnknownActionCode.selector, unknownCode));
+        // Building the digest requires the macro to hash the action; unknown action id reverts there.
+        vm.expectRevert(abi.encodeWithSelector(ClearMacroBase.UnknownActionId.selector, unknownId));
         forwarder.getDigest(multiActionMacro, params);
     }
 
@@ -439,9 +439,9 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         );
     }
 
-    function _getMultiActionPayloadWithActionCode(
+    function _getMultiActionPayloadWithActionId(
         uint256 nonce,
-        uint8 actionCode,
+        uint8 actionId,
         bytes memory actionParams
     ) internal view returns (bytes memory) {
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
@@ -452,7 +452,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
             nonce: nonce
         });
         return forwarder.encodeParams(
-            abi.encode(actionCode, bytes32("en"), actionParams),
+            abi.encode(actionId, bytes32("en"), actionParams),
             security
         );
     }
