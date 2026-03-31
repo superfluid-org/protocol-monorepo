@@ -138,6 +138,7 @@ jobs:
     name: Upload Coverage Reports (Feature Branch)
     uses: ./.github/workflows/call.upload-coverage-reports.yml
     needs: [coverage-ethereum-contracts, coverage-sdk-core]
+    secrets: inherit
 
   # Note:
   #
