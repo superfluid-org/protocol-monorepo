@@ -135,8 +135,7 @@ jobs:
     name: Upload Coverage Reports (Feature Branch)
     uses: ./.github/workflows/call.upload-coverage-reports.yml
     needs: [coverage-ethereum-contracts, coverage-sdk-core]
-    secrets:
-      codecov_token: ${{ secrets.CODECOV_TOKEN }}
+    secrets: inherit
 
   all-packages-tested:
     name: All packages tested (Dev Branch)
@@ -377,7 +376,7 @@ jobs:
           yarn --cwd packages/ethereum-contracts build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Publish ethereum-contracts package
         if: env.PUBLISH_ETHEREUM_CONTRACTS == 1
         shell: bash
