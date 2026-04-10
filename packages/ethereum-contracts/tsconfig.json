@@ -101,5 +101,5 @@
         // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
         "skipLibCheck": true /* Skip type checking all .d.ts files. */
     },
-    "include": ["testsuites", "test", "./typechain-types", "ops-scripts", "hardhat.config.ts"]
+    "include": ["testsuites", "test", "./typechain-types", "ops-scripts", "new-ops-scripts", "hardhat.config.ts"]
 }

@@ -15,8 +15,8 @@ import {IYieldBackend} from "../contracts/interfaces/superfluid/IYieldBackend.so
  *         Uses DeployUtils to route based on admin type (Ownable/MultiSig/Safe).
  *
  * Usage (with wrapper):
- *   ops-scripts/super-token-admin-action.sh <network> enableYieldBackend <superToken> <yieldBackend>
- *   ops-scripts/super-token-admin-action.sh <network> disableYieldBackend <superToken>
+ *   new-ops-scripts/super-token-admin-action.sh <network> enableYieldBackend <superToken> <yieldBackend>
+ *   new-ops-scripts/super-token-admin-action.sh <network> disableYieldBackend <superToken>
  */
 contract SuperTokenAdminAction is Script {
     struct BaseConfig {

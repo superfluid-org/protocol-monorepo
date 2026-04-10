@@ -14,9 +14,9 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
  * @dev Deploys AaveYieldBackend, AaveETHYieldBackend (native underlying), or SparkYieldBackend.
  *
  * Usage (with wrapper):
- *   tasks/deploy-yield-backend.sh <network> aave <underlyingToken> <aavePool> <surplusReceiver>
+ *   new-ops-scripts/deploy-yield-backend.sh <network> aave <underlyingToken> <aavePool> <surplusReceiver>
  *   Use underlyingToken = address(0) for native token (e.g. ETHx) -> AaveETHYieldBackend.
- *   tasks/deploy-yield-backend.sh <network> spark <vault> <surplusReceiver> <referralId>
+ *   new-ops-scripts/deploy-yield-backend.sh <network> spark <vault> <surplusReceiver> <referralId>
  *
  * Or directly:
  *   forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runAave(address,address,address)" \\

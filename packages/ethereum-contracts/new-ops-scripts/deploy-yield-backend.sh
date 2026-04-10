@@ -3,8 +3,8 @@ set -eu
 set -o pipefail
 
 # Usage:
-#   ops-scripts/deploy-yield-backend.sh <network> aave <underlyingToken> <aavePool> <surplusReceiver>
-#   ops-scripts/deploy-yield-backend.sh <network> spark <vault> <surplusReceiver> <referralId>
+#   new-ops-scripts/deploy-yield-backend.sh <network> aave <underlyingToken> <aavePool> <surplusReceiver>
+#   new-ops-scripts/deploy-yield-backend.sh <network> spark <vault> <surplusReceiver> <referralId>
 #
 # Deploys a yield backend contract. Network is the canonical name from metadata (e.g. base-mainnet, eth-mainnet).
 #
@@ -13,13 +13,13 @@ set -o pipefail
 #
 # Examples:
 #   # AaveYieldBackend for USDC on Base
-#   ops-scripts/deploy-yield-backend.sh base-mainnet aave 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5 0xac808840f02c47C05507f48165d2222FF28EF4e1
+#   new-ops-scripts/deploy-yield-backend.sh base-mainnet aave 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5 0xac808840f02c47C05507f48165d2222FF28EF4e1
 #
 #   # AaveETHYieldBackend for native underlying (ETHx) on Base
-#   ops-scripts/deploy-yield-backend.sh base-mainnet aave 0x0000000000000000000000000000000000000000 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5 0xac808840f02c47C05507f48165d2222FF28EF4e1
+#   new-ops-scripts/deploy-yield-backend.sh base-mainnet aave 0x0000000000000000000000000000000000000000 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5 0xac808840f02c47C05507f48165d2222FF28EF4e1
 #
 #   # SparkYieldBackend for USDC on Ethereum
-#   ops-scripts/deploy-yield-backend.sh eth-mainnet spark 0xBc65ad17c5C0a2A4D159fa5a503f4992c7B545FE 0xac808840f02c47C05507f48165d2222FF28EF4e1 42
+#   new-ops-scripts/deploy-yield-backend.sh eth-mainnet spark 0xBc65ad17c5C0a2A4D159fa5a503f4992c7B545FE 0xac808840f02c47C05507f48165d2222FF28EF4e1 42
 #
 # ENV: RPC_URL, PROVIDER_URL_OVERRIDE, or PROVIDER_URL_TEMPLATE (with {{NETWORK}}) for RPC; metadata publicRPCs as fallback.
 #      WALLET_NAME (default: sf-ops), ETHERSCAN_API_V2_KEY for verification.

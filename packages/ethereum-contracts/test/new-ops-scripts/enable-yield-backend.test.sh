@@ -2,7 +2,7 @@
 # Integration test for enable-yield-backend (super-token-admin-action enableYieldBackend).
 # Runs in simulate mode against base-mainnet.
 #
-# Usage: from packages/ethereum-contracts, run: bash test/ops-scripts/enable-yield-backend.test.sh
+# Usage: from packages/ethereum-contracts, run: bash test/new-ops-scripts/enable-yield-backend.test.sh
 # Note: Requires a SuperToken with admin set. USDCx on Base may have admin=0 until changeSuperTokenAdmin is executed.
 
 set -eu
@@ -10,7 +10,7 @@ set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ENABLE_SCRIPT="$PKG_ROOT/ops-scripts/enable-yield-backend.sh"
+ENABLE_SCRIPT="$PKG_ROOT/new-ops-scripts/enable-yield-backend.sh"
 
 USDCX=0xD04383398dD2426297da660F9CCA3d439AF9ce1b
 YIELD_BACKEND=0x1234567890123456789012345678901234567890

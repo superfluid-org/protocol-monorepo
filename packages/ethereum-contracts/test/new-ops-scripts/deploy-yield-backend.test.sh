@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Integration test for ops-scripts/deploy-yield-backend.sh.
+# Integration test for new-ops-scripts/deploy-yield-backend.sh.
 # Runs the script in simulate mode (no broadcast) against base-mainnet.
 #
-# Usage: from packages/ethereum-contracts, run: bash test/ops-scripts/deploy-yield-backend.test.sh
+# Usage: from packages/ethereum-contracts, run: bash test/new-ops-scripts/deploy-yield-backend.test.sh
 # Requires: RPC for Base (RPC_URL, PROVIDER_URL_OVERRIDE, metadata fallback, or BASE_MAINNET_ARCHIVE_RPC_URL).
 
 set -eu
@@ -10,7 +10,7 @@ set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-DEPLOY_SCRIPT="$PKG_ROOT/ops-scripts/deploy-yield-backend.sh"
+DEPLOY_SCRIPT="$PKG_ROOT/new-ops-scripts/deploy-yield-backend.sh"
 
 # Base mainnet addresses (same as AaveYieldBackendIntegration.t.sol)
 USDC=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
