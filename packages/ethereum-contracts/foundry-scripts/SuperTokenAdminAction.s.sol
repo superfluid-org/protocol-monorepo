@@ -11,12 +11,14 @@ import {IYieldBackend} from "../contracts/interfaces/superfluid/IYieldBackend.so
 
 /**
  * @title SuperTokenAdminAction
- * @notice Executes SuperToken admin actions (enableYieldBackend, disableYieldBackend).
- *         Uses DeployUtils to route based on admin type (Ownable/MultiSig/Safe).
+ * @notice Executes SuperToken admin actions (enableYieldBackend, disableYieldBackend,
+ *         withdrawSurplusFromYieldBackend). Uses DeployUtils to route based on admin type
+ *         (Ownable/MultiSig/Safe).
  *
  * Usage (with wrapper):
  *   new-ops-scripts/super-token-admin-action.sh <network> enableYieldBackend <superToken> <yieldBackend>
  *   new-ops-scripts/super-token-admin-action.sh <network> disableYieldBackend <superToken>
+ *   new-ops-scripts/super-token-admin-action.sh <network> withdrawSurplusFromYieldBackend <superToken>
  */
 contract SuperTokenAdminAction is Script {
     struct BaseConfig {
@@ -60,6 +62,8 @@ contract SuperTokenAdminAction is Script {
             _executeEnableYieldBackend(baseConfig);
         } else if (hash == keccak256(bytes("disableYieldBackend"))) {
             _executeDisableYieldBackend(baseConfig);
+        } else if (hash == keccak256(bytes("withdrawSurplusFromYieldBackend"))) {
+            _executeWithdrawSurplusFromYieldBackend(baseConfig);
         } else {
             revert("Unknown action type");
         }
@@ -85,6 +89,17 @@ contract SuperTokenAdminAction is Script {
 
     function _executeDisableYieldBackend(BaseConfig memory baseConfig) internal {
         bytes memory actionData = abi.encodeWithSelector(SuperToken.disableYieldBackend.selector);
+
+        DeployUtils.executeAdminAction(
+            baseConfig.superToken,
+            actionData,
+            baseConfig.admin,
+            "SuperTokenAdmin"
+        );
+    }
+
+    function _executeWithdrawSurplusFromYieldBackend(BaseConfig memory baseConfig) internal {
+        bytes memory actionData = abi.encodeWithSelector(SuperToken.withdrawSurplusFromYieldBackend.selector);
 
         DeployUtils.executeAdminAction(
             baseConfig.superToken,

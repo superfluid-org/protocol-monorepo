@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Governance actions via Foundry. When the governance admin is a Safe, outputs transaction
-# payload and optionally proposes it via propose-safe-tx.ts (requires SAFE_PROPOSER_PK in .env).
-# Optional: SAFE_API_KEY for higher rate limits, SAFE_ORIGIN for proposal label.
-# SIMULATE=1 to skip broadcast and Safe proposal (encode only).
+# Governance actions via Foundry. When the governance admin is a Safe, writes Safe payload JSON
+# to a temp file and optionally proposes it via safe-ops.ts (requires SAFE_PROPOSER_PK in .env).
+# Optional: SAFE_API_KEY for higher rate limits, SAFE_TX_SERVICE_URL for custom service, SAFE_ORIGIN
+# for proposal label. SIMULATE=1 encodes only and prints captured Safe payloads.
 #
 set -e
 set -o pipefail
@@ -16,11 +16,11 @@ METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
 [ -f "$PKG_ROOT/.env" ] && . "$PKG_ROOT/.env"
 # shellcheck source=/dev/null
 [ -f "$PKG_ROOT/../.env" ] && . "$PKG_ROOT/../.env"
+export SAFE_PROPOSER_PK="${SAFE_PROPOSER_PK:-}"
+export SAFE_API_KEY="${SAFE_API_KEY:-}"
+export SAFE_TX_SERVICE_URL="${SAFE_TX_SERVICE_URL:-}"
 # shellcheck source=/dev/null
 [ -f "$SCRIPT_DIR/lib/network-config.sh" ] && . "$SCRIPT_DIR/lib/network-config.sh"
-# shellcheck source=/dev/null
-[ -f "$SCRIPT_DIR/lib/safe-tx.sh" ] && . "$SCRIPT_DIR/lib/safe-tx.sh"
-
 # read the network name and action type from the command line
 NETWORK=$1
 ACTION_TYPE=$2
@@ -225,12 +225,23 @@ else
     fi
 fi
 
-SCRIPT_LOG=$(mktemp)
-trap 'rm -f "$SCRIPT_LOG"' EXIT
+SAFE_PAYLOADS_DIR="$PKG_ROOT/.tmp/safe-payloads"
+mkdir -p "$SAFE_PAYLOADS_DIR"
+SAFE_PAYLOADS_FILE=$(mktemp "$SAFE_PAYLOADS_DIR/payloads.XXXXXX.jsonl")
+trap 'rm -f "$SAFE_PAYLOADS_FILE"' EXIT
+export SAFE_PAYLOADS_FILE
 
-if ! forge "${forge_args[@]}" | tee "$SCRIPT_LOG"; then
+if ! forge "${forge_args[@]}"; then
     echo "Forge script failed"
     exit 1
 fi
 
-handle_safe_tx_payloads "$SCRIPT_LOG" "$SCRIPT_DIR" "$PROVIDER_URL"
+safe_ops_args=(propose-file --rpc-url "$PROVIDER_URL" --payload-file "$SAFE_PAYLOADS_FILE" --mode single)
+if [[ -n "${SIMULATE:-}" ]]; then
+    safe_ops_args+=(--dry-run)
+fi
+if [[ -n "${SAFE_ORIGIN:-}" ]]; then
+    safe_ops_args+=(--origin "$SAFE_ORIGIN")
+fi
+
+npx ts-node "$SCRIPT_DIR/safe-ops.ts" "${safe_ops_args[@]}"

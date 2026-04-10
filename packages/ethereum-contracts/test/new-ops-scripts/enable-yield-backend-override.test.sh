@@ -34,8 +34,8 @@ if ! grep -q "SuperToken Admin (override)" "$output"; then
     exit 1
 fi
 
-if ! grep -q "<<<SAFE_TX:v1>>>" "$output"; then
-    echo "Expected Safe transaction payload in output" >&2
+if ! grep -q "Captured Safe transaction payloads:" "$output"; then
+    echo "Expected captured Safe payload output" >&2
     exit 1
 fi
 
