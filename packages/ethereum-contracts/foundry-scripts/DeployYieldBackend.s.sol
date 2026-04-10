@@ -19,11 +19,11 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
  *   new-ops-scripts/deploy-yield-backend.sh <network> spark <vault> <surplusReceiver> <referralId>
  *
  * Or directly:
- *   forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runAave(address,address,address)" \\
+ *   forge script foundry-scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runAave(address,address,address)" \\
  *     <assetToken> <aavePool> <surplusReceiver> --rpc-url <url> --broadcast
- *   forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runSpark(address,address,uint16)" \\
+ *   forge script foundry-scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runSpark(address,address,uint16)" \\
  *     <vault> <surplusReceiver> <referralId> --rpc-url <url> --broadcast
- *   forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runAaveETH(address,address)" \\
+ *   forge script foundry-scripts/DeployYieldBackend.s.sol:DeployYieldBackend --sig "runAaveETH(address,address)" \\
  *     <aavePool> <surplusReceiver> --rpc-url <url> --broadcast
  */
 contract DeployYieldBackend is Script {

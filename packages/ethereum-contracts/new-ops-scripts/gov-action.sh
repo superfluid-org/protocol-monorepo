@@ -212,7 +212,7 @@ export ACTION_TYPE
 cd "$PKG_ROOT"
 
 # Build forge command with conditional flags
-forge_args=(script scripts/GovAction.s.sol:GovAction --rpc-url "$PROVIDER_URL")
+forge_args=(script foundry-scripts/GovAction.s.sol:GovAction --rpc-url "$PROVIDER_URL")
 if [[ -n "${SIMULATE:-}" ]]; then
     forge_args+=(--private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)
 else

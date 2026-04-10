@@ -93,7 +93,7 @@ case "$backend_type" in
             echo "  aavePool:        $aave_pool"
             echo "  surplusReceiver: $surplus_receiver"
             echo ""
-            forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend \
+            forge script foundry-scripts/DeployYieldBackend.s.sol:DeployYieldBackend \
                 "${forge_args[@]}" \
                 --sig "runAaveETH(address,address)" "$aave_pool" "$surplus_receiver" | tee "$tmpfile"
         else
@@ -102,7 +102,7 @@ case "$backend_type" in
             echo "  aavePool:        $aave_pool"
             echo "  surplusReceiver: $surplus_receiver"
             echo ""
-            forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend \
+            forge script foundry-scripts/DeployYieldBackend.s.sol:DeployYieldBackend \
                 "${forge_args[@]}" \
                 --sig "runAave(address,address,address)" "$underlying_token" "$aave_pool" "$surplus_receiver" | tee "$tmpfile"
         fi
@@ -116,7 +116,7 @@ case "$backend_type" in
         echo "Backend:  SparkYieldBackend"
         echo "RPC:      $rpc"
         echo ""
-        forge script scripts/DeployYieldBackend.s.sol:DeployYieldBackend \
+        forge script foundry-scripts/DeployYieldBackend.s.sol:DeployYieldBackend \
             "${forge_args[@]}" \
             --sig "runSpark(address,address,uint16)" "$vault" "$surplus_receiver" "$referral_id" | tee "$tmpfile"
         contract_addr=$(grep -oE '0x[a-fA-F0-9]{40}' "$tmpfile" | tail -n 1)
