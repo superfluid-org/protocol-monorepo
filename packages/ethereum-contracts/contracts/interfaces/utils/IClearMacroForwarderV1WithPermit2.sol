@@ -12,7 +12,6 @@ import { IPermit2 } from "../external/IPermit2.sol";
 interface IClearMacroPermit2Extension {
     struct Permit2MacroParams {
         IPermit2.PermitTransferFrom permit;
-        IPermit2.SignatureTransferDetails transferDetails;
         address owner;
         bytes32 witness;
         string witnessTypeString;

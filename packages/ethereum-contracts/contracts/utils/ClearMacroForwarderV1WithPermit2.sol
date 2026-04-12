@@ -70,7 +70,12 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
 
     function _pullAndUpgrade(Permit2MacroParams calldata p) internal {
         IPermit2(PERMIT2).permitWitnessTransferFrom(
-            p.permit, p.transferDetails, p.owner, p.witness, p.witnessTypeString, p.signature
+            p.permit,
+            IPermit2.SignatureTransferDetails({ to: address(this), requestedAmount: p.permit.permitted.amount }),
+            p.owner,
+            p.witness,
+            p.witnessTypeString,
+            p.signature
         );
         address underlying = p.permit.permitted.token;
         uint256 underlyingAmount = p.permit.permitted.amount;
