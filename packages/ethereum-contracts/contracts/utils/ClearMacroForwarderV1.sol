@@ -49,7 +49,8 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
     // CONSTANTS, IMMUTABLES
 
     bytes internal constant _TYPEDEF_SECURITY =
-        "Security(string domain,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
+        "Security(string domain,address macroContract,string provider,"
+        "uint256 validAfter,uint256 validBefore,uint256 nonce)";
 
     bytes32 internal constant _TYPEHASH_SECURITY = keccak256(_TYPEDEF_SECURITY);
 
@@ -61,6 +62,7 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
     // ERRORS
 
     error InvalidPayload(string message);
+    error MacroContractMismatch(address signedMacro, address executionMacro);
     error OutsideValidityWindow(uint256 blockTimestamp, uint256 validBefore, uint256 validAfter);
     error ProviderNotAuthorized(string provider, address msgSender);
     error InvalidSignature();
@@ -100,7 +102,7 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
     /**
      * @dev Encodes the action and security data into the payload bytes expected by `runMacro`.
      * @param  params     ABI-encoded macro-specific parameters, opaque to the forwarder.
-     * @param  security   Security parameters (domain, provider, validAfter, validBefore, nonce).
+     * @param  security   Security parameters (domain, macroContract, provider, validAfter, validBefore, nonce).
      * @return payload    ABI-encoded `IClearMacroForwarderV1.Payload`.
      */
     function encodeParams(
@@ -147,12 +149,16 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
     // INTERNAL FUNCTIONS
 
     function _validatePayload(
-        IClearMacro,
+        IClearMacro m,
         bytes calldata params,
         address signer,
         address executor
     ) internal {
         IClearMacroForwarderV1.Payload memory payload = abi.decode(params, (IClearMacroForwarderV1.Payload));
+
+        if (payload.security.macroContract != address(m)) {
+            revert MacroContractMismatch(payload.security.macroContract, address(m));
+        }
 
         // Provider authorization: either ACL role, or self-relay when provider is "self"
         if (keccak256(bytes(payload.security.provider)) == keccak256(bytes(SELF_PROVIDER))) {
@@ -220,6 +226,7 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
         return keccak256(abi.encode(
             _TYPEHASH_SECURITY,
             keccak256(bytes(security.domain)),
+            security.macroContract,
             keccak256(bytes(security.provider)),
             security.validAfter,
             security.validBefore,

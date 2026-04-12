@@ -35,6 +35,7 @@ interface IClearMacroForwarderV1 {
      */
     struct Security {
         string domain;
+        address macroContract;
         string provider;
         uint256 validAfter;
         uint256 validBefore;
@@ -60,7 +61,7 @@ interface IClearMacroForwarderV1 {
     /**
      * @dev Encodes the action and security data into the payload bytes expected by `runMacro`.
      * @param  params     ABI-encoded macro-specific parameters, opaque to the forwarder.
-     * @param  security   Security parameters (domain, provider, validAfter, validBefore, nonce).
+     * @param  security   Security parameters (domain, macroContract, provider, validAfter, validBefore, nonce).
      * @return payload    ABI-encoded `Payload` to pass to `runMacro`.
      */
     function encodeParams(

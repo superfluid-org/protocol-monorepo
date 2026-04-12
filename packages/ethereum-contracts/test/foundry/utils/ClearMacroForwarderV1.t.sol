@@ -16,7 +16,8 @@ import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
 
 string constant PRIMARY_TYPE_NAME = "MinimalExample";
 string constant ACTION_TYPEDEF = "Action(string description)";
-string constant SECURITY_TYPEDEF = "Security(string domain,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
+string constant SECURITY_TYPEDEF =
+    "Security(string domain,address macroContract,string provider,uint256 validAfter,uint256 validBefore,uint256 nonce)";
 string constant SECURITY_DOMAIN = "minimalmacro.xyz";
 string constant SECURITY_PROVIDER = "macros.superfluid.eth";
 uint256 constant DEFAULT_NONCE = uint256(1) << 64;
@@ -58,6 +59,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
             action: IClearMacroForwarderV1.EncodedAction({ params: abi.encode(token, amount) }),
             security: IClearMacroForwarderV1.Security({
                 domain: SECURITY_DOMAIN,
+                macroContract: address(0xCAFE),
                 provider: SECURITY_PROVIDER,
                 validAfter: validAfter,
                 validBefore: validBefore,
@@ -68,6 +70,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
 
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
+            macroContract: address(0xCAFE),
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
             validBefore: validBefore,
@@ -97,6 +100,21 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
 
         vm.expectRevert(ClearMacroForwarderV1.InvalidSignature.selector);
         _runMacroAs(address(this), signer.addr, params, wrongSignatureVRS);
+    }
+
+    function testRunMacroRevertsOnMacroMismatch() external {
+        MinimalClearMacro mismatchedMacro = new MinimalClearMacro();
+        VmSafe.Wallet memory signer = vm.createWallet("signer");
+        bytes memory params = _getTestPayload();
+        bytes memory signatureVRS = _signPayload(signer, params);
+
+        vm.expectRevert(abi.encodeWithSelector(
+            ClearMacroForwarderV1.MacroContractMismatch.selector,
+            address(minimalClearMacro),
+            address(mismatchedMacro)
+        ));
+        vm.prank(address(this));
+        forwarder.runMacro(mismatchedMacro, params, signer.addr, signatureVRS);
     }
 
     function testRevertsWhenCallerMissingProviderRole() external {
@@ -176,6 +194,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         bytes32 securityStructHash = keccak256(abi.encode(
             keccak256(abi.encodePacked(SECURITY_TYPEDEF)),
             keccak256(bytes(SECURITY_DOMAIN)),
+            address(minimalClearMacro),
             keccak256(bytes(SECURITY_PROVIDER)),
             uint256(0),
             uint256(0),
@@ -193,6 +212,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         string memory dataToBeSignedJson = _getDataToBeSignedJson(
             vm.toString(block.chainid),
             vm.toString(address(forwarder)),
+            vm.toString(address(minimalClearMacro)),
             _getExpectedDescription()
         );
         console.log(dataToBeSignedJson);
@@ -317,6 +337,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         bytes memory macroParams = multiActionMacro.encodeUpgrade(langHu, address(superToken), TEST_AMOUNT);
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
+            macroContract: address(multiActionMacro),
             provider: SECURITY_PROVIDER,
             validAfter: 0,
             validBefore: 0,
@@ -379,6 +400,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
     ) internal view returns (bytes memory) {
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
+            macroContract: address(minimalClearMacro),
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
             validBefore: validBefore,
@@ -390,6 +412,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
     function _getSelfRelayPayload() internal view returns (bytes memory) {
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
+            macroContract: address(minimalClearMacro),
             provider: "self",
             validAfter: uint256(0),
             validBefore: uint256(0),
@@ -407,6 +430,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
     ) internal view returns (bytes memory) {
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
+            macroContract: address(multiActionMacro),
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
             validBefore: validBefore,
@@ -428,6 +452,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
     ) internal view returns (bytes memory) {
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
+            macroContract: address(multiActionMacro),
             provider: SECURITY_PROVIDER,
             validAfter: validAfter,
             validBefore: validBefore,
@@ -446,6 +471,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
     ) internal view returns (bytes memory) {
         IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
             domain: SECURITY_DOMAIN,
+            macroContract: address(multiActionMacro),
             provider: SECURITY_PROVIDER,
             validAfter: 0,
             validBefore: 0,
@@ -474,12 +500,13 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
     function _getDataToBeSignedJson(
         string memory chainIdStr,
         string memory forwarderStr,
+        string memory macroStr,
         string memory description
     ) internal pure returns (string memory) {
         return string(abi.encodePacked(
             _getPrefixJson(),
             _getDomainJson(chainIdStr, forwarderStr),
-            _getMessageJson(description),
+            _getMessageJson(macroStr, description),
             '}'
         ));
     }
@@ -506,13 +533,14 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         ));
     }
 
-    function _getMessageJson(string memory description) internal pure returns (string memory) {
+    function _getMessageJson(string memory macroStr, string memory description) internal pure returns (string memory) {
         return string(abi.encodePacked(
             '},',
             '"message": {',
             '"action": {"description": "', description, '"},',
             '"security": {',
             '"domain": "', SECURITY_DOMAIN, '",',
+            '"macroContract": "', macroStr, '",',
             '"provider": "', SECURITY_PROVIDER, '",',
             '"validAfter": "0",',
             '"validBefore": "0",',
@@ -562,6 +590,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             '"Security": [',
             '{"name": "domain", "type": "string"},',
+            '{"name": "macroContract", "type": "address"},',
             '{"name": "provider", "type": "string"},',
             '{"name": "validAfter", "type": "uint256"},',
             '{"name": "validBefore", "type": "uint256"},',
