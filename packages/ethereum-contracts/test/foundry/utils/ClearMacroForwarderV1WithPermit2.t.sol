@@ -131,6 +131,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
     ClearMacroForwarderV1WithPermit2 internal forwarder;
     MinimalClearMacroForPermit2Test internal minimalClearMacro;
     MinimalClearMacroEmptyOps internal minimalClearMacroEmptyOps;
+    address internal permit2DomainVerifyingContract;
 
     constructor() FoundrySuperfluidTester(5) {}
 
@@ -139,6 +140,10 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         // Etch Permit2 bytecode at canonical address for local testing
         address deployed = DeployPermit2.deployPermit2();
         vm.etch(PERMIT2_CANONICAL, deployed.code);
+        // The bytecode is etched onto the canonical Permit2 address, but the deployed runtime keeps
+        // the immutable-cached domain separator from the original deployment. We keep that original
+        // address so the JSON EIP-712 domain in tests matches the DOMAIN_SEPARATOR() used on-chain.
+        permit2DomainVerifyingContract = deployed;
         forwarder = new ClearMacroForwarderV1WithPermit2(sf.host);
         minimalClearMacro = new MinimalClearMacroForPermit2Test();
         minimalClearMacroEmptyOps = new MinimalClearMacroEmptyOps();
@@ -184,6 +189,42 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
             _indexOf(result, "Security(") < _indexOf(result, "TokenPermissions("),
             "Security should precede TokenPermissions"
         );
+    }
+
+    function testRunPermit2AndMacroMatchesJsonTypedData() external {
+        VmSafe.Wallet memory signer = vm.createWallet("jsonTypedDataSigner");
+        _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
+
+        bytes memory params = _getTestPayload(minimalClearMacroEmptyOps);
+        IPermit2.PermitTransferFrom memory permit = _makePermit(address(token), TEST_AMOUNT);
+        bytes32 witness = forwarder.getPermit2WitnessStructHash(
+            minimalClearMacroEmptyOps, params, address(superToken)
+        );
+        string memory witnessTypeString = forwarder.getPermit2WitnessTypeString(minimalClearMacroEmptyOps, params);
+        _assertPermit2TypeHashesAreCanonical(witnessTypeString);
+        _assertPermit2DomainSeparatorMatches();
+
+        bytes32 digestFromJson = vm.eip712HashTypedData(
+            _getPermit2DataToBeSignedJson(permit, address(forwarder), params, address(superToken))
+        );
+        bytes32 digestFromSolidity = _computePermit2Digest(
+            permit, address(forwarder), witness, witnessTypeString
+        );
+        assertEq(digestFromJson, digestFromSolidity, "Permit2 digest mismatch vs vm.eip712HashTypedData");
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digestFromJson);
+        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _toPermit2MacroParams(
+            permit,
+            signer.addr,
+            witness,
+            witnessTypeString,
+            abi.encodePacked(r, s, v),
+            address(forwarder),
+            address(superToken)
+        );
+
+        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params));
+        assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "signer should receive upgraded SuperTokens");
     }
 
     function _indexOf(string memory haystack, string memory needle) internal pure returns (int256) {
@@ -456,12 +497,231 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
     }
 
+    function _assertPermit2TypeHashesAreCanonical(string memory witnessTypeString) internal pure {
+        string memory witnessInnerTypeDef = string(abi.encodePacked(
+            "ClearMacro(address upgradeSuperToken,Action action,Security security)",
+            ACTION_TYPEDEF,
+            SECURITY_TYPEDEF
+        ));
+        assertEq(
+            keccak256(bytes(witnessInnerTypeDef)),
+            vm.eip712HashType(witnessInnerTypeDef),
+            "ClearMacro witness inner type is not canonical EIP-712"
+        );
+
+        string memory fullTypeDef = string(abi.encodePacked(
+            "PermitWitnessTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline,",
+            witnessTypeString
+        ));
+        assertEq(
+            keccak256(bytes(fullTypeDef)),
+            vm.eip712HashType(fullTypeDef),
+            "PermitWitnessTransferFrom witness type is not canonical EIP-712"
+        );
+    }
+
+    function _assertPermit2DomainSeparatorMatches() internal view {
+        bytes32 expectedDomainSeparator = keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)"),
+            keccak256(bytes("Permit2")),
+            block.chainid,
+            permit2DomainVerifyingContract
+        ));
+        assertEq(
+            IPermit2(PERMIT2_CANONICAL).DOMAIN_SEPARATOR(),
+            expectedDomainSeparator,
+            "Permit2 domain separator mismatch"
+        );
+    }
+
     function _makePermit(address tokenAddr, uint256 amount) internal view returns (IPermit2.PermitTransferFrom memory) {
         return IPermit2.PermitTransferFrom({
             permitted: IPermit2.TokenPermissions({ token: tokenAddr, amount: amount }),
             nonce: 0,
             deadline: block.timestamp + 3600
         });
+    }
+
+    function _getPermit2DataToBeSignedJson(
+        IPermit2.PermitTransferFrom memory permit,
+        address spender,
+        bytes memory params,
+        address upgradeSuperToken
+    ) internal view returns (string memory) {
+        IClearMacroForwarderV1.Payload memory payload =
+            abi.decode(params, (IClearMacroForwarderV1.Payload));
+        return string(abi.encodePacked(
+            _getPermit2PrefixJson(),
+            _getPermit2DomainJson(
+                Strings.toString(block.chainid),
+                Strings.toHexString(permit2DomainVerifyingContract)
+            ),
+            _getPermit2MessageJson(
+                permit,
+                Strings.toHexString(spender),
+                _getPermit2WitnessJson(payload.action.params, upgradeSuperToken, payload.security)
+            ),
+            "}"
+        ));
+    }
+
+    function _getExpectedDescription(bytes memory actionParams) internal pure returns (string memory) {
+        (address targetSuperToken, uint256 amount) = abi.decode(actionParams, (address, uint256));
+        return string.concat(
+            "Upgrade ",
+            Strings.toString(amount),
+            " ",
+            Strings.toHexString(targetSuperToken)
+        );
+    }
+
+    function _getPermit2PrefixJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "{",
+            "\"types\": {", _getPermit2TypesJson(), "},",
+            "\"primaryType\": \"PermitWitnessTransferFrom\","
+        ));
+    }
+
+    function _getPermit2DomainJson(string memory chainIdStr, string memory permit2Str)
+        internal
+        pure
+        returns (string memory)
+    {
+        return string(abi.encodePacked(
+            "\"domain\": {",
+            "\"name\": \"Permit2\",",
+            "\"chainId\": ", chainIdStr, ",",
+            "\"verifyingContract\": \"", permit2Str, "\""
+        ));
+    }
+
+    function _getPermit2MessageJson(
+        IPermit2.PermitTransferFrom memory permit,
+        string memory spenderStr,
+        string memory witnessJson
+    ) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "},",
+            "\"message\": {",
+            "\"permitted\": {\"token\": \"", Strings.toHexString(permit.permitted.token), "\", \"amount\": \"",
+            Strings.toString(permit.permitted.amount), "\"},",
+            "\"spender\": \"", spenderStr, "\",",
+            "\"nonce\": \"", Strings.toString(permit.nonce), "\",",
+            "\"deadline\": \"", Strings.toString(permit.deadline), "\",",
+            "\"witness\": ", witnessJson,
+            "}"
+        ));
+    }
+
+    function _getPermit2WitnessJson(
+        bytes memory actionParams,
+        address upgradeSuperToken,
+        IClearMacroForwarderV1.Security memory security
+    ) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "{",
+            "\"upgradeSuperToken\": \"", Strings.toHexString(upgradeSuperToken), "\",",
+            "\"action\": ", _getPermit2ActionJson(actionParams), ",",
+            "\"security\": ", _getPermit2SecurityJson(security),
+            "}"
+        ));
+    }
+
+    function _getPermit2ActionJson(bytes memory actionParams) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "{\"description\": \"", _getExpectedDescription(actionParams), "\"}"
+        ));
+    }
+
+    function _getPermit2SecurityJson(IClearMacroForwarderV1.Security memory security)
+        internal
+        pure
+        returns (string memory)
+    {
+        return string(abi.encodePacked(
+            "{",
+            "\"domain\": \"", security.domain, "\",",
+            "\"macroContract\": \"", Strings.toHexString(security.macroContract), "\",",
+            "\"provider\": \"", security.provider, "\",",
+            "\"validAfter\": \"", Strings.toString(security.validAfter), "\",",
+            "\"validBefore\": \"", Strings.toString(security.validBefore), "\",",
+            "\"nonce\": \"", Strings.toString(security.nonce), "\"",
+            "}"
+        ));
+    }
+
+    function _getPermit2TypesJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            _getPermit2EIP712DomainTypeJson(),
+            _getPermit2PermitWitnessTransferFromTypeJson(),
+            _getPermit2TokenPermissionsTypeJson(),
+            _getPermit2ClearMacroTypeJson(),
+            _getPermit2ActionTypeJson(),
+            _getPermit2SecurityTypeJson()
+        ));
+    }
+
+    function _getPermit2EIP712DomainTypeJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "\"EIP712Domain\": [",
+            "{\"name\": \"name\", \"type\": \"string\"},",
+            "{\"name\": \"chainId\", \"type\": \"uint256\"},",
+            "{\"name\": \"verifyingContract\", \"type\": \"address\"}",
+            "],"
+        ));
+    }
+
+    function _getPermit2PermitWitnessTransferFromTypeJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "\"PermitWitnessTransferFrom\": [",
+            "{\"name\": \"permitted\", \"type\": \"TokenPermissions\"},",
+            "{\"name\": \"spender\", \"type\": \"address\"},",
+            "{\"name\": \"nonce\", \"type\": \"uint256\"},",
+            "{\"name\": \"deadline\", \"type\": \"uint256\"},",
+            "{\"name\": \"witness\", \"type\": \"ClearMacro\"}",
+            "],"
+        ));
+    }
+
+    function _getPermit2TokenPermissionsTypeJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "\"TokenPermissions\": [",
+            "{\"name\": \"token\", \"type\": \"address\"},",
+            "{\"name\": \"amount\", \"type\": \"uint256\"}",
+            "],"
+        ));
+    }
+
+    function _getPermit2ClearMacroTypeJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "\"ClearMacro\": [",
+            "{\"name\": \"upgradeSuperToken\", \"type\": \"address\"},",
+            "{\"name\": \"action\", \"type\": \"Action\"},",
+            "{\"name\": \"security\", \"type\": \"Security\"}",
+            "],"
+        ));
+    }
+
+    function _getPermit2ActionTypeJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "\"Action\": [",
+            "{\"name\": \"description\", \"type\": \"string\"}",
+            "],"
+        ));
+    }
+
+    function _getPermit2SecurityTypeJson() internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            "\"Security\": [",
+            "{\"name\": \"domain\", \"type\": \"string\"},",
+            "{\"name\": \"macroContract\", \"type\": \"address\"},",
+            "{\"name\": \"provider\", \"type\": \"string\"},",
+            "{\"name\": \"validAfter\", \"type\": \"uint256\"},",
+            "{\"name\": \"validBefore\", \"type\": \"uint256\"},",
+            "{\"name\": \"nonce\", \"type\": \"uint256\"}",
+            "]"
+        ));
     }
 
     function _signPermit(
