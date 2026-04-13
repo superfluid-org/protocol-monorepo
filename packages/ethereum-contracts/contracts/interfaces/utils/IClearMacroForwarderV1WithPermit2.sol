@@ -36,8 +36,11 @@ interface IClearMacroPermit2Extension {
 
     /**
      * @dev Struct hash of the ClearMacro payload for use as Permit2 witness.
+     * @param m       Target macro.
+     * @param params  ABI-encoded `IClearMacroForwarderV1.Payload`.
+     * @param upgradeSuperToken SuperToken used for implied upgrade, or `address(0)` if none.
      */
-    function getPermit2WitnessStructHash(IClearMacro m, bytes calldata params)
+    function getPermit2WitnessStructHash(IClearMacro m, bytes calldata params, address upgradeSuperToken)
         external
         view
         returns (bytes32);
