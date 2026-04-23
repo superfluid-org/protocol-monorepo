@@ -150,6 +150,12 @@ type FlowUpdatedEvent implements Event @entity(immutable: true) {
     """
     totalAmountStreamedUntilTimestamp: BigInt!
 
+    """
+    Whether the stream receiver was flagged as a SuperApp at the time this event was processed.
+    Sourced from `Account.isSuperApp`, which is resolved once via `host.getAppManifest` during first account init; not refreshed thereafter.
+    """
+    receiverIsSuperApp: Boolean!
+
     # ---------------------------------- links ----------------------------------
     """
     The stream entity which is being modified.
@@ -1429,6 +1435,7 @@ type TransferEvent implements Event @entity(immutable: true) {
     addresses[0] = `token`
     addresses[1] = `from`
     addresses[2] = `to`
+    addresses[3] = `operator` (when present; sourced from the paired ERC-777 Sent event)
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1440,6 +1447,13 @@ type TransferEvent implements Event @entity(immutable: true) {
     value: BigInt!
 
     token: Bytes!
+
+    """
+    msg.sender to the SuperToken contract for this transfer, sourced from the paired ERC-777 Sent event.
+    Null for mint/burn paths, which don't emit Sent.
+    When `operator != from` and non-null, the transfer was a `transferFrom`/`operatorSend` (allowance-based).
+    """
+    operator: Bytes
 }
 
 type TokenDowngradedEvent implements Event @entity(immutable: true) {

@@ -17,11 +17,13 @@ import {
     handleTokenUpgraded,
     handleTransfer,
 } from "../../../src/mappings/superToken";
+import { TransferEvent } from "../../../generated/schema";
+import { _createAccountTokenSnapshotLogEntity } from "../../../src/mappingHelpers";
 import { BIG_INT_ONE, BIG_INT_ZERO, encode, ZERO_ADDRESS } from "../../../src/utils";
 import { assertEmptyTokenStatisticProperties, assertEventBaseProperties, assertTokenStatisticProperties } from "../../assertionHelpers";
 import { alice, bob, cfaV1Address, charlie, DEFAULT_DECIMALS, delta, FAKE_INITIAL_BALANCE, FALSE, maticXName, maticXSymbol, TRUE } from "../../constants";
 import { getETHAddress, getETHUnsignedBigInt, stringToBytes } from "../../converters";
-import { createStream, createStreamRevision } from "../../mockedEntities";
+import { createStream, createStreamRevision, createSuperToken } from "../../mockedEntities";
 import { mockedGetAppManifest, mockedGetHost, mockedHandleSuperTokenInitRPCCalls, mockedRealtimeBalanceOf } from "../../mockedFunctions";
 import {
     createAgreementLiquidatedByEvent,
@@ -413,7 +415,83 @@ describe("SuperToken Mapper Unit Tests", () => {
             );
         });
 
-        test("handleSent() - Should create a new SentEvent entity", () => {
+        test("handleSent() - Should stamp operator onto paired TransferEvent (transferFrom path)", () => {
+            const operator = charlie; // spender, != from
+            const from = alice;
+            const to = bob;
+            const amount = BigInt.fromI32(100);
+            const data = stringToBytes("");
+            const operatorData = stringToBytes("");
+
+            // Emission order in SuperToken._move: Sent first, then Transfer.
+            // So the paired TransferEvent has logIndex == sent.logIndex + 1.
+            const sentEvent = createSentEvent(
+                operator,
+                from,
+                to,
+                amount,
+                data,
+                operatorData
+            );
+            sentEvent.logIndex = BigInt.fromI32(0);
+
+            // Pre-create the paired TransferEvent directly (bypassing handleTransfer,
+            // which has heavier RPC-mock requirements covered in existing tests).
+            const transferEventId =
+                "Transfer-" +
+                sentEvent.transaction.hash.toHexString() +
+                "-1";
+            const transferEventEntity = new TransferEvent(transferEventId);
+            transferEventEntity.blockNumber = sentEvent.block.number;
+            transferEventEntity.logIndex = BigInt.fromI32(1);
+            transferEventEntity.order = BigInt.fromI32(0);
+            transferEventEntity.timestamp = sentEvent.block.timestamp;
+            transferEventEntity.name = "Transfer";
+            transferEventEntity.transactionHash = sentEvent.transaction.hash;
+            transferEventEntity.gasPrice = sentEvent.transaction.gasPrice;
+            transferEventEntity.addresses = [
+                sentEvent.address,
+                Address.fromString(from),
+                Address.fromString(to),
+            ];
+            transferEventEntity.from = from;
+            transferEventEntity.to = to;
+            transferEventEntity.value = amount;
+            transferEventEntity.token = sentEvent.address;
+            transferEventEntity.save();
+
+            // Pre-seed Token so tokenHasValidHost() returns true without RPC.
+            createSuperToken(
+                sentEvent.address,
+                sentEvent.block,
+                DEFAULT_DECIMALS,
+                maticXName,
+                maticXSymbol,
+                false,
+                ZERO_ADDRESS
+            );
+
+            handleSent(sentEvent);
+
+            assert.fieldEquals("TransferEvent", transferEventId, "operator", operator);
+            // operator appended to addresses array
+            assert.fieldEquals(
+                "TransferEvent",
+                transferEventId,
+                "addresses",
+                "[" +
+                    sentEvent.address.toHexString() +
+                    ", " +
+                    Address.fromString(from).toHexString() +
+                    ", " +
+                    Address.fromString(to).toHexString() +
+                    ", " +
+                    Address.fromString(operator).toHexString() +
+                    "]"
+            );
+        });
+
+        test("handleSent() - Should no-op when no paired TransferEvent exists (mint/burn path)", () => {
             const operator = alice;
             const from = alice;
             const to = bob;
@@ -430,20 +508,23 @@ describe("SuperToken Mapper Unit Tests", () => {
                 operatorData
             );
 
-            mockedGetHost(sentEvent.address.toHex());
+            // Pre-seed Token so tokenHasValidHost() returns true without RPC.
+            createSuperToken(
+                sentEvent.address,
+                sentEvent.block,
+                DEFAULT_DECIMALS,
+                maticXName,
+                maticXSymbol,
+                false,
+                ZERO_ADDRESS
+            );
 
+            // No TransferEvent was pre-seeded — handleSent must not crash
+            // and must not materialize any entity.
             handleSent(sentEvent);
 
-            const id = assertEventBaseProperties(
-                sentEvent,
-                "Sent"
-            );
-            assert.fieldEquals("SentEvent", id, "operator", operator);
-            assert.fieldEquals("SentEvent", id, "from", from);
-            assert.fieldEquals("SentEvent", id, "to", to);
-            assert.fieldEquals("SentEvent", id, "amount", amount.toString());
-            assert.fieldEquals("SentEvent", id, "data", data.toHexString());
-            assert.fieldEquals("SentEvent", id, "operatorData", operatorData.toHexString());
+            assert.entityCount("TransferEvent", 0);
+            assert.entityCount("SentEvent", 0);
         });
 
         test("handleBurned() - Should create a new BurnedEvent entity", () => {
@@ -695,6 +776,30 @@ describe("SuperToken Mapper Unit Tests", () => {
                 mintedEvent.block.number,
                 amount // totalSupply = 100
             );
+        });
+
+        test("_createAccountTokenSnapshotLogEntity() - Should be a no-op (ATSLog indexing deprecated)", () => {
+            const from = alice;
+            const to = bob;
+            const amount = BigInt.fromI32(100);
+
+            const burnedEvent = createBurnedEvent(
+                from,
+                to,
+                amount,
+                stringToBytes(""),
+                stringToBytes("")
+            );
+
+            _createAccountTokenSnapshotLogEntity(
+                burnedEvent,
+                Address.fromString(to),
+                burnedEvent.address,
+                "Burned"
+            );
+
+            // Helper is a no-op: no AccountTokenSnapshotLog rows are written.
+            assert.entityCount("AccountTokenSnapshotLog", 0);
         });
     });
 });

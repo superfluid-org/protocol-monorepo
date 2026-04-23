@@ -6,9 +6,11 @@ import {
     describe,
     test,
 } from "matchstick-as/assembly/index";
-import { handleFlowOperatorUpdated } from "../../../src/mappings/cfav1";
+import { Account } from "../../../generated/schema";
+import { handleFlowOperatorUpdated, handleFlowUpdated } from "../../../src/mappings/cfav1";
 import {
     BIG_INT_ZERO,
+    createEventID,
     getFlowOperatorID,
     ZERO_ADDRESS,
 } from "../../../src/utils";
@@ -16,15 +18,23 @@ import { assertEventBaseProperties } from "../../assertionHelpers";
 import {
     alice,
     bob,
+    DEFAULT_DECIMALS,
     maticXAddress,
     maticXName,
     maticXSymbol,
 } from "../../constants";
 import {
     createFlowOperatorUpdatedEvent,
+    createFlowUpdatedEvent,
+    getDeposit,
     modifyFlowAndAssertFlowUpdatedEventProperties,
 } from "../cfav1.helper";
-import { mockedApprove } from "../../mockedFunctions";
+import { createSuperToken } from "../../mockedEntities";
+import { stringToBytes } from "../../converters";
+import {
+    mockedApprove,
+    mockedHandleFlowUpdatedRPCCalls,
+} from "../../mockedFunctions";
 
 const initialFlowRate = BigInt.fromI32(100);
 
@@ -186,5 +196,124 @@ describe("ConstantFlowAgreementV1 Event Entity Unit Tests", () => {
         assert.fieldEquals("FlowOperatorUpdatedEvent", id, "flowOperator", flowOperatorId);
         assert.fieldEquals("FlowOperatorUpdatedEvent", id, "permissions", permissions.toString());
         assert.fieldEquals("FlowOperatorUpdatedEvent", id, "flowRateAllowance", flowRateAllowance.toString());
+    });
+
+    test("handleFlowUpdated() - Should set receiverIsSuperApp=true when receiver Account is a SuperApp", () => {
+        const sender = alice;
+        const receiver = bob;
+        const flowRate = BigInt.fromI32(100);
+
+        // Pre-seed both Accounts so getOrInitAccount returns cached values without host-RPC.
+        const senderAccount = new Account(sender);
+        senderAccount.createdAtTimestamp = BIG_INT_ZERO;
+        senderAccount.createdAtBlockNumber = BIG_INT_ZERO;
+        senderAccount.updatedAtTimestamp = BIG_INT_ZERO;
+        senderAccount.updatedAtBlockNumber = BIG_INT_ZERO;
+        senderAccount.isSuperApp = false;
+        senderAccount.save();
+
+        const receiverAccount = new Account(receiver);
+        receiverAccount.createdAtTimestamp = BIG_INT_ZERO;
+        receiverAccount.createdAtBlockNumber = BIG_INT_ZERO;
+        receiverAccount.updatedAtTimestamp = BIG_INT_ZERO;
+        receiverAccount.updatedAtBlockNumber = BIG_INT_ZERO;
+        receiverAccount.isSuperApp = true;
+        receiverAccount.save();
+
+        const flowUpdatedEvent = createFlowUpdatedEvent(
+            maticXAddress,
+            sender,
+            receiver,
+            flowRate,
+            flowRate.neg(),
+            flowRate,
+            stringToBytes("")
+        );
+
+        // Pre-seed Token so tokenHasValidHost() returns true without host-RPC.
+        createSuperToken(
+            Address.fromString(maticXAddress),
+            flowUpdatedEvent.block,
+            DEFAULT_DECIMALS,
+            maticXName,
+            maticXSymbol,
+            false,
+            ZERO_ADDRESS
+        );
+
+        mockedHandleFlowUpdatedRPCCalls(
+            flowUpdatedEvent,
+            maticXAddress,
+            DEFAULT_DECIMALS,
+            maticXName,
+            maticXSymbol,
+            ZERO_ADDRESS,
+            getDeposit(flowRate),
+            BIG_INT_ZERO
+        );
+
+        handleFlowUpdated(flowUpdatedEvent);
+
+        const eventId = createEventID("FlowUpdated", flowUpdatedEvent);
+        assert.fieldEquals("FlowUpdatedEvent", eventId, "receiverIsSuperApp", "true");
+    });
+
+    test("handleFlowUpdated() - Should set receiverIsSuperApp=false when receiver is not a SuperApp", () => {
+        const sender = alice;
+        const receiver = bob;
+        const flowRate = BigInt.fromI32(100);
+
+        // Pre-seed non-SuperApp Accounts for both.
+        const senderAccount = new Account(sender);
+        senderAccount.createdAtTimestamp = BIG_INT_ZERO;
+        senderAccount.createdAtBlockNumber = BIG_INT_ZERO;
+        senderAccount.updatedAtTimestamp = BIG_INT_ZERO;
+        senderAccount.updatedAtBlockNumber = BIG_INT_ZERO;
+        senderAccount.isSuperApp = false;
+        senderAccount.save();
+
+        const receiverAccount = new Account(receiver);
+        receiverAccount.createdAtTimestamp = BIG_INT_ZERO;
+        receiverAccount.createdAtBlockNumber = BIG_INT_ZERO;
+        receiverAccount.updatedAtTimestamp = BIG_INT_ZERO;
+        receiverAccount.updatedAtBlockNumber = BIG_INT_ZERO;
+        receiverAccount.isSuperApp = false;
+        receiverAccount.save();
+
+        const flowUpdatedEvent = createFlowUpdatedEvent(
+            maticXAddress,
+            sender,
+            receiver,
+            flowRate,
+            flowRate.neg(),
+            flowRate,
+            stringToBytes("")
+        );
+
+        createSuperToken(
+            Address.fromString(maticXAddress),
+            flowUpdatedEvent.block,
+            DEFAULT_DECIMALS,
+            maticXName,
+            maticXSymbol,
+            false,
+            ZERO_ADDRESS
+        );
+
+        mockedHandleFlowUpdatedRPCCalls(
+            flowUpdatedEvent,
+            maticXAddress,
+            DEFAULT_DECIMALS,
+            maticXName,
+            maticXSymbol,
+            ZERO_ADDRESS,
+            getDeposit(flowRate),
+            BIG_INT_ZERO
+        );
+
+        handleFlowUpdated(flowUpdatedEvent);
+
+        const eventId = createEventID("FlowUpdated", flowUpdatedEvent);
+        assert.fieldEquals("FlowUpdatedEvent", eventId, "receiverIsSuperApp", "false");
     });
 });

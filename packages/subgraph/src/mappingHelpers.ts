@@ -692,6 +692,7 @@ export function _createAccountTokenSnapshotLogEntity(
     tokenAddress: Address,
     eventName: string
 ): void {
+    return;
     if (accountAddress.equals(ZERO_ADDRESS)) {
         return;
     }

@@ -8,6 +8,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Fix AccountTokenSnapshotLog capturing intermediate state instead of final state after ATS updates
 - Skip deprecated TokenStatisticLog validation in integration tests
+- Stop indexing new `AccountTokenSnapshotLog` entries (schema retained; existing rows remain queryable)
+- Add `TransferEvent.operator`, populated from the paired ERC-777 `Sent` event; null for mint/burn/upgrade/downgrade paths that don't emit `Sent`
+- Add `FlowUpdatedEvent.receiverIsSuperApp` flag, sourced from the cached `Account.isSuperApp` on the receiver
 
 ## [2.2.0]
 

@@ -5,7 +5,6 @@ import {
 } from "../helpers/helpers";
 import {
     IAccountTokenSnapshot,
-    IAccountTokenSnapshotLog,
     ITokenStatistic,
     ITokenStatisticLog,
 } from "../interfaces";
@@ -16,7 +15,7 @@ import {
 
 export const fetchATSAndValidate = async (
     expectedATSData: IAccountTokenSnapshot,
-    skipLogEntryValidation: boolean // Boolean flag to decide, whether to check log entries or not. Ignore IDA claim/distribute case
+    _skipLogEntryValidation: boolean // retained for signature compatibility; ATSLog indexing is deprecated
 ) => {
     const graphATS = await fetchEntityAndEnsureExistence<IAccountTokenSnapshot>(
         getAccountTokenSnapshot,
@@ -24,7 +23,6 @@ export const fetchATSAndValidate = async (
         "AccountTokenSnapshot"
     );
     validateATSEntity(graphATS, expectedATSData);
-    if (!skipLogEntryValidation) validateATSLogEntry(graphATS);
 };
 
 export const fetchTokenStatsAndValidate = async (
@@ -130,76 +128,6 @@ export const validateATSEntity = (
         graphATSData.totalAmountTransferredUntilUpdatedAt,
         "ATS: totalAmountTransferredUntilUpdatedAt error"
     ).to.equal(expectedTotalAmountTransferredUntilUpdatedAt);
-};
-
-export const validateATSLogEntry = (graphATSData: IAccountTokenSnapshot) => {
-    const accountTokenSnapshotLog: IAccountTokenSnapshotLog =
-        graphATSData.accountTokenSnapshotLogs[0];
-    expect(
-        graphATSData.maybeCriticalAtTimestamp,
-        "ATSLog: maybeCriticalAtTimestamp error"
-    ).to.equal(accountTokenSnapshotLog.maybeCriticalAtTimestamp);
-    expect(
-        graphATSData.totalNumberOfActiveStreams,
-        "ATSLog: totalNumberOfActiveStreams error"
-    ).to.equal(accountTokenSnapshotLog.totalNumberOfActiveStreams);
-    expect(
-        graphATSData.totalNumberOfClosedStreams,
-        "ATSLog: totalNumberOfClosedStreams error"
-    ).to.equal(accountTokenSnapshotLog.totalNumberOfClosedStreams);
-    expect(
-        graphATSData.totalSubscriptionsWithUnits,
-        "ATSLog: totalSubscriptionWithUnits error"
-    ).to.equal(accountTokenSnapshotLog.totalSubscriptionsWithUnits);
-    expect(
-        graphATSData.totalApprovedSubscriptions,
-        "ATSLog: totalApprovedSubscriptions error"
-    ).to.equal(accountTokenSnapshotLog.totalApprovedSubscriptions);
-    expect(
-        graphATSData.balanceUntilUpdatedAt,
-        "ATSLog: balanceUntilUpdatedAt error"
-    ).to.equal(accountTokenSnapshotLog.balance);
-    expect(
-        graphATSData.totalNetFlowRate,
-        "ATSLog: totalNetFlowRate error"
-    ).to.equal(accountTokenSnapshotLog.totalNetFlowRate);
-
-    expect(
-        graphATSData.totalInflowRate,
-        "ATSLog: totalInflowRate error"
-    ).to.equal(accountTokenSnapshotLog.totalInflowRate);
-    expect(graphATSData.totalDeposit, "ATSLog: totalDeposit error").to.equal(
-        accountTokenSnapshotLog.totalDeposit
-    );
-    expect(
-        graphATSData.totalOutflowRate,
-        "ATSLog: totalOutflowRate error"
-    ).to.equal(accountTokenSnapshotLog.totalOutflowRate);
-    expect(
-        graphATSData.totalAmountStreamedUntilUpdatedAt,
-        "ATSLog: totalAmountStreamedUntilUpdatedAt error"
-    ).to.equal(accountTokenSnapshotLog.totalAmountStreamed);
-    expect(
-        graphATSData.totalAmountStreamedInUntilUpdatedAt,
-        "ATSLog: totalAmountStreamedInUntilUpdatedAt error"
-    ).to.equal(accountTokenSnapshotLog.totalAmountStreamedIn);
-    expect(
-        graphATSData.totalAmountStreamedOutUntilUpdatedAt,
-        "ATSLog: totalAmountStreamedOutUntilUpdatedAt error"
-    ).to.equal(accountTokenSnapshotLog.totalAmountStreamedOut);
-    expect(
-        graphATSData.totalAmountTransferredUntilUpdatedAt,
-        "ATSLog: totalAmountTransferredUntilUpdatedAt error"
-    ).to.equal(accountTokenSnapshotLog.totalAmountTransferred);
-    expect(
-        graphATSData.updatedAtTimestamp,
-        "ATSLog: updatedAtTimestamp error"
-    ).to.equal(accountTokenSnapshotLog.timestamp);
-
-    expect(
-        graphATSData.updatedAtBlockNumber,
-        "ATSLog: updatedAtBlockNumber error"
-    ).to.equal(accountTokenSnapshotLog.blockNumber);
 };
 
 /**

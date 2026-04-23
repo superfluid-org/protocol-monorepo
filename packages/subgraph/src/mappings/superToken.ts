@@ -15,7 +15,6 @@ import {
     ApprovalEvent,
     BurnedEvent,
     MintedEvent,
-    SentEvent,
     Stream,
     StreamRevision,
     TokenDowngradedEvent,
@@ -23,6 +22,7 @@ import {
     TransferEvent,
 } from "../../generated/schema";
 import {
+    BIG_INT_ONE,
     BIG_INT_ZERO,
     createEventID,
     initializeEventEntity,
@@ -185,7 +185,21 @@ export function handleSent(event: Sent): void {
         return;
     }
 
-    _createSentEventEntity(event);
+    const transferLogIndex = event.logIndex.plus(BIG_INT_ONE);
+    const transferEventId =
+        "Transfer-" +
+        event.transaction.hash.toHexString() +
+        "-" +
+        transferLogIndex.toString();
+    const transferEvent = TransferEvent.load(transferEventId);
+    if (transferEvent == null) {
+        return;
+    }
+    transferEvent.operator = event.params.operator;
+    transferEvent.addresses = transferEvent.addresses.concat([
+        event.params.operator,
+    ]);
+    transferEvent.save();
 }
 
 /**
@@ -362,24 +376,6 @@ function _createMintedEventEntity(event: Minted): void {
     ev.amount = event.params.amount;
     ev.data = event.params.data;
     ev.operatorData = event.params.operatorData;
-    ev.save();
-}
-
-function _createSentEventEntity(event: Sent): void {
-    const eventId = createEventID("Sent", event);
-    const ev = new SentEvent(eventId);
-    initializeEventEntity(ev, event, [
-        event.address,
-        event.params.operator,
-        event.params.to,
-    ]);
-    ev.amount = event.params.amount;
-    ev.data = event.params.data;
-    ev.token = event.address;
-    ev.operator = event.params.operator;
-    ev.operatorData = event.params.operatorData;
-    ev.from = event.params.from;
-    ev.to = event.params.to;
     ev.save();
 }
 
