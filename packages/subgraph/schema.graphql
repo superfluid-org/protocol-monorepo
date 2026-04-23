@@ -125,6 +125,12 @@ type FlowUpdatedEvent implements Event @entity(immutable: true) {
     deposit: BigInt!
 
     """
+    The owedDeposit on the flow at the time of this event — the portion of the
+    sender's `deposit` credited to the receiving SuperApp. Zero for non-SuperApp receivers.
+    """
+    owedDeposit: BigInt!
+
+    """
     Arbitrary bytes (additional data) passed upon flow creation.
     """
     userData: Bytes!
@@ -2010,6 +2016,12 @@ type Stream @entity(immutable: false) {
     # ---------------------------------- state ----------------------------------
     currentFlowRate: BigInt!
     deposit: BigInt!
+
+    """
+    The owedDeposit on the active flow — the portion of `deposit` credited to
+    the receiving SuperApp. Zero for non-SuperApp receivers.
+    """
+    owedDeposit: BigInt!
 
     """
     The amount streamed until `updatedAtTimestamp`/`updatedAtBlock`.

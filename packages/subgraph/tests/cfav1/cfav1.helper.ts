@@ -214,10 +214,14 @@ export function createFlowUpdatedEventWithMocks(
     assert.fieldEquals("FlowUpdatedEvent", id, "totalSenderFlowRate", totalSenderFlowRate.toString());
     assert.fieldEquals("FlowUpdatedEvent", id, "totalReceiverFlowRate", totalReceiverFlowRate.toString());
     assert.fieldEquals("FlowUpdatedEvent", id, "deposit", deposit.toString());
+    assert.fieldEquals("FlowUpdatedEvent", id, "owedDeposit", expectedOwedDeposit.toString());
     assert.fieldEquals("FlowUpdatedEvent", id, "userData", userData.toHexString());
     assert.fieldEquals("FlowUpdatedEvent", id, "oldFlowRate", oldFlowRate.toString());
     assert.fieldEquals("FlowUpdatedEvent", id, "type", expectedType);
     assert.fieldEquals("FlowUpdatedEvent", id, "stream", streamId);
+
+    assert.fieldEquals("Stream", streamId, "deposit", deposit.toString());
+    assert.fieldEquals("Stream", streamId, "owedDeposit", expectedOwedDeposit.toString());
 
     // Assert account token snapshots were created for sender and receiver
     const senderAtsId = getAccountTokenSnapshotID(Address.fromString(sender), Address.fromString(superToken));

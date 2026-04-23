@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Stop indexing new `AccountTokenSnapshotLog` entries (schema retained; existing rows remain queryable)
 - Add `TransferEvent.operator`, populated from the paired ERC-777 `Sent` event; null for mint/burn/upgrade/downgrade paths that don't emit `Sent`
 - Add `FlowUpdatedEvent.receiverIsSuperApp` flag, sourced from the cached `Account.isSuperApp` on the receiver
+- Add `Stream.owedDeposit` and `FlowUpdatedEvent.owedDeposit`, sourced from the CFA's `getFlow` return tuple — exposes how much of the sender's deposit is credited to the receiving SuperApp
 
 ## [2.2.0]
 

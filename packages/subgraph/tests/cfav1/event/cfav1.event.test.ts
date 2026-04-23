@@ -61,6 +61,23 @@ describe("ConstantFlowAgreementV1 Event Entity Unit Tests", () => {
         );
     });
 
+    test("handleFlowUpdated() - Should persist non-zero owedDeposit on Stream and FlowUpdatedEvent", () => {
+        modifyFlowAndAssertFlowUpdatedEventProperties(
+            maticXAddress,              // superToken
+            maticXName,                 // tokenName
+            maticXSymbol,               // tokenSymbol
+            alice,                      // sender
+            bob,                        // receiver
+            ZERO_ADDRESS,               // underlyingToken
+            "0",                        // expectedType
+            BigInt.fromI32(123456),     // expectedOwedDeposit (non-zero: receiver is a SuperApp)
+            initialFlowRate,            // flowRate
+            BIG_INT_ZERO,               // previousSenderFlowRate
+            BIG_INT_ZERO,               // previousReceiverFlowRate
+            ""                          // userData
+        );
+    });
+
     test("handleFlowUpdated() - Should create new FlowUpdatedEvent entities (create => update)", () => {
         // create flow
         modifyFlowAndAssertFlowUpdatedEventProperties(

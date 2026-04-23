@@ -77,6 +77,9 @@ export function handleFlowUpdated(event: FlowUpdated): void {
     const newDeposit = depositResult.reverted
         ? BigInt.fromI32(0)
         : depositResult.value.value2; // deposit
+    const newOwedDeposit = depositResult.reverted
+        ? BigInt.fromI32(0)
+        : depositResult.value.value3; // owedDeposit
 
     const stream = getOrInitStream(event);
     const oldDeposit = stream.deposit;
@@ -96,6 +99,7 @@ export function handleFlowUpdated(event: FlowUpdated): void {
     stream.updatedAtTimestamp = currentTimestamp;
     stream.updatedAtBlockNumber = event.block.number;
     stream.deposit = newDeposit;
+    stream.owedDeposit = newOwedDeposit;
     stream.userData = event.params.userData;
     stream.save();
 
@@ -123,6 +127,7 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         stream.id,
         newStreamedUntilLastUpdate,
         newDeposit,
+        newOwedDeposit,
         receiverAccount
     );
     handleStreamPeriodUpdate(
@@ -410,6 +415,7 @@ function _createFlowUpdatedEntity(
     streamId: string,
     totalAmountStreamedUntilTimestamp: BigInt,
     deposit: BigInt,
+    owedDeposit: BigInt,
     receiverAccount: Account
 ): FlowUpdatedEvent {
     const ev = new FlowUpdatedEvent(createEventID("FlowUpdated", event));
@@ -431,6 +437,7 @@ function _createFlowUpdatedEntity(
     ev.totalAmountStreamedUntilTimestamp = totalAmountStreamedUntilTimestamp;
     ev.flowOperator = ZERO_ADDRESS;
     ev.deposit = deposit;
+    ev.owedDeposit = owedDeposit;
     ev.receiverIsSuperApp = receiverAccount.isSuperApp;
 
     const type = getFlowActionType(oldFlowRate, event.params.flowRate);
