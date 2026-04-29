@@ -6,7 +6,6 @@ import {
     IConstantFlowAgreementV1,
 } from "../../generated/ConstantFlowAgreementV1/IConstantFlowAgreementV1";
 import {
-    Account,
     FlowOperatorUpdatedEvent,
     FlowUpdatedEvent,
     StreamPeriod,
@@ -25,7 +24,6 @@ import {
     createEventID,
 } from "../utils";
 import {
-    getOrInitAccount,
     getOrInitFlowOperator,
     getOrInitStream,
     getOrInitStreamRevision,
@@ -118,8 +116,6 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         streamRevision.save();
     }
 
-    const receiverAccount = getOrInitAccount(receiverAddress, event.block);
-
     // create event entity
     const flowUpdateEvent = _createFlowUpdatedEntity(
         event,
@@ -128,7 +124,6 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         newStreamedUntilLastUpdate,
         newDeposit,
         newOwedDeposit,
-        receiverAccount
     );
     handleStreamPeriodUpdate(
         event,
@@ -416,7 +411,6 @@ function _createFlowUpdatedEntity(
     totalAmountStreamedUntilTimestamp: BigInt,
     deposit: BigInt,
     owedDeposit: BigInt,
-    receiverAccount: Account
 ): FlowUpdatedEvent {
     const ev = new FlowUpdatedEvent(createEventID("FlowUpdated", event));
     initializeEventEntity(ev, event, [
@@ -438,7 +432,6 @@ function _createFlowUpdatedEntity(
     ev.flowOperator = ZERO_ADDRESS;
     ev.deposit = deposit;
     ev.owedDeposit = owedDeposit;
-    ev.receiverIsSuperApp = receiverAccount.isSuperApp;
 
     const type = getFlowActionType(oldFlowRate, event.params.flowRate);
     ev.type = type;

@@ -156,12 +156,6 @@ type FlowUpdatedEvent implements Event @entity(immutable: true) {
     """
     totalAmountStreamedUntilTimestamp: BigInt!
 
-    """
-    Whether the stream receiver was flagged as a SuperApp at the time this event was processed.
-    Sourced from `Account.isSuperApp`, which is resolved once via `host.getAppManifest` during first account init; not refreshed thereafter.
-    """
-    receiverIsSuperApp: Boolean!
-
     # ---------------------------------- links ----------------------------------
     """
     The stream entity which is being modified.
