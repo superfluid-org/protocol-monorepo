@@ -1296,6 +1296,10 @@ export function updateTokenStatisticStreamData(
         tokenStatistic.totalNumberOfClosedStreams +
         totalNumberOfClosedStreamsDelta;
 
+    // `depositDelta` only reflects deposit changes coming from stream / flow
+    // updates. GDA buffer-only deposit changes are handled separately in
+    // `handleBufferAdjusted()`, because `BufferAdjusted` events do not flow
+    // through this helper.
     tokenStatistic.totalDeposit =
         tokenStatistic.totalDeposit.plus(depositDelta);
 

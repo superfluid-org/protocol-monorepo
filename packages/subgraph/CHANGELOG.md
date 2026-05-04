@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Fix AccountTokenSnapshotLog capturing intermediate state instead of final state after ATS updates
 - Skip deprecated TokenStatisticLog validation in integration tests
+- Fix `AccountTokenSnapshot` and `TokenStatistic` GDA deposit totals when pool buffer changes via `BufferAdjusted` (#2155)
 
 ## [2.2.0]
 
