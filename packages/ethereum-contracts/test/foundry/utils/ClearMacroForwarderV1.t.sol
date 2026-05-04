@@ -191,15 +191,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         bytes memory payload = _getTestPayload();
         bytes32 structHash = forwarder.getStructHash(minimalClearMacro, payload);
         bytes32 actionStructHash = minimalClearMacro.getActionStructHash(abi.encode(address(superToken), TEST_AMOUNT));
-        bytes32 securityStructHash = keccak256(abi.encode(
-            keccak256(abi.encodePacked(SECURITY_TYPEDEF)),
-            keccak256(bytes(SECURITY_DOMAIN)),
-            address(minimalClearMacro),
-            keccak256(bytes(SECURITY_PROVIDER)),
-            uint256(0),
-            uint256(0),
-            DEFAULT_NONCE
-        ));
+        bytes32 securityStructHash = _getExpectedSecurityStructHash(address(minimalClearMacro), DEFAULT_NONCE);
         bytes32 expectedStructHash = keccak256(abi.encode(
             expectedTypeHash,
             actionStructHash,
@@ -496,6 +488,18 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         );
     }
 
+    function _getExpectedSecurityStructHash(address macroContract, uint256 nonce) internal pure returns (bytes32) {
+        return keccak256(abi.encode(
+            keccak256(abi.encodePacked(SECURITY_TYPEDEF)),
+            keccak256(bytes(SECURITY_DOMAIN)),
+            macroContract,
+            keccak256(bytes(SECURITY_PROVIDER)),
+            uint256(0),
+            uint256(0),
+            nonce
+        ));
+    }
+
     // EIP-712 typed data JSON generation for vm.eip712HashTypedData
     function _getDataToBeSignedJson(
         string memory chainIdStr,
@@ -537,16 +541,28 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         return string(abi.encodePacked(
             '},',
             '"message": {',
-            '"action": {"description": "', description, '"},',
+            _getActionMessageJson(description),
+            _getSecurityMessageJson(macroStr),
+            '}}'
+        ));
+    }
+
+    function _getActionMessageJson(string memory description) internal pure returns (string memory) {
+        return string(abi.encodePacked(
+            '"action": {"description": "', description, '"},'
+        ));
+    }
+
+    function _getSecurityMessageJson(string memory macroStr) internal pure returns (string memory) {
+        return string.concat(
             '"security": {',
             '"domain": "', SECURITY_DOMAIN, '",',
             '"macroContract": "', macroStr, '",',
             '"provider": "', SECURITY_PROVIDER, '",',
             '"validAfter": "0",',
             '"validBefore": "0",',
-            '"nonce": "', NONCE_STR, '"',
-            '}}'
-        ));
+            '"nonce": "', NONCE_STR, '"'
+        );
     }
 
     function _getTypesJson() internal pure returns (string memory) {
