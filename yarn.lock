@@ -3678,7 +3678,7 @@
     node-fetch "^2.7.0"
     viem "^2.21.8"
 
-"@safe-global/protocol-kit@^6.1.2":
+"@safe-global/protocol-kit@6.1.2", "@safe-global/protocol-kit@^6.1.2":
   version "6.1.2"
   resolved "https://registry.yarnpkg.com/@safe-global/protocol-kit/-/protocol-kit-6.1.2.tgz#6cafd55aaf119998b794ff3a0cdaa2556ba2374c"
   integrity sha512-cTpPdUAS2AMfGCkD1T601rQNjT0rtMQLA2TH7L/C+iFPAC6WrrDFop2B9lzeHjczlnVzrRpfFe4cL1bLrJ9NZw==
