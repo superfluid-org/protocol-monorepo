@@ -25,6 +25,7 @@ import {
     BIG_INT_ONE,
     BIG_INT_ZERO,
     createEventID,
+    getOrder,
     initializeEventEntity,
     tokenHasValidHost,
     ZERO_ADDRESS,
@@ -179,27 +180,42 @@ export function handleTransfer(event: Transfer): void {
 }
 
 export function handleSent(event: Sent): void {
-    let hostAddress = getHostAddress();
-    let hasValidHost = tokenHasValidHost(hostAddress, event.address);
-    if (!hasValidHost) {
-        return;
-    }
+    const hostAddress = getHostAddress();
+    if (!tokenHasValidHost(hostAddress, event.address)) return;
 
+    // Only record the spender when it differs from the token owner. Self-transfers
+    // (transfer / send by the owner) carry no extra info.
+    if (event.params.operator.equals(event.params.from)) return;
+
+    // Sent is emitted at logIndex N immediately before the paired Transfer at N+1
+    // (see SuperToken._move). graph-node runs handlers in log order — the paired
+    // TransferEvent doesn't exist yet at this point. Fully create it here using
+    // the (identical) tx/block context from the Sent event; handleTransfer's
+    // _createTransferEventEntity then skips creation when the entity already
+    // exists. Same-block mutations are permitted on `@entity(immutable: true)`.
     const transferLogIndex = event.logIndex.plus(BIG_INT_ONE);
     const transferEventId =
         "Transfer-" +
         event.transaction.hash.toHexString() +
         "-" +
         transferLogIndex.toString();
-    const transferEvent = TransferEvent.load(transferEventId);
-    if (transferEvent == null) {
-        return;
-    }
-    transferEvent.operator = event.params.operator;
-    transferEvent.addresses = transferEvent.addresses.concat([
+    const ev = new TransferEvent(transferEventId);
+    initializeEventEntity(ev, event, [
+        event.address,
+        event.params.from,
+        event.params.to,
         event.params.operator,
     ]);
-    transferEvent.save();
+    // initializeEventEntity used the Sent event's logIndex (N); fix to the
+    // upcoming Transfer's logIndex (N+1).
+    ev.logIndex = transferLogIndex;
+    ev.order = getOrder(event.block.number, transferLogIndex);
+    ev.from = event.params.from.toHex();
+    ev.to = event.params.to.toHex();
+    ev.value = event.params.amount;
+    ev.token = event.address;
+    ev.spender = event.params.operator;
+    ev.save();
 }
 
 /**
@@ -402,6 +418,11 @@ function _createTokenDowngradedEventEntity(event: TokenDowngraded): void {
 
 function _createTransferEventEntity(event: Transfer): void {
     const eventId = createEventID("Transfer", event);
+    // If the paired `handleSent` already created this entity (spender stamped),
+    // skip creation here. handleSent emits with the same tx/block context, so
+    // the fields it set are already correct.
+    if (TransferEvent.load(eventId) != null) return;
+
     const ev = new TransferEvent(eventId);
     initializeEventEntity(ev, event, [
         event.address,

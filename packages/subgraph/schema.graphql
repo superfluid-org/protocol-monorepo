@@ -1435,7 +1435,7 @@ type TransferEvent implements Event @entity(immutable: true) {
     addresses[0] = `token`
     addresses[1] = `from`
     addresses[2] = `to`
-    addresses[3] = `operator` (when present; sourced from the paired ERC-777 Sent event)
+    addresses[3] = `spender` (only included for allowance-based transfers where the spender differs from `from`, sourced from the paired ERC-777 Sent event)
     """
     addresses: [Bytes!]!
     blockNumber: BigInt!
@@ -1449,11 +1449,9 @@ type TransferEvent implements Event @entity(immutable: true) {
     token: Bytes!
 
     """
-    msg.sender to the SuperToken contract for this transfer, sourced from the paired ERC-777 Sent event.
-    Null for mint/burn paths, which don't emit Sent.
-    When `operator != from` and non-null, the transfer was a `transferFrom`/`operatorSend` (allowance-based).
+    The authorized spender that initiated this allowance-based transfer, sourced from the paired ERC-777 `Sent` event when `Sent.operator != Sent.from`. Indicates the transfer went through `transferFrom` / `operatorSend`. Null for self-transfers (`Sent.operator == Sent.from`) and for paths that emit no `Sent` (mint, burn, upgrade, downgrade).
     """
-    operator: Bytes
+    spender: Bytes
 }
 
 type TokenDowngradedEvent implements Event @entity(immutable: true) {
@@ -2012,8 +2010,7 @@ type Stream @entity(immutable: false) {
     deposit: BigInt!
 
     """
-    The owedDeposit on the active flow — the portion of `deposit` credited to
-    the receiving SuperApp. Zero for non-SuperApp receivers.
+    The owedDeposit reported by the CFA for this (sender, receiver, token) flow at the time of the most recent `FlowUpdatedEvent` for this stream. May lag the on-chain value if the receiving SuperApp's downstream changes without re-emitting `FlowUpdated` on this upstream. Zero for non-SuperApp receivers.
     """
     owedDeposit: BigInt!
 

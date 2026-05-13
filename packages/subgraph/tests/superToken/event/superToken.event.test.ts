@@ -415,7 +415,7 @@ describe("SuperToken Mapper Unit Tests", () => {
             );
         });
 
-        test("handleSent() - Should stamp operator onto paired TransferEvent (transferFrom path)", () => {
+        test("handleSent() + handleTransfer() - Should stamp spender on paired TransferEvent when operator != from", () => {
             const operator = charlie; // spender, != from
             const from = alice;
             const to = bob;
@@ -423,8 +423,10 @@ describe("SuperToken Mapper Unit Tests", () => {
             const data = stringToBytes("");
             const operatorData = stringToBytes("");
 
-            // Emission order in SuperToken._move: Sent first, then Transfer.
-            // So the paired TransferEvent has logIndex == sent.logIndex + 1.
+            // Emission order in SuperToken._move: Sent first (logIndex N), then
+            // Transfer (logIndex N+1). graph-node runs handlers in log order.
+            // matchstick's newMockEvent() uses identical defaults for tx.hash and
+            // block across calls, so the two events naturally share them.
             const sentEvent = createSentEvent(
                 operator,
                 from,
@@ -435,32 +437,9 @@ describe("SuperToken Mapper Unit Tests", () => {
             );
             sentEvent.logIndex = BigInt.fromI32(0);
 
-            // Pre-create the paired TransferEvent directly (bypassing handleTransfer,
-            // which has heavier RPC-mock requirements covered in existing tests).
-            const transferEventId =
-                "Transfer-" +
-                sentEvent.transaction.hash.toHexString() +
-                "-1";
-            const transferEventEntity = new TransferEvent(transferEventId);
-            transferEventEntity.blockNumber = sentEvent.block.number;
-            transferEventEntity.logIndex = BigInt.fromI32(1);
-            transferEventEntity.order = BigInt.fromI32(0);
-            transferEventEntity.timestamp = sentEvent.block.timestamp;
-            transferEventEntity.name = "Transfer";
-            transferEventEntity.transactionHash = sentEvent.transaction.hash;
-            transferEventEntity.gasPrice = sentEvent.transaction.gasPrice;
-            transferEventEntity.addresses = [
-                sentEvent.address,
-                Address.fromString(from),
-                Address.fromString(to),
-            ];
-            transferEventEntity.from = from;
-            transferEventEntity.to = to;
-            transferEventEntity.value = amount;
-            transferEventEntity.token = sentEvent.address;
-            transferEventEntity.save();
+            const transferEvent = createTransferEvent(from, to, amount);
+            transferEvent.logIndex = BigInt.fromI32(1);
 
-            // Pre-seed Token so tokenHasValidHost() returns true without RPC.
             createSuperToken(
                 sentEvent.address,
                 sentEvent.block,
@@ -472,15 +451,19 @@ describe("SuperToken Mapper Unit Tests", () => {
             );
 
             handleSent(sentEvent);
+            handleTransfer(transferEvent);
 
-            assert.fieldEquals("TransferEvent", transferEventId, "operator", operator);
-            // operator appended to addresses array
+            const transferEventId =
+                "Transfer-" +
+                transferEvent.transaction.hash.toHexString() +
+                "-1";
+            assert.fieldEquals("TransferEvent", transferEventId, "spender", operator);
             assert.fieldEquals(
                 "TransferEvent",
                 transferEventId,
                 "addresses",
                 "[" +
-                    sentEvent.address.toHexString() +
+                    transferEvent.address.toHexString() +
                     ", " +
                     Address.fromString(from).toHexString() +
                     ", " +
@@ -489,10 +472,11 @@ describe("SuperToken Mapper Unit Tests", () => {
                     Address.fromString(operator).toHexString() +
                     "]"
             );
+            assert.entityCount("TransferEvent", 1);
         });
 
-        test("handleSent() - Should no-op when no paired TransferEvent exists (mint/burn path)", () => {
-            const operator = alice;
+        test("handleSent() + handleTransfer() - Should leave spender null on self-transfer (operator == from)", () => {
+            const operator = alice; // == from
             const from = alice;
             const to = bob;
             const amount = BigInt.fromI32(100);
@@ -507,8 +491,11 @@ describe("SuperToken Mapper Unit Tests", () => {
                 data,
                 operatorData
             );
+            sentEvent.logIndex = BigInt.fromI32(0);
 
-            // Pre-seed Token so tokenHasValidHost() returns true without RPC.
+            const transferEvent = createTransferEvent(from, to, amount);
+            transferEvent.logIndex = BigInt.fromI32(1);
+
             createSuperToken(
                 sentEvent.address,
                 sentEvent.block,
@@ -519,12 +506,63 @@ describe("SuperToken Mapper Unit Tests", () => {
                 ZERO_ADDRESS
             );
 
-            // No TransferEvent was pre-seeded — handleSent must not crash
-            // and must not materialize any entity.
             handleSent(sentEvent);
+            handleTransfer(transferEvent);
 
-            assert.entityCount("TransferEvent", 0);
-            assert.entityCount("SentEvent", 0);
+            const transferEventId =
+                "Transfer-" +
+                transferEvent.transaction.hash.toHexString() +
+                "-1";
+            // No `spender` set: addresses[] is length 3, no _SentSpenderCache row was written.
+            assert.fieldEquals(
+                "TransferEvent",
+                transferEventId,
+                "addresses",
+                "[" +
+                    transferEvent.address.toHexString() +
+                    ", " +
+                    Address.fromString(from).toHexString() +
+                    ", " +
+                    Address.fromString(to).toHexString() +
+                    "]"
+            );
+            assert.entityCount("TransferEvent", 1);
+        });
+
+        test("handleTransfer() alone - Should leave spender null when no paired Sent (mint/burn/upgrade/downgrade path)", () => {
+            const from = alice;
+            const to = bob;
+            const value = BigInt.fromI32(100);
+
+            const transferEvent = createTransferEvent(from, to, value);
+
+            createSuperToken(
+                transferEvent.address,
+                transferEvent.block,
+                DEFAULT_DECIMALS,
+                maticXName,
+                maticXSymbol,
+                false,
+                ZERO_ADDRESS
+            );
+
+            handleTransfer(transferEvent);
+
+            const transferEventId = assertEventBaseProperties(transferEvent, "Transfer");
+            // No `spender` set: addresses[] is length 3, no cache row exists.
+            assert.fieldEquals(
+                "TransferEvent",
+                transferEventId,
+                "addresses",
+                "[" +
+                    transferEvent.address.toHexString() +
+                    ", " +
+                    Address.fromString(from).toHexString() +
+                    ", " +
+                    Address.fromString(to).toHexString() +
+                    "]"
+            );
+            assert.entityCount("TransferEvent", 1);
         });
 
         test("handleBurned() - Should create a new BurnedEvent entity", () => {
