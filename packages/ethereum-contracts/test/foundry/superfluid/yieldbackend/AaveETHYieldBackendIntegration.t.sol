@@ -294,11 +294,14 @@ contract AaveETHYieldBackendIntegrationTest is Test {
         // 2 operations: enable deposits + withdraw surplus
         _verifyInvariants(false, 2);
     }
+}
 
-    /*//////////////////////////////////////////////////////////////////////////
-                        Random Sequence Fuzz Tests
-    //////////////////////////////////////////////////////////////////////////*/
-
+/**
+ * @title Random Sequence Fuzz Tests
+ * RPC-heavy fork fuzz suite for random yield-backend sequences.
+ * Excluded from default CI: `yarn test` runs Foundry with `--no-match-contract Fork`.
+ */
+contract AaveETHYieldBackendIntegrationForkFuzzTest is AaveETHYieldBackendIntegrationTest {
     struct YieldBackendStep {
         uint8 a; // action type: 0 enable, 1 disable, 2 switch, 3 upgrade, 4 downgrade, 5 withdraw surplus
         uint32 v; // action param (amount for upgrade/downgrade, unused for others)
@@ -398,7 +401,7 @@ contract AaveETHYieldBackendIntegrationTest is Test {
                     uint256 aTokenBalance = IERC20(aWETH).balanceOf(address(superToken));
                     (uint256 normalizedTotalSupply,) = superToken.toUnderlyingAmount(superToken.totalSupply());
                     uint256 totalAssets = underlyingBalance + aTokenBalance;
-                    
+
                     // Only withdraw if there's actual surplus (after 100 wei margin)
                     if (totalAssets > normalizedTotalSupply + 100) {
                         vm.startPrank(ADMIN);
