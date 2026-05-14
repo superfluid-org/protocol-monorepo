@@ -297,7 +297,7 @@ contract DeployScript is Script, Test {
 }
 ```
 
-The command to run the script: `forge script script/Deploy.s.sol:DeployScript --rpc-url http://localhost:8545`.
+The command to run the script: `forge script foundry-scripts/Deploy.s.sol:DeployScript --rpc-url http://localhost:8545`.
 
 ## Contributing
 

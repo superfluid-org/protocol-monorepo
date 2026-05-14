@@ -3,7 +3,7 @@ name: Reusable Workflow | Upload Coverage Reports
 on:
   workflow_call:
     secrets:
-      codecov_token:
+      CODECOV_TOKEN:
         required: true
 
 
@@ -24,7 +24,7 @@ jobs:
       - name: Upload ethereum-contracts-coverage to codecov
         uses: codecov/codecov-action@v6.0.0
         with:
-          token: ${{ secrets.codecov_token }}
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: packages/ethereum-contracts/coverage/lcov.info
           name: ethereum-contracts-coverage
           flags: ethereum-contracts
@@ -38,7 +38,7 @@ jobs:
       - name: Upload sdk-core-coverage to codecov
         uses: codecov/codecov-action@v6.0.0
         with:
-          token: ${{ secrets.codecov_token }}
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: packages/sdk-core/coverage/lcov.info
           name: sdk-core-coverage
           flags: sdk-core
