@@ -9,12 +9,17 @@ import { IPermit2 } from "../external/IPermit2.sol";
 /**
  * @dev Permit2 witness extension for {ClearMacroForwarderV1}.
  *
- * `upgradeSuperToken` selects the Permit2 mode:
- * - Non-zero (`implied upgrade`): Permit2 transfers underlying to the forwarder, which upgrades
- *   to `owner`, then the macro runs.
- * - Zero (`witness only`): Permit2 co-signs the same witness as the macro but does not pull
- *   underlying or consume the Permit2 nonce; the macro uses the signer's existing balances.
- *   Macro replay is still prevented by the ClearMacro EIP-712 nonce.
+ * Notes about Permit2:
+ * - Permit2 has its own nonce and deadline management, independent of that of ClearMacro.
+ * - the Permit2 transfer call requires msg.sender to be the designated `spender`.
+ *
+ * When using this extension, the argument `upgradeSuperToken` selects the Permit2 mode:
+ * - Non-zero (`implied upgrade`): before running the macro, the forwarder executes the Permit2 transfer
+ *   of underlying tokens and upgrades them to SuperTokens.
+ *   This allows the bundling of upgrade and other operations into a single wallet action.
+ * - Zero (`witness only`): the Permit2 specific payload is ignored.
+ *   The forwarder just verifies the signature and executes the ClearMacro action(s).
+ *   This is for use cases where the implied Permit2 transfer is about something else.
  */
 interface IClearMacroPermit2Extension {
     struct Permit2Context {
@@ -23,6 +28,7 @@ interface IClearMacroPermit2Extension {
         bytes32 witness;
         string witnessTypeString;
         bytes signature;
+        /// @dev must be the address of this contract in implied upgrade mode.
         address spender;
         /// @dev Wrapper SuperToken for implied upgrade, or `address(0)` for witness-only mode.
         address upgradeSuperToken;

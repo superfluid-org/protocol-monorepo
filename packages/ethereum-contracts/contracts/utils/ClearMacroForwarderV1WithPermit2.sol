@@ -5,7 +5,7 @@ import { SignatureChecker } from "@openzeppelin-v5/contracts/utils/cryptography/
 import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
 import { IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ISuperfluid, BatchOperation, ISuperToken, IERC20 } from "../interfaces/superfluid/ISuperfluid.sol";
+import { ISuperfluid, ISuperToken, IERC20 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IPermit2 } from "../interfaces/external/IPermit2.sol";
 import { IClearMacroForwarderV1 } from "../interfaces/utils/IClearMacroForwarderV1.sol";
 import { IClearMacroPermit2Extension } from "../interfaces/utils/IClearMacroForwarderV1WithPermit2.sol";
@@ -88,13 +88,7 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         }
         uint256 amount = _toSuperTokenAmount(underlyingAmount, IERC20Metadata(underlying).decimals());
         IERC20(underlying).forceApprove(permit2Context.upgradeSuperToken, underlyingAmount);
-        ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
-        ops[0] = ISuperfluid.Operation({
-            operationType: BatchOperation.OPERATION_TYPE_SUPERTOKEN_UPGRADE_TO,
-            target: permit2Context.upgradeSuperToken,
-            data: abi.encode(permit2Context.owner, amount)
-        });
-        _host.batchCall(ops);
+        ISuperToken(permit2Context.upgradeSuperToken).upgradeTo(permit2Context.owner, amount, "");
     }
 
     /// @dev Converts underlying amount (in underlying decimals) to SuperToken amount (18 decimals).
