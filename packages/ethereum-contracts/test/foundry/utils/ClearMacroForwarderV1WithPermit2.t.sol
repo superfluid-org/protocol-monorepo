@@ -213,7 +213,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         assertEq(digestFromJson, digestFromSolidity, "Permit2 digest mismatch vs vm.eip712HashTypedData");
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digestFromJson);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _toPermit2MacroParams(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _toPermit2Context(
             permit,
             signer.addr,
             witness,
@@ -223,7 +223,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
             address(superToken)
         );
 
-        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params));
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
         assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "signer should receive upgraded SuperTokens");
     }
 
@@ -253,9 +253,9 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
 
         uint256 signerSuperBalanceBefore = superToken.balanceOf(signer.addr);
         bytes memory params = _getTestPayload(minimalClearMacro);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p =
-            _buildPermit2Params(signer, address(this), address(0), minimalClearMacro, params, token, TEST_AMOUNT);
-        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacro, params));
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context =
+            _buildPermit2Context(signer, address(this), address(0), minimalClearMacro, params, token, TEST_AMOUNT);
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacro, params));
         assertEq(
             superToken.balanceOf(signer.addr),
             signerSuperBalanceBefore + TEST_AMOUNT,
@@ -271,10 +271,10 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
 
         bytes memory params = _getTestPayload(minimalClearMacroEmptyOps);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _buildPermit2Params(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
             signer, address(forwarder), address(superToken), minimalClearMacroEmptyOps, params, token, TEST_AMOUNT
         );
-        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params));
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
         assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "signer should have received upgraded SuperTokens");
     }
 
@@ -289,7 +289,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
 
         bytes memory params =
             _getPayload(localSuperToken, expectedSuperAmount, SECURITY_PROVIDER, minimalClearMacroEmptyOps);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _buildPermit2Params(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
             signer,
             address(forwarder),
             address(localSuperToken),
@@ -299,7 +299,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
             underlyingAmount
         );
 
-        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params));
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
         assertEq(localSuperToken.balanceOf(signer.addr), expectedSuperAmount, "scaled-up super amount mismatch");
     }
 
@@ -314,7 +314,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
 
         bytes memory params =
             _getPayload(localSuperToken, expectedSuperAmount, SECURITY_PROVIDER, minimalClearMacroEmptyOps);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _buildPermit2Params(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
             signer,
             address(forwarder),
             address(localSuperToken),
@@ -324,7 +324,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
             underlyingAmount
         );
 
-        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params));
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
         assertEq(localSuperToken.balanceOf(signer.addr), expectedSuperAmount, "scaled-down super amount mismatch");
     }
 
@@ -334,11 +334,11 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
 
         bytes memory params = _getSelfRelayPayload();
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _buildPermit2Params(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
             signer, address(forwarder), address(superToken), minimalClearMacroEmptyOps, params, token, TEST_AMOUNT
         );
         vm.prank(signer.addr);
-        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params));
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
         assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "signer should have received upgraded SuperTokens");
     }
 
@@ -348,14 +348,14 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
 
         bytes memory params = _getSelfRelayPayload();
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _buildPermit2Params(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
             signer, address(forwarder), address(superToken), minimalClearMacroEmptyOps, params, token, TEST_AMOUNT
         );
 
         vm.expectRevert(abi.encodeWithSelector(
             ClearMacroForwarderV1.ProviderNotAuthorized.selector, "self", address(this)));
         vm.prank(address(this));
-        forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params);
+        forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params);
     }
 
     /// When upgradeSuperToken is zero and spender is forwarder: verify signature, run macro (no pull).
@@ -364,10 +364,10 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
 
         bytes memory params = _getTestPayload(minimalClearMacroEmptyOps);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _buildPermit2Params(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
             signer, address(forwarder), address(0), minimalClearMacroEmptyOps, params, token, TEST_AMOUNT
         );
-        assertTrue(forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params));
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
     }
 
     function testRunPermit2AndMacroRevertsOnPermitTokenMismatch() external {
@@ -376,17 +376,17 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         _fundSignerAndApprove(wrongUnderlying, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
 
         bytes memory params = _getTestPayload(minimalClearMacroEmptyOps);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p;
-        p.permit = _makePermit(address(wrongUnderlying), TEST_AMOUNT);
-        (p.witness, p.witnessTypeString, p.signature) = _signPermit(
-            signer, p.permit, address(forwarder), minimalClearMacroEmptyOps, params, address(superToken)
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context;
+        permit2Context.permit = _makePermit(address(wrongUnderlying), TEST_AMOUNT);
+        (permit2Context.witness, permit2Context.witnessTypeString, permit2Context.signature) = _signPermit(
+            signer, permit2Context.permit, address(forwarder), minimalClearMacroEmptyOps, params, address(superToken)
         );
-        p.owner = signer.addr;
-        p.spender = address(forwarder);
-        p.upgradeSuperToken = address(superToken);
+        permit2Context.owner = signer.addr;
+        permit2Context.spender = address(forwarder);
+        permit2Context.upgradeSuperToken = address(superToken);
 
         vm.expectRevert(abi.encodeWithSelector(ClearMacroForwarderV1.InvalidPayload.selector, "permit token mismatch"));
-        forwarder.runPermit2AndMacro(p, minimalClearMacroEmptyOps, params);
+        forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params);
     }
 
     function testRunPermit2AndMacroRevertsOnInvalidSignature() external {
@@ -409,10 +409,10 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         bytes memory badSignature = abi.encodePacked(bytes32(0), bytes32(0), uint8(27));
 
         vm.expectRevert(ClearMacroForwarderV1.InvalidSignature.selector);
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _toPermit2MacroParams(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _toPermit2Context(
             permit, signer.addr, witness, witnessTypeString, badSignature, address(this), address(0)
         );
-        forwarder.runPermit2AndMacro(p, minimalClearMacro, params);
+        forwarder.runPermit2AndMacro(permit2Context, minimalClearMacro, params);
     }
 
     function testRunPermit2AndMacroRevertsOnWitnessMismatch() external {
@@ -428,10 +428,10 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         ) = _getPermitAndSignatureForWitnessMismatch(signer, params);
 
         vm.expectRevert(abi.encodeWithSelector(ClearMacroForwarderV1.InvalidPayload.selector, "witness mismatch"));
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p = _toPermit2MacroParams(
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _toPermit2Context(
             permit, signer.addr, wrongWitness, witnessTypeString, signature, address(this), address(0)
         );
-        forwarder.runPermit2AndMacro(p, minimalClearMacro, params);
+        forwarder.runPermit2AndMacro(permit2Context, minimalClearMacro, params);
     }
 
     function _getPermitAndSignatureForWitnessMismatch(VmSafe.Wallet memory signer, bytes memory params)
@@ -763,7 +763,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         return forwarder.encodeParams(abi.encode(address(targetSuperToken), amount), security);
     }
 
-    function _buildPermit2Params(
+    function _buildPermit2Context(
         VmSafe.Wallet memory signer,
         address spender,
         address upgradeSuperToken,
@@ -771,12 +771,13 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         bytes memory params,
         TestToken permitToken,
         uint256 permitAmount
-    ) internal returns (IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p) {
-        p.permit = _makePermit(address(permitToken), permitAmount);
-        (p.witness, p.witnessTypeString, p.signature) = _signPermit(signer, p.permit, spender, m, params, upgradeSuperToken);
-        p.owner = signer.addr;
-        p.spender = spender;
-        p.upgradeSuperToken = upgradeSuperToken;
+    ) internal returns (IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context) {
+        permit2Context.permit = _makePermit(address(permitToken), permitAmount);
+        (permit2Context.witness, permit2Context.witnessTypeString, permit2Context.signature) =
+            _signPermit(signer, permit2Context.permit, spender, m, params, upgradeSuperToken);
+        permit2Context.owner = signer.addr;
+        permit2Context.spender = spender;
+        permit2Context.upgradeSuperToken = upgradeSuperToken;
     }
 
     function _fundSignerAndApprove(TestToken underlying, VmSafe.Wallet memory signer, uint256 amount, address spender)
@@ -787,7 +788,7 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         underlying.approve(spender, amount);
     }
 
-    function _toPermit2MacroParams(
+    function _toPermit2Context(
         IPermit2.PermitTransferFrom memory permit,
         address owner,
         bytes32 witness,
@@ -795,15 +796,15 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         bytes memory signature,
         address spender,
         address upgradeSuperToken
-    ) internal pure returns (IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory) {
-        IClearMacroForwarderV1WithPermit2.Permit2MacroParams memory p;
-        p.permit = permit;
-        p.owner = owner;
-        p.witness = witness;
-        p.witnessTypeString = witnessTypeString;
-        p.signature = signature;
-        p.spender = spender;
-        p.upgradeSuperToken = upgradeSuperToken;
-        return p;
+    ) internal pure returns (IClearMacroForwarderV1WithPermit2.Permit2Context memory) {
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context;
+        permit2Context.permit = permit;
+        permit2Context.owner = owner;
+        permit2Context.witness = witness;
+        permit2Context.witnessTypeString = witnessTypeString;
+        permit2Context.signature = signature;
+        permit2Context.spender = spender;
+        permit2Context.upgradeSuperToken = upgradeSuperToken;
+        return permit2Context;
     }
 }

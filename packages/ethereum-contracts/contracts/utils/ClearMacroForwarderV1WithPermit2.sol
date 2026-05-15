@@ -4,6 +4,7 @@ pragma solidity ^0.8.23;
 import { SignatureChecker } from "@openzeppelin-v5/contracts/utils/cryptography/SignatureChecker.sol";
 import { IClearMacro } from "../interfaces/utils/IClearMacro.sol";
 import { IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeERC20 } from "@openzeppelin-v5/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ISuperfluid, BatchOperation, ISuperToken, IERC20 } from "../interfaces/superfluid/ISuperfluid.sol";
 import { IPermit2 } from "../interfaces/external/IPermit2.sol";
 import { IClearMacroForwarderV1 } from "../interfaces/utils/IClearMacroForwarderV1.sol";
@@ -11,11 +12,12 @@ import { IClearMacroPermit2Extension } from "../interfaces/utils/IClearMacroForw
 import { ClearMacroForwarderV1 } from "./ClearMacroForwarderV1.sol";
 
 /**
- * @dev Permit2-aware extension of ClearMacroForwarderV1.
- * Supports Permit2 witness validation and, optionally, pulling underlying tokens
- * via Permit2 before upgrading and executing the macro.
+ * @title ClearMacroForwarderV1WithPermit2
+ * @notice {ClearMacroForwarderV1} with Permit2 witness binding; see {IClearMacroPermit2Extension}.
  */
 contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroPermit2Extension {
+    using SafeERC20 for IERC20;
+
     /// @dev Canonical Permit2 address (same across all EVM chains)
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -30,65 +32,67 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
 
     constructor(ISuperfluid host) ClearMacroForwarderV1(host) {}
 
-    /**
-     * @dev Runs the macro with Permit2 witness validation.
-     * If `upgradeSuperToken` is set, underlying tokens are first pulled via Permit2
-     * and upgraded before the macro is executed.
-     * @param  p       Permit2 data and optional upgrade configuration.
-     * @param  m       Target macro.
-     * @param  params  ABI-encoded `IClearMacroForwarderV1.Payload`.
-     */
+    /// @inheritdoc IClearMacroPermit2Extension
     function runPermit2AndMacro(
-        Permit2MacroParams calldata p,
+        Permit2Context calldata permit2Context,
         IClearMacro m,
         bytes calldata params
     ) external payable override returns (bool) {
-        _validatePermitAndMaybePull(p, m, params);
-        _validatePayload(m, params, p.owner, msg.sender);
-        return _executeValidatedMacro(m, params, p.owner);
+        _validatePermitAndMaybePull(permit2Context, m, params);
+        _validatePayload(m, params, permit2Context.owner, msg.sender);
+        return _executeValidatedMacro(m, params, permit2Context.owner);
     }
 
     function _validatePermitAndMaybePull(
-        Permit2MacroParams calldata p,
+        Permit2Context calldata permit2Context,
         IClearMacro m,
         bytes calldata params
     ) internal {
-        if (p.witness != this.getPermit2WitnessStructHash(m, params, p.upgradeSuperToken)) {
+        if (permit2Context.witness != this.getPermit2WitnessStructHash(m, params, permit2Context.upgradeSuperToken)) {
             revert InvalidPayload("witness mismatch");
         }
 
-        if (p.upgradeSuperToken != address(0)) {
-            // No explicit checks needed: Permit2 reverts if the permit is invalid or spender != address(this);
-            // we validate permit.permitted.token matches upgradeSuperToken's underlying in _pullAndUpgrade.
-            _pullAndUpgrade(p);
+        if (permit2Context.upgradeSuperToken != address(0)) {
+            // Implied upgrade: Permit2 pull + upgrade, then macro (spender must be this contract).
+            _pullAndUpgrade(permit2Context);
         } else {
-            if (!_verifyPermit2Signature(p.permit, p.owner, p.spender, p.witness, p.witnessTypeString, p.signature)) {
+            // Witness only: verify Permit2 signature; no transfer and no Permit2 nonce consumption.
+            if (!_verifyPermit2Signature(
+                    permit2Context.permit,
+                    permit2Context.owner,
+                    permit2Context.spender,
+                    permit2Context.witness,
+                    permit2Context.witnessTypeString,
+                    permit2Context.signature
+                )) {
                 revert InvalidSignature();
             }
         }
     }
 
-    function _pullAndUpgrade(Permit2MacroParams calldata p) internal {
+    function _pullAndUpgrade(Permit2Context calldata permit2Context) internal {
         IPermit2(PERMIT2).permitWitnessTransferFrom(
-            p.permit,
-            IPermit2.SignatureTransferDetails({ to: address(this), requestedAmount: p.permit.permitted.amount }),
-            p.owner,
-            p.witness,
-            p.witnessTypeString,
-            p.signature
+            permit2Context.permit,
+            IPermit2.SignatureTransferDetails({
+                to: address(this), requestedAmount: permit2Context.permit.permitted.amount
+            }),
+            permit2Context.owner,
+            permit2Context.witness,
+            permit2Context.witnessTypeString,
+            permit2Context.signature
         );
-        address underlying = p.permit.permitted.token;
-        uint256 underlyingAmount = p.permit.permitted.amount;
-        if (ISuperToken(p.upgradeSuperToken).getUnderlyingToken() != underlying) {
+        address underlying = permit2Context.permit.permitted.token;
+        uint256 underlyingAmount = permit2Context.permit.permitted.amount;
+        if (ISuperToken(permit2Context.upgradeSuperToken).getUnderlyingToken() != underlying) {
             revert InvalidPayload("permit token mismatch");
         }
         uint256 amount = _toSuperTokenAmount(underlyingAmount, IERC20Metadata(underlying).decimals());
-        IERC20(underlying).approve(p.upgradeSuperToken, underlyingAmount);
+        IERC20(underlying).forceApprove(permit2Context.upgradeSuperToken, underlyingAmount);
         ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERTOKEN_UPGRADE_TO,
-            target: p.upgradeSuperToken,
-            data: abi.encode(p.owner, amount)
+            target: permit2Context.upgradeSuperToken,
+            data: abi.encode(permit2Context.owner, amount)
         });
         _host.batchCall(ops);
     }
@@ -140,9 +144,7 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
 
     /**
      * @dev Struct hash of the ClearMacro payload for use as Permit2 witness.
-     * Uses constant type name "ClearMacro" with nested Security so the witness type string
-     * has deterministic alphabetical ordering regardless of the macro's primary type name.
-     * Binds `upgradeSuperToken` (use `address(0)` when no implied upgrade).
+     * Binds `upgradeSuperToken` (`address(0)` selects witness-only mode).
      */
     function getPermit2WitnessStructHash(IClearMacro m, bytes calldata params, address upgradeSuperToken)
         external
@@ -202,6 +204,8 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         ));
         string memory tokenPermDef = "TokenPermissions(address token,uint256 amount)";
 
+        // Uses constant type name "ClearMacro" with nested Security so the witness type string
+        // has deterministic alphabetical ordering regardless of the macro's primary type name.
         return string(abi.encodePacked(
             _CLEAR_MACRO_WITNESS_TYPE_NAME,
             " witness)",
