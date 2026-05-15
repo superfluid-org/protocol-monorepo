@@ -89,6 +89,8 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         uint256 amount = _toSuperTokenAmount(underlyingAmount, IERC20Metadata(underlying).decimals());
         IERC20(underlying).forceApprove(permit2Context.upgradeSuperToken, underlyingAmount);
         ISuperToken(permit2Context.upgradeSuperToken).upgradeTo(permit2Context.owner, amount, "");
+        // If underlying has more than 18 decimals, it's possible for dust of it
+        // to be left in this contract after the upgrade.
     }
 
     /// @dev Converts underlying amount (in underlying decimals) to SuperToken amount (18 decimals).

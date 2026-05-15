@@ -21,6 +21,7 @@ interface IClearMacro is IMacro {
     /**
      * @dev Returns the EIP-712 type definition of the action.
      * The type name must be `Action`; only the fields are implementation-specific.
+     * The type shall be flat (not contain any nested struct types).
      * @param  params     Encoded macro-specific parameters.
      * @return typeDef    The `Action(...)` type definition.
      */

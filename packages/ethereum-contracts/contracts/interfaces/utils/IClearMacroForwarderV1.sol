@@ -38,6 +38,7 @@ interface IClearMacroForwarderV1 {
         address macroContract;
         string provider;
         uint256 validAfter;
+        /// @dev If set to 0, there's no upper bound on the validity window.
         uint256 validBefore;
         uint256 nonce;
     }

@@ -77,7 +77,9 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
 
     /**
      * @dev Runs the macro with an EIP-712 signed payload.
-     * Reverts if the signature is invalid or if the payload fails security checks.
+     * Reverts if the signature is invalid, the payload fails security checks or if any nested call reverts.
+     * Note that reverting doesn't invalidate the nonce, thus doesn't exclude a future successful execution.
+     *
      * @param  m          Target macro.
      * @param  params     ABI-encoded `IClearMacroForwarderV1.Payload`.
      * @param  signer     Address which signed the payload and on whose behalf the macro runs.

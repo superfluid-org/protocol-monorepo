@@ -16,10 +16,12 @@ import { IPermit2 } from "../external/IPermit2.sol";
  * When using this extension, the argument `upgradeSuperToken` selects the Permit2 mode:
  * - Non-zero (`implied upgrade`): before running the macro, the forwarder executes the Permit2 transfer
  *   of underlying tokens and upgrades them to SuperTokens.
- *   This allows the bundling of upgrade and other operations into a single wallet action.
+ *   The Permit2 transfer uses the full amount specified in `permit.permitted.amount`.
+ *   This implies that for the macro call to succeed, this amount can't exceed the balance of the signer.
+ *   This mode allows the bundling of upgrade and other operations into a single wallet action.
  * - Zero (`witness only`): the Permit2 specific payload is ignored.
  *   The forwarder just verifies the signature and executes the ClearMacro action(s).
- *   This is for use cases where the implied Permit2 transfer is about something else.
+ *   This mode is for use cases where the implied Permit2 transfer is about something else.
  */
 interface IClearMacroPermit2Extension {
     struct Permit2Context {
