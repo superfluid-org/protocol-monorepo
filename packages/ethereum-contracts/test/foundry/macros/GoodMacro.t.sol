@@ -11,7 +11,7 @@ import { IMacro } from "../../../contracts/interfaces/utils/IMacro.sol";
  * @dev Example IMacro: createFlow to multiple recipients. encodeCreateFlows for param encoding.
  */
 contract GoodMacro is IMacro {
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/)
+    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*account*/)
         external
         override
         view

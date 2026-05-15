@@ -27,7 +27,7 @@ contract PaidCFAOpsMacro is IMacro {
         FEE_AMOUNT = feeAmount;
     }
 
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/)
+    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*account*/)
         external
         override
         view
@@ -85,7 +85,7 @@ contract PaidCFAOpsMacro is IMacro {
         FEE_RECEIVER.transfer(amount);
     }
 
-    function postCheck(ISuperfluid /*host*/, bytes memory /*params*/, address /*msgSender*/)
+    function postCheck(ISuperfluid /*host*/, bytes memory /*params*/, address /*account*/)
         external
         view
         override

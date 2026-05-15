@@ -47,7 +47,7 @@ contract MinimalClearMacroForPermit2Test is IClearMacro {
         );
     }
 
-    function buildBatchOperations(ISuperfluid, bytes memory params, address /*signer*/)
+    function buildBatchOperations(ISuperfluid, bytes memory params, address /*account*/)
         external
         pure
         override

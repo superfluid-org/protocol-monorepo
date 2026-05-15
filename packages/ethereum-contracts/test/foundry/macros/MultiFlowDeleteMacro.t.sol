@@ -13,7 +13,7 @@ import { IMacro } from "../../../contracts/interfaces/utils/IMacro.sol";
 contract MultiFlowDeleteMacro is IMacro {
     error InsufficientReward();
 
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*msgSender*/)
+    function buildBatchOperations(ISuperfluid host, bytes memory params, address /*account*/)
         external
         override
         view
@@ -46,10 +46,10 @@ contract MultiFlowDeleteMacro is IMacro {
         return abi.encode(superToken, sender, receivers, minBalanceAfter);
     }
 
-    function postCheck(ISuperfluid /*host*/, bytes memory params, address msgSender) external view override {
+    function postCheck(ISuperfluid /*host*/, bytes memory params, address account) external view override {
         (ISuperToken superToken,,, uint256 minBalanceAfter) =
             abi.decode(params, (ISuperToken, address, address[], uint256));
-        if (superToken.balanceOf(msgSender) < minBalanceAfter) {
+        if (superToken.balanceOf(account) < minBalanceAfter) {
             revert InsufficientReward();
         }
     }

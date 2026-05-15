@@ -85,18 +85,18 @@ abstract contract ClearMacroBase is IClearMacro {
         return _getAction(actionId).getActionStructHash(actionParams, lang);
     }
 
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address msgSender)
+    function buildBatchOperations(ISuperfluid host, bytes memory params, address account)
         external
         view
         override
         returns (ISuperfluid.Operation[] memory)
     {
         (uint8 actionId, , bytes memory actionParams) = _decodeActionParams(params);
-        return _getAction(actionId).buildOperations(host, actionParams, msgSender);
+        return _getAction(actionId).buildOperations(host, actionParams, account);
     }
 
-    function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view override {
+    function postCheck(ISuperfluid host, bytes memory params, address account) external view override {
         (uint8 actionId, , bytes memory actionParams) = _decodeActionParams(params);
-        _getAction(actionId).postCheck(host, actionParams, msgSender);
+        _getAction(actionId).postCheck(host, actionParams, account);
     }
 }

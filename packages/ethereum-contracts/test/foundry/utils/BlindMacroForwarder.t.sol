@@ -24,7 +24,7 @@ contract NaugthyMacro {
     }
 
     // if naughtyCounter >= 0, this changes state, which leads to a revert in the context of a macro call
-    function buildBatchOperations(ISuperfluid, bytes memory, address /*msgSender*/) external
+    function buildBatchOperations(ISuperfluid, bytes memory, address /*account*/) external
         returns (ISuperfluid.Operation[] memory /*operation*/)
     {
         // Do the naughty thing (updating state as an expected view function)
@@ -34,7 +34,7 @@ contract NaugthyMacro {
         return new ISuperfluid.Operation[](0);
     }
 
-    function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
+    function postCheck(ISuperfluid host, bytes memory params, address account) external view { }
 }
 
 /*
@@ -57,7 +57,7 @@ contract StatefulMacro is IMacro {
         config = config_;
     }
 
-    function buildBatchOperations(ISuperfluid host, bytes memory /*params*/, address /*msgSender*/)
+    function buildBatchOperations(ISuperfluid host, bytes memory /*params*/, address /*account*/)
         external override view
         returns (ISuperfluid.Operation[] memory operations)
     {
@@ -83,7 +83,7 @@ contract StatefulMacro is IMacro {
         }
     }
 
-    function postCheck(ISuperfluid host, bytes memory params, address msgSender) external view { }
+    function postCheck(ISuperfluid host, bytes memory params, address account) external view { }
 }
 
 // ============== Test Contract ==============
