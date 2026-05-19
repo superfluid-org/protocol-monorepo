@@ -263,6 +263,34 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         );
     }
 
+    /// Permit2 hashes `spender` as `msg.sender` (see PermitHash.hashWithWitness). A mempool observer
+    /// cannot consume the permit by calling Permit2 directly with a signature made for the forwarder.
+    function testPermit2WitnessTransferFromRevertsWhenCallerIsNotSignedSpender() external {
+        VmSafe.Wallet memory signer = vm.createWallet("permit2SpenderBindingSigner");
+        address frontrunner = makeAddr("frontrunner");
+
+        _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
+
+        bytes memory params = _getTestPayload(minimalClearMacroEmptyOps);
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
+            signer, address(forwarder), address(superToken), minimalClearMacroEmptyOps, params, token, TEST_AMOUNT
+        );
+
+        vm.prank(frontrunner);
+        vm.expectRevert(abi.encodeWithSignature("InvalidSigner()"));
+        IPermit2(PERMIT2_CANONICAL).permitWitnessTransferFrom(
+            permit2Context.permit,
+            IPermit2.SignatureTransferDetails({ to: frontrunner, requestedAmount: TEST_AMOUNT }),
+            permit2Context.owner,
+            permit2Context.witness,
+            permit2Context.witnessTypeString,
+            permit2Context.signature
+        );
+
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
+        assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "forwarder can still execute after failed replay");
+    }
+
     /// With implied upgrade: spender is forwarder; signer approves Permit2.
     /// Forwarder pulls via Permit2, upgrades to signer, runs macro (empty ops).
     function testRunPermit2AndMacroWithImpliedUpgrade(uint256 signerPrivateKey) external {
