@@ -17,11 +17,13 @@ import {
     handleTokenUpgraded,
     handleTransfer,
 } from "../../../src/mappings/superToken";
+import { TransferEvent } from "../../../generated/schema";
+import { _createAccountTokenSnapshotLogEntity } from "../../../src/mappingHelpers";
 import { BIG_INT_ONE, BIG_INT_ZERO, encode, ZERO_ADDRESS } from "../../../src/utils";
 import { assertEmptyTokenStatisticProperties, assertEventBaseProperties, assertTokenStatisticProperties } from "../../assertionHelpers";
 import { alice, bob, cfaV1Address, charlie, DEFAULT_DECIMALS, delta, FAKE_INITIAL_BALANCE, FALSE, maticXName, maticXSymbol, TRUE } from "../../constants";
 import { getETHAddress, getETHUnsignedBigInt, stringToBytes } from "../../converters";
-import { createStream, createStreamRevision } from "../../mockedEntities";
+import { createStream, createStreamRevision, createSuperToken } from "../../mockedEntities";
 import { mockedGetAppManifest, mockedGetHost, mockedHandleSuperTokenInitRPCCalls, mockedRealtimeBalanceOf } from "../../mockedFunctions";
 import {
     createAgreementLiquidatedByEvent,
@@ -413,8 +415,68 @@ describe("SuperToken Mapper Unit Tests", () => {
             );
         });
 
-        test("handleSent() - Should create a new SentEvent entity", () => {
-            const operator = alice;
+        test("handleSent() + handleTransfer() - Should stamp spender on paired TransferEvent when operator != from", () => {
+            const operator = charlie; // spender, != from
+            const from = alice;
+            const to = bob;
+            const amount = BigInt.fromI32(100);
+            const data = stringToBytes("");
+            const operatorData = stringToBytes("");
+
+            // Emission order in SuperToken._move: Sent first (logIndex N), then
+            // Transfer (logIndex N+1). graph-node runs handlers in log order.
+            // matchstick's newMockEvent() uses identical defaults for tx.hash and
+            // block across calls, so the two events naturally share them.
+            const sentEvent = createSentEvent(
+                operator,
+                from,
+                to,
+                amount,
+                data,
+                operatorData
+            );
+            sentEvent.logIndex = BigInt.fromI32(0);
+
+            const transferEvent = createTransferEvent(from, to, amount);
+            transferEvent.logIndex = BigInt.fromI32(1);
+
+            createSuperToken(
+                sentEvent.address,
+                sentEvent.block,
+                DEFAULT_DECIMALS,
+                maticXName,
+                maticXSymbol,
+                false,
+                ZERO_ADDRESS
+            );
+
+            handleSent(sentEvent);
+            handleTransfer(transferEvent);
+
+            const transferEventId =
+                "Transfer-" +
+                transferEvent.transaction.hash.toHexString() +
+                "-1";
+            assert.fieldEquals("TransferEvent", transferEventId, "spender", operator);
+            assert.fieldEquals(
+                "TransferEvent",
+                transferEventId,
+                "addresses",
+                "[" +
+                    transferEvent.address.toHexString() +
+                    ", " +
+                    Address.fromString(from).toHexString() +
+                    ", " +
+                    Address.fromString(to).toHexString() +
+                    ", " +
+                    Address.fromString(operator).toHexString() +
+                    "]"
+            );
+            assert.entityCount("TransferEvent", 1);
+        });
+
+        test("handleSent() + handleTransfer() - Should leave spender null on self-transfer (operator == from)", () => {
+            const operator = alice; // == from
             const from = alice;
             const to = bob;
             const amount = BigInt.fromI32(100);
@@ -429,21 +491,78 @@ describe("SuperToken Mapper Unit Tests", () => {
                 data,
                 operatorData
             );
+            sentEvent.logIndex = BigInt.fromI32(0);
 
-            mockedGetHost(sentEvent.address.toHex());
+            const transferEvent = createTransferEvent(from, to, amount);
+            transferEvent.logIndex = BigInt.fromI32(1);
+
+            createSuperToken(
+                sentEvent.address,
+                sentEvent.block,
+                DEFAULT_DECIMALS,
+                maticXName,
+                maticXSymbol,
+                false,
+                ZERO_ADDRESS
+            );
 
             handleSent(sentEvent);
+            handleTransfer(transferEvent);
 
-            const id = assertEventBaseProperties(
-                sentEvent,
-                "Sent"
+            const transferEventId =
+                "Transfer-" +
+                transferEvent.transaction.hash.toHexString() +
+                "-1";
+            // No `spender` set: addresses[] is length 3, no _SentSpenderCache row was written.
+            assert.fieldEquals(
+                "TransferEvent",
+                transferEventId,
+                "addresses",
+                "[" +
+                    transferEvent.address.toHexString() +
+                    ", " +
+                    Address.fromString(from).toHexString() +
+                    ", " +
+                    Address.fromString(to).toHexString() +
+                    "]"
             );
-            assert.fieldEquals("SentEvent", id, "operator", operator);
-            assert.fieldEquals("SentEvent", id, "from", from);
-            assert.fieldEquals("SentEvent", id, "to", to);
-            assert.fieldEquals("SentEvent", id, "amount", amount.toString());
-            assert.fieldEquals("SentEvent", id, "data", data.toHexString());
-            assert.fieldEquals("SentEvent", id, "operatorData", operatorData.toHexString());
+            assert.entityCount("TransferEvent", 1);
+        });
+
+        test("handleTransfer() alone - Should leave spender null when no paired Sent (mint/burn/upgrade/downgrade path)", () => {
+            const from = alice;
+            const to = bob;
+            const value = BigInt.fromI32(100);
+
+            const transferEvent = createTransferEvent(from, to, value);
+
+            createSuperToken(
+                transferEvent.address,
+                transferEvent.block,
+                DEFAULT_DECIMALS,
+                maticXName,
+                maticXSymbol,
+                false,
+                ZERO_ADDRESS
+            );
+
+            handleTransfer(transferEvent);
+
+            const transferEventId = assertEventBaseProperties(transferEvent, "Transfer");
+            // No `spender` set: addresses[] is length 3, no cache row exists.
+            assert.fieldEquals(
+                "TransferEvent",
+                transferEventId,
+                "addresses",
+                "[" +
+                    transferEvent.address.toHexString() +
+                    ", " +
+                    Address.fromString(from).toHexString() +
+                    ", " +
+                    Address.fromString(to).toHexString() +
+                    "]"
+            );
+            assert.entityCount("TransferEvent", 1);
         });
 
         test("handleBurned() - Should create a new BurnedEvent entity", () => {
@@ -695,6 +814,30 @@ describe("SuperToken Mapper Unit Tests", () => {
                 mintedEvent.block.number,
                 amount // totalSupply = 100
             );
+        });
+
+        test("_createAccountTokenSnapshotLogEntity() - Should be a no-op (ATSLog indexing deprecated)", () => {
+            const from = alice;
+            const to = bob;
+            const amount = BigInt.fromI32(100);
+
+            const burnedEvent = createBurnedEvent(
+                from,
+                to,
+                amount,
+                stringToBytes(""),
+                stringToBytes("")
+            );
+
+            _createAccountTokenSnapshotLogEntity(
+                burnedEvent,
+                Address.fromString(to),
+                burnedEvent.address,
+                "Burned"
+            );
+
+            // Helper is a no-op: no AccountTokenSnapshotLog rows are written.
+            assert.entityCount("AccountTokenSnapshotLog", 0);
         });
     });
 });

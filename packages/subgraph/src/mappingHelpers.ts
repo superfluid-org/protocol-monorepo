@@ -304,6 +304,7 @@ export function getOrInitStream(event: FlowUpdated): Stream {
         stream.receiver = event.params.receiver.toHex();
         stream.currentFlowRate = BigInt.fromI32(0);
         stream.deposit = BigInt.fromI32(0);
+        stream.owedDeposit = BigInt.fromI32(0);
         stream.streamedUntilUpdatedAt = BigInt.fromI32(0);
         stream.updatedAtTimestamp = currentTimestamp;
         stream.updatedAtBlockNumber = event.block.number;
@@ -692,6 +693,7 @@ export function _createAccountTokenSnapshotLogEntity(
     tokenAddress: Address,
     eventName: string
 ): void {
+    return;
     if (accountAddress.equals(ZERO_ADDRESS)) {
         return;
     }

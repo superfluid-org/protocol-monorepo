@@ -28,32 +28,6 @@ export const getAccountTokenSnapshot = gql`
             token {
                 id
             }
-            accountTokenSnapshotLogs(
-                first: 1
-                orderBy: order
-                orderDirection: desc
-            ) {
-                blockNumber
-                transactionHash
-                balance
-                logIndex
-                order
-                timestamp
-                totalAmountStreamed
-                totalAmountStreamedIn
-                totalAmountStreamedOut
-                totalAmountTransferred
-                maybeCriticalAtTimestamp
-                totalApprovedSubscriptions
-                totalDeposit
-                totalInflowRate
-                totalNetFlowRate
-                totalNumberOfActiveStreams
-                totalNumberOfClosedStreams
-                totalOutflowRate
-                totalSubscriptionsWithUnits
-                triggeredByEventName
-            }
         }
     }
 `;

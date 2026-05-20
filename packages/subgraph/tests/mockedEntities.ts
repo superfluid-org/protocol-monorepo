@@ -91,6 +91,7 @@ export function createStream(
     stream.updatedAtBlockNumber = blockNumber;
     stream.currentFlowRate = currentFlowRate;
     stream.deposit = deposit;
+    stream.owedDeposit = BigInt.fromI32(0);
     stream.streamedUntilUpdatedAt = streamedUntilUpdatedAt;
     stream.token = tokenAddress.toHex();
     stream.sender = senderAddress.toHex();
