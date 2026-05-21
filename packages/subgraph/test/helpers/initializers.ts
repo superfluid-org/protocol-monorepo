@@ -187,7 +187,6 @@ export const getOrInitAccountTokenSnapshot = (
             account: { id: accountId },
             token: { id: tokenId },
             flowOperators: [],
-            accountTokenSnapshotLogs: [],
         };
     }
     return existingATS;
