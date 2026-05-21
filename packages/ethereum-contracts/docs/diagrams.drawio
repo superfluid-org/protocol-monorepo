@@ -243,7 +243,7 @@
         <mxCell id="AxLeNag9hkkuSHpGYqFt-9" value="&lt;h1&gt;Macros&lt;/h1&gt;" style="text;html=1;strokeColor=none;fillColor=none;spacing=5;spacingTop=-20;whiteSpace=wrap;overflow=hidden;rounded=0;align=center;" vertex="1" parent="1">
           <mxGeometry x="423" y="30" width="323" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="LPRJF1tosnZyEq9DZlT5-1" value="MacroForwarderV1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" vertex="1" parent="1">
+        <mxCell id="LPRJF1tosnZyEq9DZlT5-1" value="BlindMacroForwarder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" vertex="1" parent="1">
           <mxGeometry x="440" y="640" width="160" height="80" as="geometry" />
         </mxCell>
         <mxCell id="LPRJF1tosnZyEq9DZlT5-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="LPRJF1tosnZyEq9DZlT5-3" target="AxLeNag9hkkuSHpGYqFt-6">
@@ -254,7 +254,7 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="LPRJF1tosnZyEq9DZlT5-3" value="MacroForwarder712V1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" vertex="1" parent="1">
+        <mxCell id="LPRJF1tosnZyEq9DZlT5-3" value="ClearMacroForwarderV1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" vertex="1" parent="1">
           <mxGeometry x="440" y="360" width="160" height="80" as="geometry" />
         </mxCell>
         <mxCell id="LPRJF1tosnZyEq9DZlT5-4" value="forwardBatchCall" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;fontSize=12;" edge="1" parent="1" source="LPRJF1tosnZyEq9DZlT5-3">
@@ -271,7 +271,7 @@
         <mxCell id="LPRJF1tosnZyEq9DZlT5-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="LPRJF1tosnZyEq9DZlT5-9" target="LPRJF1tosnZyEq9DZlT5-3">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="LPRJF1tosnZyEq9DZlT5-9" value="MacroFarwarder712&lt;br&gt;Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" vertex="1" parent="1">
+        <mxCell id="LPRJF1tosnZyEq9DZlT5-9" value="ClearMacro&lt;br&gt;relay service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" vertex="1" parent="1">
           <mxGeometry x="440" y="200" width="160" height="80" as="geometry" />
         </mxCell>
         <mxCell id="LPRJF1tosnZyEq9DZlT5-12" value="Smart Contract" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" vertex="1" parent="1">

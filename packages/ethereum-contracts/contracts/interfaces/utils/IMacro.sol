@@ -4,7 +4,7 @@ pragma solidity >=0.8.11;
 import { ISuperfluid } from "../superfluid/ISuperfluid.sol";
 
 /**
- * @dev Macro used in implementations of TrustedMacros.
+ * @dev Interface implemented by macro contracts invoked by macro forwarders
  */
 interface IMacro {
     /**
@@ -28,7 +28,7 @@ interface IMacro {
      * It allows to do arbitrary checks based on the state after execution,
      * and to revert if the result is not as expected.
      * Can be an empty implementation if no check is needed.
-     * @param  host     The host contract set for the executing MacroForwarder.
+     * @param  host     The Superfluid host used by the invoking forwarder.
      * @param  params   Same encoding as `buildBatchOperations` (see that function).
      * @param  account  The account on whose behalf batch operations were executed.
      */
