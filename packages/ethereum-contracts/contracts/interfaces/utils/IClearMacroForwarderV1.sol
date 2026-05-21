@@ -62,6 +62,9 @@ interface IClearMacroForwarderV1 {
      * @param  m               Target macro contract.
      * @param  encodedPayload  ABI-encoded `Payload`.
      * @param  signer          Address which signed the payload and on whose behalf the macro runs.
+     *                         Not part of the EIP-712 digest (`Security` has no signer field).
+     *                         EOAs are bound by the signature; ERC-1271 signers must
+     *                         re-bind the digest to `address(this)` in `isValidSignature`.
      * @param  signature       EIP-712 signature over the payload digest.
      * @return success         True if the macro execution succeeded.
      */
