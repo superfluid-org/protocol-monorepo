@@ -11,6 +11,9 @@ import { ForwarderBase } from "../utils/ForwarderBase.sol";
  * requiring users to _blind sign_ encoded macro actions.
  */
 contract BlindMacroForwarder is ForwarderBase {
+    /// @dev Emitted after a macro is executed on behalf of the caller.
+    event MacroExecuted(address indexed account, address indexed macroContract);
+
     constructor(ISuperfluid host) ForwarderBase(host) {}
 
     /**
@@ -36,6 +39,7 @@ contract BlindMacroForwarder is ForwarderBase {
         ISuperfluid.Operation[] memory operations = buildBatchOperations(m, params);
         bool retVal = _forwardBatchCallWithSenderAndValue(operations, msg.sender, msg.value);
         m.postCheck(_host, params, msg.sender);
+        emit MacroExecuted(msg.sender, address(m));
         return retVal;
     }
 }

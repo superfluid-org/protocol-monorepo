@@ -14,7 +14,8 @@ import {
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IClearMacroForwarderV1 } from "../../../contracts/interfaces/utils/IClearMacroForwarderV1.sol";
 import {
-    IClearMacroForwarderV1WithPermit2
+    IClearMacroForwarderV1WithPermit2,
+    IClearMacroPermit2Extension
 } from "../../../contracts/interfaces/utils/IClearMacroForwarderV1WithPermit2.sol";
 import { IClearMacro } from "../../../contracts/interfaces/utils/IClearMacro.sol";
 import { ClearMacroForwarderV1 } from "../../../contracts/utils/ClearMacroForwarderV1.sol";
@@ -304,6 +305,43 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         );
         assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
         assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "signer should have received upgraded SuperTokens");
+    }
+
+    function testRunPermit2AndMacroWithImpliedUpgradeEmitsEvents(uint256 signerPrivateKey) external {
+        signerPrivateKey = bound(signerPrivateKey, 1, SECP256K1_ORDER - 1);
+        VmSafe.Wallet memory signer = vm.createWallet(signerPrivateKey);
+        _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
+
+        bytes memory params = _getTestPayload(minimalClearMacroEmptyOps);
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context = _buildPermit2Context(
+            signer, address(forwarder), address(superToken), minimalClearMacroEmptyOps, params, token, TEST_AMOUNT
+        );
+
+        vm.expectEmit(true, true, true, true, address(forwarder));
+        emit IClearMacroPermit2Extension.Permit2UpgradeExecuted(
+            signer.addr, address(token), address(superToken), TEST_AMOUNT, TEST_AMOUNT
+        );
+        vm.expectEmit(true, true, true, true, address(forwarder));
+        emit IClearMacroForwarderV1.MacroExecuted(
+            signer.addr, address(minimalClearMacroEmptyOps), keccak256(bytes(SECURITY_PROVIDER))
+        );
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
+    }
+
+    function testRunPermit2AndMacroWithoutUpgradeEmitsMacroExecutedOnly(uint256 signerPrivateKey) external {
+        signerPrivateKey = bound(signerPrivateKey, 1, SECP256K1_ORDER - 1);
+        VmSafe.Wallet memory signer = vm.createWallet(signerPrivateKey);
+        _fundSignerAndApprove(token, signer, TEST_AMOUNT, address(superToken));
+
+        bytes memory params = _getTestPayload(minimalClearMacro);
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context =
+            _buildPermit2Context(signer, address(this), address(0), minimalClearMacro, params, token, TEST_AMOUNT);
+
+        vm.expectEmit(true, true, true, true, address(forwarder));
+        emit IClearMacroForwarderV1.MacroExecuted(
+            signer.addr, address(minimalClearMacro), keccak256(bytes(SECURITY_PROVIDER))
+        );
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacro, params));
     }
 
     function testRunPermit2AndMacroWithImpliedUpgradeScalesUpForLowerUnderlyingDecimals() external {

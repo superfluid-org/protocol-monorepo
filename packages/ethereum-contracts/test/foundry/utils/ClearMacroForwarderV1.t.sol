@@ -92,6 +92,23 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         assertEq(superToken.balanceOf(signer.addr), signerSuperBalanceBefore + TEST_AMOUNT, "signer super token balance should increase by TEST_AMOUNT");
     }
 
+    function testRunMacroEmitsMacroExecuted(uint256 signerPrivateKey) external {
+        signerPrivateKey = bound(signerPrivateKey, 1, SECP256K1_ORDER - 1);
+        VmSafe.Wallet memory signer = vm.createWallet(signerPrivateKey);
+        _fundSignerForUpgrade(signer, 1);
+
+        bytes memory params = _getTestPayload();
+        bytes memory signatureVRS = _signPayload(signer, params);
+
+        vm.expectEmit(true, true, true, true, address(forwarder));
+        emit IClearMacroForwarderV1.MacroExecuted(
+            signer.addr,
+            address(minimalClearMacro),
+            keccak256(bytes(SECURITY_PROVIDER))
+        );
+        assertTrue(_runMacroAs(address(this), signer.addr, params, signatureVRS));
+    }
+
     function testRunMacroRevertsOnInvalidSignature() external {
         VmSafe.Wallet memory signer = vm.createWallet("signer");
         VmSafe.Wallet memory wrongSigner = vm.createWallet("wrongSigner");
@@ -253,7 +270,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         if (t0 > 0) {
             vm.warp(t0 - 1);
             vm.expectRevert(abi.encodeWithSelector(
-                ClearMacroForwarderV1.OutsideValidityWindow.selector, t0 - 1, t1, t0));
+                ClearMacroForwarderV1.OutsideValidityWindow.selector, t0 - 1, t0, t1));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -264,7 +281,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         } else {
             vm.warp(t0);
             vm.expectRevert(abi.encodeWithSelector(
-                ClearMacroForwarderV1.OutsideValidityWindow.selector, t0, t1, t0));
+                ClearMacroForwarderV1.OutsideValidityWindow.selector, t0, t0, t1));
             _runMacroAs(address(this), signer.addr, params, signatureVRS);
         }
 
@@ -275,7 +292,7 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         signatureVRS = _signPayload(signer, params);
         vm.warp(expiry + 1);
         vm.expectRevert(abi.encodeWithSelector(
-            ClearMacroForwarderV1.OutsideValidityWindow.selector, expiry + 1, expiry, uint256(0)));
+            ClearMacroForwarderV1.OutsideValidityWindow.selector, expiry + 1, uint256(0), expiry));
         _runMacroAs(address(this), signer.addr, params, signatureVRS);
     }
 

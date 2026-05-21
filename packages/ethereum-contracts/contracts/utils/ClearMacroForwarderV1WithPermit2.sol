@@ -12,11 +12,12 @@ import { IClearMacroPermit2Extension } from "../interfaces/utils/IClearMacroForw
 import { ClearMacroForwarderV1 } from "./ClearMacroForwarderV1.sol";
 
 /**
- * @title ClearMacroForwarderV1WithPermit2
- * @notice `ClearMacroForwarderV1` with Permit2 witness binding; see `IClearMacroPermit2Extension`.
+ * @dev `ClearMacroForwarderV1` with Permit2 witness binding; see `IClearMacroPermit2Extension`.
  */
 contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroPermit2Extension {
     using SafeERC20 for IERC20;
+
+    // CONSTANTS
 
     /// @dev Canonical Permit2 address (same across all EVM chains)
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -30,7 +31,11 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
     string private constant _PERMIT_WITNESS_TRANSFER_FROM_STUB =
         "PermitWitnessTransferFrom(TokenPermissions permitted,address spender,uint256 nonce,uint256 deadline,";
 
+    // INITIALIZATION
+
     constructor(ISuperfluid host) ClearMacroForwarderV1(host) {}
+
+    // PUBLIC FUNCTIONS
 
     /// @inheritdoc IClearMacroPermit2Extension
     function runPermit2AndMacro(
@@ -38,18 +43,58 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         IClearMacro m,
         bytes calldata encodedPayload
     ) external payable override returns (bool) {
-        _validatePermitAndMaybePull(permit2Context, m, encodedPayload);
-        _validatePayload(m, encodedPayload, permit2Context.owner, msg.sender);
-        return _executeValidatedMacro(m, encodedPayload, permit2Context.owner);
+        IClearMacroForwarderV1.Payload memory payload = _decodePayload(encodedPayload);
+        _validatePermitAndMaybePull(permit2Context, m, encodedPayload, payload);
+        _validatePayload(m, payload, permit2Context.owner, msg.sender);
+        return _executeValidatedMacro(m, payload, permit2Context.owner);
     }
+
+    /// @inheritdoc IClearMacroPermit2Extension
+    function getPermit2WitnessStructHash(IClearMacro m, bytes calldata encodedPayload, address upgradeSuperToken)
+        external
+        view
+        override
+        returns (bytes32)
+    {
+        return _getPermit2WitnessStructHash(m, encodedPayload, _decodePayload(encodedPayload), upgradeSuperToken);
+    }
+
+    /// @inheritdoc IClearMacroPermit2Extension
+    function getPermit2WitnessTypeString(IClearMacro m, bytes calldata encodedPayload)
+        external
+        view
+        override
+        returns (string memory)
+    {
+        string memory actionDef = m.getActionTypeDefinition(encodedPayload);
+        string memory clearMacroDef = string(abi.encodePacked(
+            _CLEAR_MACRO_WITNESS_TYPE_NAME,
+            "(address upgradeSuperToken,Action action,Security security)"
+        ));
+        string memory tokenPermDef = "TokenPermissions(address token,uint256 amount)";
+
+        // Uses constant type name "ClearMacro" with nested Security so the witness type string
+        // has deterministic alphabetical ordering regardless of the macro's primary type name.
+        return string(abi.encodePacked(
+            _CLEAR_MACRO_WITNESS_TYPE_NAME,
+            " witness)",
+            actionDef,
+            clearMacroDef,
+            _TYPEDEF_SECURITY,
+            tokenPermDef
+        ));
+    }
+
+    // INTERNAL FUNCTIONS
 
     function _validatePermitAndMaybePull(
         Permit2Context calldata permit2Context,
         IClearMacro m,
-        bytes calldata encodedPayload
+        bytes calldata encodedPayload,
+        IClearMacroForwarderV1.Payload memory payload
     ) internal {
         if (permit2Context.witness
-                != this.getPermit2WitnessStructHash(m, encodedPayload, permit2Context.upgradeSuperToken)) {
+                != _getPermit2WitnessStructHash(m, encodedPayload, payload, permit2Context.upgradeSuperToken)) {
             revert InvalidPayload("witness mismatch");
         }
 
@@ -90,6 +135,11 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         uint256 amount = _toSuperTokenAmount(underlyingAmount, IERC20Metadata(underlying).decimals());
         IERC20(underlying).forceApprove(permit2Context.upgradeSuperToken, underlyingAmount);
         ISuperToken(permit2Context.upgradeSuperToken).upgradeTo(permit2Context.owner, amount, "");
+
+        emit Permit2UpgradeExecuted(
+            permit2Context.owner, underlying, permit2Context.upgradeSuperToken, underlyingAmount, amount
+        );
+
         // If underlying has more than 18 decimals, it's possible for dust of it
         // to be left in this contract after the upgrade.
     }
@@ -139,19 +189,6 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         return keccak256(abi.encodePacked("\x19\x01", IPermit2(PERMIT2).DOMAIN_SEPARATOR(), structHash));
     }
 
-    /**
-     * @dev Struct hash of the ClearMacro payload for use as Permit2 witness.
-     * Binds `upgradeSuperToken` (`address(0)` selects witness-only mode).
-     */
-    function getPermit2WitnessStructHash(IClearMacro m, bytes calldata encodedPayload, address upgradeSuperToken)
-        external
-        view
-        override
-        returns (bytes32)
-    {
-        return _getPermit2WitnessStructHash(m, encodedPayload, upgradeSuperToken);
-    }
-
     function _permit2WitnessInnerTypeDefinition(IClearMacro m, bytes calldata encodedPayload)
         internal
         view
@@ -165,13 +202,12 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         ));
     }
 
-    function _getPermit2WitnessStructHash(IClearMacro m, bytes calldata encodedPayload, address upgradeSuperToken)
-        internal
-        view
-        returns (bytes32)
-    {
-        IClearMacroForwarderV1.Payload memory payload =
-            abi.decode(encodedPayload, (IClearMacroForwarderV1.Payload));
+    function _getPermit2WitnessStructHash(
+        IClearMacro m,
+        bytes calldata encodedPayload,
+        IClearMacroForwarderV1.Payload memory payload,
+        address upgradeSuperToken
+    ) internal view returns (bytes32) {
         bytes32 actionStructHash = m.getActionStructHash(payload.action.params);
         bytes32 securityStructHash = _getSecurityStructHash(payload.security);
         bytes32 primaryTypeHash = keccak256(abi.encodePacked(_permit2WitnessInnerTypeDefinition(m, encodedPayload)));
@@ -183,33 +219,4 @@ contract ClearMacroForwarderV1WithPermit2 is ClearMacroForwarderV1, IClearMacroP
         ));
     }
 
-    /**
-     * @dev Witness type string for Permit2 PermitWitnessTransferFrom.
-     * Uses constant "ClearMacro" with nested Security for deterministic alphabetical order:
-     * Action, ClearMacro, Security, TokenPermissions.
-     */
-    function getPermit2WitnessTypeString(IClearMacro m, bytes calldata encodedPayload)
-        external
-        view
-        override
-        returns (string memory)
-    {
-        string memory actionDef = m.getActionTypeDefinition(encodedPayload);
-        string memory clearMacroDef = string(abi.encodePacked(
-            _CLEAR_MACRO_WITNESS_TYPE_NAME,
-            "(address upgradeSuperToken,Action action,Security security)"
-        ));
-        string memory tokenPermDef = "TokenPermissions(address token,uint256 amount)";
-
-        // Uses constant type name "ClearMacro" with nested Security so the witness type string
-        // has deterministic alphabetical ordering regardless of the macro's primary type name.
-        return string(abi.encodePacked(
-            _CLEAR_MACRO_WITNESS_TYPE_NAME,
-            " witness)",
-            actionDef,
-            clearMacroDef,
-            _TYPEDEF_SECURITY,
-            tokenPermDef
-        ));
-    }
 }

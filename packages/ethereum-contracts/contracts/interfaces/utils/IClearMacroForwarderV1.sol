@@ -46,6 +46,16 @@ interface IClearMacroForwarderV1 {
     }
 
     /**
+     * @dev Emitted after a signed ClearMacro payload is executed successfully.
+     * `providerRole` is `keccak256(bytes(security.provider))`.
+     */
+    event MacroExecuted(
+        address indexed signer,
+        address indexed macroContract,
+        bytes32 indexed providerRole
+    );
+
+    /**
      * @dev Runs the macro with an EIP-712 signed payload.
      * Reverts if the signature is invalid, the payload fails security checks, or
      * any nested call reverts.
