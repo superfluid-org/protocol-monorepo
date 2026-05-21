@@ -8,10 +8,16 @@ import { ISuperfluid } from "../interfaces/superfluid/ISuperfluid.sol";
 
 /**
  * @dev Abstract base for ClearMacro implementations that support multiple actions.
- * The forwarder handles EIP-712 and signature verification; this base only provides
- * dispatch by action id.
- * Wire format: `abi.encode(uint8 actionId, bytes32 lang, bytes actionParams)`.
- * Caller must specify lang; it is passed to getActionStructHash for i18n descriptions.
+ * The forwarder handles EIP-712, signature verification, security checks, and
+ * extraction of `Payload.action.params`; this base dispatches the extracted action
+ * params by `actionId`.
+ *
+ * This base expects `Payload.action.params` (`actionParams`) to be encoded as:
+ * `abi.encode(uint8 actionId, bytes32 lang, bytes actionSpecificParams)`.
+ *
+ * The `lang` value is passed to the action hash builder for localized EIP-712
+ * descriptions. `actionSpecificParams` is the action-specific payload consumed by the
+ * registered action's hash/build/post-check handlers.
  */
 abstract contract ClearMacroBase is IClearMacro {
 
@@ -52,51 +58,53 @@ abstract contract ClearMacroBase is IClearMacro {
     // solhint-disable-next-line no-empty-blocks
     function _noOpPostCheck(ISuperfluid, bytes memory, address) internal pure { }
 
-    /// @dev Decode full Payload and then action id + lang + inner params. Used when the forwarder passes full params.
-    function _decodePayloadAndAction(bytes memory params)
+    /// @dev Decode `encodedPayload` (`abi.encode(Payload)`) to action id, lang, and action-specific params.
+    function _decodePayloadAndAction(bytes memory encodedPayload)
         internal
         pure
-        returns (uint8 actionId, bytes32 lang, bytes memory actionParams)
+        returns (uint8 actionId, bytes32 lang, bytes memory actionSpecificParams)
     {
-        IClearMacroForwarderV1.Payload memory payload = abi.decode(params, (IClearMacroForwarderV1.Payload));
-        (actionId, lang, actionParams) = abi.decode(payload.action.params, (uint8, bytes32, bytes));
+        IClearMacroForwarderV1.Payload memory payload =
+            abi.decode(encodedPayload, (IClearMacroForwarderV1.Payload));
+        (actionId, lang, actionSpecificParams) = abi.decode(payload.action.params, (uint8, bytes32, bytes));
     }
 
-    function _decodeActionParams(bytes memory params)
+    /// @dev Decode `Payload.action.params` (wire format: actionId, lang, actionSpecificParams).
+    function _decodeActionParams(bytes memory actionParams)
         internal
         pure
-        returns (uint8 actionId, bytes32 lang, bytes memory actionParams)
+        returns (uint8 actionId, bytes32 lang, bytes memory actionSpecificParams)
     {
-        (actionId, lang, actionParams) = abi.decode(params, (uint8, bytes32, bytes));
+        (actionId, lang, actionSpecificParams) = abi.decode(actionParams, (uint8, bytes32, bytes));
     }
 
-    function getPrimaryTypeName(bytes memory params) external view override returns (string memory) {
-        (uint8 actionId, , ) = _decodePayloadAndAction(params);
+    function getPrimaryTypeName(bytes memory encodedPayload) external view override returns (string memory) {
+        (uint8 actionId, , ) = _decodePayloadAndAction(encodedPayload);
         return _getAction(actionId).primaryTypeName;
     }
 
-    function getActionTypeDefinition(bytes memory params) external view override returns (string memory) {
-        (uint8 actionId, , ) = _decodePayloadAndAction(params);
+    function getActionTypeDefinition(bytes memory encodedPayload) external view override returns (string memory) {
+        (uint8 actionId, , ) = _decodePayloadAndAction(encodedPayload);
         return _getAction(actionId).actionTypeDefinition;
     }
 
-    function getActionStructHash(bytes memory params) external view override returns (bytes32) {
-        (uint8 actionId, bytes32 lang, bytes memory actionParams) = _decodeActionParams(params);
-        return _getAction(actionId).getActionStructHash(actionParams, lang);
+    function getActionStructHash(bytes memory actionParams) external view override returns (bytes32) {
+        (uint8 actionId, bytes32 lang, bytes memory actionSpecificParams) = _decodeActionParams(actionParams);
+        return _getAction(actionId).getActionStructHash(actionSpecificParams, lang);
     }
 
-    function buildBatchOperations(ISuperfluid host, bytes memory params, address account)
+    function buildBatchOperations(ISuperfluid host, bytes memory actionParams, address account)
         external
         view
         override
         returns (ISuperfluid.Operation[] memory)
     {
-        (uint8 actionId, , bytes memory actionParams) = _decodeActionParams(params);
-        return _getAction(actionId).buildOperations(host, actionParams, account);
+        (uint8 actionId, , bytes memory actionSpecificParams) = _decodeActionParams(actionParams);
+        return _getAction(actionId).buildOperations(host, actionSpecificParams, account);
     }
 
-    function postCheck(ISuperfluid host, bytes memory params, address account) external view override {
-        (uint8 actionId, , bytes memory actionParams) = _decodeActionParams(params);
-        _getAction(actionId).postCheck(host, actionParams, account);
+    function postCheck(ISuperfluid host, bytes memory actionParams, address account) external view override {
+        (uint8 actionId, , bytes memory actionSpecificParams) = _decodeActionParams(actionParams);
+        _getAction(actionId).postCheck(host, actionSpecificParams, account);
     }
 }

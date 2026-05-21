@@ -16,7 +16,7 @@ contract BlindMacroForwarder is ForwarderBase {
     /**
      * @dev A convenience view wrapper for building the batch operations using a macro.
      * @param  m          Target macro.
-     * @param  params     Parameters to simulate the macro.
+     * @param  params     Parameters to simulate the macro; passed directly to the macro.
      * @return operations Operations returned by the macro after the simulation.
      */
     function buildBatchOperations(IMacro m, bytes calldata params) public view
@@ -28,7 +28,7 @@ contract BlindMacroForwarder is ForwarderBase {
     /**
      * @dev Run the macro defined by the provided macro contract and params.
      * @param  m      Target macro.
-     * @param  params Parameters to run the macro.
+     * @param  params Parameters to run the macro; passed directly to the macro.
      * If value (native coins) is provided, it is forwarded.
      */
     function runMacro(IMacro m, bytes calldata params) external payable returns (bool)

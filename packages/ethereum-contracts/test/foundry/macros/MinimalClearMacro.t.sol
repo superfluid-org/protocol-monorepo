@@ -8,7 +8,8 @@ import { IClearMacro } from "../../../contracts/interfaces/utils/IClearMacro.sol
 /**
  * @title MinimalClearMacro
  * @dev Minimal ClearMacro: single upgrade action, no postCheck.
- * Params (token, amount); EIP-712 Action(string description) with description derived from params.
+ * `actionParams` format: `(token, amount)`.
+ * EIP-712 Action(string description) with description derived from `actionParams`.
  */
 contract MinimalClearMacro is IClearMacro {
     string public constant PRIMARY_TYPE_NAME = "MinimalExample";
@@ -23,13 +24,13 @@ contract MinimalClearMacro is IClearMacro {
         );
     }
 
-    function buildBatchOperations(ISuperfluid, bytes memory params, address /*account*/)
+    function buildBatchOperations(ISuperfluid, bytes memory actionParams, address /*account*/)
         external
         pure
         override
         returns (ISuperfluid.Operation[] memory operations)
     {
-        (address token, uint256 amount) = abi.decode(params, (address, uint256));
+        (address token, uint256 amount) = abi.decode(actionParams, (address, uint256));
         operations = new ISuperfluid.Operation[](1);
         operations[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERTOKEN_UPGRADE,
@@ -42,16 +43,16 @@ contract MinimalClearMacro is IClearMacro {
         // intentionally empty
     }
 
-    function getActionTypeDefinition(bytes memory /*params*/) external pure override returns (string memory) {
+    function getActionTypeDefinition(bytes memory /*encodedPayload*/) external pure override returns (string memory) {
         return ACTION_TYPE_DEFINITION;
     }
 
-    function getPrimaryTypeName(bytes memory /*params*/) external pure override returns (string memory) {
+    function getPrimaryTypeName(bytes memory /*encodedPayload*/) external pure override returns (string memory) {
         return PRIMARY_TYPE_NAME;
     }
 
-    function getActionStructHash(bytes memory params) external pure override returns (bytes32) {
-        (address token, uint256 amount) = abi.decode(params, (address, uint256));
+    function getActionStructHash(bytes memory actionParams) external pure override returns (bytes32) {
+        (address token, uint256 amount) = abi.decode(actionParams, (address, uint256));
         string memory description = _buildDescription(token, amount);
         bytes32 actionTypeHash = keccak256(abi.encodePacked(ACTION_TYPE_DEFINITION));
         return keccak256(abi.encode(actionTypeHash, keccak256(bytes(description))));

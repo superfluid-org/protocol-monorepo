@@ -23,7 +23,7 @@ using AmountFormatter for uint256;
  * - declaring a stable action id enum used on the wire
  * - registering per-action metadata and handlers in `_registerActions()`
  * - exposing typed `encode...()` helpers for callers
- * - deriving localized EIP-712 descriptions from `(lang, actionParams)`
+ * - deriving localized EIP-712 descriptions from `(lang, actionSpecificParams)`
  */
 contract MultiActionClearMacro is ClearMacroBase {
 
@@ -59,13 +59,13 @@ contract MultiActionClearMacro is ClearMacroBase {
         }));
     }
 
-    // ClearMacroBase expects `abi.encode(uint8 actionId, bytes32 lang, bytes actionParams)`.
-    function _encodeRaw(ActionId actionId, bytes32 lang, bytes memory actionParams)
+    // ClearMacroBase expects `abi.encode(uint8 actionId, bytes32 lang, bytes actionSpecificParams)`.
+    function _encodeRaw(ActionId actionId, bytes32 lang, bytes memory actionSpecificParams)
         private
         pure
         returns (bytes memory)
     {
-        return abi.encode(uint8(actionId), lang, actionParams);
+        return abi.encode(uint8(actionId), lang, actionSpecificParams);
     }
 
     // ---------- CreateFlow ----------
@@ -94,13 +94,13 @@ contract MultiActionClearMacro is ClearMacroBase {
         );
     }
 
-    function _getActionStructHashCreateFlow(bytes memory actionParams, bytes32 lang)
+    function _getActionStructHashCreateFlow(bytes memory actionSpecificParams, bytes32 lang)
         internal
         view
         returns (bytes32)
     {
         (address token, address receiver, int96 flowRate) =
-            abi.decode(actionParams, (address, address, int96));
+            abi.decode(actionSpecificParams, (address, address, int96));
         string memory desc = _descriptionCreateFlow(lang, token, receiver, flowRate);
         return keccak256(abi.encode(
             keccak256(abi.encodePacked(_TYPEDEF_CREATE_FLOW)),
@@ -111,13 +111,13 @@ contract MultiActionClearMacro is ClearMacroBase {
         ));
     }
 
-    function _buildOperationsCreateFlow(ISuperfluid host, bytes memory actionParams, address)
+    function _buildOperationsCreateFlow(ISuperfluid host, bytes memory actionSpecificParams, address)
         internal
         view
         returns (ISuperfluid.Operation[] memory)
     {
         (address token, address receiver, int96 flowRate) =
-            abi.decode(actionParams, (address, address, int96));
+            abi.decode(actionSpecificParams, (address, address, int96));
         IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(address(host.getAgreementClass(
             keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")
         )));
@@ -167,12 +167,12 @@ contract MultiActionClearMacro is ClearMacroBase {
         revert UnsupportedLanguage();
     }
 
-    function _getActionStructHashUpgrade(bytes memory actionParams, bytes32 lang)
+    function _getActionStructHashUpgrade(bytes memory actionSpecificParams, bytes32 lang)
         internal
         view
         returns (bytes32)
     {
-        (address token, uint256 amount) = abi.decode(actionParams, (address, uint256));
+        (address token, uint256 amount) = abi.decode(actionSpecificParams, (address, uint256));
         string memory desc = _descriptionUpgrade(lang, token, amount);
         return keccak256(abi.encode(
             keccak256(abi.encodePacked(_TYPEDEF_UPGRADE)),
@@ -182,12 +182,12 @@ contract MultiActionClearMacro is ClearMacroBase {
         ));
     }
 
-    function _buildOperationsUpgrade(ISuperfluid, bytes memory actionParams, address)
+    function _buildOperationsUpgrade(ISuperfluid, bytes memory actionSpecificParams, address)
         internal
         pure
         returns (ISuperfluid.Operation[] memory)
     {
-        (address token, uint256 amount) = abi.decode(actionParams, (address, uint256));
+        (address token, uint256 amount) = abi.decode(actionSpecificParams, (address, uint256));
         ISuperfluid.Operation[] memory ops = new ISuperfluid.Operation[](1);
         ops[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERTOKEN_UPGRADE,

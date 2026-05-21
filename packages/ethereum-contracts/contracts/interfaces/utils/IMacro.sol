@@ -12,7 +12,10 @@ interface IMacro {
      * It's up to the macro contract to map the provided params (can also be empty) to any
      * valid list of operations.
      * @param  host     The executing host contract.
-     * @param  params   The encoded form of the parameters.
+     * @param  params   Opaque macro parameters supplied by the invoking forwarder.
+     *                  The exact encoding is defined by that forwarder; implementations
+     *                  must not assume this is always the same bytes passed to the
+     *                  forwarder's `runMacro`.
      * @param  account  The account on whose behalf batch operations are executed (the
      *                  Superfluid `forwardBatchCall` sender).
      * @return operations The batch operations built.
@@ -26,7 +29,7 @@ interface IMacro {
      * and to revert if the result is not as expected.
      * Can be an empty implementation if no check is needed.
      * @param  host     The host contract set for the executing MacroForwarder.
-     * @param  params   The encoded parameters as provided to the forwarder's `runMacro()`.
+     * @param  params   Same encoding as `buildBatchOperations` (see that function).
      * @param  account  The account on whose behalf batch operations were executed.
      */
     function postCheck(ISuperfluid host, bytes memory params, address account) external view;

@@ -7,7 +7,7 @@ import { IPermit2 } from "../external/IPermit2.sol";
 
 
 /**
- * @dev Permit2 witness extension for {ClearMacroForwarderV1}.
+ * @dev Permit2 witness extension for `ClearMacroForwarderV1`.
  *
  * Notes about Permit2:
  * - Permit2 has its own nonce and deadline management, independent of that of ClearMacro.
@@ -38,31 +38,35 @@ interface IClearMacroPermit2Extension {
 
     /**
      * @notice Run a signed macro after Permit2 witness validation (see interface docs for modes).
-     * @param  permit2Context Permit2 permit, witness, and `upgradeSuperToken` mode.
-     * @param  m              Target macro (must match `security.macroContract` in `params`).
-     * @param  params         ABI-encoded `IClearMacroForwarderV1.Payload`.
+     * @param  permit2Context  Permit2 permit, witness, and `upgradeSuperToken` mode.
+     * @param  m               Target macro (must match `security.macroContract` in `encodedPayload`).
+     * @param  encodedPayload  ABI-encoded `IClearMacroForwarderV1.Payload`.
      */
     function runPermit2AndMacro(
         Permit2Context calldata permit2Context,
         IClearMacro m,
-        bytes calldata params
+        bytes calldata encodedPayload
     ) external payable returns (bool);
 
     /**
      * @dev Struct hash of the ClearMacro payload for use as Permit2 witness.
-     * @param m       Target macro.
-     * @param params  ABI-encoded `IClearMacroForwarderV1.Payload`.
-     * @param upgradeSuperToken Implied-upgrade SuperToken, or `address(0)` for witness-only mode.
+     * @param  m                  Target macro contract.
+     * @param  encodedPayload     ABI-encoded `IClearMacroForwarderV1.Payload`.
+     * @param  upgradeSuperToken  Wrapper SuperToken for implied upgrade, or `address(0)` for witness-only mode.
+     * @return structHash         Struct hash used as the Permit2 witness.
      */
-    function getPermit2WitnessStructHash(IClearMacro m, bytes calldata params, address upgradeSuperToken)
+    function getPermit2WitnessStructHash(IClearMacro m, bytes calldata encodedPayload, address upgradeSuperToken)
         external
         view
         returns (bytes32);
 
     /**
      * @dev Witness type string for Permit2 PermitWitnessTransferFrom.
+     * @param  m              Target macro contract.
+     * @param  encodedPayload ABI-encoded `IClearMacroForwarderV1.Payload`.
+     * @return typeString     Permit2 witness type string.
      */
-    function getPermit2WitnessTypeString(IClearMacro m, bytes calldata params)
+    function getPermit2WitnessTypeString(IClearMacro m, bytes calldata encodedPayload)
         external
         view
         returns (string memory);

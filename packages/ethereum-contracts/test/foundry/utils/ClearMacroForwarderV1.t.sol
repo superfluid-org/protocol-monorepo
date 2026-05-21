@@ -157,11 +157,11 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         _fundSignerForUpgrade(signer, 1);
 
         uint256 signerSuperBalanceBefore = superToken.balanceOf(signer.addr);
-        bytes memory clearParams = _getSelfRelayPayload();
-        _signPayload(signer, clearParams);
+        bytes memory encodedPayload = _getSelfRelayPayload();
+        _signPayload(signer, encodedPayload);
 
         IClearMacroForwarderV1.Payload memory payload =
-            abi.decode(clearParams, (IClearMacroForwarderV1.Payload));
+            abi.decode(encodedPayload, (IClearMacroForwarderV1.Payload));
 
         // BlindMacroForwarder ignores the Clear wrapper and signature semantics entirely.
         // If the app extracts the raw action params and the signer self-relays, the macro should succeed.
@@ -615,33 +615,33 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         ));
     }
 
-    function _runMacroAs(address relayer, address signer, bytes memory params, bytes memory signatureVRS)
+    function _runMacroAs(address relayer, address signer, bytes memory encodedPayload, bytes memory signatureVRS)
         internal
         returns (bool)
     {
         vm.prank(relayer);
-        return forwarder.runMacro(minimalClearMacro, params, signer, signatureVRS);
+        return forwarder.runMacro(minimalClearMacro, encodedPayload, signer, signatureVRS);
     }
 
-    function _runMultiActionMacroAs(address relayer, address signer, bytes memory params, bytes memory signatureVRS)
+    function _runMultiActionMacroAs(address relayer, address signer, bytes memory encodedPayload, bytes memory signatureVRS)
         internal
         returns (bool)
     {
         vm.prank(relayer);
-        return forwarder.runMacro(multiActionMacro, params, signer, signatureVRS);
+        return forwarder.runMacro(multiActionMacro, encodedPayload, signer, signatureVRS);
     }
 
-    function _signPayload(VmSafe.Wallet memory signer, bytes memory params) internal returns (bytes memory) {
-        bytes32 digest = forwarder.getDigest(minimalClearMacro, params);
+    function _signPayload(VmSafe.Wallet memory signer, bytes memory encodedPayload) internal returns (bytes memory) {
+        bytes32 digest = forwarder.getDigest(minimalClearMacro, encodedPayload);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
         return abi.encodePacked(r, s, v);
     }
 
-    function _signPayloadForMacro(IClearMacro m, VmSafe.Wallet memory signer, bytes memory params)
+    function _signPayloadForMacro(IClearMacro m, VmSafe.Wallet memory signer, bytes memory encodedPayload)
         internal
         returns (bytes memory)
     {
-        bytes32 digest = forwarder.getDigest(m, params);
+        bytes32 digest = forwarder.getDigest(m, encodedPayload);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
         return abi.encodePacked(r, s, v);
     }

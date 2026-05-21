@@ -34,7 +34,7 @@ uint256 constant DEFAULT_NONCE = uint256(1) << 64;
 uint256 constant TEST_AMOUNT = 100e18;
 
 // ============== Minimal macros for ClearMacroForwarderV1WithPermit2 ==============
-// Implements IClearMacro. Expects params (token, amount); does a SuperToken upgrade from underlying.
+// Implements IClearMacro. Expects actionParams (token, amount); does a SuperToken upgrade from underlying.
 contract MinimalClearMacroForPermit2Test is IClearMacro {
     string public constant ACTION_TYPE_DEFINITION = "Action(string description)";
 
@@ -47,13 +47,13 @@ contract MinimalClearMacroForPermit2Test is IClearMacro {
         );
     }
 
-    function buildBatchOperations(ISuperfluid, bytes memory params, address /*account*/)
+    function buildBatchOperations(ISuperfluid, bytes memory actionParams, address /*account*/)
         external
         pure
         override
         returns (ISuperfluid.Operation[] memory operations)
     {
-        (address token, uint256 amount) = abi.decode(params, (address, uint256));
+        (address token, uint256 amount) = abi.decode(actionParams, (address, uint256));
         operations = new ISuperfluid.Operation[](1);
         operations[0] = ISuperfluid.Operation({
             operationType: BatchOperation.OPERATION_TYPE_SUPERTOKEN_UPGRADE,
@@ -66,16 +66,16 @@ contract MinimalClearMacroForPermit2Test is IClearMacro {
         // intentionally empty
     }
 
-    function getActionTypeDefinition(bytes memory /*params*/) external pure override returns (string memory) {
+    function getActionTypeDefinition(bytes memory /*encodedPayload*/) external pure override returns (string memory) {
         return ACTION_TYPE_DEFINITION;
     }
 
-    function getPrimaryTypeName(bytes memory /*params*/) external pure override returns (string memory) {
+    function getPrimaryTypeName(bytes memory /*encodedPayload*/) external pure override returns (string memory) {
         return PRIMARY_TYPE_NAME;
     }
 
-    function getActionStructHash(bytes memory params) external pure override returns (bytes32) {
-        (address token, uint256 amount) = abi.decode(params, (address, uint256));
+    function getActionStructHash(bytes memory actionParams) external pure override returns (bytes32) {
+        (address token, uint256 amount) = abi.decode(actionParams, (address, uint256));
         string memory description = _buildDescription(token, amount);
         bytes32 actionTypeHash = keccak256(abi.encodePacked(ACTION_TYPE_DEFINITION));
         return keccak256(abi.encode(actionTypeHash, keccak256(bytes(description))));
@@ -109,16 +109,16 @@ contract MinimalClearMacroEmptyOps is IClearMacro {
         // intentionally empty
     }
 
-    function getActionTypeDefinition(bytes memory /*params*/) external pure override returns (string memory) {
+    function getActionTypeDefinition(bytes memory /*encodedPayload*/) external pure override returns (string memory) {
         return ACTION_TYPE_DEFINITION;
     }
 
-    function getPrimaryTypeName(bytes memory /*params*/) external pure override returns (string memory) {
+    function getPrimaryTypeName(bytes memory /*encodedPayload*/) external pure override returns (string memory) {
         return PRIMARY_TYPE_NAME;
     }
 
-    function getActionStructHash(bytes memory params) external pure override returns (bytes32) {
-        (address token, uint256 amount) = abi.decode(params, (address, uint256));
+    function getActionStructHash(bytes memory actionParams) external pure override returns (bytes32) {
+        (address token, uint256 amount) = abi.decode(actionParams, (address, uint256));
         string memory description = _buildDescription(token, amount);
         bytes32 actionTypeHash = keccak256(abi.encodePacked(ACTION_TYPE_DEFINITION));
         return keccak256(abi.encode(actionTypeHash, keccak256(bytes(description))));
@@ -757,11 +757,11 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         IPermit2.PermitTransferFrom memory permit,
         address spender,
         IClearMacro m,
-        bytes memory params,
+        bytes memory encodedPayload,
         address upgradeSuperToken
     ) internal returns (bytes32 witness, string memory witnessTypeString, bytes memory signature) {
-        witness = forwarder.getPermit2WitnessStructHash(m, params, upgradeSuperToken);
-        witnessTypeString = forwarder.getPermit2WitnessTypeString(m, params);
+        witness = forwarder.getPermit2WitnessStructHash(m, encodedPayload, upgradeSuperToken);
+        witnessTypeString = forwarder.getPermit2WitnessTypeString(m, encodedPayload);
         bytes32 digest = _computePermit2Digest(permit, spender, witness, witnessTypeString);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signer, digest);
         signature = abi.encodePacked(r, s, v);
@@ -796,13 +796,13 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         address spender,
         address upgradeSuperToken,
         IClearMacro m,
-        bytes memory params,
+        bytes memory encodedPayload,
         TestToken permitToken,
         uint256 permitAmount
     ) internal returns (IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context) {
         permit2Context.permit = _makePermit(address(permitToken), permitAmount);
         (permit2Context.witness, permit2Context.witnessTypeString, permit2Context.signature) =
-            _signPermit(signer, permit2Context.permit, spender, m, params, upgradeSuperToken);
+            _signPermit(signer, permit2Context.permit, spender, m, encodedPayload, upgradeSuperToken);
         permit2Context.owner = signer.addr;
         permit2Context.spender = spender;
         permit2Context.upgradeSuperToken = upgradeSuperToken;
