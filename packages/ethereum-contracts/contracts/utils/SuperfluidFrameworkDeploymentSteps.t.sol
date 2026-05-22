@@ -31,7 +31,8 @@ import { IResolver } from "../interfaces/utils/IResolver.sol";
 import { SimpleForwarder } from "../utils/SimpleForwarder.sol";
 import { ERC2771Forwarder } from "../utils/ERC2771Forwarder.sol";
 import { SimpleACL } from "../utils/SimpleACL.sol";
-import { MacroForwarder } from "../utils/MacroForwarder.sol";
+import { BlindMacroForwarder } from "../utils/BlindMacroForwarder.sol";
+import { ClearMacroForwarderV1WithPermit2 } from "../utils/ClearMacroForwarderV1WithPermit2.sol";
 
 /// @title Superfluid Framework Deployment Steps
 /// @author Superfluid
@@ -62,7 +63,8 @@ contract SuperfluidFrameworkDeploymentSteps {
         SuperfluidLoader superfluidLoader;
         CFAv1Forwarder cfaV1Forwarder;
         GDAv1Forwarder gdaV1Forwarder;
-        MacroForwarder macroForwarder;
+        BlindMacroForwarder macroForwarder;
+        ClearMacroForwarderV1WithPermit2 clearMacroForwarderV1WithPermit2;
         BatchLiquidator batchLiquidator;
         TOGA toga;
     }
@@ -87,7 +89,8 @@ contract SuperfluidFrameworkDeploymentSteps {
     // Forwarders
     CFAv1Forwarder internal cfaV1Forwarder;
     GDAv1Forwarder internal gdaV1Forwarder;
-    MacroForwarder internal macroForwarder;
+    BlindMacroForwarder internal macroForwarder;
+    ClearMacroForwarderV1WithPermit2 internal clearMacroForwarderV1WithPermit2;
 
     // Other Peripheral Contracts
     TestResolver internal testResolver;
@@ -115,6 +118,7 @@ contract SuperfluidFrameworkDeploymentSteps {
             cfaV1Forwarder: cfaV1Forwarder,
             gdaV1Forwarder: gdaV1Forwarder,
             macroForwarder: macroForwarder,
+            clearMacroForwarderV1WithPermit2: clearMacroForwarderV1WithPermit2,
             batchLiquidator: batchLiquidator,
             toga: toga
         });
@@ -223,9 +227,15 @@ contract SuperfluidFrameworkDeploymentSteps {
             gdaV1Forwarder = GDAv1ForwarderDeployerLibrary.deploy(host);
             testGovernance.enableTrustedForwarder(host, ISuperfluidToken(address(0)), address(gdaV1Forwarder));
 
-            // Deploy MacroForwarder
-            macroForwarder = new MacroForwarder(host);
+            // Deploy BlindMacroForwarder
+            macroForwarder = new BlindMacroForwarder(host);
             testGovernance.enableTrustedForwarder(host, ISuperfluidToken(address(0)), address(macroForwarder));
+
+            // Deploy ClearMacroForwarderV1WithPermit2
+            clearMacroForwarderV1WithPermit2 = new ClearMacroForwarderV1WithPermit2(host);
+            testGovernance.enableTrustedForwarder(
+                host, ISuperfluidToken(address(0)), address(clearMacroForwarderV1WithPermit2)
+            );
         } else if (step == 5) {// PERIPHERAL CONTRACTS: SuperToken Logic and SuperTokenFactory Logic
             // Deploy canonical SuperToken logic contract
             superTokenLogic = SuperToken(SuperTokenDeployerLibrary.deploy(
@@ -275,6 +285,9 @@ contract SuperfluidFrameworkDeploymentSteps {
 
             // Register GDAv1Forwarder with Resolver
             testResolver.set("GDAv1Forwarder", address(gdaV1Forwarder));
+
+            // Register ClearMacroForwarderV1WithPermit2 with Resolver
+            testResolver.set("ClearMacroForwarderV1WithPermit2", address(clearMacroForwarderV1WithPermit2));
 
             // Make SuperfluidFrameworkDeployer deployer an admin for the TestResolver as well
             testResolver.addAdmin(msg.sender);

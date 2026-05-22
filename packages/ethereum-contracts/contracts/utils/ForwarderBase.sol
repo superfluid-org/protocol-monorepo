@@ -24,21 +24,26 @@ abstract contract ForwarderBase {
         return _forwardBatchCall(ops);
     }
 
+    // helper defaulting to msg.sender as the sender and 0 value to forward
     function _forwardBatchCall(ISuperfluid.Operation[] memory ops) internal returns (bool) {
-        return _forwardBatchCallWithValue(ops, 0);
+        return _forwardBatchCallWithSenderAndValue(ops, msg.sender, 0);
     }
 
-    function _forwardBatchCallWithValue(ISuperfluid.Operation[] memory ops, uint256 valueToForward)
+    function _forwardBatchCallWithSenderAndValue(
+        ISuperfluid.Operation[] memory ops,
+        address msgSender,
+        uint256 valueToForward
+    )
         internal
         returns (bool)
     {
         bytes memory fwBatchCallData = abi.encodeCall(_host.forwardBatchCall, (ops));
 
         // https://eips.ethereum.org/EIPS/eip-2771
-        // we encode the msg.sender as the last 20 bytes per EIP-2771 to extract the original txn signer later on
+        // we encode the msgSender as the last 20 bytes per EIP-2771 to extract the original txn signer later on
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, bytes memory returnedData) = address(_host)
-            .call{value: valueToForward}(abi.encodePacked(fwBatchCallData, msg.sender));
+            .call{value: valueToForward}(abi.encodePacked(fwBatchCallData, msgSender));
 
         if (!success) {
             CallUtils.revertFromReturnedData(returnedData);

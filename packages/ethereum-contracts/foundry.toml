@@ -43,3 +43,18 @@ verbosity = 2
 
 [profile.ci.fuzz]
 runs = 1000
+
+[lint]
+exclude_lints = [
+    "asm-keccak256",
+    "erc20-unchecked-transfer",
+    "mixed-case-variable",
+    "unused-import",
+    "mixed-case-function",
+    "divide-before-multiply",
+    "unaliased-plain-import",
+    "screaming-snake-case-const",
+    "screaming-snake-case-immutable",
+    "pascal-case-struct",
+    "incorrect-shift",
+]

@@ -26,6 +26,7 @@ package-lock.json
 .vscode/
 *-workspace
 .npmrc
+.cursor
 
 # echidna litters
 crytic-export
