@@ -6,19 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [2.3.1]
-
-- Rename `TransferEvent.operator` → `TransferEvent.spender`. The field is now populated only when the paired ERC-777 `Sent.operator` differs from `Sent.from` (i.e. `transferFrom` / `operatorSend`), matching ERC-20 allowance terminology. Self-transfers and mint/burn/upgrade/downgrade paths leave it null.
-- Fix the field (formerly `operator`) always being null on the 2.3.0 deployment. `handleSent` tried to load a `TransferEvent` that did not exist yet — `SuperToken._move` emits `Sent` before `Transfer`, and graph-node runs handlers in log order. `handleSent` now fully creates the `TransferEvent` itself (using `initializeEventEntity` with the Sent event and patching `logIndex` / `order` to the paired Transfer's log slot); `_createTransferEventEntity` (called by `handleTransfer`) skips creation when the entity already exists. `TransferEvent` stays `@entity(immutable: true)`.
-- Clarify `Stream.owedDeposit` docstring: the value reflects the most recent `FlowUpdatedEvent` for the stream and may lag the on-chain `getFlow` value if a downstream SuperApp flow changes without re-emitting `FlowUpdated` on the upstream slot.
-
 ## [2.3.0]
 
-- Fix AccountTokenSnapshotLog capturing intermediate state instead of final state after ATS updates
-- Skip deprecated TokenStatisticLog validation in integration tests
 - Stop indexing new `AccountTokenSnapshotLog` entries (schema retained; existing rows remain queryable)
-- Add `TransferEvent.operator`, populated from the paired ERC-777 `Sent` event; null for mint/burn/upgrade/downgrade paths that don't emit `Sent`
-- Add `Stream.owedDeposit` and `FlowUpdatedEvent.owedDeposit`, sourced from the CFA's `getFlow` return tuple — exposes how much of the sender's deposit is credited to the receiving SuperApp
+- Skip deprecated TokenStatisticLog validation in integration tests
+- Add `TransferEvent.spender`, populated from the paired ERC-777 `Sent` event only when `Sent.operator` differs from `Sent.from` (i.e. `transferFrom` / `operatorSend`), matching ERC-20 allowance terminology. Self-transfers and mint/burn/upgrade/downgrade paths leave it null.
+- Add `Stream.owedDeposit` and `FlowUpdatedEvent.owedDeposit`, sourced from the CFA's `getFlow` return tuple — exposes how much of the sender's deposit is credited to the receiving SuperApp. The `Stream` field reflects the most recent `FlowUpdatedEvent` and may lag the on-chain `getFlow` value if a downstream SuperApp flow changes without re-emitting `FlowUpdated` on the upstream slot.
 - Fix `AccountTokenSnapshot` and `TokenStatistic` GDA deposit totals when pool buffer changes via `BufferAdjusted` (#2155)
 
 ## [2.2.0]
