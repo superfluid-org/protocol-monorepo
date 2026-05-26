@@ -122,7 +122,7 @@ if $cleanup_payload_file; then
     trap 'rm -f "$SAFE_PAYLOADS_FILE"' EXIT
 fi
 
-if ! forge "${forge_args[@]}"; then
+if ! with_keystore_password forge "${forge_args[@]}"; then
     echo "Forge script failed"
     exit 1
 fi

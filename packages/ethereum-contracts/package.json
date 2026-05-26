@@ -13,6 +13,7 @@
         "hardhat": "2.27.2"
     },
     "devDependencies": {
+        "viem": "^2.48.4",
         "@d10r/truffle-plugin-verify": "^0.7.2",
         "@nomiclabs/hardhat-truffle5": "^2.1.2",
         "@safe-global/safe-core-sdk": "^3.3.5",
