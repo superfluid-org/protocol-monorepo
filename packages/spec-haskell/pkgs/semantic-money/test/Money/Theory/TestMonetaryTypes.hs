@@ -1,10 +1,10 @@
 {-# LANGUAGE TypeFamilies #-}
-
 module Money.Theory.TestMonetaryTypes where
-
+-- quickcheck
 import           Test.QuickCheck
-
+--
 import           Money.Theory.SemanticMoney
+import           Money.Theory.TokenModel.TwoPhaseTokenModel
 
 
 -- TestMonetaryTypes
@@ -12,51 +12,50 @@ import           Money.Theory.SemanticMoney
 
 newtype TestTime = TestTime Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestTime where
-    arbitrary = TestTime <$> arbitrary
+    arbitrary = TestTime <$> choose (-(2 ^ (32 :: Integer)), 2 ^ (32 :: Integer))
 
 newtype TestMValue = TestMValue Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMValue where
-    arbitrary = TestMValue <$> arbitrary
+    arbitrary = TestMValue <$> choose (-(2 ^ (32 :: Integer)), 2 ^ (32 :: Integer))
+
+newtype TestMFlowRate = TestMFlowRate Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
+instance Arbitrary TestMFlowRate where
+    arbitrary = TestMFlowRate <$> choose (-(2 ^ (32 :: Integer)), 2 ^ (32 :: Integer))
 
 newtype TestMUnit = TestMUnit Integer deriving (Enum, Eq, Ord, Num, Real, Integral, Show)
 instance Arbitrary TestMUnit where
-    arbitrary = TestMUnit <$> arbitrary
+    arbitrary = TestMUnit <$> choose (0, 2 ^ (32 :: Integer))
 
 data TestMonetaryTypes
 instance MonetaryTypes TestMonetaryTypes where
     type MT_TIME  TestMonetaryTypes = TestTime
     type MT_VALUE TestMonetaryTypes = TestMValue
+    type MT_FLOWRATE TestMonetaryTypes = TestMFlowRate
     type MT_UNIT  TestMonetaryTypes = TestMUnit
 deriving instance Show (BasicParticle TestMonetaryTypes)
 
--- TesBasicParticle
+-- TestBasicParticle
 --
-type TesBasicParticle = BasicParticle TestMonetaryTypes
-instance Arbitrary TesBasicParticle where
+type TestBasicParticle = BasicParticle TestMonetaryTypes
+instance Arbitrary TestBasicParticle where
     arbitrary = BasicParticle <$> arbitrary <*> arbitrary <*> arbitrary
 
--- TesBasicParticle
+-- TestPDP_Index, TestPDP_Member, TestPDP_MemberMU
 --
-type TestUniversalIndex = UniversalIndex TestMonetaryTypes TesBasicParticle
-deriving instance Show TestUniversalIndex
-instance Arbitrary TestUniversalIndex where
-    arbitrary = UniversalIndex <$> arbitrary
+type TestPDP_Index = PDP_Index TestMonetaryTypes TestBasicParticle
+deriving instance Show TestPDP_Index
+instance Arbitrary TestPDP_Index where
+    arbitrary = PDP_Index <$> arbitrary <*> arbitrary
 
--- PDPoolIndex
---
-type TestPDPoolIndex = PDPoolIndex TestMonetaryTypes TesBasicParticle
-deriving instance Show TestPDPoolIndex
-deriving instance Eq TestPDPoolIndex
-instance Arbitrary TestPDPoolIndex where
-    arbitrary = PDPoolIndex <$> arbitrary <*> arbitrary
+type TestPDP_Member = PDP_Member TestMonetaryTypes TestBasicParticle
+deriving instance Show TestPDP_Member
+instance Arbitrary TestPDP_Member where
+    arbitrary = PDP_Member <$> arbitrary <*> arbitrary <*> arbitrary
 
--- PDPoolMember
---
+type TestPDP_MemberMU = PDP_MemberMU TestMonetaryTypes TestBasicParticle
 
-type TestPDPoolMember = PDPoolMember TestMonetaryTypes TesBasicParticle
-deriving instance Show TestPDPoolMember
-deriving instance Eq TestPDPoolMember
-instance Arbitrary TestPDPoolMember where
-    arbitrary = PDPoolMember <$> arbitrary <*> arbitrary <*> arbitrary
-
-type TestPDPoolMemberMU = PDPoolMemberMU TestMonetaryTypes TesBasicParticle
+-- TestTwoPhaseParticle
+type TestTwoPhaseParticle = TwoPhaseParticle TestMonetaryTypes
+deriving instance Show TestTwoPhaseParticle
+instance Arbitrary TestTwoPhaseParticle where
+    arbitrary = TwoPhaseParticle <$> arbitrary <*> arbitrary
