@@ -81,6 +81,11 @@ contract_is_verified_on_explorer() {
         api_key="${SCROLLSCAN_API_KEY:-}"
         [[ -z "$api_key" ]] && return 1
         url="https://scrollscan.com/api?module=contract&action=getabi&address=${addr}&apikey=${api_key}"
+    elif [[ "$network" == "degenchain" ]]; then
+        url="https://explorer.degen.tips/api?module=contract&action=getabi&address=${addr}"
+        if [[ -n "${BLOCKSCOUT_API_KEY:-}" ]]; then
+            url="${url}&apikey=${BLOCKSCOUT_API_KEY}"
+        fi
     else
         api_key="${ETHERSCAN_API_V2_KEY:-}"
         [[ -z "$api_key" ]] && return 1

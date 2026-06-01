@@ -7,7 +7,7 @@ set -o pipefail
 # Usage:
 #   new-ops-scripts/verify-forwarder.sh <network> <contractName> <address>
 #
-# Env: ETHERSCAN_API_V2_KEY (required), RPC_URL / PROVIDER_URL_* (see network-config.sh)
+# Env: ETHERSCAN_API_V2_KEY (most networks), RPC_URL / PROVIDER_URL_* (see network-config.sh)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -29,23 +29,21 @@ host=$(get_host "$network")
 echo "Verifying $contract at $addr on $network (chain $chain_id)"
 sleep 5
 
-# Scroll uses Scrollscan (blockscout-style), which is not included in Etherscan v2's chain allowlist.
-# Route verification through Scrollscan when deploying on Scroll networks.
+# Some chains use blockscout-based explorers
 if [[ "$network" == "scroll-sepolia" ]]; then
-    : "${SCROLLSCAN_API_KEY:?SCROLLSCAN_API_KEY is required for scroll-sepolia verification}"
-    VERIFIER_CUSTOM_URL="https://sepolia.scrollscan.com/api"
     VERIFIER_ARGS=(
-        --verifier custom
-        --verifier-url "$VERIFIER_CUSTOM_URL"
-        --verifier-api-key "$SCROLLSCAN_API_KEY"
+        --verifier blockscout
+        --verifier-url "https://sepolia.scrollscan.com/api"
     )
 elif [[ "$network" == "scroll-mainnet" ]]; then
-    : "${SCROLLSCAN_API_KEY:?SCROLLSCAN_API_KEY is required for scroll-mainnet verification}"
-    VERIFIER_CUSTOM_URL="https://scrollscan.com/api"
     VERIFIER_ARGS=(
-        --verifier custom
-        --verifier-url "$VERIFIER_CUSTOM_URL"
-        --verifier-api-key "$SCROLLSCAN_API_KEY"
+        --verifier blockscout
+        --verifier-url "https://scrollscan.com/api"
+    )
+elif [[ "$network" == "degenchain" ]]; then
+    VERIFIER_ARGS=(
+        --verifier blockscout
+        --verifier-url "https://explorer.degen.tips/api"
     )
 else
     if [[ -z "${ETHERSCAN_API_V2_KEY:-}" ]]; then
