@@ -28,7 +28,8 @@ export default
                 "wrapStrategy": "0x1D65c6d3AD39d454Ea8F682c49aE7744706eA96d"
             },
             "existentialNFTCloneFactory": "0xF76529ddEE7AA7890323eCa40C212758DD93B888",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 3220000,
         "logsQueryRange": 50000,
@@ -72,6 +73,7 @@ export default
             "batchLiquidator": "0x79aE8BF8EE9238d8E848F7dbBF74Ddb3365f6c11",
             "existentialNFTCloneFactory": "0x0D1F0d4629B722b4dFabd195c14F12f2095418d9",
             "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e",
             "vestingSchedulerV3": "0x638a8ABF60118e018c80a0eC878057E8C53E0fd1"
         },
         "startBlockV1": 3322400,
@@ -117,7 +119,8 @@ export default
             },
             "superfluidLoader": "0x109412E3C84f0539b43d39dB691B08c90f58dC7c",
             "batchLiquidator": "0x9539B21cC67844417E80aE168bc28c831E7Ed271",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 6886559,
         "logsQueryRange": 50000,
@@ -166,7 +169,8 @@ export default
             "superfluidLoader": "0xe25603df330027d91A0BAcc3e80a7f9e84930FC6",
             "batchLiquidator": "0x70bbB7a057A13070dF11d533e8f299357D778637",
             "superTokenFactory": "0x87560833d59Be057aFc63cFFa3fc531589Ba428F",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 2823800,
         "logsQueryRange": 50000,
@@ -201,6 +205,7 @@ export default
             "superfluidLoader": "0x777Be25F9fdcA87e8a0E06Ad4be93d65429FCb9f",
             "batchLiquidator": "0x95043eC349476B413eF5c369c4d2454a1a65eaB9",
             "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e",
             "vestingSchedulerV3": "0x2D0B7a30bFdED086571D6525762a809ee1049c98"
         },
         "startBlockV1": 10604500,
@@ -247,7 +252,8 @@ export default
                 "wrapStrategy": "0x51FBAbD31A615E14b1bC12E9d887f60997264a4E"
             },
             "existentialNFTCloneFactory": "0xCd67c5bC1dfA3FF7d86b5ABc62A65C912Cbd2DA7",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 14820000,
         "logsQueryRange": 20000,
@@ -308,7 +314,8 @@ export default
                 "wrapStrategy": "0xb4afa36BAd8c76976Dc77a21c9Ad711EF720eE4b"
             },
             "existentialNFTCloneFactory": "0x497aa106Da00BFa8f8BC266EF0793131930Fa630",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 11650500,
         "logsQueryRange": 10000,
@@ -370,7 +377,8 @@ export default
                 "wrapStrategy": "0x0Cf060a501c0040e9CCC708eFE94079F501c6Bb4"
             },
             "existentialNFTCloneFactory": "0xCb0Ff4D0cA186f0Fc0301258066Fe3fA258417a6",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 4300000,
         "logsQueryRange": 50000,
@@ -431,7 +439,8 @@ export default
                 "wrapStrategy": "0x342076aA957B0ec8bC1d3893af719b288eA31e61"
             },
             "existentialNFTCloneFactory": "0xF353978890204756fc5fa6dfbD16a91eac9E6f4d",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 7600000,
         "logsQueryRange": 50000,
@@ -492,7 +501,8 @@ export default
                 "wrapStrategy": "0x51FBAbD31A615E14b1bC12E9d887f60997264a4E"
             },
             "existentialNFTCloneFactory": "0x94aE5f52E401A5766b0877d2f030cFb9C3792BD7",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 14700000,
         "logsQueryRange": 50000,
@@ -553,7 +563,8 @@ export default
                 "wrapStrategy": "0x9e308cb079ae130790F604b1030cDf386670f199"
             },
             "existentialNFTCloneFactory": "0xe9F27eb8cdAaA0B01a4034e109496C3026b01bd9",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 18800000,
         "logsQueryRange": 5000,
@@ -613,7 +624,8 @@ export default
                 "manager": "0x30aE282CF477E2eF28B14d0125aCEAd57Fe1d7a1",
                 "wrapStrategy": "0x1D65c6d3AD39d454Ea8F682c49aE7744706eA96d"
             },
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 15870000,
         "logsQueryRange": 10000,
@@ -667,7 +679,8 @@ export default
             "toga": "0x9bCa3a623e7b2e248510d88B2894F54898d88F91",
             "batchLiquidator": "0xCb0Ff4D0cA186f0Fc0301258066Fe3fA258417a6",
             "existentialNFTCloneFactory": "0x051e766e2d8dc65ae2bFCF084A50AD0447634227",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 16393000,
         "logsQueryRange": 20000,
@@ -714,7 +727,8 @@ export default
                 "wrapStrategy": "0xD790CDE7A1B3194d8Ce3CF21544F03a770336E23"
             },
             "existentialNFTCloneFactory": "0x642332562BC60a4Bd9681E7bb1588f7456A497aC",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 1000000,
         "logsQueryRange": 20000,
@@ -764,7 +778,8 @@ export default
             "toga": "0x1bF9D75d50fD828a93f69ECB06f2B85767792CEB",
             "batchLiquidator": "0x2eaa49BeB4Aa4fcC709DC14c0FA0fF1B292077b5",
             "superTokenFactory": "0xacFBED2bC9344C158DD3dC229b84Bd7220e7c673",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 2575000,
         "logsQueryRange": 50000,
@@ -801,7 +816,8 @@ export default
             "toga": "0x38ed5512Ac11926bB697F4CF4eE0DD04358E2E7e",
             "batchLiquidator": "0x7BCE8e8401dc98E3Da26F1D701c3C2168b8e466c",
             "superTokenFactory": "0x184D999ea60e9b16fE4cCC1f756422114E9B663f",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F"
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
         "startBlockV1": 6500000,
         "logsQueryRange": 50000,
