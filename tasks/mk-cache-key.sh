@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Synopsis: The wrapper of mk-cache-key.nix taking into accoutn git submodule dependencies.
+# Synopsis: The wrapper of mk-cache-key.nix taking into account git submodule dependencies.
 
 oops() { echo "$@" >&2; exit 1; }
 

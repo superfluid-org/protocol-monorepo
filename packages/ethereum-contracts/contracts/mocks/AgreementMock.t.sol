@@ -20,7 +20,7 @@ contract AgreementMock is AgreementBase {
 
     uint256 constant private _REAL_TIME_BALANCE_SLOT_ID = 65552025;
 
-    // using immutable, otherweise the proxy contract would see zero instead
+    // using immutable, otherwise the proxy contract would see zero instead
     bytes32 immutable private _type;
     uint immutable private _version;
 

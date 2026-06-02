@@ -104,7 +104,7 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
             desiredExitRate = toga.getDefaultExitRateFor(superToken_, newBond);
         }
 
-        // Assert PIC, Bond and Exit Rate are set correctly after a succesful send
+        // Assert PIC, Bond and Exit Rate are set correctly after a successful send
         {
             (address pic, uint256 picBond, int96 picExitRate) = toga.getCurrentPICInfo(superToken_);
             assertEq(newPIC, pic, "_helperSendPICBid: PIC not equal");
@@ -121,7 +121,7 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
             assertEq(desiredExitRate, picExitRate, "_helperSendPICBid: PIC exit rate not equal");
         }
 
-        // Assert Net Flow Rate of newPIC is correct after a succesful send
+        // Assert Net Flow Rate of newPIC is correct after a successful send
         {
             int96 netFlowRateAfter = sf.cfa.getNetFlow(superToken_, newPIC);
             int96 flowRateDelta = desiredExitRate - togaToPicFlowRate;

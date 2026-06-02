@@ -512,7 +512,7 @@ contract ConstantFlowAgreementV1 is
         (int256 availableBalance,,) = flowVars.token.realtimeBalanceOf(flowVars.sender, currentContext.timestamp);
 
         // delete should only be called by sender, receiver or flowOperator
-        // unless it is a liquidation (availale balance < 0)
+        // unless it is a liquidation (available balance < 0)
         if (currentContext.msgSender != flowVars.sender &&
             currentContext.msgSender != flowVars.receiver &&
             !hasPermissions)
