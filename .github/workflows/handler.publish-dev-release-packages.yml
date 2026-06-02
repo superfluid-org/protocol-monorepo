@@ -285,45 +285,6 @@ jobs:
           s3_uri: ${{ format('{0}sdk-redux@dev', secrets.SITE_DEPLOYER_AWS_S3_DOCS_URI) }}
           cloudfront_distribution_id: E3JEO5R14CT8IH
 
-  upgrade-contracts:
-    name: Upgrade ethereum-contracts on canary testnet (protocol release version "canary")
-
-    if: false # disable this for now
-
-    needs: [all-packages-tested]
-
-    runs-on: ubuntu-22.04
-
-    strategy:
-      fail-fast: false
-      matrix:
-        network: [optimism-sepolia]
-
-    defaults:
-      run:
-        shell: nix develop .#ci-default -c bash -xe {0}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: DeterminateSystems/nix-installer-action@v13
-
-      - name: Build
-        run: |
-          yarn install --frozen-lockfile
-          yarn build
-
-      - name: Deploy to ${{ matrix.network }}
-        run: |
-          cd packages/ethereum-contracts
-          npx truffle exec --network ${{ matrix.network }} ops-scripts/deploy-test-environment.js
-          npx truffle exec --network ${{ matrix.network }} ops-scripts/info-print-contract-addresses.js : addresses.vars
-          tasks/etherscan-verify-framework.sh ${{ matrix.network }} addresses.vars
-        env:
-          RELEASE_VERSION: canary
-          OPTIMISM_SEPOLIA_MNEMONIC: ${{ secrets.BUILD_AGENT_MNEMONIC }}
-          OPTIMISM_SEPOLIA_PROVIDER_URL: ${{ secrets.OPTIMISM_SEPOLIA_PROVIDER_URL }}
-
   publish-release:
     name: Publish release package
     if: github.event_name == 'release'
