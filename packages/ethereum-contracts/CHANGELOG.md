@@ -11,7 +11,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `ClearMacroForwarderV1WithPermit2`: variant of `ClearMacroForwarderV1` which supports Permit2 for upgrading underlying tokens and executing a macro with just one wallet action.
 - `ClearMacroBase`: a new base contract for clear macro implementations that support multiple actions.
 
+### Changed
+
+- Tracking foundry/forge updates in flake.nix: now with version 1.7.1
+
 ### Breaking
+
 - `IUserDefinedMacro` renamed to `IMacro`.
 - `MacroForwarder` renamed to `BlindMacroForwarder`.
 
