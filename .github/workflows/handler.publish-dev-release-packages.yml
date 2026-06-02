@@ -196,7 +196,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: 26.x
           registry-url: 'https://registry.npmjs.org'
 
       - uses: DeterminateSystems/nix-installer-action@v13
@@ -309,7 +309,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: 26.x
           registry-url: 'https://registry.npmjs.org'
 
       - uses: DeterminateSystems/nix-installer-action@v13

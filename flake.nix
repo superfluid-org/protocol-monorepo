@@ -82,10 +82,10 @@
         nodeDevInputsWith = nodejs: [
           nodejs
         ];
-        node20DevInputs = nodeDevInputsWith pkgs.nodejs_20;
         node22DevInputs = nodeDevInputsWith pkgs.nodejs_22;
         node24DevInputs = nodeDevInputsWith pkgs.nodejs_24;
-        defaultNodeDevInputs = node24DevInputs;
+        node26DevInputs = nodeDevInputsWith pkgs.nodejs_26;
+        defaultNodeDevInputs = node26DevInputs;
 
         # CI inputs
         ciInputs = with pkgs; [
@@ -189,9 +189,9 @@
         };
 
         devShells.ci-default = mkShellForNodeCI defaultNodeDevInputs;
-        devShells.ci-node20 = mkShellForNodeCI node20DevInputs;
         devShells.ci-node22 = mkShellForNodeCI node22DevInputs;
         devShells.ci-node24 = mkShellForNodeCI node24DevInputs;
+        devShells.ci-node26 = mkShellForNodeCI node26DevInputs;
 
         devShells.ci-spec-ghc92 = mkShellForSpecCI ghcVer92;
         devShells.ci-spec-ghc94 = mkShellForSpecCI ghcVer94;
