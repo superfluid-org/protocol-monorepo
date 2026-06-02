@@ -56,6 +56,9 @@
         commonDevInputs = with pkgs; [
           mk-cache-key-pkg
           gnumake
+          # nodejs
+          yarn
+          nodemon
           # for shell script linting
           shellcheck
           # used by some scripts
@@ -78,8 +81,6 @@
         # nodejs ecosystem
         nodeDevInputsWith = nodejs: [
           nodejs
-          nodejs.pkgs.yarn
-          nodejs.pkgs.nodemon
         ];
         node20DevInputs = nodeDevInputsWith pkgs.nodejs_20;
         node22DevInputs = nodeDevInputsWith pkgs.nodejs_22;
