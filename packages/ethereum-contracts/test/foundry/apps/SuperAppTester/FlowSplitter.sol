@@ -20,7 +20,7 @@ contract FlowSplitter is CFASuperAppBase {
     /// @dev Account that ought to be routed the majority of the inflows
     address public mainReceiver;
 
-    /// @dev Accout that ought to be routed the minority of the inflows
+    /// @dev Account that ought to be routed the minority of the inflows
     address public sideReceiver;
 
     /// @dev number out of 1000 representing portion of inflows to be redirected to sideReceiver

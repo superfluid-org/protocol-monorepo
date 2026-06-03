@@ -1446,7 +1446,7 @@ describe("Superfluid Host Contract", function () {
                  * is not mistakenly jailed for APP_RULE_NO_REVERT_ON_TERMINATION_CALLBACK.
                  *
                  * It uses the BurnGas operation from the mock super app, which burns as much gas as CALLBACK_GAS_LIMIT
-                 * allows (minus a small amount as heuristics for solidity gas overhead). This is a mischievious but
+                 * allows (minus a small amount as heuristics for solidity gas overhead). This is a mischievous but
                  * well behaved within the rule.
                  *
                  * To explore the gasLimit possibilities exhaustively in reasonable time, a binary search strategy is
