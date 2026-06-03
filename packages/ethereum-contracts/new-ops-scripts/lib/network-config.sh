@@ -41,3 +41,6 @@ get_chain_id() {
     local network=$1
     jq -r '.[] | select(.name == "'"$network"'") | .chainId' "${METADATA_JSON:?METADATA_JSON not set}"
 }
+
+# shellcheck source=/dev/null
+[[ -f "$(dirname "${BASH_SOURCE[0]}")/keystore-env.sh" ]] && source "$(dirname "${BASH_SOURCE[0]}")/keystore-env.sh"

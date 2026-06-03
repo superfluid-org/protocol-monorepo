@@ -3,7 +3,10 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [UNRELEASED]
+## [v1.6.3]
+### Added
+- Added `clearMacroForwarderV1WithPermit2` to the list of contracts
+
 ### Changed
 - replaced public RPC https://polygon-rpc.com (nomore available) with https://polygon.drpc.org
 

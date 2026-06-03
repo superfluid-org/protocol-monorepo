@@ -4,7 +4,7 @@
     "version": "0.3.0",
     "devDependencies": {
         "@superfluid-finance/ethereum-contracts": "^1.15.0",
-        "@superfluid-finance/metadata": "^1.6.2"
+        "@superfluid-finance/metadata": "^1.6.3"
     },
     "license": "MIT",
     "scripts": {

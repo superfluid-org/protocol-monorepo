@@ -231,7 +231,7 @@ SAFE_PAYLOADS_FILE=$(mktemp "$SAFE_PAYLOADS_DIR/payloads.XXXXXX.jsonl")
 trap 'rm -f "$SAFE_PAYLOADS_FILE"' EXIT
 export SAFE_PAYLOADS_FILE
 
-if ! forge "${forge_args[@]}"; then
+if ! with_keystore_password forge "${forge_args[@]}"; then
     echo "Forge script failed"
     exit 1
 fi
