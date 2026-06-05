@@ -23,7 +23,7 @@ abstract contract YieldBackendUnitTestBase is Test {
     // ============ Abstract functions for network configuration ============
 
     /// @notice Get the RPC URL for forking
-    function getRpcUrl() internal pure virtual returns (string memory);
+    function getRpcUrl() internal view virtual returns (string memory);
 
     /// @notice Get the expected chain ID
     function getChainId() internal pure virtual returns (uint256);
