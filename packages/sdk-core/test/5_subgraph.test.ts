@@ -1,12 +1,12 @@
 import { chainIdToResolverDataMap, NetworkData, Query } from "../src";
 import {
     getChainId,
+    getSubgraphEndpoint,
     testExpectListenerThrow,
     testGetAllEventsQuery,
     testListenerInitialization,
     testQueryClassFunctions,
 } from "../previous-versions-testing/queryTests";
-import { getSubgraphEndpoint } from "../previous-versions-testing/queryTests";
 
 describe("Subgraph Tests", () => {
     let query: Query;
@@ -59,7 +59,7 @@ describe("Subgraph Tests", () => {
                     })
                 );
             } else {
-                testGetAllEventsQuery(query);
+                await testGetAllEventsQuery(query);
             }
         });
     });
