@@ -493,13 +493,9 @@ jobs:
         if: env.PUBLISH_METADATA == 1
         run: |
           yarn --cwd packages/metadata build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish metadata package
         if: env.PUBLISH_METADATA == 1
         shell: bash
         run: |
           tasks/npm-publish.sh packages/metadata/ latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
