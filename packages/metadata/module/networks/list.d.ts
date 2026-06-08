@@ -23,6 +23,7 @@ interface ContractAddresses {
     readonly autowrap?: AutowrapAddresses;
     readonly existentialNFTCloneFactory: string;
     readonly macroForwarder?: string;
+    readonly clearMacroForwarderV1WithPermit2?: string;
 }
 interface SubgraphData {
     readonly name: string;

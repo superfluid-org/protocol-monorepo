@@ -25,6 +25,68 @@ type CliOptions = {
   dryRun: boolean;
 };
 
+type SafeTxFields = {
+  to: string;
+  data?: string | null;
+  value?: string | number;
+  operation?: number;
+};
+
+type ProposeSafeTxResult = {
+  safeTxHash: string;
+  nonce: number;
+  /** True when an identical tx is already queued on the Safe Transaction Service. */
+  skipped?: boolean;
+};
+
+function normAddr(addr: string): string {
+  return addr.toLowerCase();
+}
+
+function normData(data: string | null | undefined): string {
+  if (!data || data === "0x") return "0x";
+  const hex = data.toLowerCase();
+  return hex.startsWith("0x") ? hex : `0x${hex}`;
+}
+
+function normValue(value: string | number | undefined | null): string {
+  if (value == null || value === "") return "0";
+  return BigInt(value).toString();
+}
+
+/** Same target calldata as an already-queued Safe proposal (ignores nonce). */
+export function safeTxFieldsMatch(a: SafeTxFields, b: SafeTxFields): boolean {
+  return (
+    normAddr(a.to) === normAddr(b.to) &&
+    normData(a.data) === normData(b.data) &&
+    normValue(a.value) === normValue(b.value) &&
+    (a.operation ?? 0) === (b.operation ?? 0)
+  );
+}
+
+async function findDuplicatePendingSafeTx(
+  api: SafeApiKit,
+  safeAddress: string,
+  tx: SafeTxFields
+): Promise<{ safeTxHash: string; nonce: number } | null> {
+  const pending = await api.getPendingTransactions(safeAddress, { limit: 100 });
+  for (const row of pending.results) {
+    const candidate = row as {
+      to: string;
+      data?: string | null;
+      value?: string;
+      operation?: number;
+      safeTxHash: string;
+      nonce: number | string;
+    };
+    if (!safeTxFieldsMatch(tx, candidate)) continue;
+    const nonce =
+      typeof candidate.nonce === "string" ? parseInt(candidate.nonce, 10) : candidate.nonce;
+    return { safeTxHash: candidate.safeTxHash, nonce };
+  }
+  return null;
+}
+
 export async function proposeSafeTx({
   rpcUrl,
   chainId,
@@ -33,6 +95,10 @@ export async function proposeSafeTx({
   transactions,
   replaceLatest = false,
   explicitNonce,
+  /** Use `getSafeInfo().nonce` (next executable slot) instead of `getNextNonce()`. Needed when the TX service has queued txs at higher nonces so `getNextNonce` would skip the head. Also used to replace an existing proposal at the current nonce. */
+  queueHeadNonce = false,
+  /** Skip proposing when the same (to, data, value, operation) is already pending. */
+  deduplicatePending = true,
   apiKey,
   txServiceUrl,
   origin,
@@ -45,11 +111,13 @@ export async function proposeSafeTx({
   transactions: MetaTransactionData[];
   replaceLatest?: boolean;
   explicitNonce?: number;
+  queueHeadNonce?: boolean;
+  deduplicatePending?: boolean;
   apiKey?: string;
   txServiceUrl?: string;
   origin?: string;
   logger?: Log;
-}) {
+}): Promise<ProposeSafeTxResult> {
   const log = logger ?? console;
 
   const protocolKit = await Safe.init({
@@ -87,6 +155,9 @@ export async function proposeSafeTx({
   let nonce: number;
   if (typeof explicitNonce === "number") {
     nonce = explicitNonce;
+  } else if (queueHeadNonce) {
+    const safeInfo = await api.getSafeInfo(safeAddress);
+    nonce = parseInt(String(safeInfo.nonce), 10);
   } else if (replaceLatest) {
     const pending = await api.getPendingTransactions(safeAddress, {
       ordering: "created",
@@ -101,7 +172,7 @@ export async function proposeSafeTx({
     const nextNonce = await api.getNextNonce(safeAddress);
     nonce = typeof nextNonce === "string" ? parseInt(nextNonce, 10) : nextNonce;
   }
-  log.info({ nonce }, "nonce: selected");
+  log.info({ nonce, queueHeadNonce }, "nonce: selected");
 
   const safeTx = await protocolKit.createTransaction({
     transactions,
@@ -109,6 +180,24 @@ export async function proposeSafeTx({
   });
   const safeTxData = safeTx.data;
   log.info({ count: transactions.length }, "tx: created");
+
+  const txFields: SafeTxFields = {
+    to: safeTxData.to,
+    data: safeTxData.data,
+    value: safeTxData.value,
+    operation: safeTxData.operation
+  };
+
+  if (deduplicatePending) {
+    const duplicate = await findDuplicatePendingSafeTx(api, safeAddress, txFields);
+    if (duplicate) {
+      log.info(
+        { safeTxHash: duplicate.safeTxHash, nonce: duplicate.nonce },
+        "tx: skip duplicate pending proposal (same to/data)"
+      );
+      return { safeTxHash: duplicate.safeTxHash, nonce: duplicate.nonce, skipped: true };
+    }
+  }
 
   const safeTxHash = await protocolKit.getTransactionHash(safeTx);
   const sig = await protocolKit.signHash(safeTxHash);
@@ -318,12 +407,18 @@ async function proposeSinglePayloads(payloads: SafePayload[], options: CliOption
     });
 
     console.log("");
-    console.log("✓ Success!");
-    console.log(`Safe Tx Hash: ${result.safeTxHash}`);
-    console.log(`Nonce: ${result.nonce}`);
-    console.log("");
-    console.log("The transaction has been proposed to the Safe Transaction Service.");
-    console.log("Other Safe owners can now review and sign it.");
+    if (result.skipped) {
+      console.log("→ skip: identical Safe tx already pending");
+      console.log(`  Safe Tx Hash: ${result.safeTxHash}`);
+      console.log(`  Nonce: ${result.nonce}`);
+    } else {
+      console.log("✓ Success!");
+      console.log(`Safe Tx Hash: ${result.safeTxHash}`);
+      console.log(`Nonce: ${result.nonce}`);
+      console.log("");
+      console.log("The transaction has been proposed to the Safe Transaction Service.");
+      console.log("Other Safe owners can now review and sign it.");
+    }
   }
 }
 
@@ -378,12 +473,18 @@ async function proposeBatches(payloads: SafePayload[], options: CliOptions): Pro
     });
 
     console.log("");
-    console.log("✓ Success!");
-    console.log(`Safe Tx Hash: ${result.safeTxHash}`);
-    console.log(`Nonce: ${result.nonce}`);
-    console.log("");
-    console.log("The transaction has been proposed to the Safe Transaction Service.");
-    console.log("Other Safe owners can now review and sign it.");
+    if (result.skipped) {
+      console.log("→ skip: identical Safe tx already pending");
+      console.log(`  Safe Tx Hash: ${result.safeTxHash}`);
+      console.log(`  Nonce: ${result.nonce}`);
+    } else {
+      console.log("✓ Success!");
+      console.log(`Safe Tx Hash: ${result.safeTxHash}`);
+      console.log(`Nonce: ${result.nonce}`);
+      console.log("");
+      console.log("The transaction has been proposed to the Safe Transaction Service.");
+      console.log("Other Safe owners can now review and sign it.");
+    }
   }
 }
 

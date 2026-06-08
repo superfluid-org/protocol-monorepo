@@ -87,14 +87,13 @@ jobs:
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
 
-  create-and-publish-metadata-package:
-    name: Create Metadata Release Draft and Publish to NPM
+  create-metadata-release-draft:
+    name: Create Metadata Release Draft
 
     runs-on: ubuntu-22.04
 
     permissions:
       contents: write
-      id-token: write
 
 
     steps:
@@ -119,14 +118,7 @@ jobs:
           name: metadata@v${{ env.METADATA_NEW_VERSION }}
           body: |
             Please refer to the CHANGELOG.md file in metadata package for more details on the changeset.
-          draft: false
-      - name: Publish metadata package
-        if: env.SHOULD_PUBLISH_METADATA == 1
-        run: |
-          yarn --cwd packages/metadata build
-          tasks/npm-publish.sh packages/metadata/ latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          draft: true
 
   check-sdk-core-version:
     name: Checking if SDK-Core should be published

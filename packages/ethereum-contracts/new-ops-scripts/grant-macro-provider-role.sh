@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 #
-# Grant ACL_SUPERAPP_REGISTRATION_ROLE on one chain:
-# metadata host -> host.getSimpleACL() -> SimpleACL.grantRole(role, grantee)
+# Grant ClearMacro provider role on SimpleACL for one chain:
+# metadata host -> host.getSimpleACL() -> SimpleACL.grantRole(keccak256(provider), grantee)
 #
-# Signs with Foundry cast + keystore account:
+# The grantee is the relay executor (OZ relayer signer), not the forwarder contract.
+# Signs with Foundry cast + keystore account (SimpleACL admin EOA):
 #   cast send ... --account <WALLET_NAME>
 #
 # Usage (from packages/ethereum-contracts):
-#   ./new-ops-scripts/acl-grant-superapp-registration.sh <network> <grantee>
+#   ./new-ops-scripts/grant-macro-provider-role.sh <network> <grantee> [provider]
 #
 # Env (optional):
-#   WALLET_NAME   - Foundry keystore account name (default: sf-ops)
-#   KEYSTORE_PASSWORD           — password in .env (→ SF_KEYSTORE_PASSWORD_FILE for signing)
-#   KEYSTORE_PASSWORD_FILE      — or path to password file
-#   SIMULATE=1    - cast call --trace only (no broadcast). Uses ETH_FROM if set, else
-#                   cast_wallet_address_account <WALLET_NAME>
-#   ETH_FROM      - explicit sender for SIMULATE mode
+#   WALLET_NAME                   — Foundry keystore account (default: sf-ops), same as other ops scripts
+#   MACRO_PROVIDER_ADMIN_WALLET   — override WALLET_NAME when ACL admin uses a different keystore
+#   CLEARMACRO_PROVIDER_GRANTEE — grantee if omitted as arg (rollout sets this)
+#   CLEARMACRO_PROVIDER_NAME    — provider string (default: macros.superfluid.eth)
+#   SIMULATE=1                  — cast call --trace only (no broadcast)
+#   ETH_FROM                    — explicit sender for SIMULATE mode
 #   METADATA_JSON, RPC_URL, PROVIDER_URL_OVERRIDE, PROVIDER_URL_TEMPLATE
 #
 set -e
@@ -33,12 +34,14 @@ METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
 [ -f "$SCRIPT_DIR/lib/network-config.sh" ] && . "$SCRIPT_DIR/lib/network-config.sh"
 
 WALLET_NAME="${WALLET_NAME:-sf-ops}"
+ADMIN_WALLET="${MACRO_PROVIDER_ADMIN_WALLET:-$WALLET_NAME}"
+DEFAULT_PROVIDER="${CLEARMACRO_PROVIDER_NAME:-macros.superfluid.eth}"
 GRANT_SIG="grantRole(bytes32,address)"
-ACL_SUPERAPP_REGISTRATION_ROLE="0x1fd2cd0659bdcac914c39b66359256350b866e92047951635b57d928f32d9e84"
 
 usage() {
-    echo "Usage: $0 <network> <grantee>" >&2
-    echo "Env: WALLET_NAME=${WALLET_NAME}, SIMULATE=1 for cast call --trace only" >&2
+    echo "Usage: $0 <network> <grantee> [provider]" >&2
+    echo "Env: WALLET_NAME=${WALLET_NAME}, CLEARMACRO_PROVIDER_NAME=${DEFAULT_PROVIDER}" >&2
+    echo "     SIMULATE=1 for cast call --trace only" >&2
 }
 
 normalize_address() {
@@ -67,19 +70,29 @@ resolve_simulate_from() {
     fi
 
     local from
-    from=$(cast_wallet_address_account "$WALLET_NAME")
+    from=$(cast_wallet_address_account "$ADMIN_WALLET")
     from=$(echo "$from" | tr -d '[:space:]')
-    normalize_address "$from" "sender from cast wallet address --account $WALLET_NAME"
+    normalize_address "$from" "sender from cast wallet address --account $ADMIN_WALLET"
 }
 
 main() {
     local network="${1:-}"
-    local grantee="${2:-}"
+    local grantee="${2:-${CLEARMACRO_PROVIDER_GRANTEE:-}}"
+    local provider="${3:-$DEFAULT_PROVIDER}"
 
-    if [[ -z "$network" || -z "$grantee" || -n "${3:-}" ]]; then
+    if [[ -z "$network" || -z "$grantee" ]]; then
         usage
         exit 1
     fi
+    if [[ -n "${4:-}" ]]; then
+        usage
+        exit 1
+    fi
+    if [[ -z "$provider" ]]; then
+        echo "provider name is required" >&2
+        exit 1
+    fi
+
     grantee=$(normalize_address "$grantee" "grantee")
 
     if [[ ! -f "$METADATA_JSON" ]]; then
@@ -87,7 +100,7 @@ main() {
         exit 1
     fi
 
-    local rpc host simple_acl from
+    local rpc host simple_acl provider_role from
     rpc=$(get_rpc_url "$network") || exit 1
     host=$(get_host "$network")
     if [[ -z "$host" || "$host" == "null" ]]; then
@@ -104,8 +117,16 @@ main() {
     fi
     simple_acl=$(normalize_address "$simple_acl" "SimpleACL from host $host on $network")
 
-    if has_true_result "$(cast call "$simple_acl" "hasRole(bytes32,address)(bool)" "$ACL_SUPERAPP_REGISTRATION_ROLE" "$grantee" --rpc-url "$rpc")"; then
-        echo "$grantee already has ACL_SUPERAPP_REGISTRATION_ROLE on $network"
+    provider_role=$(cast keccak "$provider")
+
+    echo "Network:  $network"
+    echo "Provider: $provider"
+    echo "Role:     $provider_role"
+    echo "Grantee:  $grantee"
+    echo "SimpleACL: $simple_acl"
+
+    if has_true_result "$(cast call "$simple_acl" "hasRole(bytes32,address)(bool)" "$provider_role" "$grantee" --rpc-url "$rpc")"; then
+        echo "$grantee already has provider role for \"$provider\" on $network"
         exit 0
     fi
 
@@ -116,7 +137,7 @@ main() {
         cast call \
             "$simple_acl" \
             "$GRANT_SIG" \
-            "$ACL_SUPERAPP_REGISTRATION_ROLE" \
+            "$provider_role" \
             "$grantee" \
             --rpc-url "$rpc" \
             --trace \
@@ -125,11 +146,11 @@ main() {
         exit 0
     fi
 
-    echo "cast send ... --account $WALLET_NAME (network $network)"
-    cast_send_account "$WALLET_NAME" \
+    echo "cast send ... --account $ADMIN_WALLET (network $network)"
+    cast_send_account "$ADMIN_WALLET" \
         "$simple_acl" \
         "$GRANT_SIG" \
-        "$ACL_SUPERAPP_REGISTRATION_ROLE" \
+        "$provider_role" \
         "$grantee" \
         --rpc-url "$rpc"
 }

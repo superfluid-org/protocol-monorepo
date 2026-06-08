@@ -13,15 +13,14 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
  */
 contract AaveETHYieldBackendUnitTest is YieldBackendUnitTestBase {
     uint256 internal constant CHAIN_ID = 8453;
-    string internal constant RPC_URL = "https://mainnet.base.org";
 
     address internal constant AAVE_POOL = 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5;
     address internal constant WETH = 0x4200000000000000000000000000000000000006;
 
     AaveETHYieldBackend internal aaveETHBackend;
 
-    function getRpcUrl() internal pure override returns (string memory) {
-        return RPC_URL;
+    function getRpcUrl() internal view override returns (string memory) {
+        return vm.envOr("BASE_MAINNET_ARCHIVE_RPC_URL", string("https://mainnet.base.org"));
     }
 
     function getChainId() internal pure override returns (uint256) {

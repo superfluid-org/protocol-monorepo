@@ -13,13 +13,12 @@ import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
  */
 contract ERC4626YieldBackendUnitTestEthereumSUSDS is YieldBackendUnitTestBase {
     uint256 internal constant CHAIN_ID = 1;
-    string internal constant RPC_URL = "https://eth.drpc.org";
     address internal constant VAULT = 0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD; // sUSDS on Ethereum
 
     ERC4626YieldBackend internal erc4626Backend;
 
-    function getRpcUrl() internal pure override returns (string memory) {
-        return RPC_URL;
+    function getRpcUrl() internal view override returns (string memory) {
+        return vm.envOr("ETH_MAINNET_ARCHIVE_RPC_URL", string("https://eth.drpc.org"));
     }
 
     function getChainId() internal pure override returns (uint256) {
@@ -61,13 +60,12 @@ contract ERC4626YieldBackendUnitTestEthereumSUSDS is YieldBackendUnitTestBase {
  */
 contract ERC4626YieldBackendUnitTestBaseSUSDC is YieldBackendUnitTestBase {
     uint256 internal constant CHAIN_ID = 8453;
-    string internal constant RPC_URL = "https://mainnet.base.org";
     address internal constant VAULT = 0x3128a0F7f0ea68E7B7c9B00AFa7E41045828e858; // sUSDC Vault on Base
 
     ERC4626YieldBackend internal erc4626Backend;
 
-    function getRpcUrl() internal pure override returns (string memory) {
-        return RPC_URL;
+    function getRpcUrl() internal view override returns (string memory) {
+        return vm.envOr("BASE_MAINNET_ARCHIVE_RPC_URL", string("https://mainnet.base.org"));
     }
 
     function getChainId() internal pure override returns (uint256) {

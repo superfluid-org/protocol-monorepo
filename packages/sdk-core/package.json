@@ -4,8 +4,8 @@
     "version": "0.9.0",
     "bugs": "https://github.com/superfluid-org/protocol-monorepo/issues",
     "dependencies": {
-        "@superfluid-finance/ethereum-contracts": "1.15.0",
-        "@superfluid-finance/metadata": "^1.6.2",
+        "@superfluid-finance/ethereum-contracts": "1.15.1",
+        "@superfluid-finance/metadata": "^1.6.3",
         "graphql-request": "6.1.0",
         "lodash": "4.18.1",
         "tsify": "5.0.4"

@@ -39,7 +39,9 @@ contract GovAction is Script {
         BaseConfig memory baseConfig = _loadBaseConfig();
 
         // Route to appropriate action handler
+        vm.startBroadcast();
         _executeAction(actionTypeStr, baseConfig);
+        vm.stopBroadcast();
 
         console.log("======== Governance Action Complete ========");
     }
