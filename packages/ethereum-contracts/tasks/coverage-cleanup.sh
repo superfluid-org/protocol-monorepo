@@ -8,11 +8,17 @@ LCOV="lcov --ignore-errors inconsistent"
 
 # extract coverage for Superfluid contracts from forge coverage
 $LCOV -e ../../lcov.info \
+     "contracts/*" \
      "packages/ethereum-contracts/contracts/*" \
      -o lcov.info
 
 # remove contracts whose coverage we don't care about (see .solcover.js)
 $LCOV -r lcov.info \
+     "contracts/mocks/*" \
+     "contracts/apps/*Base*" \
+     "contracts/utils/*Test*" \
+     "contracts/utils/*Deploy*" \
+     "contracts/apps/SuperfluidLoaderLibrary.sol" \
      "packages/ethereum-contracts/contracts/mocks/*" \
      "packages/ethereum-contracts/contracts/apps/*Base*" \
      "packages/ethereum-contracts/contracts/utils/*Test*" \

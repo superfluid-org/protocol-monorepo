@@ -1,8 +1,9 @@
 [profile.default]
-root = '../..'
-src = 'packages/ethereum-contracts/contracts'
-test = 'packages/ethereum-contracts/test/foundry'
-script = 'packages/ethereum-contracts/foundry-scripts'
+src = 'contracts'
+test = 'test/foundry'
+script = 'foundry-scripts'
+libs = ['../../lib']
+allow_paths = ['../solidity-semantic-money']
 solc_version = "0.8.30"
 #deny_warnings = true
 ignored_error_codes = [
@@ -13,15 +14,16 @@ evm_version = 'cancun'
 optimizer = true
 optimizer_runs = 200
 remappings = [
-    '@superfluid-finance/ethereum-contracts/contracts/=packages/ethereum-contracts/contracts/',
-    '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
-    '@openzeppelin-v5/=lib/openzeppelin-contracts/',
-    'aave-v3=lib/aave-v3/',
-    'ds-test/=lib/forge-std/lib/ds-test/src/',
-    'forge-std/=lib/forge-std/src/']
-out = 'packages/ethereum-contracts/build/foundry/default'
+    '@superfluid-finance/ethereum-contracts/contracts/=contracts/',
+    '@superfluid-finance/ethereum-contracts/test/=test/',
+    '@superfluid-finance/solidity-semantic-money/src/=../solidity-semantic-money/src/',
+    '@openzeppelin-v5/=../../lib/openzeppelin-contracts/',
+    'aave-v3/=../../lib/aave-v3/',
+    'ds-test/=../../lib/forge-std/lib/ds-test/src/',
+    'forge-std/=../../lib/forge-std/src/']
+out = 'build/foundry/default'
 fs_permissions = [
-    { access = "read-write", path = "packages/ethereum-contracts/.tmp" }
+    { access = "read-write", path = ".tmp" }
 ]
 
 [invariant]

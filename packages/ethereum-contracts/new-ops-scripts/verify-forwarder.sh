@@ -61,7 +61,7 @@ fi
 cd "$PKG_ROOT"
 forge verify-contract \
     "$addr" \
-    "packages/ethereum-contracts/contracts/utils/${contract}.sol:${contract}" \
+    "contracts/utils/${contract}.sol:${contract}" \
     --constructor-args "$(cast abi-encode "constructor(address)" "$host")" \
     --rpc-url "$rpc" \
     "${VERIFIER_ARGS[@]}" \

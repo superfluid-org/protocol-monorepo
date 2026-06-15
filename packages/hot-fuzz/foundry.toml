@@ -1,15 +1,17 @@
 [profile.default]
-root = '../..'
-src = 'packages/hot-fuzz/contracts'
+src = 'contracts'
+libs = ['../../lib']
+allow_paths = ['sf-ethereum', '../solidity-semantic-money']
 solc_version = "0.8.30"
 evm_version = 'cancun'
 optimizer = true
 optimizer_runs = 200
 remappings = [
-    '@superfluid-finance/ethereum-contracts/contracts/=packages/ethereum-contracts/contracts/',
-    '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
-    '@openzeppelin-v5/=lib/openzeppelin-contracts/',
-    '@openzeppelin/=lib/openzeppelin-contracts/',
-    'ds-test/=lib/forge-std/lib/ds-test/src/',
-    'forge-std/=lib/forge-std/src/']
-out = 'packages/hot-fuzz/build/foundry/out'
+    '@superfluid-finance/ethereum-contracts/contracts/=sf-ethereum/contracts/',
+    '@superfluid-finance/ethereum-contracts/test/=sf-ethereum/test/',
+    '@superfluid-finance/solidity-semantic-money/src/=../solidity-semantic-money/src/',
+    '@openzeppelin-v5/=../../lib/openzeppelin-contracts/',
+    '@openzeppelin/=../../lib/openzeppelin-contracts/',
+    'ds-test/=../../lib/forge-std/lib/ds-test/src/',
+    'forge-std/=../../lib/forge-std/src/']
+out = 'build/foundry/out'
