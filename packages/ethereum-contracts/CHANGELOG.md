@@ -3,6 +3,12 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.15.2]
+
+### Changed
+
+- Updated foundry to 1.7.1
+
 ## [v1.15.1]
 
 ### Added
