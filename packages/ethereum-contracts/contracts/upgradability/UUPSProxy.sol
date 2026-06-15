@@ -20,6 +20,8 @@ contract UUPSProxy is Proxy {
     /**
      * @dev Proxy initialization function.
      *      This should only be called once and it is permission-less.
+     *      For safe deployment, call initializeProxy in the same transaction as
+     *      proxy deployment.
      * @param initialAddress Initial logic contract code address to be used.
      */
     function initializeProxy(address initialAddress) external {

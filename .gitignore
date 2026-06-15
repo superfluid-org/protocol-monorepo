@@ -34,3 +34,5 @@ corpus
 
 /broadcast
 /.direnv
+
+.pnpm-store

@@ -1,7 +1,9 @@
 const {
     getScriptRunnerFactory: S,
     extractWeb3Options,
+    warnProductionUUPSProxyInitRisk,
 } = require("./libs/common");
+const getConfig = require("./libs/getConfig");
 
 const SuperfluidSDK = require("@superfluid-finance/js-sdk");
 
@@ -24,6 +26,10 @@ const BatchLiquidator = artifacts.require("BatchLiquidator");
  * - deploy BatchLiquidator
  * - replace governance
  *
+ * SECURITY: SuperfluidGovernanceIIProxy is deployed and initializeProxy'd in
+ * separate txs below. On production networks this has the same permissionless
+ * initializeProxy / impl-slot-reset risk as deploy-framework.js — see UUPSProxy.sol.
+ *
  * @param web3 The web3 instance to be used
  * @param from address to use for funding the deployer account
  *
@@ -44,6 +50,14 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
 
     console.log("======== Deploying auxiliary contracts ========");
 
+    const chainId = await web3.eth.getChainId();
+    const config = getConfig(chainId);
+    if (!config.isTestnet) {
+        warnProductionUUPSProxyInitRisk(
+            "deploy-aux-contracts.js: SuperfluidGovernanceIIProxy deploy + initializeProxy (separate txs)"
+        );
+    }
+
     const sf = new SuperfluidSDK.Framework({
         ...extractWeb3Options(options),
         version: protocolReleaseVersion,
@@ -56,6 +70,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
     console.log(`previous governance: ${oldGov.address}`);
 
     console.log("deploying production governance...");
+    // SECURITY: split-tx UUPS bootstrap — see file header and UUPSProxy.sol.
     const govProxy = await SuperfluidGovernanceIIProxy.new();
     console.log("governance proxy deployed at:", govProxy.address);
     const govLogic = await SuperfluidGovernanceII.new();
