@@ -15,7 +15,7 @@ dev:
 	nodemon -e sol -x sh -- -c "make $(DEV_TARGET) || exit 1"
 
 build-src:
-	forge build --sizes
+	forge build --sizes --skip 'test/**'
 
 build-all:
 	FOUNDRY_PROFILE=test forge build
