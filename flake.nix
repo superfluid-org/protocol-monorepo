@@ -5,7 +5,8 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     foundry = {
-      url = "github:shazow/foundry.nix/stable";
+      # Fix to commit on Sep 17, 2025, for now
+      url = "github:shazow/foundry.nix/e632b06dc759e381ef04f15ff9541f889eda6013";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
