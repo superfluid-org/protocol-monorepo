@@ -5,7 +5,8 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     foundry = {
-      url = "github:shazow/foundry.nix/stable";
+      # Fix to commit on Sep 17, 2025, for now
+      url = "github:shazow/foundry.nix/e632b06dc759e381ef04f15ff9541f889eda6013";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -56,6 +57,9 @@
         commonDevInputs = with pkgs; [
           mk-cache-key-pkg
           gnumake
+          # nodejs
+          yarn
+          nodemon
           # for shell script linting
           shellcheck
           # used by some scripts
@@ -78,13 +82,11 @@
         # nodejs ecosystem
         nodeDevInputsWith = nodejs: [
           nodejs
-          nodejs.pkgs.yarn
-          nodejs.pkgs.nodemon
         ];
-        node20DevInputs = nodeDevInputsWith pkgs.nodejs_20;
         node22DevInputs = nodeDevInputsWith pkgs.nodejs_22;
         node24DevInputs = nodeDevInputsWith pkgs.nodejs_24;
-        defaultNodeDevInputs = node24DevInputs;
+        node26DevInputs = nodeDevInputsWith pkgs.nodejs_26;
+        defaultNodeDevInputs = node26DevInputs;
 
         # CI inputs
         ciInputs = with pkgs; [
@@ -188,9 +190,9 @@
         };
 
         devShells.ci-default = mkShellForNodeCI defaultNodeDevInputs;
-        devShells.ci-node20 = mkShellForNodeCI node20DevInputs;
         devShells.ci-node22 = mkShellForNodeCI node22DevInputs;
         devShells.ci-node24 = mkShellForNodeCI node24DevInputs;
+        devShells.ci-node26 = mkShellForNodeCI node26DevInputs;
 
         devShells.ci-spec-ghc92 = mkShellForSpecCI ghcVer92;
         devShells.ci-spec-ghc94 = mkShellForSpecCI ghcVer94;

@@ -35,8 +35,7 @@ jobs:
 
     defaults:
       run:
-        # sticking to node20, otherwise truffle fails.
-        shell: nix develop .#ci-node20 -c bash -xe {0}
+        shell: nix develop .#ci-default -c bash -xe {0}
 
     steps:
       - uses: actions/checkout@v4

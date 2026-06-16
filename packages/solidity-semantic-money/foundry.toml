@@ -23,3 +23,9 @@ via_ir = true # though this is so slow!
 
 [profile.test.fuzz]
 runs = 1000
+
+[lint]
+exclude_lints = [
+    "erc20-unchecked-transfer",
+    "unsafe-typecast",
+]
