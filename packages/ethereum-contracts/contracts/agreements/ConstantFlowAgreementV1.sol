@@ -45,6 +45,8 @@ import { SolvencyHelperLibrary } from "../libs/SolvencyHelperLibrary.sol";
  * FlowOperatorId   = keccak256(abi.encode("flowOperator", flowSender, flowOperator))
  * FlowOperatorId stores FlowOperatorData between a flowSender and flowOperator.
  */
+/// Flow-rate/time casts are protocol-bounded; see MAXIMUM_FLOW_RATE and deposit clipping.
+/// forge-lint: disable-next-item(unsafe-typecast)
 contract ConstantFlowAgreementV1 is
     AgreementBase,
     IConstantFlowAgreementV1

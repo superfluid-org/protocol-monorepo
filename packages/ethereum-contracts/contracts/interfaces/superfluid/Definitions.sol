@@ -5,6 +5,8 @@ pragma solidity >= 0.8.11;
  * @title Super app definitions library
  * @author Superfluid
  */
+/// App manifest bitmask helpers; casts are bounded by mask widths.
+/// forge-lint: disable-next-item(unsafe-typecast)
 library SuperAppDefinitions {
 
     /**************************************************************************
@@ -68,6 +70,8 @@ library SuperAppDefinitions {
  * @title Context definitions library
  * @author Superfluid
  */
+/// Call-info encode/decode uses fixed bit masks; uint8 casts cannot overflow.
+/// forge-lint: disable-next-item(unsafe-typecast)
 library ContextDefinitions {
 
     /**************************************************************************

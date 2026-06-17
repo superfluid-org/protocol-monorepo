@@ -17,6 +17,8 @@ import { IClearMacroForwarderV1 } from "../interfaces/utils/IClearMacroForwarder
  * (meaning signed pending transactions can't block each other), and also the option to enforce
  * sequential execution according to the sequence number.
  */
+/// ERC-4337 nonce layout: uint192 key + uint64 sequence extracted via intentional casts.
+/// forge-lint: disable-next-item(unsafe-typecast)
 abstract contract NonceManager {
     /// nonce already used or out of sequence
     error InvalidNonce(address sender, uint256 nonce);
@@ -174,9 +176,12 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
 
         _validateAndUpdateNonce(signer, payload.security.nonce);
 
+        // Macro validity window (EIP-712-style); minute-level timestamp skew is acceptable.
+        // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp < payload.security.validAfter) {
             revert OutsideValidityWindow(block.timestamp, payload.security.validAfter, payload.security.validBefore);
         }
+        // forge-lint: disable-next-line(block-timestamp)
         if (payload.security.validBefore != 0 && block.timestamp > payload.security.validBefore) {
             revert OutsideValidityWindow(block.timestamp, payload.security.validAfter, payload.security.validBefore);
         }

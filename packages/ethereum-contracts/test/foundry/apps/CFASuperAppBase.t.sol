@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
+
 import "forge-std/console.sol";
 
 import "../FoundrySuperfluidTester.t.sol";
@@ -267,3 +269,5 @@ contract CFASuperAppBaseTest is FoundrySuperfluidTester {
         vm.stopPrank();
     }
 }
+
+// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

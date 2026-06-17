@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
+
 import {
     BatchOperation,
     ISuperfluid,
@@ -197,3 +199,5 @@ contract MultiActionClearMacro is ClearMacroBase {
         return ops;
     }
 }
+
+// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

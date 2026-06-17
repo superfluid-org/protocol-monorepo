@@ -14,6 +14,8 @@ import { AgreementBase } from "../agreements/AgreementBase.sol";
 import { AgreementLibrary } from "../agreements/AgreementLibrary.sol";
 
 
+/// Test-only agreement mock; casts are not security-critical.
+/// forge-lint: disable-next-item(unsafe-typecast)
 contract AgreementMock is AgreementBase {
 
     using SafeCast for uint256;

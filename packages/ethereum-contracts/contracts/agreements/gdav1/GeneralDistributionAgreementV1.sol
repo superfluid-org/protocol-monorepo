@@ -35,6 +35,8 @@ import { GDAv1StorageLib, GDAv1StorageReader, GDAv1StorageWriter } from "./GDAv1
  * @title General Distribution Agreement
  * @author Superfluid
  */
+/// Pool/distribution math uses semantic-money types with bounded casts.
+/// forge-lint: disable-next-item(unsafe-typecast)
 contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDistributionAgreementV1 {
     using SafeCast for uint256;
     using SafeCast for int256;

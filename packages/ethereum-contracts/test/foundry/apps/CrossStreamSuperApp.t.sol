@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
+
 import { ISuperfluid, ISuperToken } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { CFASuperAppBase } from "../../../contracts/apps/CFASuperAppBase.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
@@ -132,3 +134,5 @@ contract CrossStreamSuperAppTest is FoundrySuperfluidTester {
         assertEq(rtbSumStart, rtbSumEnd, "rtbSumStart != rtbSumEnd");
     }
 }
+
+// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

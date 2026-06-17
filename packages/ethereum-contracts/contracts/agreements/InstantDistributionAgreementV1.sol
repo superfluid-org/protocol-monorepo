@@ -60,6 +60,8 @@ import { AgreementLibrary } from "./AgreementLibrary.sol";
  * iId              = PublisherId, the index this particular subscriber is subscribed to
  * SubscriptionId stores SubscriptionData for a subscriber to an Index.
  */
+/// Index/subscription math uses bounded index units; casts match storage layout.
+/// forge-lint: disable-next-item(unsafe-typecast)
 contract InstantDistributionAgreementV1 is
     AgreementBase,
     IInstantDistributionAgreementV1

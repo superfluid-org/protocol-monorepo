@@ -25,7 +25,8 @@ via_ir = true # though this is so slow!
 runs = 1000
 
 [lint]
+ignore = ["test/**"]
 exclude_lints = [
-    "erc20-unchecked-transfer",
-    "unsafe-typecast",
+    "incorrect-shift",
+    "divide-before-multiply",
 ]

@@ -113,6 +113,8 @@ library SuperTokenV1Library {
                 amount
             );
         } else {
+            // ISuperToken.transfer reverts on failure; no false-return path.
+            // forge-lint: disable-next-line(erc20-unchecked-transfer)
             token.transfer(receiverOrPool, amount);
             return amount;
         }

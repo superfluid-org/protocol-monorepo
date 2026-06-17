@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
+
 import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
 
 function _formatUnits(uint256 amount, uint8 exponent, uint8 maxDecimals) pure returns (string memory) {
@@ -66,3 +68,5 @@ library AmountFormatter {
         return _formatUnits(amount, 18, 5);
     }
 }
+
+// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

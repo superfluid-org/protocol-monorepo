@@ -36,6 +36,8 @@ interface IPoolMemberNFT {}
  * Added:
  * - support for an optional yield backend
  */
+/// Realtime balance projection casts non-negative int256 balances to uint256.
+/// forge-lint: disable-next-item(unsafe-typecast)
 contract SuperToken is
     UUPSProxiable,
     SuperfluidToken,
@@ -276,6 +278,8 @@ contract SuperToken is
         bytes32 r,
         bytes32 s
     ) public virtual override {
+        // solhint-disable-next-line not-rely-on-time
+        // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp > deadline) revert SUPER_TOKEN_PERMIT_EXPIRED_SIGNATURE(deadline);
 
         bytes32 structHash = keccak256(

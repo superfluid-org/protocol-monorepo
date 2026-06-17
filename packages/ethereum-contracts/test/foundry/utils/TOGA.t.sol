@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
+
 import "forge-std/Test.sol";
 import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
 import { ISuperToken } from "../../../contracts/superfluid/SuperToken.sol";
@@ -452,3 +454,5 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
         assertEq((bobPreBal + bobBondLeft), superToken2.balanceOf(bob));
     }
 }
+
+// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

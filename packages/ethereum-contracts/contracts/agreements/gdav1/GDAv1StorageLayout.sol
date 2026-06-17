@@ -47,6 +47,8 @@ import { ISuperfluidPool } from "../../interfaces/agreements/gdav1/ISuperfluidPo
  * keccak256(abi.encode(block.chainid, "poolMember", member, pool))
  * PoolConnectivityId stores PoolConnectivity for a member at a pool.
  */
+/// GDA storage packing uses fixed-width fields; casts match layout invariants.
+/// forge-lint: disable-next-item(unsafe-typecast)
 library GDAv1StorageLib {
 
     // # Account Data

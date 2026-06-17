@@ -9,6 +9,8 @@ import {
 
 pragma solidity ^0.8.23;
 
+/// Liquidation period values are governance-configured and fit in int256.
+/// forge-lint: disable-next-item(unsafe-typecast)
 library SolvencyHelperLibrary {
     function decode3PsData(ISuperfluid host, ISuperfluidToken token)
         internal

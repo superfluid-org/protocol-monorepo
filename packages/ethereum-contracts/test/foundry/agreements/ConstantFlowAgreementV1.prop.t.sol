@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
+
 import "forge-std/Test.sol";
 
 import { ISuperfluid, ConstantFlowAgreementV1 } from "../../../contracts/agreements/ConstantFlowAgreementV1.sol";
@@ -141,3 +143,5 @@ contract ConstantFlowAgreementV1PropertyTest is Test {
         assertEq(a.flowRateAllowance, b.flowRateAllowance, "CFAv1Prop: flowRateAllowance !=");
     }
 }
+
+// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

@@ -16,6 +16,8 @@ import { FixedSizeData } from "../libs/FixedSizeData.sol";
  *
  * @author Superfluid
  */
+/// Liquidation settlement emits IERC20 Transfer events with bounded positive amounts.
+/// forge-lint: disable-next-item(unsafe-typecast)
 abstract contract SuperfluidToken is ISuperfluidToken
 {
 

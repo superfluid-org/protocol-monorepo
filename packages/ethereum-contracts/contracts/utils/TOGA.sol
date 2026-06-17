@@ -123,6 +123,8 @@ interface ITOGAv3 is ITOGAv1 {
     event BondIncreased(ISuperToken indexed token, uint256 additionalBond);
 }
 
+/// PIC bond and exit-rate math use protocol-bounded int96 values (see capToInt96).
+/// forge-lint: disable-next-item(unsafe-typecast)
 contract TOGA is ITOGAv3, IERC777Recipient {
 
     using SafeCast for uint256;
@@ -282,6 +284,8 @@ contract TOGA is ITOGAv3, IERC777Recipient {
         // if no PIC was set yet, rewards already accumulated become part of the bond of the first PIC
         if (currentPICAddr != address(0)) {
             // transfer remaining bond to current PIC
+            // ISuperToken.transfer reverts on failure; no false-return path.
+            // forge-lint: disable-next-line(erc20-unchecked-transfer)
             token.transfer(currentPICAddr, currentPICBond);
         }
 
