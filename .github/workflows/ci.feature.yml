@@ -139,8 +139,11 @@ jobs:
     uses: ./.github/workflows/call.upload-coverage-reports.yml
     needs: [coverage-ethereum-contracts, coverage-sdk-core]
     # Dependabot PRs have no access to repository secrets, also coverage uploads aren't
-    # needed for dependabot checks.
-    if: github.actor != 'dependabot[bot]'
+    # needed for dependabot checks. Fork PRs likewise lack secrets, so skip them too.
+    if: >-
+      github.event_name == 'merge_group' ||
+      ( github.event.pull_request.head.repo.full_name == github.repository
+        && github.actor != 'dependabot[bot]' )
     secrets: inherit
 
   # Note:
