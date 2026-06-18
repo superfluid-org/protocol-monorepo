@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
-
 import { stdError } from "forge-std/Test.sol";
 
 import { BatchOperation, ISuperfluid, Superfluid } from "../../../contracts/superfluid/Superfluid.sol";
@@ -657,5 +655,3 @@ contract SuperfluidBatchCallTest is FoundrySuperfluidTester {
         assertEq(bob.balance, amount, "ERC2771Forwarder: where did the money go?");
     }
 }
-
-// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

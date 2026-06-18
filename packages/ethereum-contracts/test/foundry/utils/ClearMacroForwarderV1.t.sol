@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
-
 import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
@@ -665,5 +663,3 @@ contract ClearMacroForwarderV1Test is FoundrySuperfluidTester {
         return abi.encodePacked(r, s, v);
     }
 }
-
-// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

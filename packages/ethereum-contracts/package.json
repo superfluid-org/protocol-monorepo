@@ -66,7 +66,7 @@
         "clean": "rm -rf node_modules; rm -rf cache; rm -rf build; rm -rf artifacts; rm -rf typechain-types; rm -rf dev-scripts/*.d.ts dev-scripts/*.d.ts.map",
         "run-hardhat": "IS_HARDHAT=true hardhat",
         "run-truffle": "IS_TRUFFLE=true truffle",
-        "run-foundry": "IS_FOUNDRY=true FOUNDRY_LINT_IGNORE='[\"test/**\",\"contracts/mocks/**\",\"contracts/**/*.t.sol\"]' forge",
+        "run-foundry": "IS_FOUNDRY=true forge",
         "run-nodemon": "nodemon -e sol,js,ts -x",
         "build": "run-s build:*",
         "build:contracts": "run-p -l build:contracts:*",

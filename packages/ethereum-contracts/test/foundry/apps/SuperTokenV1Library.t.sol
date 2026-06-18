@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
-
 import { IConstantFlowAgreementV1, ISuperfluid, ISuperToken, ISuperfluidPool, ISuperApp, PoolConfig, PoolERC20Metadata }
     from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { CFASuperAppBase } from "../../../contracts/apps/CFASuperAppBase.sol";
@@ -588,5 +586,3 @@ contract SuperAppMock is CFASuperAppBase {
         }
     }
 }
-
-// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

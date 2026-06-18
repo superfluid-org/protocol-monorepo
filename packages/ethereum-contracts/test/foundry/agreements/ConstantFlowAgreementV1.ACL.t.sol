@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
-
 import { ISuperToken, SuperToken } from "../../../contracts/superfluid/SuperToken.sol";
 import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { FlowOperatorDefinitions } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
@@ -311,5 +309,3 @@ contract ConstantFlowAgreementV1ACLTest is FoundrySuperfluidTester {
         return keccak256(abi.encode("flowOperator", sender, flowOperator));
     }
 }
-
-// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

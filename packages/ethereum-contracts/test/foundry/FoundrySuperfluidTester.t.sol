@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.11;
 
-// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
-
 import "forge-std/Test.sol";
 
 import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
@@ -1866,5 +1864,3 @@ contract FoundrySuperfluidTester is Test {
         assertEq(_pool.allowance(owner, spender), expectedAllowance, "_assertPoolAllowance: allowance mismatch");
     }
 }
-
-// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

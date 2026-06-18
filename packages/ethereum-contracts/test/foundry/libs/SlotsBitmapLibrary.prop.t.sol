@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
-
 import "forge-std/Test.sol";
 import { ERC1820RegistryCompiled } from "../../../contracts/libs/ERC1820RegistryCompiled.sol";
 import { SlotsBitmapLibrary } from "../../../contracts/libs/SlotsBitmapLibrary.sol";
@@ -244,5 +242,3 @@ contract SlotsBitmapLibraryPropertyTest is Test {
         }
     }
 }
-
-// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)

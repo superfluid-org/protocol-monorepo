@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-// forge-lint: disable-start(unsafe-typecast, erc20-unchecked-transfer)
-
 import { AgreementLibrary } from "../../../contracts/agreements/AgreementLibrary.sol";
 
 import "forge-std/Test.sol";
@@ -17,5 +15,3 @@ contract AgreementLibraryPropertyTest is Test {
         assertFalse(uint256(adjustedAppCreditUsed) > appCreditGranted);
     }
 }
-
-// forge-lint: disable-end(unsafe-typecast, erc20-unchecked-transfer)
