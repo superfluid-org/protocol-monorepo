@@ -49,7 +49,7 @@ contract GeneralDistributionAgreementV1Properties is GeneralDistributionAgreemen
 
     constructor() GeneralDistributionAgreementV1(ISuperfluid(address(0)), SuperfluidUpgradeableBeacon(address(0))) {
         // deploy ERC1820 registry
-        vm.etch(ERC1820RegistryCompiled.at, ERC1820RegistryCompiled.bin);
+        vm.etch(ERC1820RegistryCompiled.ADDRESS, ERC1820RegistryCompiled.BYTECODE);
         sfDeployer = new SuperfluidFrameworkDeployer();
         sfDeployer.deployTestFramework();
         sf = sfDeployer.getFramework();

@@ -1,7 +1,7 @@
 [profile.default]
 src = 'contracts'
 libs = ['lib']
-solc_version = "0.8.30"
+solc_version = "0.8.35"
 evm_version = 'cancun'
 optimizer = true
 optimizer_runs = 200

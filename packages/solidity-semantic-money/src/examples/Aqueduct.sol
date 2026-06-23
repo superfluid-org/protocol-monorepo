@@ -82,9 +82,9 @@ contract Aqueduct {
      * @param ir1 - new (input) flow rate
      */
     function onFlowUpdate(ToySuperfluidToken token, address from, FlowRate ir0, FlowRate ir1) external {
-        if (token == _left.token) {
+        if (address(token) == address(_left.token)) {
             _onFlowUpdate(_left, _right, from, ir0, ir1);
-        } else if (token == _right.token) {
+        } else if (address(token) == address(_right.token)) {
             _onFlowUpdate(_right, _left, from, ir0, ir1);
         } else revert("Unknown token");
     }

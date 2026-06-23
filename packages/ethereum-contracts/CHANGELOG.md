@@ -7,7 +7,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- Updated foundry to 1.7.1
+- Updated foundry to 1.7.1 and forge-std to v1.16.1
+- bumped solc to 0.8.35
+- bumped openzeppelin-contracts submodule to v5.6.1
+
+### Breaking
+- `ERC1820RegistryCompiled`: renamed the constant fields (`at` -> `ADDRESS`, `bin` -> `BYTECODE`) because `at` became a reserved keyword in solc 0.8.35. Only affects tests.
 
 ## [v1.15.1]
 
