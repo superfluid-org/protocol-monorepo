@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { ERC20 } from "@openzeppelin-v5/contracts/token/ERC20/ERC20.sol";
+import { ERC4626 } from "@openzeppelin-v5/contracts/token/ERC20/extensions/ERC4626.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 import { IAccessControl } from "@openzeppelin-v5/contracts/access/IAccessControl.sol";
 import { Strings } from "@openzeppelin-v5/contracts/utils/Strings.sol";
@@ -20,8 +22,10 @@ import {
 import { IClearMacro } from "../../../contracts/interfaces/utils/IClearMacro.sol";
 import { ClearMacroForwarderV1 } from "../../../contracts/utils/ClearMacroForwarderV1.sol";
 import { ClearMacroForwarderV1WithPermit2 } from "../../../contracts/utils/ClearMacroForwarderV1WithPermit2.sol";
+import { Superfluid } from "../../../contracts/superfluid/Superfluid.sol";
 import { TestToken } from "../../../contracts/utils/TestToken.sol";
 import { FoundrySuperfluidTester } from "../FoundrySuperfluidTester.t.sol";
+import { Permit2VaultDepositMacro } from "../macros/Permit2VaultDepositMacro.t.sol";
 
 address constant PERMIT2_CANONICAL = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
@@ -126,12 +130,19 @@ contract MinimalClearMacroEmptyOps is IClearMacro {
     }
 }
 
+/// @dev Minimal ERC-4626 vault for Permit2 vault-deposit macro tests.
+contract TestERC4626Vault is ERC4626 {
+    constructor(ERC20 asset_) ERC20("Test Vault", "vTKN") ERC4626(asset_) {}
+}
+
 // ============== Test Contract ==============
 
 contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
     ClearMacroForwarderV1WithPermit2 internal forwarder;
     MinimalClearMacroForPermit2Test internal minimalClearMacro;
     MinimalClearMacroEmptyOps internal minimalClearMacroEmptyOps;
+    Permit2VaultDepositMacro internal vaultDepositMacro;
+    TestERC4626Vault internal vault;
     address internal permit2DomainVerifyingContract;
 
     constructor() FoundrySuperfluidTester(5) {}
@@ -148,6 +159,8 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
         forwarder = new ClearMacroForwarderV1WithPermit2(sf.host);
         minimalClearMacro = new MinimalClearMacroForPermit2Test();
         minimalClearMacroEmptyOps = new MinimalClearMacroEmptyOps();
+        vaultDepositMacro = new Permit2VaultDepositMacro();
+        vault = new TestERC4626Vault(token);
 
         IAccessControl acl = IAccessControl(sf.host.getSimpleACL());
         vm.prank(address(sfDeployer));
@@ -290,6 +303,104 @@ contract ClearMacroForwarderV1WithPermit2Test is FoundrySuperfluidTester {
 
         assertTrue(forwarder.runPermit2AndMacro(permit2Context, minimalClearMacroEmptyOps, params));
         assertEq(superToken.balanceOf(signer.addr), TEST_AMOUNT, "forwarder can still execute after failed replay");
+    }
+
+    /// @notice Permit2 pull + ERC-4626 deposit inside the macro batch.
+    function testRunPermit2AndMacroDepositToVault(uint256 signerPrivateKey) external {
+        signerPrivateKey = bound(signerPrivateKey, 1, SECP256K1_ORDER - 1);
+        VmSafe.Wallet memory signer = vm.createWallet(signerPrivateKey);
+        _fundSignerAndApprove(token, signer, TEST_AMOUNT, PERMIT2_CANONICAL);
+
+        string memory description = "Deposit underlying into test vault";
+        Permit2VaultDepositMacro.ExecutionParams memory execution = Permit2VaultDepositMacro.ExecutionParams({
+            owner: signer.addr,
+            token: address(token),
+            amount: TEST_AMOUNT,
+            permitNonce: 0,
+            permitDeadline: block.timestamp + 3600,
+            witness: bytes32(0),
+            witnessTypeString: "",
+            permit2Signature: bytes("")
+        });
+
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
+            domain: SECURITY_DOMAIN,
+            macroContract: address(vaultDepositMacro),
+            provider: SECURITY_PROVIDER,
+            validAfter: 0,
+            validBefore: 0,
+            nonce: DEFAULT_NONCE
+        });
+
+        bytes memory actionParamsForWitness =
+            vaultDepositMacro.encodeActionParams(description, address(vault), execution);
+        bytes memory encodedPayloadForWitness = forwarder.encodeParams(actionParamsForWitness, security);
+
+        IPermit2.PermitTransferFrom memory permit = _makePermit(address(token), TEST_AMOUNT);
+
+        (bytes32 witness, string memory witnessTypeString, bytes memory signature) = _signPermit(
+            signer,
+            permit,
+            address(vaultDepositMacro),
+            vaultDepositMacro,
+            encodedPayloadForWitness,
+            address(0)
+        );
+
+        execution.permit2Signature = signature;
+        execution.witness = witness;
+        execution.witnessTypeString = witnessTypeString;
+        bytes memory encodedPayload =
+            forwarder.encodeParams(vaultDepositMacro.encodeActionParams(description, address(vault), execution), security);
+
+        IClearMacroForwarderV1WithPermit2.Permit2Context memory permit2Context;
+        permit2Context.permit = permit;
+        permit2Context.owner = signer.addr;
+        permit2Context.witness = witness;
+        permit2Context.witnessTypeString = witnessTypeString;
+        permit2Context.signature = signature;
+        permit2Context.spender = address(vaultDepositMacro);
+        permit2Context.upgradeSuperToken = address(0);
+
+        assertTrue(forwarder.runPermit2AndMacro(permit2Context, vaultDepositMacro, encodedPayload));
+        assertEq(vault.balanceOf(signer.addr), TEST_AMOUNT, "signer should receive vault shares");
+        assertEq(token.balanceOf(signer.addr), 0, "signer underlying should be consumed");
+    }
+
+    function testVaultDepositWitnessIgnoresPermit2Signature() external view {
+        string memory description = "Deposit underlying into test vault";
+        Permit2VaultDepositMacro.ExecutionParams memory execution = Permit2VaultDepositMacro.ExecutionParams({
+            owner: address(0xCAFE),
+            token: address(token),
+            amount: TEST_AMOUNT,
+            permitNonce: 0,
+            permitDeadline: block.timestamp + 3600,
+            witness: bytes32(0),
+            witnessTypeString: "",
+            permit2Signature: bytes("")
+        });
+
+        IClearMacroForwarderV1.Security memory security = IClearMacroForwarderV1.Security({
+            domain: SECURITY_DOMAIN,
+            macroContract: address(vaultDepositMacro),
+            provider: SECURITY_PROVIDER,
+            validAfter: 0,
+            validBefore: 0,
+            nonce: DEFAULT_NONCE
+        });
+
+        bytes memory withoutSig = vaultDepositMacro.encodeActionParams(description, address(vault), execution);
+        execution.permit2Signature = hex"01";
+        bytes memory withSig = vaultDepositMacro.encodeActionParams(description, address(vault), execution);
+
+        assertEq(
+            forwarder.getPermit2WitnessStructHash(
+                vaultDepositMacro, forwarder.encodeParams(withoutSig, security), address(0)
+            ),
+            forwarder.getPermit2WitnessStructHash(
+                vaultDepositMacro, forwarder.encodeParams(withSig, security), address(0)
+            )
+        );
     }
 
     /// With implied upgrade: spender is forwarder; signer approves Permit2.
