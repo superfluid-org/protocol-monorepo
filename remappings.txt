@@ -1,8 +1,0 @@
-@superfluid-finance/ethereum-contracts/contracts/=lib/ethereum-contracts/contracts/
-@superfluid-finance/ethereum-contracts/test/=lib/ethereum-contracts/test/
-@superfluid-finance/solidity-semantic-money/src/=lib/solidity-semantic-money/src/
-@openzeppelin-v5/=lib/openzeppelin-contracts/
-@openzeppelin/=lib/openzeppelin-contracts/
-aave-v3/=lib/aave-v3/
-ds-test/=lib/forge-std/lib/ds-test/src/
-forge-std/=lib/forge-std/src/

@@ -123,8 +123,6 @@ interface ITOGAv3 is ITOGAv1 {
     event BondIncreased(ISuperToken indexed token, uint256 additionalBond);
 }
 
-/// PIC bond and exit-rate math use protocol-bounded int96 values (see capToInt96).
-/// forge-lint: disable-next-item(unsafe-typecast)
 contract TOGA is ITOGAv3, IERC777Recipient {
 
     using SafeCast for uint256;
@@ -168,7 +166,7 @@ contract TOGA is ITOGAv3, IERC777Recipient {
     }
 
     function capToInt96(int256 value) internal pure returns(int96) {
-        return value < type(int96).max ? int96(value) : type(int96).max;
+        return value < type(int96).max ? SafeCast.toInt96(value) : type(int96).max;
     }
 
     function getDefaultExitRateFor(ISuperToken /*token*/, uint256 bondAmount)
@@ -189,7 +187,10 @@ contract TOGA is ITOGAv3, IERC777Recipient {
         address currentPICAddr = _currentPICs[token].addr;
         require(msg.sender == currentPICAddr, "TOGA: only PIC allowed");
         require(newExitRate >= 0, "TOGA: negative exitRate not allowed");
-        require(uint256(int256(newExitRate)) * minBondDuration <= _getCurrentPICBond(token), "TOGA: exitRate too high");
+        require(
+            SafeCast.toUint256(newExitRate) * minBondDuration <= _getCurrentPICBond(token),
+            "TOGA: exitRate too high"
+        );
 
         (, int96 curExitRate,,) = _cfa.getFlow(token, address(this), currentPICAddr);
         if (curExitRate > 0 && newExitRate > 0) {
@@ -246,8 +247,8 @@ contract TOGA is ITOGAv3, IERC777Recipient {
 
     function _getCurrentPICBond(ISuperToken token) internal view returns(uint256 bond) {
         (int256 availBal, uint256 deposit, , ) = token.realtimeBalanceOfNow(address(this));
-        // The protocol guarantees that we get no values leading to an overflow here
-        return availBal + int256(deposit) > 0 ? uint256(availBal + int256(deposit)) : 0;
+        int256 currentBond = availBal + deposit.toInt256();
+        return currentBond > 0 ? SafeCast.toUint256(currentBond) : 0;
     }
 
     // This is the logic for designating a PIC via successful bid - invoked only by the ERC777 send() hook
@@ -255,7 +256,7 @@ contract TOGA is ITOGAv3, IERC777Recipient {
     function _becomePIC(ISuperToken token, address newPIC, uint256 amount, int96 exitRate) internal {
         require(!_currentPICs[token].lock, "TOGA: reentrancy not allowed");
         require(exitRate >= 0, "TOGA: negative exitRate not allowed");
-        require(uint256(int256(exitRate)) * minBondDuration <= amount, "TOGA: exitRate too high");
+        require(SafeCast.toUint256(exitRate) * minBondDuration <= amount, "TOGA: exitRate too high");
         // cannot underflow because amount was added to the balance before
         uint256 currentPICBond = _getCurrentPICBond(token) - amount;
         require(amount > currentPICBond, "TOGA: bid too low");

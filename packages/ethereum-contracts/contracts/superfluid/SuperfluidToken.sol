@@ -16,8 +16,6 @@ import { FixedSizeData } from "../libs/FixedSizeData.sol";
  *
  * @author Superfluid
  */
-/// Liquidation settlement emits IERC20 Transfer events with bounded positive amounts.
-/// forge-lint: disable-next-item(unsafe-typecast)
 abstract contract SuperfluidToken is ISuperfluidToken
 {
 
@@ -363,7 +361,7 @@ abstract contract SuperfluidToken is ISuperfluidToken
             _sharedSettledBalances[targetAccount] += targetAccountBalanceDelta;
 
             emit IERC20.Transfer(rewardAccount, liquidatorAccount, rewardAmount);
-            emit IERC20.Transfer(rewardAccount, targetAccount, uint256(targetAccountBalanceDelta));
+            emit IERC20.Transfer(rewardAccount, targetAccount, targetAccountBalanceDelta.toUint256());
         }
 
         emit AgreementLiquidatedV2(

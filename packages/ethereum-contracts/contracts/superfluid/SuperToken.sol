@@ -36,14 +36,13 @@ interface IPoolMemberNFT {}
  * Added:
  * - support for an optional yield backend
  */
-/// Realtime balance projection casts non-negative int256 balances to uint256.
-/// forge-lint: disable-next-item(unsafe-typecast)
 contract SuperToken is
     UUPSProxiable,
     SuperfluidToken,
     ISuperToken
 {
     using SafeCast for uint256;
+    using SafeCast for int256;
     using ERC777Helper for ERC777Helper.Operators;
     using SafeERC20 for IERC20;
 
@@ -666,7 +665,7 @@ contract SuperToken is
     {
         // solhint-disable-next-line not-rely-on-time
         (int256 availableBalance, , ,) = super.realtimeBalanceOfNow(account);
-        return availableBalance < 0 ? 0 : uint256(availableBalance);
+        return availableBalance < 0 ? 0 : availableBalance.toUint256();
     }
 
     function transfer(address recipient, uint256 amount)

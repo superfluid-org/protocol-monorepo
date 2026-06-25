@@ -45,8 +45,6 @@ import { SolvencyHelperLibrary } from "../libs/SolvencyHelperLibrary.sol";
  * FlowOperatorId   = keccak256(abi.encode("flowOperator", flowSender, flowOperator))
  * FlowOperatorId stores FlowOperatorData between a flowSender and flowOperator.
  */
-/// Flow-rate/time casts are protocol-bounded; see MAXIMUM_FLOW_RATE and deposit clipping.
-/// forge-lint: disable-next-item(unsafe-typecast)
 contract ConstantFlowAgreementV1 is
     AgreementBase,
     IConstantFlowAgreementV1
@@ -116,7 +114,7 @@ contract ConstantFlowAgreementV1 is
     {
         (bool exist, FlowData memory state) = _getAccountFlowState(token, account);
         if(exist) {
-            dynamicBalance = ((int256(time) - (int256(state.timestamp))) * state.flowRate);
+            dynamicBalance = (time.toInt256() - state.timestamp.toInt256()) * state.flowRate;
             deposit = state.deposit;
             owedDeposit = state.owedDeposit;
         }
@@ -139,6 +137,7 @@ contract ConstantFlowAgreementV1 is
 
          // NOTE downcasting is safe as we constrain deposit to less than
          // 2 ** 95 (MAXIMUM_DEPOSIT) so the resulting value flowRate1 will fit into int96
+         // forge-lint: disable-next-line(unsafe-typecast)
          return int96(int256(flowrate1));
      }
 
@@ -150,7 +149,7 @@ contract ConstantFlowAgreementV1 is
          returns (uint256 deposit)
      {
         if (flowRate < 0) revert CFA_INVALID_FLOW_RATE();
-        if (uint256(int256(flowRate)) * liquidationPeriod > uint256(int256(type(int96).max))) {
+        if (SafeCast.toUint256(flowRate) * liquidationPeriod > uint256(uint96(type(int96).max))) {
             revert CFA_FLOW_RATE_TOO_BIG();
         }
          uint256 calculatedDeposit = _calculateDeposit(flowRate, liquidationPeriod);
@@ -1462,7 +1461,8 @@ contract ConstantFlowAgreementV1 is
         if (flowRate == 0) return 0;
 
         // NOTE: safecast for int96 with extra assertion
-        assert(liquidationPeriod <= uint256(int256(type(int96).max)));
+        assert(liquidationPeriod <= uint256(uint96(type(int96).max)));
+        // forge-lint: disable-next-line(unsafe-typecast)
         deposit = uint256(int256(flowRate * int96(uint96(liquidationPeriod))));
         return _clipDepositNumberRoundingUp(deposit);
     }
@@ -1513,11 +1513,13 @@ contract ConstantFlowAgreementV1 is
     {
         exist = wordA > 0;
         if (exist) {
+            // forge-lint: disable-start(unsafe-typecast)
             flowData.timestamp = uint32(wordA >> 224);
             // NOTE because we are upcasting from type(uint96).max to uint256 to int256, we do not need to use safecast
             flowData.flowRate = int96(int256(wordA >> 128) & int256(uint256(type(uint96).max)));
             flowData.deposit = ((wordA >> 64) & uint256(type(uint64).max)) << 32 /* recover clipped bits*/;
             flowData.owedDeposit = (wordA & uint256(type(uint64).max)) << 32 /* recover clipped bits*/;
+            // forge-lint: disable-end(unsafe-typecast)
         }
     }
 
@@ -1566,8 +1568,10 @@ contract ConstantFlowAgreementV1 is
         exist = wordA > 0;
         if (exist) {
             // NOTE: For safecast, doing extra bitmasking to not to have any trust assumption of token storage
+            // forge-lint: disable-start(unsafe-typecast)
             flowOperatorData.flowRateAllowance = int96(int256(wordA & uint256(int256(type(int96).max))));
             flowOperatorData.permissions = uint8(wordA >> 128) & type(uint8).max;
+            // forge-lint: disable-end(unsafe-typecast)
         }
     }
 

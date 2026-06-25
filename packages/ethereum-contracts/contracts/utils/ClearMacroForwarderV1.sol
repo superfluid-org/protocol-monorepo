@@ -17,8 +17,6 @@ import { IClearMacroForwarderV1 } from "../interfaces/utils/IClearMacroForwarder
  * (meaning signed pending transactions can't block each other), and also the option to enforce
  * sequential execution according to the sequence number.
  */
-/// ERC-4337 nonce layout: uint192 key + uint64 sequence extracted via intentional casts.
-/// forge-lint: disable-next-item(unsafe-typecast)
 abstract contract NonceManager {
     /// nonce already used or out of sequence
     error InvalidNonce(address sender, uint256 nonce);
@@ -28,13 +26,16 @@ abstract contract NonceManager {
 
     /// Returns the next nonce for a given sender and key
     function getNonce(address sender, uint192 key) public virtual view returns (uint256 nonce) {
+        // forge-lint: disable-next-line(unsafe-typecast)
         return uint64(_nonceSequenceNumber[sender][key]) | (uint256(key) << 64);
     }
 
     /// validates the nonce and updates the data structure for correct sequencing
     function _validateAndUpdateNonce(address sender, uint256 nonce) internal virtual {
+        // forge-lint: disable-start(unsafe-typecast)
         uint192 key = uint192(nonce >> 64);
         uint64 seq = uint64(nonce);
+        // forge-lint: disable-end(unsafe-typecast)
         if (_nonceSequenceNumber[sender][key]++ != seq) {
             revert InvalidNonce(sender, nonce);
         }

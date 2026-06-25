@@ -60,13 +60,12 @@ import { AgreementLibrary } from "./AgreementLibrary.sol";
  * iId              = PublisherId, the index this particular subscriber is subscribed to
  * SubscriptionId stores SubscriptionData for a subscriber to an Index.
  */
-/// Index/subscription math uses bounded index units; casts match storage layout.
-/// forge-lint: disable-next-item(unsafe-typecast)
 contract InstantDistributionAgreementV1 is
     AgreementBase,
     IInstantDistributionAgreementV1
 {
     using SafeCast for uint256;
+    using SafeCast for int256;
 
     address public constant SLOTS_BITMAP_LIBRARY_ADDRESS = address(SlotsBitmapLibrary);
 
@@ -856,15 +855,16 @@ contract InstantDistributionAgreementV1 is
         if (pendingDistribution > 0) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
             vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+            int256 signedPendingDistribution = pendingDistribution.toInt256();
 
             // adjust publisher's deposits
-            _adjustPublisherDeposit(token, publisher, -int256(pendingDistribution));
-            token.settleBalance(publisher, -int256(pendingDistribution));
+            _adjustPublisherDeposit(token, publisher, -signedPendingDistribution);
+            token.settleBalance(publisher, -signedPendingDistribution);
 
             // update subscription data and adjust subscriber's balance
             vars.sdata.indexValue = vars.idata.indexValue;
             token.updateAgreementData(vars.sId, _encodeSubscriptionData(vars.sdata));
-            token.settleBalance(subscriber, int256(pendingDistribution));
+            token.settleBalance(subscriber, signedPendingDistribution);
 
             emit IndexDistributionClaimed(token, publisher, indexId, subscriber, pendingDistribution);
             emit SubscriptionDistributionClaimed(token, subscriber, publisher, indexId, pendingDistribution);
@@ -985,9 +985,11 @@ contract InstantDistributionAgreementV1 is
             // NOTE We will do an unsafe downcast from uint256 => uint128
             // as we know this is safe
             // see https://gist.github.com/0xdavinchee/9834dc689543f19ec07872ad7d766b09
+            // forge-lint: disable-start(unsafe-typecast)
             idata.indexValue = uint128(a);
             idata.totalUnitsApproved = uint128(b);
             idata.totalUnitsPending = uint128(b >> 128);
+            // forge-lint: disable-end(unsafe-typecast)
         }
     }
 
@@ -1024,7 +1026,7 @@ contract InstantDistributionAgreementV1 is
             publisher,
             _PUBLISHER_DEPOSIT_STATE_SLOT_ID,
             1);
-        data[0] = bytes32(uint256(uint256(data[0]).toInt256() + delta));
+        data[0] = bytes32((uint256(data[0]).toInt256() + delta).toUint256());
         token.updateAgreementStateSlot(
             publisher,
             _PUBLISHER_DEPOSIT_STATE_SLOT_ID,
@@ -1070,6 +1072,7 @@ contract InstantDistributionAgreementV1 is
         uint256 b = uint256(adata[1]);
         exist = a > 0;
         if (exist) {
+            // forge-lint: disable-start(unsafe-typecast)
             sdata.publisher = address(uint160(a >> (12*8)));
             sdata.indexId = uint32((a >> 32) & type(uint32).max);
             sdata.subId = uint32(a & type(uint32).max);
@@ -1078,6 +1081,7 @@ contract InstantDistributionAgreementV1 is
             // see https://gist.github.com/0xdavinchee/9834dc689543f19ec07872ad7d766b09
             sdata.indexValue = uint128(b);
             sdata.units = uint128(b >> 128);
+            // forge-lint: disable-end(unsafe-typecast)
         }
     }
 

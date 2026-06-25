@@ -35,8 +35,6 @@ import { GDAv1StorageLib, GDAv1StorageReader, GDAv1StorageWriter } from "./GDAv1
  * @title General Distribution Agreement
  * @author Superfluid
  */
-/// Pool/distribution math uses semantic-money types with bounded casts.
-/// forge-lint: disable-next-item(unsafe-typecast)
 contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDistributionAgreementV1 {
     using SafeCast for uint256;
     using SafeCast for int256;
@@ -82,11 +80,11 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, account);
 
         if (token.isPool(this, account)) {
-            rtb = ISuperfluidPool(account).getDisconnectedBalance(uint32(time));
+            rtb = ISuperfluidPool(account).getDisconnectedBalance(time.toUint32());
         } else {
             rtb = Value.unwrap(GDAv1StorageLib
                                .getUniversalIndexFromAccountData(accountData)
-                               .rtb(Time.wrap(uint32(time))));
+                               .rtb(Time.wrap(time.toUint32())));
         }
 
         int256 totalConnectedFromPools;
@@ -95,7 +93,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
                 _assertPoolConnectivity(token, account, ISuperfluidPool(pool));
-                totalConnectedFromPools += SuperfluidPool(pool).getUnsettledValue(account, uint32(time));
+                totalConnectedFromPools += SuperfluidPool(pool).getUnsettledValue(account, time.toUint32());
             }
         }
         rtb += totalConnectedFromPools;
@@ -647,8 +645,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         GDAv1StorageLib.FlowInfo memory flowDistributionData = token.getFlowInfoByFlowHash(this, flowHash);
 
-        // @note downcasting from uint256 -> uint32 for liquidation period
-        Value newBufferAmount = newFlowRate.mul(Time.wrap(uint32(liquidationPeriod)));
+        Value newBufferAmount = newFlowRate.mul(Time.wrap(liquidationPeriod.toUint32()));
 
         if (Value.unwrap(newBufferAmount).toUint256() < minimumDeposit && FlowRate.unwrap(newFlowRate) > 0) {
             newBufferAmount = Value.wrap(minimumDeposit.toInt256());
