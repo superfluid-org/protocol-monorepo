@@ -73,12 +73,16 @@ module.exports = class Framework {
      */
     async initialize() {
         console.log("Initializing Superfluid Framework...");
-        // NOTE: querying network type first,
-        // Somehow web3.eth.net.getId may send bogus number if this was not done first
-        // It could be a red-herring issue, but it makes it more stable.
-        this.networkType = await this.web3.eth.net.getNetworkType();
         this.networkId = await this.web3.eth.net.getId();
         this.chainId = await this.web3.eth.getChainId();
+        // getNetworkType() fetches genesis block (block 0); pruned RPCs may reject that.
+        // networkType is informational only — chainId drives config lookup.
+        try {
+            this.networkType = await this.web3.eth.net.getNetworkType();
+        } catch (err) {
+            console.warn("Could not determine network type:", err.message);
+            this.networkType = "unknown";
+        }
 
         console.log("version", this.version);
         console.log("networkType", this.networkType);
