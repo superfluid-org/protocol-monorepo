@@ -107,7 +107,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         (bool exist, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
             token.getPoolConnectivity(this, account, pool);
         assert(exist);
-        assert(poolConnectivity.pool == pool);
+        assert(address(poolConnectivity.pool) == address(pool));
     }
 
     /// @dev Use block.timestamp for realtimeBalanceOf
@@ -456,7 +456,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (
             token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
-            pool.superToken() != token)
+            address(pool.superToken()) != address(token))
         {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -525,7 +525,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (
             token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
-            pool.superToken() != token)
+            address(pool.superToken()) != address(token))
         {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -826,7 +826,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
         if (
             token.isPool(this, msg.sender) == false ||
-            ISuperfluidPool(poolAddress).superToken() != token
+            address(ISuperfluidPool(poolAddress).superToken()) != address(token)
         ) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -847,7 +847,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
         if (
             token.isPool(this, msg.sender) == false ||
-            ISuperfluidPool(poolAddress).superToken() != token
+            address(ISuperfluidPool(poolAddress).superToken()) != address(token)
         ) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }

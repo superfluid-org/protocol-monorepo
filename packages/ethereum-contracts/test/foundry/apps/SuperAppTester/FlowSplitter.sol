@@ -47,7 +47,7 @@ contract FlowSplitter is CFASuperAppBase {
     /// @dev checks that only the acceptedToken is used when sending streams into this contract
     /// @param superToken the token being streamed into the contract
     function isAcceptedSuperToken(ISuperToken superToken) public view override returns (bool) {
-        return superToken == acceptedSuperToken;
+        return address(superToken) == address(acceptedSuperToken);
     }
 
     /// @dev updates the split of the outflow to mainReceiver and sideReceiver

@@ -1029,7 +1029,7 @@ contract ConstantFlowAgreementV1 is
             token, flowParams, oldFlowData);
 
         // STEP 2: update app credit used
-        if (currentContext.appCreditToken == token) {
+        if (address(currentContext.appCreditToken) == address(token)) {
             newCtx = ISuperfluid(msg.sender).ctxUseCredit(
                 ctx,
                 depositDelta
@@ -1168,7 +1168,7 @@ contract ConstantFlowAgreementV1 is
             }
 
             if (address(currentContext.appCreditToken) == address(0) ||
-                currentContext.appCreditToken == token)
+                address(currentContext.appCreditToken) == address(token))
             {
                 newCtx = ISuperfluid(msg.sender).ctxUseCredit(
                     newCtx,
@@ -1287,7 +1287,7 @@ contract ConstantFlowAgreementV1 is
 
             // credit should be of the same token
             if (address(appCreditToken) != address(0) &&
-                appCreditToken != token)
+                address(appCreditToken) != address(token))
             {
                 appCreditBase = 0;
             }
@@ -1349,7 +1349,7 @@ contract ConstantFlowAgreementV1 is
     {
         // do not enforce balance checks during callbacks for the appCreditToken
         if (currentContext.callType != ContextDefinitions.CALL_INFO_CALL_TYPE_APP_CALLBACK ||
-            currentContext.appCreditToken != token) {
+            address(currentContext.appCreditToken) != address(token)) {
             (int256 availableBalance,,) = token.realtimeBalanceOf(flowSender, currentContext.timestamp);
             if (availableBalance < 0) {
                 revert CFA_INSUFFICIENT_BALANCE();

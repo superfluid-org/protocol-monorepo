@@ -1813,7 +1813,7 @@ library SuperTokenV1Library {
         view
         returns (int96 poolAdjustmentFlowRate)
     {
-        if (token != pool.superToken()) revert("pool/token mismatch");
+        if (address(token) != address(pool.superToken())) revert("pool/token mismatch");
         (, IGeneralDistributionAgreementV1 gda) = _getHostAndGDA(token);
         return gda.getPoolAdjustmentFlowRate(address(pool));
     }
@@ -1830,7 +1830,7 @@ library SuperTokenV1Library {
         view
         returns (uint256 totalAmountReceived)
     {
-        if (token != pool.superToken()) revert("pool/token mismatch");
+        if (address(token) != address(pool.superToken())) revert("pool/token mismatch");
         return pool.getTotalAmountReceivedByMember(memberAddr);
     }
 
