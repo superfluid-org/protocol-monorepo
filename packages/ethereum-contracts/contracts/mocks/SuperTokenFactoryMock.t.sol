@@ -29,8 +29,11 @@ contract SuperTokenFactoryStorageLayoutTester is SuperTokenFactoryBase {
         assembly { slot:= _superTokenLogicDeprecated.slot offset := _superTokenLogicDeprecated.offset }
         require (slot == 0 && offset == 2, "_superTokenLogicDeprecated changed location");
 
-        assembly { slot := _canonicalWrapperSuperTokens.slot offset := _canonicalWrapperSuperTokens.offset }
-        require(slot == 1 && offset == 0, "_canonicalWrapperSuperTokens changed location");
+        assembly {
+            slot := _canonicalWrapperSuperTokensDeprecated.slot
+            offset := _canonicalWrapperSuperTokensDeprecated.offset
+        }
+        require(slot == 1 && offset == 0, "_canonicalWrapperSuperTokensDeprecated changed location");
     }
 }
 

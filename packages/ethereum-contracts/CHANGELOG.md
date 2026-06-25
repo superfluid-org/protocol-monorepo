@@ -3,6 +3,15 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+### Breaking
+
+- `SuperTokenFactory`: removed canonical wrapper APIs (`createCanonicalERC20Wrapper`, `computeCanonicalERC20WrapperAddress`, `getCanonicalERC20Wrapper`, `initializeCanonicalWrapperSuperTokens`).
+  These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
+  In order to not confuse devs (human or non), this part of the API is therefore removed.
+  The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
+
 ## [v1.15.1]
 
 ### Added
