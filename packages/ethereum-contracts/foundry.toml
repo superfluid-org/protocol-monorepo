@@ -18,7 +18,6 @@ optimizer = true
 optimizer_runs = 200
 remappings = [
     '@superfluid-finance/ethereum-contracts/contracts/=contracts/',
-    '@superfluid-finance/ethereum-contracts/test/=test/',
     '@superfluid-finance/solidity-semantic-money/src/=lib/solidity-semantic-money/src/',
     '@openzeppelin-v5/=lib/openzeppelin-contracts/',
     'aave-v3/=lib/aave-v3/',
@@ -58,5 +57,4 @@ ignore = [
 ]
 exclude_lints = [
     "incorrect-shift",
-    "divide-before-multiply",
 ]

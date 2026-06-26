@@ -7,5 +7,5 @@ cd "$(dirname "$0")/../../.." || exit 1
 
 slither packages/ethereum-contracts \
         --compile-force-framework foundry \
-        --foundry-out-directory packages/ethereum-contracts/build/foundry/default \
+        --foundry-out-directory build/foundry/default \
         --filter-paths "(test|mocks|node_modules)"

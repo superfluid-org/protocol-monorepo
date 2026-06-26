@@ -29,7 +29,3 @@ runs = 1000
 [lint]
 lint_on_build = false
 ignore = ["test/**"]
-exclude_lints = [
-    "incorrect-shift",
-    "divide-before-multiply",
-]
