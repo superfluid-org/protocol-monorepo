@@ -128,20 +128,8 @@ const superTokenFactoryABI = [
         stateMutability: "nonpayable",
         type: "constructor",
     },
-    { inputs: [], name: "SUPER_TOKEN_FACTORY_ALREADY_EXISTS", type: "error" },
-    { inputs: [], name: "SUPER_TOKEN_FACTORY_DOES_NOT_EXIST", type: "error" },
-    {
-        inputs: [],
-        name: "SUPER_TOKEN_FACTORY_NON_UPGRADEABLE_IS_DEPRECATED",
-        type: "error",
-    },
-    {
-        inputs: [],
-        name: "SUPER_TOKEN_FACTORY_ONLY_GOVERNANCE_OWNER",
-        type: "error",
-    },
+    { inputs: [], name: "SUPER_TOKEN_FACTORY_NON_UPGRADEABLE_IS_DEPRECATED", type: "error" },
     { inputs: [], name: "SUPER_TOKEN_FACTORY_ONLY_HOST", type: "error" },
-    { inputs: [], name: "SUPER_TOKEN_FACTORY_UNINITIALIZED", type: "error" },
     { inputs: [], name: "SUPER_TOKEN_FACTORY_ZERO_ADDRESS", type: "error" },
     {
         anonymous: false,
@@ -285,41 +273,6 @@ const superTokenFactoryABI = [
     {
         inputs: [
             {
-                internalType: "address",
-                name: "_underlyingToken",
-                type: "address",
-            },
-        ],
-        name: "computeCanonicalERC20WrapperAddress",
-        outputs: [
-            {
-                internalType: "address",
-                name: "superTokenAddress",
-                type: "address",
-            },
-            { internalType: "bool", name: "isDeployed", type: "bool" },
-        ],
-        stateMutability: "view",
-        type: "function",
-    },
-    {
-        inputs: [
-            {
-                internalType: "contract ERC20WithTokenInfo",
-                name: "_underlyingToken",
-                type: "address",
-            },
-        ],
-        name: "createCanonicalERC20Wrapper",
-        outputs: [
-            { internalType: "contract ISuperToken", name: "", type: "address" },
-        ],
-        stateMutability: "nonpayable",
-        type: "function",
-    },
-    {
-        inputs: [
-            {
                 internalType: "contract ERC20WithTokenInfo",
                 name: "underlyingToken",
                 type: "address",
@@ -375,25 +328,6 @@ const superTokenFactoryABI = [
         type: "function",
     },
     {
-        inputs: [
-            {
-                internalType: "address",
-                name: "_underlyingTokenAddress",
-                type: "address",
-            },
-        ],
-        name: "getCanonicalERC20Wrapper",
-        outputs: [
-            {
-                internalType: "address",
-                name: "superTokenAddress",
-                type: "address",
-            },
-        ],
-        stateMutability: "view",
-        type: "function",
-    },
-    {
         inputs: [],
         name: "getCodeAddress",
         outputs: [
@@ -421,31 +355,6 @@ const superTokenFactoryABI = [
     {
         inputs: [],
         name: "initialize",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function",
-    },
-    {
-        inputs: [
-            {
-                components: [
-                    {
-                        internalType: "address",
-                        name: "underlyingToken",
-                        type: "address",
-                    },
-                    {
-                        internalType: "address",
-                        name: "superToken",
-                        type: "address",
-                    },
-                ],
-                internalType: "struct SuperTokenFactoryBase.InitializeData[]",
-                name: "_data",
-                type: "tuple[]",
-            },
-        ],
-        name: "initializeCanonicalWrapperSuperTokens",
         outputs: [],
         stateMutability: "nonpayable",
         type: "function",
