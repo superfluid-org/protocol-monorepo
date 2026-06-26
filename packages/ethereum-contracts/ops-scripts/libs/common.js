@@ -522,6 +522,49 @@ function versionStringToPseudoAddress(versionString) {
     return `0x000000000000000000${major}${minor}${patch}${suffix}`;
 }
 
+/**
+ * Print a hard-to-miss warning when deploying UUPS proxies to production networks.
+ *
+ * deploy-framework.js (and deploy-aux-contracts.js) bootstrap some proxies across
+ * separate on-chain transactions. Between UUPSProxy deploy and initializeProxy,
+ * initializeProxy is permissionless. A malicious implementation can also clear the
+ * EIP-1967 implementation slot and poison proxy storage before legit init runs.
+ *
+ * Agreement and SuperToken factory proxies are NOT affected: they are created and
+ * initialized atomically inside governance-gated host functions.
+ *
+ * @param {string} context Human-readable label for the bootstrap step about to run.
+ */
+function warnProductionUUPSProxyInitRisk(context) {
+    const banner = "!".repeat(72);
+    const msg = [
+        "",
+        banner,
+        "!!! PRODUCTION DEPLOYMENT WARNING: UUPS PROXY INITIALIZATION RISK !!!",
+        banner,
+        "",
+        `>>> ${context}`,
+        "",
+        "This script initializes some UUPS proxies across SEPARATE on-chain txs.",
+        "Between proxy deploy and initializeProxy, ANY account may:",
+        "  - call initializeProxy(maliciousLogic) on the empty proxy, or",
+        "  - poison proxy storage via impl-slot reset (see test/foundry/upgradability/UUPSProxyReset.t.sol)",
+        "",
+        "Split-tx bootstrap in deploy-framework.js: Superfluid Host, PoolAdminNFT.",
+        "Atomic (gov-gated) bootstrap: CFA/IDA/GDA agreements, SuperToken factory.",
+        "",
+        "For production: batch deploy + initializeProxy + initialize in ONE tx",
+        "(deployer factory / multicall). Do NOT rely on mempool ordering.",
+        "",
+        "See comments on UUPSProxy.initializeProxy and deploy-framework.js.",
+        banner,
+        "",
+    ];
+    for (const line of msg) {
+        console.error(line);
+    }
+}
+
 // takes a pseudo address as argument and decodes it to a versionString
 function pseudoAddressToVersionString(pseudoAddress) {
     const str = pseudoAddress.replace(/^0x/, '').toLowerCase(); // remove leading 0x
@@ -563,4 +606,6 @@ module.exports = {
 
     versionStringToPseudoAddress,
     pseudoAddressToVersionString,
+
+    warnProductionUUPSProxyInitRisk,
 };

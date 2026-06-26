@@ -41,7 +41,7 @@ testLimit: ${ECHIDNA_TEST_LIMIT:-50000}
 corpusDir: "${PROJECT_DIR}/corpus"
 cryticArgs: [
   "--compile-force-framework=${CRYTIC_COMPILE_FRAMEWORK}",
-  "--foundry-out-directory=${FOUNDRY_ROOT}/${FOUNDRY_OUT:-out}",
+  "--foundry-out-directory=${FOUNDRY_OUT_DIRECTORY}",
   # "--export-dir=${PROJECT_DIR}/crytic-export", TODO unfortunately this doesn't work
   "--compile-libraries=(CFAv1ForwarderDeployerLibrary,0xf01),(GDAv1ForwarderDeployerLibrary,0xf02),(ProxyDeployerLibrary,0xf04),(SlotsBitmapLibrary,0xf05),(SuperfluidCFAv1DeployerLibrary,0xf06),(SuperfluidGDAv1DeployerLibrary,0xf08),(SuperfluidGovDeployerLibrary,0xf09),(SuperfluidHostDeployerLibrary,0xf0a),(SuperfluidIDAv1DeployerLibrary,0xf0b),(SuperfluidPeripheryDeployerLibrary,0xf0c),(SuperfluidPoolDeployerLibrary,0xf0d),(SuperfluidPoolLogicDeployerLibrary,0xf0e),(SuperfluidPoolNFTLogicDeployerLibrary,0xf0f),(SuperTokenDeployerLibrary,0xf10),(SuperTokenFactoryDeployerLibrary,0xf11),(TokenDeployerLibrary,0xf12)"
 ]
@@ -91,13 +91,8 @@ function hott() {
             ;;
     esac
 
-    FOUNDRY_ROOT=$(tomlq -r ".profile.default.root // \"\"" "$FOUNDRY_TOML")
-    FOUNDRY_OUT=$(tomlq -r ".profile.default.out // \"\"" "$FOUNDRY_TOML")
-
-    if [ -n "$FOUNDRY_ROOT" ];then
-        cd "$FOUNDRY_ROOT"
-    fi
-    FOUNDRY_ROOT=$PWD
+    FOUNDRY_OUT=$(tomlq -r ".profile.default.out // \"out\"" "$FOUNDRY_TOML")
+    FOUNDRY_OUT_DIRECTORY="${PROJECT_DIR}/${FOUNDRY_OUT}"
 
     build_echidna_yaml > "$PROJECT_DIR"/echidna.yaml
 

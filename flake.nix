@@ -5,8 +5,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     foundry = {
-      # Fix to commit on Sep 17, 2025, for now
-      url = "github:shazow/foundry.nix/e632b06dc759e381ef04f15ff9541f889eda6013";
+      url = "github:shazow/foundry.nix/stable";
       inputs.flake-utils.follows = "flake-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -35,7 +34,7 @@
       system:
       let
         minDevSolcVer = "solc_0_8_11"; # minimum solidity version used for external development
-        solcVer = "solc_0_8_30";
+        solcVer = "solc_0_8_35";
         ghcVer92 = "ghc928";
         ghcVer94 = "ghc948";
 

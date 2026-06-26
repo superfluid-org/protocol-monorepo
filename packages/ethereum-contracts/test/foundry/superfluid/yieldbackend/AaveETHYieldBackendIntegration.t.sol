@@ -8,6 +8,7 @@ import { ISuperToken } from "../../../../contracts/interfaces/superfluid/ISuperT
 import { ISETH } from "../../../../contracts/interfaces/tokens/ISETH.sol";
 import { SuperToken } from "../../../../contracts/superfluid/SuperToken.sol";
 import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
+import { YieldBackendForkConstants } from "./YieldBackendForkConstants.sol";
 
 /**
  * @title AaveETHYieldBackendIntegrationTest
@@ -19,8 +20,7 @@ contract AaveETHYieldBackendIntegrationTest is Test {
     address internal constant ADMIN = address(0xAAA);
 
     // Base network constants
-    uint256 internal constant CHAIN_ID = 8453;
-    uint256 internal constant FORK_BLOCK_BASE = 43_400_000;
+    uint256 internal constant CHAIN_ID = YieldBackendForkConstants.CHAIN_ID_BASE;
 
     // Aave V3 Pool on Base (verified address)
     address internal constant AAVE_POOL = 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5;
@@ -46,7 +46,7 @@ contract AaveETHYieldBackendIntegrationTest is Test {
     function setUp() public {
         vm.createSelectFork(
             vm.envOr("BASE_MAINNET_ARCHIVE_RPC_URL", string("https://mainnet.base.org")),
-            FORK_BLOCK_BASE
+            YieldBackendForkConstants.FORK_BLOCK_BASE
         );
 
         // Verify chain id

@@ -252,6 +252,18 @@ contract ToySuperTokenTest is Test {
     function test_1to2_distributeflow_bothconnected(uint32 u1, uint32 u2, uint32 r1,
                                                     uint16 dt1, uint32 r2,
                                                     uint16 dt2) external {
+        _runBothConnectedTest(_createPool(alice), u1, u2, r1, dt1, r2, dt2);
+    }
+
+    function _runBothConnectedTest(
+        ToySuperfluidPool pl,
+        uint32 u1,
+        uint32 u2,
+        uint32 r1,
+        uint16 dt1,
+        uint32 r2,
+        uint16 dt2
+    ) internal {
         Unit uu1 = Unit.wrap(int128(uint128((u1))));
         Unit uu2 = Unit.wrap(int128(uint128((u2))));
         FlowRate rr1 = FlowRate.wrap(int64(uint64(r1)));
@@ -268,8 +280,6 @@ contract ToySuperTokenTest is Test {
         emit log_named_int("rrr1", FlowRate.unwrap(rrr1));
         emit log_named_uint("r2", r2);
         emit log_named_int("rrr2", FlowRate.unwrap(rrr2));
-
-        ToySuperfluidPool pl = _createPool(alice);
 
         Value a1 = token.realtimeBalanceNow(alice);
         Value b1 = token.realtimeBalanceNow(bob);
@@ -294,6 +304,25 @@ contract ToySuperTokenTest is Test {
 
         assertEq(pl.getDisconnectedUnits(), Unit.wrap(0), "e3.1");
 
+        _bothConnectedAfterConnect(pl, a1, b1, c1, p1, ar, pdr, rr2, rrr1, rrr2, dt1, dt2, t1, t2);
+    }
+    // stack-too-deep workaround
+    function _bothConnectedAfterConnect(
+        ToySuperfluidPool pl,
+        Value a1,
+        Value b1,
+        Value c1,
+        Value p1,
+        FlowRate ar,
+        FlowRate pdr,
+        FlowRate rr2,
+        FlowRate rrr1,
+        FlowRate rrr2,
+        uint16 dt1,
+        uint16 dt2,
+        Time t1,
+        Time t2
+    ) internal {
         {
             FlowRate pdr1 = pl.getConnectedFlowRate();
             FlowRate ajr1 = getAdjustmentFlowRate(pl, alice);
@@ -347,18 +376,32 @@ contract ToySuperTokenTest is Test {
             assertEq(pnr2, -ajr2, "e5.6");
             assertEq(anr2 + bnr2 + cnr2 + pnr2, FlowRate.wrap(0), "e5.7");
         }
-        {
-            Value a2 = token.realtimeBalanceNow(alice);
-            Value b2 = token.realtimeBalanceNow(bob);
-            Value c2 = token.realtimeBalanceNow(carol);
-            Value p2 = token.realtimeBalanceNow(address(pl));
-            Value k2 = token.realtimeBalanceNow(address(token));
+        _assertBothConnectedBalances(pl, a1, b1, c1, p1, rrr1, rrr2, dt1, dt2);
+    }
 
-            assertEq(a1 - a2, k2 + rrr1.mul(Time.wrap(uint32(dt1))) + rrr2.mul(Time.wrap(uint32(dt2))), "e6.1");
-            assertEq(a1 - a2, k2 + b2 - b1 + c2 - c1 + p2 - p1, "e6.2");
-            assertEq(a1 - a2 - k2, pl.getClaimable(carol) + pl.getClaimable(bob), "e6.3");
-            assertEq(k2, rrr2.mul(Time.wrap(uint32(tLP))), "e6.4");
-        }
+    // stack-too-deep workaround
+    function _assertBothConnectedBalances(
+        ToySuperfluidPool pl,
+        Value a1,
+        Value b1,
+        Value c1,
+        Value p1,
+        FlowRate rrr1,
+        FlowRate rrr2,
+        uint16 dt1,
+        uint16 dt2
+    ) internal {
+        Value a2 = token.realtimeBalanceNow(alice);
+        Value b2 = token.realtimeBalanceNow(bob);
+        Value c2 = token.realtimeBalanceNow(carol);
+        Value p2 = token.realtimeBalanceNow(address(pl));
+        Value k2 = token.realtimeBalanceNow(address(token));
+        Value flowed = rrr1.mul(Time.wrap(uint32(dt1))) + rrr2.mul(Time.wrap(uint32(dt2)));
+
+        assertEq(a1 - a2, k2 + flowed, "e6.1");
+        assertEq(a1 - a2, k2 + b2 - b1 + c2 - c1 + p2 - p1, "e6.2");
+        assertEq(a1 - a2 - k2, pl.getClaimable(carol) + pl.getClaimable(bob), "e6.3");
+        assertEq(k2, rrr2.mul(Time.wrap(uint32(tLP))), "e6.4");
     }
 
     function test_1to2_distributeflow_oneconnected(uint32 u1, uint32 u2, uint32 r,

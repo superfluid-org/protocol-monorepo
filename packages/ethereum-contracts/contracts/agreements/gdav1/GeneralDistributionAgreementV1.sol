@@ -80,11 +80,11 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         GDAv1StorageLib.AccountData memory accountData = token.getAccountData(this, account);
 
         if (token.isPool(this, account)) {
-            rtb = ISuperfluidPool(account).getDisconnectedBalance(uint32(time));
+            rtb = ISuperfluidPool(account).getDisconnectedBalance(time.toUint32());
         } else {
             rtb = Value.unwrap(GDAv1StorageLib
                                .getUniversalIndexFromAccountData(accountData)
-                               .rtb(Time.wrap(uint32(time))));
+                               .rtb(Time.wrap(time.toUint32())));
         }
 
         int256 totalConnectedFromPools;
@@ -93,7 +93,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             for (uint256 i = 0; i < slotIds.length; ++i) {
                 address pool = address(uint160(uint256(pidList[i])));
                 _assertPoolConnectivity(token, account, ISuperfluidPool(pool));
-                totalConnectedFromPools += SuperfluidPool(pool).getUnsettledValue(account, uint32(time));
+                totalConnectedFromPools += SuperfluidPool(pool).getUnsettledValue(account, time.toUint32());
             }
         }
         rtb += totalConnectedFromPools;
@@ -107,7 +107,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         (bool exist, GDAv1StorageLib.PoolConnectivity memory poolConnectivity) =
             token.getPoolConnectivity(this, account, pool);
         assert(exist);
-        assert(poolConnectivity.pool == pool);
+        assert(address(poolConnectivity.pool) == address(pool));
     }
 
     /// @dev Use block.timestamp for realtimeBalanceOf
@@ -456,7 +456,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (
             token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
-            pool.superToken() != token)
+            address(pool.superToken()) != address(token))
         {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -525,7 +525,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         if (
             token.isPool(this, address(pool)) == false ||
             // Note: we do not support multi-tokens pools
-            pool.superToken() != token)
+            address(pool.superToken()) != address(token))
         {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -645,8 +645,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         GDAv1StorageLib.FlowInfo memory flowDistributionData = token.getFlowInfoByFlowHash(this, flowHash);
 
-        // @note downcasting from uint256 -> uint32 for liquidation period
-        Value newBufferAmount = newFlowRate.mul(Time.wrap(uint32(liquidationPeriod)));
+        Value newBufferAmount = newFlowRate.mul(Time.wrap(liquidationPeriod.toUint32()));
 
         if (Value.unwrap(newBufferAmount).toUint256() < minimumDeposit && FlowRate.unwrap(newFlowRate) > 0) {
             newBufferAmount = Value.wrap(minimumDeposit.toInt256());
@@ -827,7 +826,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
         if (
             token.isPool(this, msg.sender) == false ||
-            ISuperfluidPool(poolAddress).superToken() != token
+            address(ISuperfluidPool(poolAddress).superToken()) != address(token)
         ) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }
@@ -848,7 +847,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         // TODO: convert to modifier `poolIsTrustedByItsSuperToken(pool)`
         if (
             token.isPool(this, msg.sender) == false ||
-            ISuperfluidPool(poolAddress).superToken() != token
+            address(ISuperfluidPool(poolAddress).superToken()) != address(token)
         ) {
             revert GDA_ONLY_SUPER_TOKEN_POOL();
         }

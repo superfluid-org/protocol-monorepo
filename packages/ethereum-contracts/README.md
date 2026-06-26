@@ -264,7 +264,7 @@ contract SomeTest is Test {
     SuperfluidFrameworkDeployer internal deployer;
 
     function setUp() {
-        vm.etch(ERC1820RegistryCompiled.at, ERC1820RegistryCompiled.bin);
+        vm.etch(ERC1820RegistryCompiled.ADDRESS, ERC1820RegistryCompiled.BYTECODE);
 
         deployer = new SuperfluidFrameworkDeployer();
         deployer.deployTestFramework();
@@ -288,7 +288,7 @@ import { SuperToken } from "@superfluid-finance/ethereum-contracts/contracts/sup
 
 contract DeployScript is Script, Test {
     function run() external {
-        vm.etch(ERC1820RegistryCompiled.at, ERC1820RegistryCompiled.bin);
+        vm.etch(ERC1820RegistryCompiled.ADDRESS, ERC1820RegistryCompiled.BYTECODE);
         SuperfluidFrameworkDeployer deployer = new SuperfluidFrameworkDeployer();
         deployer.deployTestFramework();
         SuperfluidFrameworkDeployer.Framework memory framework = deployer.getFramework();

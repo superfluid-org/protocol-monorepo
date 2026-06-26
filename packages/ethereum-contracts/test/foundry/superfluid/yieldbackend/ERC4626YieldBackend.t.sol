@@ -2,6 +2,7 @@
 pragma solidity ^0.8.23;
 
 import { YieldBackendUnitTestBase } from "./YieldBackendUnitTestBase.sol";
+import { YieldBackendForkConstants } from "./YieldBackendForkConstants.sol";
 import { ERC4626YieldBackend } from "../../../../contracts/superfluid/ERC4626YieldBackend.sol";
 import { IYieldBackend } from "../../../../contracts/interfaces/superfluid/IYieldBackend.sol";
 import { IERC20 } from "../../../../contracts/interfaces/superfluid/ISuperfluid.sol";
@@ -12,7 +13,6 @@ import { IERC4626 } from "@openzeppelin-v5/contracts/interfaces/IERC4626.sol";
  * Tests the backend in isolation using delegatecall
  */
 contract ERC4626YieldBackendUnitTestEthereumSUSDS is YieldBackendUnitTestBase {
-    uint256 internal constant CHAIN_ID = 1;
     address internal constant VAULT = 0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD; // sUSDS on Ethereum
 
     ERC4626YieldBackend internal erc4626Backend;
@@ -22,7 +22,11 @@ contract ERC4626YieldBackendUnitTestEthereumSUSDS is YieldBackendUnitTestBase {
     }
 
     function getChainId() internal pure override returns (uint256) {
-        return CHAIN_ID;
+        return YieldBackendForkConstants.CHAIN_ID_ETHEREUM;
+    }
+
+    function getForkBlockNumber() internal pure override returns (uint256) {
+        return YieldBackendForkConstants.FORK_BLOCK_ETHEREUM;
     }
 
     /// @notice toUnderlyingAmount for USDS (18 decimals) - uses base implementation
@@ -59,7 +63,6 @@ contract ERC4626YieldBackendUnitTestEthereumSUSDS is YieldBackendUnitTestBase {
  * Tests the backend in isolation using delegatecall
  */
 contract ERC4626YieldBackendUnitTestBaseSUSDC is YieldBackendUnitTestBase {
-    uint256 internal constant CHAIN_ID = 8453;
     address internal constant VAULT = 0x3128a0F7f0ea68E7B7c9B00AFa7E41045828e858; // sUSDC Vault on Base
 
     ERC4626YieldBackend internal erc4626Backend;
@@ -69,7 +72,11 @@ contract ERC4626YieldBackendUnitTestBaseSUSDC is YieldBackendUnitTestBase {
     }
 
     function getChainId() internal pure override returns (uint256) {
-        return CHAIN_ID;
+        return YieldBackendForkConstants.CHAIN_ID_BASE;
+    }
+
+    function getForkBlockNumber() internal pure override returns (uint256) {
+        return YieldBackendForkConstants.FORK_BLOCK_BASE;
     }
 
     /// @notice Override toUnderlyingAmount for USDC (6 decimals)
