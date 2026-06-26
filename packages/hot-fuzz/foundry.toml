@@ -1,15 +1,14 @@
 [profile.default]
-root = '../..'
-src = 'packages/hot-fuzz/contracts'
-solc_version = "0.8.30"
+src = 'contracts'
+libs = ['lib']
+solc_version = "0.8.35"
 evm_version = 'cancun'
 optimizer = true
 optimizer_runs = 200
 remappings = [
-    '@superfluid-finance/ethereum-contracts/contracts/=packages/ethereum-contracts/contracts/',
-    '@superfluid-finance/solidity-semantic-money/src/=packages/solidity-semantic-money/src/',
+    '@superfluid-finance/ethereum-contracts/contracts/=lib/ethereum-contracts/contracts/',
+    '@superfluid-finance/solidity-semantic-money/src/=lib/solidity-semantic-money/src/',
     '@openzeppelin-v5/=lib/openzeppelin-contracts/',
-    '@openzeppelin/=lib/openzeppelin-contracts/',
     'ds-test/=lib/forge-std/lib/ds-test/src/',
     'forge-std/=lib/forge-std/src/']
-out = 'packages/hot-fuzz/build/foundry/out'
+out = 'build/foundry/out'

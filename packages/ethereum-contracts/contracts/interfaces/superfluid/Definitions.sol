@@ -26,6 +26,7 @@ library SuperAppDefinitions {
     uint256 constant internal APP_LEVEL_SECOND = 1 << 1;
 
     function getAppCallbackLevel(uint256 configWord) internal pure returns (uint8) {
+        // forge-lint: disable-next-line(unsafe-typecast)
         return uint8(configWord & APP_LEVEL_MASK);
     }
 
@@ -88,8 +89,10 @@ library ContextDefinitions {
         internal pure
         returns (uint8 appCallbackLevel, uint8 callType)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         appCallbackLevel = uint8(callInfo & CALL_INFO_APP_LEVEL_MASK);
         callType = uint8((callInfo & CALL_INFO_CALL_TYPE_MASK) >> CALL_INFO_CALL_TYPE_SHIFT);
+        // forge-lint: disable-end(unsafe-typecast)
     }
 
     function encodeCallInfo(uint8 appCallbackLevel, uint8 callType)

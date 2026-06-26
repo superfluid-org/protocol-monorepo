@@ -54,6 +54,11 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
         assertEq(flowRate, expectedNetFlow, "_assertNetFlow: net flow not equal");
     }
 
+    function _getTOGATrueBond(ISuperToken superToken_) internal view returns (int256) {
+        (int256 availBal, uint256 deposit,,) = superToken_.realtimeBalanceOfNow(address(toga));
+        return availBal + int256(deposit);
+    }
+
     /**
      * @dev Admin sends `amount` `superToken_` to the `target` address.
      * @param superToken_ The Super Token representing the asset.
@@ -450,5 +455,47 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
         _helperSendPICBid(alice, superToken2, bobBondLeft + 1, 0);
 
         assertEq((bobPreBal + bobBondLeft), superToken2.balanceOf(bob));
+    }
+
+    /// @dev If the exit stream drains TOGA past zero before liquidation, the true bond goes negative while
+    ///      `getCurrentPICInfo` still reports 0. A direct PIC bid then reverts (uint underflow in `_becomePIC`).
+    ///      Cover the deficit with a plain ERC20 transfer first, then bid via `send`.
+    function testNewPICCoversDeficitBeforeBidding() public {
+        uint256 aliceBond = 10e18;
+        int96 maxRate = toga.getMaxExitRateFor(superToken, aliceBond);
+        _helperSendPICBid(alice, superToken, aliceBond, maxRate);
+
+        // Let the exit stream run well past the nominal bond duration without sentinel liquidation.
+        vm.warp(block.timestamp + toga.minBondDuration() * 2);
+
+        int256 trueBond = _getTOGATrueBond(superToken);
+        assertLt(trueBond, 0, "true bond should be negative");
+        (, uint256 reportedBond,) = toga.getCurrentPICInfo(superToken);
+        assertEq(reportedBond, 0, "reported bond clamps negative true bond to zero");
+
+        uint256 deficit = uint256(-trueBond);
+        uint256 bobBid = aliceBond + 1;
+
+        _helperDeal(superToken, bob, deficit + bobBid + 1);
+
+        // Direct bid reverts: _getCurrentPICBond() is 0 but true bond is still negative, so
+        // `currentPICBond = 0 - amount` underflows.
+        vm.startPrank(bob);
+        vm.expectRevert();
+        superToken.send(address(toga), bobBid, abi.encode(int96(0)));
+        vm.stopPrank();
+
+        // Plain transfer covers the deficit without invoking `_becomePIC`.
+        vm.startPrank(bob);
+        superToken.transfer(address(toga), deficit);
+        assertGe(_getTOGATrueBond(superToken), 0, "deficit covered");
+
+        vm.expectEmit(true, true, true, true, address(toga));
+        emit NewPIC(superToken, bob, bobBid, 0);
+        superToken.send(address(toga), bobBid, abi.encode(int96(0)));
+        vm.stopPrank();
+
+        assertEq(toga.getCurrentPIC(superToken), bob);
+        _assertNetFlow(superToken, alice, 0);
     }
 }

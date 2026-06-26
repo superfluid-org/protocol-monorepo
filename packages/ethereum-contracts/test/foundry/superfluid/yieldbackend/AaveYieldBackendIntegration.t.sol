@@ -6,6 +6,7 @@ import { AaveYieldBackend } from "../../../../contracts/superfluid/AaveYieldBack
 import { IERC20 } from "../../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IYieldBackend } from "../../../../contracts/interfaces/superfluid/IYieldBackend.sol";
 import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
+import { YieldBackendForkConstants } from "./YieldBackendForkConstants.sol";
 
 /**
  * @title AaveYieldBackendIntegrationTest
@@ -13,8 +14,6 @@ import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
  * @author Superfluid
  */
 contract AaveYieldBackendIntegrationTest is YieldBackendIntegrationTestBase {
-    uint256 internal constant FORK_BLOCK_BASE = 43_400_000;
-
     // Aave V3 Pool on Base (verified address)
     address internal constant AAVE_POOL = 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5;
 
@@ -24,11 +23,11 @@ contract AaveYieldBackendIntegrationTest is YieldBackendIntegrationTestBase {
     address internal constant A_USDC = 0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB; // aUSDC on Base
 
     function _chainId() internal pure override returns (uint256) {
-        return 8453;
+        return YieldBackendForkConstants.CHAIN_ID_BASE;
     }
 
     function _forkBlockNumber() internal pure override returns (uint256) {
-        return FORK_BLOCK_BASE;
+        return YieldBackendForkConstants.FORK_BLOCK_BASE;
     }
 
     function _rpcUrl() internal view override returns (string memory) {

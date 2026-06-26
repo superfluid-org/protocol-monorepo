@@ -1,5 +1,6 @@
 /cache
 **/cache
+/.cache
 out
 **/out
 /data
@@ -34,3 +35,7 @@ corpus
 
 /broadcast
 /.direnv
+
+.pnpm-store
+.corepack
+.tmp

@@ -484,6 +484,7 @@ abstract contract SuperfluidGovernanceBase is ISuperfluidGovernance
         uint256 expirationTS = getConfigAsUint256(host, ISuperfluidToken(address(0)), configKey);
         return (
             // solhint-disable-next-line not-rely-on-time
+            // forge-lint: disable-next-line(block-timestamp)
             expirationTS >= block.timestamp,
             expirationTS
         );

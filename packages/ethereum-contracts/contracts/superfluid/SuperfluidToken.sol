@@ -361,7 +361,7 @@ abstract contract SuperfluidToken is ISuperfluidToken
             _sharedSettledBalances[targetAccount] += targetAccountBalanceDelta;
 
             emit IERC20.Transfer(rewardAccount, liquidatorAccount, rewardAmount);
-            emit IERC20.Transfer(rewardAccount, targetAccount, uint256(targetAccountBalanceDelta));
+            emit IERC20.Transfer(rewardAccount, targetAccount, targetAccountBalanceDelta.toUint256());
         }
 
         emit AgreementLiquidatedV2(

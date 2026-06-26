@@ -290,7 +290,7 @@ contract IDASuperAppTester is ISuperApp {
     }
 
     modifier onlyExpected(ISuperToken superToken, address agreementClass) {
-        require(superToken == _token, "not accepted token");
+        require(address(superToken) == address(_token), "not accepted token");
         require(agreementClass == address(_ida), "not ida");
         _;
     }

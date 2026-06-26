@@ -220,7 +220,7 @@ contract Superfluid is
         bytes32 agreementType = agreementClass.agreementType();
         uint idx = _agreementClassIndices[agreementType];
         // it should also be the same agreement class proxy address
-        return idx != 0 && _agreementClasses[idx - 1] == agreementClass;
+        return idx != 0 && address(_agreementClasses[idx - 1]) == address(agreementClass);
     }
 
     function getAgreementClass(bytes32 agreementType)
@@ -399,7 +399,8 @@ contract Superfluid is
             deployer,
             registrationKey
         );
-        // check if the key is valid and not expired
+        // App registration keys store an expiration timestamp; comparison is intentional.
+        // forge-lint: disable-start(block-timestamp)
         if (
             _gov.getConfigAsUint256(
                 this,
@@ -410,6 +411,7 @@ contract Superfluid is
         {
             revert HOST_NO_APP_REGISTRATION_PERMISSION();
         }
+        // forge-lint: disable-end(block-timestamp)
     }
 
     /// @custom:deprecated
