@@ -177,7 +177,6 @@ contract ClearMacroForwarderV1 is ForwarderBase, EIP712, NonceManager, IClearMac
 
         _validateAndUpdateNonce(signer, payload.security.nonce);
 
-        // Macro validity window (EIP-712-style); minute-level timestamp skew is acceptable.
         // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp < payload.security.validAfter) {
             revert OutsideValidityWindow(block.timestamp, payload.security.validAfter, payload.security.validBefore);
