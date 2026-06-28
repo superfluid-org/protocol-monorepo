@@ -1,0 +1,307 @@
+name: Verify Governance Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Protocol release version (v1.x.x format)'
+        required: true
+        default: 'v1'
+      addresses_url:
+        description: 'URL to addresses file or directory (expects <network> files in directory)'
+        required: false
+        default: ''
+      verify_safe_pending:
+        description: 'Fetch and verify pending Safe governance transaction'
+        required: false
+        type: boolean
+        default: false
+      verify_etherscan:
+        description: 'Run Etherscan verification after bytecode verification'
+        required: false
+        type: boolean
+        default: false
+      only_network:
+        description: 'Only verify a specific network (leave empty for all)'
+        required: false
+        default: ''
+
+jobs:
+  verify-governance-action:
+    name: Verify ${{ matrix.network }}
+    runs-on: ubuntu-22.04
+
+    env:
+      RELEASE_VERSION: ${{ github.event.inputs.release_version }}
+      ADDRESSES_URL: ${{ github.event.inputs.addresses_url }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        network: [eth-mainnet, polygon-mainnet, xdai-mainnet, optimism-mainnet, arbitrum-one, avalanche-c, bsc-mainnet, celo-mainnet, base-mainnet, scroll-mainnet]
+
+    defaults:
+      run:
+        shell: nix develop .#ci-default -c bash -xe {0}
+
+    steps:
+      - name: Check only_network filter
+        if: ${{ github.event.inputs.only_network != '' && github.event.inputs.only_network != matrix.network }}
+        run: echo "DO_SKIP=1" >> "$GITHUB_ENV"
+        shell: bash
+
+      - uses: actions/checkout@v4
+        if: env.DO_SKIP != 1
+        with:
+          ref: ${{ github.event.inputs.release_version }}
+
+      - uses: cachix/install-nix-action@v27
+        if: env.DO_SKIP != 1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build contracts
+        if: env.DO_SKIP != 1
+        run: |
+          yarn install --frozen-lockfile
+          yarn build-for-contracts-dev
+
+      - name: Fetch addresses from URL
+        if: env.DO_SKIP != 1 && github.event.inputs.addresses_url != ''
+        run: |
+          cd packages/ethereum-contracts
+
+          ADDRESSES_URL="${{ github.event.inputs.addresses_url }}"
+          NETWORK="${{ matrix.network }}"
+
+          # Check if URL is a directory (ends with /) or a file
+          if [[ "$ADDRESSES_URL" == */ ]]; then
+            # Directory URL - append network name
+            FETCH_URL="${ADDRESSES_URL}${NETWORK}"
+          else
+            # File URL - use as-is
+            FETCH_URL="$ADDRESSES_URL"
+          fi
+
+          echo "Fetching addresses from: $FETCH_URL"
+          curl -fsSL "$FETCH_URL" -o addresses-from-url.vars || {
+            echo "::warning::Failed to fetch addresses from URL, will fetch from chain"
+            touch addresses-from-url.vars
+          }
+
+          if [ -s addresses-from-url.vars ]; then
+            echo "ADDRESSES_FILE=$(pwd)/addresses-from-url.vars" >> "$GITHUB_ENV"
+            echo "Addresses file contents:"
+            cat addresses-from-url.vars
+          fi
+
+      - name: Fetch addresses from chain
+        if: env.DO_SKIP != 1 && env.ADDRESSES_FILE == ''
+        run: |
+          cd packages/ethereum-contracts
+          npx truffle exec --network ${{ matrix.network }} ops-scripts/info-print-contract-addresses.js : addresses.vars
+          echo "ADDRESSES_FILE=$(pwd)/addresses.vars" >> "$GITHUB_ENV"
+        env:
+          PROVIDER_URL: ${{ secrets.PROVIDER_URL_TEMPLATE }}
+
+      - name: Fetch pending Safe transaction
+        if: env.DO_SKIP != 1 && github.event.inputs.verify_safe_pending == 'true'
+        id: safe_tx
+        run: |
+          cd packages/ethereum-contracts
+
+          echo "Fetching pending Safe governance transaction..."
+
+          # Run the Hardhat script with PROVIDER_URL
+          OUTPUT_FILE=safe-pending-tx.json \
+            npx hardhat run scripts/fetch-safe-pending-tx.ts > safe-output.log 2>&1 || {
+            echo "::warning::Failed to fetch Safe pending transaction"
+            cat safe-output.log || true
+            echo "SAFE_TX_FOUND=false" >> "$GITHUB_ENV"
+            exit 0
+          }
+
+          if [ -f safe-pending-tx.json ] && [ -s safe-pending-tx.json ]; then
+            echo "SAFE_TX_FOUND=true" >> "$GITHUB_ENV"
+            echo "Safe pending transaction:"
+            cat safe-pending-tx.json
+
+            # Extract addresses from Safe tx and append to addresses file
+            EXTRACTED=$(jq -r '.extractedAddresses | to_entries | .[] | "\(.key)=\(.value)"' safe-pending-tx.json 2>/dev/null || true)
+
+            if [ -n "$EXTRACTED" ]; then
+              echo "" >> "${{ env.ADDRESSES_FILE }}"
+              echo "# Addresses from pending Safe transaction" >> "${{ env.ADDRESSES_FILE }}"
+              echo "$EXTRACTED" >> "${{ env.ADDRESSES_FILE }}"
+              echo "Appended extracted addresses to ${{ env.ADDRESSES_FILE }}"
+            fi
+          else
+            echo "SAFE_TX_FOUND=false" >> "$GITHUB_ENV"
+          fi
+        env:
+          PROVIDER_URL: ${{ secrets.PROVIDER_URL_TEMPLATE }}
+
+      - name: Verify bytecode
+        if: env.DO_SKIP != 1
+        id: bytecode_verify
+        run: |
+          cd packages/ethereum-contracts
+
+          echo "=== Bytecode Verification ==="
+          echo "Addresses file: ${{ env.ADDRESSES_FILE }}"
+
+          # Run the Hardhat verification script with PROVIDER_URL
+          ADDRESSES_FILE="${{ env.ADDRESSES_FILE }}" JSON_OUTPUT=true \
+            npx hardhat run scripts/verify-bytecode.ts > bytecode-report.json 2>&1 || true
+
+          # Parse and display results
+          if [ -f bytecode-report.json ] && [ -s bytecode-report.json ]; then
+            echo "Bytecode verification results:"
+            cat bytecode-report.json | jq '.'
+
+            # Extract summary
+            VERIFIED=$(jq -r '.summary.verified // 0' bytecode-report.json)
+            MISMATCH=$(jq -r '.summary.mismatch // 0' bytecode-report.json)
+            ERRORS=$(jq -r '.summary.errors // 0' bytecode-report.json)
+
+            echo "BYTECODE_VERIFIED=$VERIFIED" >> "$GITHUB_ENV"
+            echo "BYTECODE_MISMATCH=$MISMATCH" >> "$GITHUB_ENV"
+            echo "BYTECODE_ERRORS=$ERRORS" >> "$GITHUB_ENV"
+
+            if [ "$MISMATCH" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+              echo "::error::Bytecode verification failed: $MISMATCH mismatches, $ERRORS errors"
+            else
+              echo "::notice::Bytecode verification passed: $VERIFIED contracts verified"
+            fi
+          else
+            echo "::error::Failed to generate bytecode report"
+            cat bytecode-report.json || true
+            echo "BYTECODE_VERIFIED=0" >> "$GITHUB_ENV"
+            echo "BYTECODE_MISMATCH=0" >> "$GITHUB_ENV"
+            echo "BYTECODE_ERRORS=1" >> "$GITHUB_ENV"
+          fi
+        env:
+          PROVIDER_URL: ${{ secrets.PROVIDER_URL_TEMPLATE }}
+
+      - name: Verify on Etherscan
+        if: env.DO_SKIP != 1 && github.event.inputs.verify_etherscan == 'true'
+        run: |
+          cd packages/ethereum-contracts
+          tasks/etherscan-verify-framework.sh ${{ matrix.network }} "${{ env.ADDRESSES_FILE }}"
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
+          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
+          OPTIMISTIC_API_KEY: ${{ secrets.OPTIMISTIC_API_KEY }}
+          ARBISCAN_API_KEY: ${{ secrets.ARBISCAN_API_KEY }}
+          BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_API_KEY }}
+          CELOSCAN_API_KEY: ${{ secrets.CELOSCAN_API_KEY }}
+
+      - name: Upload verification artifacts
+        if: env.DO_SKIP != 1 && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-${{ matrix.network }}
+          path: |
+            packages/ethereum-contracts/bytecode-report.json
+            packages/ethereum-contracts/safe-pending-tx.json
+            packages/ethereum-contracts/${{ env.ADDRESSES_FILE }}
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Generate summary
+        if: env.DO_SKIP != 1 && always()
+        run: |
+          echo "## Verification Results for ${{ matrix.network }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "### Bytecode Verification" >> $GITHUB_STEP_SUMMARY
+          echo "- Verified: ${{ env.BYTECODE_VERIFIED || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Mismatch: ${{ env.BYTECODE_MISMATCH || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Errors: ${{ env.BYTECODE_ERRORS || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ github.event.inputs.verify_safe_pending }}" == "true" ]; then
+            echo "### Safe Pending Transaction" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ env.SAFE_TX_FOUND }}" == "true" ]; then
+              echo "Pending governance transaction found and analyzed." >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No pending governance transaction found." >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ github.event.inputs.verify_etherscan }}" == "true" ]; then
+            echo "### Etherscan Verification" >> $GITHUB_STEP_SUMMARY
+            echo "Etherscan verification was executed. Check logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  generate-report:
+    name: Generate Final Report
+    needs: verify-governance-action
+    runs-on: ubuntu-22.04
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+        continue-on-error: true
+
+      - name: Generate consolidated report
+        run: |
+          echo "# Governance Action Verification Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release Version:** ${{ github.event.inputs.release_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Addresses URL:** ${{ github.event.inputs.addresses_url || 'N/A (fetched from chain)' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Safe Verification:** ${{ github.event.inputs.verify_safe_pending }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Etherscan Verification:** ${{ github.event.inputs.verify_etherscan }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Network Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Network | Verified | Mismatch | Errors | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|----------|----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ -d "artifacts" ]; then
+            for dir in artifacts/verification-*/; do
+              if [ -d "$dir" ]; then
+                NETWORK=$(basename "$dir" | sed 's/verification-//')
+
+                if [ -f "$dir/bytecode-report.json" ]; then
+                  VERIFIED=$(jq -r '.summary.verified // 0' "$dir/bytecode-report.json" 2>/dev/null || echo "0")
+                  MISMATCH=$(jq -r '.summary.mismatch // 0' "$dir/bytecode-report.json" 2>/dev/null || echo "0")
+                  ERRORS=$(jq -r '.summary.errors // 0' "$dir/bytecode-report.json" 2>/dev/null || echo "0")
+
+                  if [ "$MISMATCH" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
+                    STATUS="Failed"
+                  else
+                    STATUS="Passed"
+                  fi
+                else
+                  VERIFIED="N/A"
+                  MISMATCH="N/A"
+                  ERRORS="N/A"
+                  STATUS="No report"
+                fi
+
+                echo "| $NETWORK | $VERIFIED | $MISMATCH | $ERRORS | $STATUS |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+          else
+            echo "| (no artifacts found) | - | - | - | - |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Generated at $(date -u)*" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload consolidated report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-report
+          path: artifacts/
+          retention-days: 90
+          if-no-files-found: ignore
