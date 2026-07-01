@@ -3,8 +3,8 @@
     "description": "Open contracts that allow upgrading underlying token to supertokens based on running stream",
     "version": "0.3.0",
     "devDependencies": {
-        "@superfluid-finance/ethereum-contracts": "^1.14.1",
-        "@superfluid-finance/metadata": "^1.6.2"
+        "@superfluid-finance/ethereum-contracts": "^1.15.2",
+        "@superfluid-finance/metadata": "^1.6.3"
     },
     "license": "MIT",
     "scripts": {

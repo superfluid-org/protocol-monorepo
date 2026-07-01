@@ -32,6 +32,7 @@ import {
     updateATSStreamedAndBalanceUntilUpdatedAt,
     updateTokenStatisticStreamData,
     updateTokenStatsStreamedUntilUpdatedAt,
+    _createAccountTokenSnapshotLogEntity,
 } from "../mappingHelpers";
 import { getHostAddress } from "../addresses";
 
@@ -74,6 +75,9 @@ export function handleFlowUpdated(event: FlowUpdated): void {
     const newDeposit = depositResult.reverted
         ? BigInt.fromI32(0)
         : depositResult.value.value2; // deposit
+    const newOwedDeposit = depositResult.reverted
+        ? BigInt.fromI32(0)
+        : depositResult.value.value3; // owedDeposit
 
     const stream = getOrInitStream(event);
     const oldDeposit = stream.deposit;
@@ -93,6 +97,7 @@ export function handleFlowUpdated(event: FlowUpdated): void {
     stream.updatedAtTimestamp = currentTimestamp;
     stream.updatedAtBlockNumber = event.block.number;
     stream.deposit = newDeposit;
+    stream.owedDeposit = newOwedDeposit;
     stream.userData = event.params.userData;
     stream.save();
 
@@ -117,7 +122,8 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         oldFlowRate,
         stream.id,
         newStreamedUntilLastUpdate,
-        newDeposit
+        newDeposit,
+        newOwedDeposit,
     );
     handleStreamPeriodUpdate(
         event,
@@ -128,19 +134,17 @@ export function handleFlowUpdated(event: FlowUpdated): void {
     );
     
     // update streamed and balance until updated at for sender and receiver
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const senderUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         senderAddress,
         tokenAddress,
         event,
         depositDelta,
-        "FlowUpdated"
     );
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const receiverUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         receiverAddress,
         tokenAddress,
         event,
         BigInt.fromI32(0),
-        "FlowUpdated"
     );
 
     // update stream counter data for sender and receiver ATS
@@ -179,6 +183,10 @@ export function handleFlowUpdated(event: FlowUpdated): void {
         true,
         event.block
     );
+
+    // create ATS log entities AFTER all ATS updates are complete
+    if (senderUpdated) _createAccountTokenSnapshotLogEntity(event, senderAddress, tokenAddress, "FlowUpdated");
+    if (receiverUpdated) _createAccountTokenSnapshotLogEntity(event, receiverAddress, tokenAddress, "FlowUpdated");
 }
 
 // NOTE: This handler is run right after handleStreamUpdated as the FlowUpdatedExtension
@@ -401,7 +409,8 @@ function _createFlowUpdatedEntity(
     oldFlowRate: BigInt,
     streamId: string,
     totalAmountStreamedUntilTimestamp: BigInt,
-    deposit: BigInt
+    deposit: BigInt,
+    owedDeposit: BigInt,
 ): FlowUpdatedEvent {
     const ev = new FlowUpdatedEvent(createEventID("FlowUpdated", event));
     initializeEventEntity(ev, event, [
@@ -422,6 +431,7 @@ function _createFlowUpdatedEntity(
     ev.totalAmountStreamedUntilTimestamp = totalAmountStreamedUntilTimestamp;
     ev.flowOperator = ZERO_ADDRESS;
     ev.deposit = deposit;
+    ev.owedDeposit = owedDeposit;
 
     const type = getFlowActionType(oldFlowRate, event.params.flowRate);
     ev.type = type;

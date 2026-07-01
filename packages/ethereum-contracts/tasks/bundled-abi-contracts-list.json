@@ -20,6 +20,13 @@
     "IPureSuperToken",
     "IResolver", "Resolver", "TestResolver",
     "SuperfluidLoader",
-    "IUserDefinedMacro",
+    "IMacro",
+    "IClearMacro",
+    "IClearMacroForwarderV1",
+    "IClearMacroPermit2Extension",
+    "IClearMacroForwarderV1WithPermit2",
+    "BlindMacroForwarder",
+    "ClearMacroForwarderV1",
+    "ClearMacroForwarderV1WithPermit2",
     "SimpleACL"
 ]

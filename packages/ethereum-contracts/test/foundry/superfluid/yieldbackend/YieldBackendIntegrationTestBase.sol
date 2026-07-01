@@ -30,7 +30,11 @@ abstract contract YieldBackendIntegrationTestBase is Test {
     // ============ Abstract hooks ============
 
     function _chainId() internal pure virtual returns (uint256);
-    function _rpcUrl() internal pure virtual returns (string memory);
+    function _rpcUrl() internal view virtual returns (string memory);
+    /// @notice Fork at this block (0 = latest). Use a fixed block so SuperToken has zero admin and no yield backend.
+    function _forkBlockNumber() internal pure virtual returns (uint256) {
+        return 0;
+    }
     function _superToken() internal pure virtual returns (address);
     function _underlyingToken() internal pure virtual returns (address);
     function _createBackend() internal virtual returns (IYieldBackend);
@@ -46,7 +50,12 @@ abstract contract YieldBackendIntegrationTestBase is Test {
 
     /// @notice Set up the test environment by forking the chain and deploying the yield backend
     function setUp() public virtual {
-        vm.createSelectFork(_rpcUrl());
+        uint256 forkBlock = _forkBlockNumber();
+        if (forkBlock == 0) {
+            vm.createSelectFork(_rpcUrl());
+        } else {
+            vm.createSelectFork(_rpcUrl(), forkBlock);
+        }
 
         assertEq(block.chainid, _chainId(), "Chainid mismatch");
 

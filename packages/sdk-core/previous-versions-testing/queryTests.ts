@@ -15,17 +15,45 @@ export const getChainId = () => {
         : metadata.getNetworkByShortName("fuji")?.chainId ?? 0;
 };
 
+const isLocalSubgraphEndpoint = (url: string) =>
+    url.includes("localhost") || url.includes("127.0.0.1");
+
+const SUBGRAPH_REORG_ERROR = "chain was reorganized while executing the query";
+
+const withSubgraphReorgRetry = async <T>(
+    fn: () => Promise<T>,
+    maxAttempts = 5
+): Promise<T> => {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            return await fn();
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (
+                !message.includes(SUBGRAPH_REORG_ERROR) ||
+                attempt === maxAttempts
+            ) {
+                throw err;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+        }
+    }
+    throw new Error("unreachable");
+};
+
 export const testQueryClassFunctions = async (query: Query) => {
-    console.log("query listAllSuperTokens...");
-    await query.listAllSuperTokens({}, { take: 10 });
-    console.log("query listIndexes...");
-    await query.listIndexes({}, { take: 10 });
-    console.log("query listIndexSubscriptions...");
-    await query.listIndexSubscriptions({}, { take: 10 });
-    console.log("query listStreams...");
-    await query.listStreams({}, { take: 10 });
-    console.log("query listUserInteractedSuperTokens...");
-    await query.listUserInteractedSuperTokens({}, { take: 10 });
+    await withSubgraphReorgRetry(async () => {
+        console.log("query listAllSuperTokens...");
+        await query.listAllSuperTokens({}, { take: 10 });
+        console.log("query listIndexes...");
+        await query.listIndexes({}, { take: 10 });
+        console.log("query listIndexSubscriptions...");
+        await query.listIndexSubscriptions({}, { take: 10 });
+        console.log("query listStreams...");
+        await query.listStreams({}, { take: 10 });
+        console.log("query listUserInteractedSuperTokens...");
+        await query.listUserInteractedSuperTokens({}, { take: 10 });
+    });
 };
 
 export const testGetAllEventsQuery = async (query: Query) => {
@@ -33,7 +61,7 @@ export const testGetAllEventsQuery = async (query: Query) => {
     // this version of SDK-Core will be able to handle the deployed subgraph endpoint
     // However, when we test the locally deployed endpoint, we want to test
     // as many of the mapGetAllEventsQueryEvents cases.
-    await query.listEvents({}, { take: 100 });
+    await withSubgraphReorgRetry(() => query.listEvents({}, { take: 100 }));
 };
 
 export const testExpectListenerThrow = async (query: Query) => {
@@ -60,23 +88,33 @@ export const getSubgraphEndpoint = (chainId: number) => {
     return resolverData.subgraphAPIEndpoint;
 };
 
-describe("Query Tests", () => {
+const resolveSubgraphQueriesEndpoint = () => {
+    const chainIdToUse = getChainId();
+    let customSubgraphQueriesEndpoint = getSubgraphEndpoint(chainIdToUse);
+
+    if (process.env.SUBGRAPH_RELEASE_TAG) {
+        customSubgraphQueriesEndpoint = customSubgraphQueriesEndpoint.replace(
+            "v1",
+            process.env.SUBGRAPH_RELEASE_TAG
+        );
+    }
+
+    if (process.env.SUBGRAPH_ENDPOINT) {
+        customSubgraphQueriesEndpoint = process.env.SUBGRAPH_ENDPOINT;
+    }
+
+    return customSubgraphQueriesEndpoint;
+};
+
+// Subgraph Tests (5_subgraph.test.ts) covers the same cases against the local graph node.
+const queryTestsSuite = isLocalSubgraphEndpoint(resolveSubgraphQueriesEndpoint())
+    ? describe.skip
+    : describe;
+
+queryTestsSuite("Query Tests", () => {
     let query: Query;
     before(async () => {
-        const chainIdToUse = getChainId();
-        let customSubgraphQueriesEndpoint = getSubgraphEndpoint(chainIdToUse);
-
-        if (process.env.SUBGRAPH_RELEASE_TAG) {
-            customSubgraphQueriesEndpoint =
-                customSubgraphQueriesEndpoint.replace(
-                    "v1",
-                    process.env.SUBGRAPH_RELEASE_TAG
-                );
-        }
-
-        customSubgraphQueriesEndpoint = process.env.SUBGRAPH_ENDPOINT
-            ? process.env.SUBGRAPH_ENDPOINT
-            : customSubgraphQueriesEndpoint;
+        const customSubgraphQueriesEndpoint = resolveSubgraphQueriesEndpoint();
 
         query = new Query({
             customSubgraphQueriesEndpoint,

@@ -5,6 +5,43 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [UNRELEASED]
 
+### Breaking
+
+- `SuperTokenFactory`: removed canonical wrapper APIs (`createCanonicalERC20Wrapper`, `computeCanonicalERC20WrapperAddress`, `getCanonicalERC20Wrapper`, `initializeCanonicalWrapperSuperTokens`).
+  These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
+  In order to not confuse devs (human or non), this part of the API is therefore removed.
+  The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
+
+## [v1.15.2]
+
+### Changed
+
+- Updated foundry to 1.7.1 and forge-std to v1.16.1
+- bumped solc to 0.8.35
+- bumped openzeppelin-contracts submodule to v5.6.1
+
+### Breaking
+- `ERC1820RegistryCompiled`: renamed the constant fields (`at` -> `ADDRESS`, `bin` -> `BYTECODE`) because `at` became a reserved keyword in solc 0.8.35. Only affects tests.
+
+## [v1.15.1]
+
+### Added
+
+- `ClearMacroForwarderV1`: a new macro forwarder that executes EIP-712-signed meta-transactions with properties giving it additional security guarantees.
+- `ClearMacroForwarderV1WithPermit2`: variant of `ClearMacroForwarderV1` which supports Permit2 for upgrading underlying tokens and executing a macro with just one wallet action.
+- `ClearMacroBase`: a new base contract for clear macro implementations that support multiple actions.
+
+### Changed
+
+- Tracking foundry/forge updates in flake.nix: now with version 1.7.1
+
+### Breaking
+
+- `IUserDefinedMacro` renamed to `IMacro`.
+- `MacroForwarder` renamed to `BlindMacroForwarder`.
+
+## [v1.15.0]
+
 ### Added
 
 - `SuperToken`: the contract admin can enable/disable a _Yield Backend_ in order to generate a yield on the underlying asset.

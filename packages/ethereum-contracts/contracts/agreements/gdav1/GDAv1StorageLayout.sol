@@ -86,6 +86,7 @@ library GDAv1StorageLib {
         pure
         returns (bytes32[] memory data)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         data = new bytes32[](2);
         data[0] = bytes32(
             // FIXME: this allows negative flow rate, is it a problem?
@@ -95,6 +96,7 @@ library GDAv1StorageLib {
             (accountData.isPool ? 1 : 0)
         );
         data[1] = bytes32(uint256(Value.unwrap(uIndex._settled_value)));
+        // forge-lint: disable-end(unsafe-typecast)
     }
 
     /// @dev Update the total buffer of the account data.
@@ -103,6 +105,7 @@ library GDAv1StorageLib {
         pure
         returns (bytes32[] memory data)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         data = new bytes32[](1);
         data[0] = bytes32(
             (uint256(int256(accountData.flowRate)) << 160) |
@@ -110,6 +113,7 @@ library GDAv1StorageLib {
             (uint256(SafeCast.toUint96(totalBuffer)) << 32) |
             (accountData.isPool ? 1 : 0)
         );
+        // forge-lint: disable-end(unsafe-typecast)
     }
 
     /// @dev Decode account data.
@@ -118,6 +122,7 @@ library GDAv1StorageLib {
         pure
         returns (AccountData memory accountData)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         uint256 a = uint256(data[0]);
 
         if (a > 0) {
@@ -132,6 +137,7 @@ library GDAv1StorageLib {
             uint256 b = uint256(data[1]);
             accountData.settledValue = int256(b);
         }
+        // forge-lint: disable-end(unsafe-typecast)
     }
 
     /// @dev Extract universal index from the decoded account data.
@@ -177,12 +183,14 @@ library GDAv1StorageLib {
         internal pure
         returns (bytes32[] memory data)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         data = new bytes32[](1);
         data[0] = bytes32(
             (uint256(uint32(flowInfo.lastUpdated)) << 192) |
             (uint256(uint96(flowInfo.flowRate)) << 96) |
             uint256(flowInfo.buffer)
         );
+        // forge-lint: disable-end(unsafe-typecast)
     }
 
     /// @dev Decode flow info.
@@ -190,11 +198,13 @@ library GDAv1StorageLib {
         internal pure
         returns (FlowInfo memory flowDistributionData)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         if (data > 0) {
             flowDistributionData.lastUpdated = uint32((data >> 192) & uint256(type(uint32).max));
             flowDistributionData.flowRate = int96(int256(data >> 96));
             flowDistributionData.buffer = uint96(data & uint256(type(uint96).max));
         }
+        // forge-lint: disable-end(unsafe-typecast)
     }
 
     // # Pool Connectivity Data
@@ -225,10 +235,12 @@ library GDAv1StorageLib {
         pure
         returns (bytes32[] memory data)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         data = new bytes32[](1);
         data[0] = bytes32(
            (uint256(uint32(poolConnectivity.slotId)) << 160) |
            uint256(uint160(address(poolConnectivity.pool))));
+        // forge-lint: disable-end(unsafe-typecast)
     }
 
     /// @dev Decode pool connectivity data.
@@ -237,11 +249,13 @@ library GDAv1StorageLib {
         pure
         returns (bool exist, PoolConnectivity memory poolConnectivity)
     {
+        // forge-lint: disable-start(unsafe-typecast)
         exist = data > 0;
         if (exist) {
             poolConnectivity.slotId = uint32(data >> 160);
             poolConnectivity.pool = ISuperfluidPool(address(uint160(data & uint256(type(uint160).max))));
         }
+        // forge-lint: disable-end(unsafe-typecast)
     }
 }
 

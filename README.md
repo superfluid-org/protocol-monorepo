@@ -58,7 +58,7 @@ For technical document, references and tutorials, etc, refer to the
     <img alt="Version" src="https://img.shields.io/npm/v/@superfluid-finance/ethereum-contracts.svg">
   </a>
   <a href="https://codecov.io/gh/superfluid-org/protocol-monorepo/tree/dev/packages/ethereum-contracts">
-    <img src="https://codecov.io/gh/superfluid-finance/protocol-monorepo/branch/dev/graph/badge.svg?token=LJW5NDGEJ9&flag=ethereum-contracts"/>
+    <img src="https://codecov.io/gh/superfluid-org/protocol-monorepo/branch/dev/graph/badge.svg?token=LJW5NDGEJ9&flag=ethereum-contracts"/>
   </a>
   <a href="#" target="_blank">
     <img alt="License: AGPLv3" src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" />
@@ -88,8 +88,8 @@ Contract addresses, subgraph URLs, and other metadata for the Superfluid Protoco
   <a href="https://www.npmjs.com/package/@superfluid-finance/sdk-core" target="_blank">
     <img alt="Version" src="https://img.shields.io/npm/v/@superfluid-finance/sdk-core.svg">
   </a>
-  <a href="https://codecov.io/gh/superfluid-finance/protocol-monorepo/tree/dev/packages/sdk-core">
-    <img src="https://codecov.io/gh/superfluid-finance/protocol-monorepo/branch/dev/graph/badge.svg?token=LJW5NDGEJ9&flag=sdk-core"/>
+  <a href="https://codecov.io/gh/superfluid-org/protocol-monorepo/tree/dev/packages/sdk-core">
+    <img src="https://codecov.io/gh/superfluid-org/protocol-monorepo/branch/dev/graph/badge.svg?token=LJW5NDGEJ9&flag=sdk-core"/>
   </a>
   <a href="#" target="_blank">
     <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" />

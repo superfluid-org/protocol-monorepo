@@ -29,6 +29,7 @@ import {
     updateTokenStatsStreamedUntilUpdatedAt,
     getOrInitAccountTokenSnapshot,
     _createTokenStatisticLogEntity,
+    _createAccountTokenSnapshotLogEntity,
 } from "../mappingHelpers";
 import {
     BIG_INT_ZERO,
@@ -61,12 +62,11 @@ export function handlePoolCreated(event: PoolCreated): void {
     tokenStatistic.totalNumberOfPools = tokenStatistic.totalNumberOfPools + 1;
     tokenStatistic.save();
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const adminUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.admin,
         event.params.token,
         event,
         BigInt.fromI32(0),
-        eventName
     );
 
     const accountTokenSnapshot = getOrInitAccountTokenSnapshot(
@@ -79,6 +79,8 @@ export function handlePoolCreated(event: PoolCreated): void {
 
     // Create Event Entity
     _createPoolCreatedEntity(event);
+
+    if (adminUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.admin, event.params.token, eventName);
 }
 
 export function handlePoolConnectionUpdated(
@@ -135,12 +137,11 @@ export function handlePoolConnectionUpdated(
     // Update Token Stats Streamed Until Updated At
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
     // Update ATS Balance and Streamed Until Updated At
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const accountUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.account,
         event.params.token,
         event,
         BigInt.fromI32(0),
-        eventName
     );
 
     pool.save();
@@ -167,6 +168,8 @@ export function handlePoolConnectionUpdated(
 
     // Create Event Entity
     _createPoolConnectionUpdatedEntity(event, poolMember.id);
+
+    if (accountUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.account, event.params.token, eventName);
 }
 
 export function handleBufferAdjusted(event: BufferAdjusted): void {
@@ -194,10 +197,27 @@ export function handleBufferAdjusted(event: BufferAdjusted): void {
         event.params.token,
         event.block
     );
+    tokenStatistic.totalDeposit = tokenStatistic.totalDeposit.plus(
+        event.params.bufferDelta
+    );
     tokenStatistic.totalGDADeposit = tokenStatistic.totalGDADeposit.plus(
         event.params.bufferDelta
     );
     tokenStatistic.save();
+
+    // Update AccountTokenSnapshot for the pool distributor (fixes #2155)
+    const accountTokenSnapshot = getOrInitAccountTokenSnapshot(
+        event.params.from,
+        event.params.token,
+        event.block
+    );
+    accountTokenSnapshot.totalGDADeposit = accountTokenSnapshot.totalGDADeposit.plus(
+        event.params.bufferDelta
+    );
+    accountTokenSnapshot.totalDeposit = accountTokenSnapshot.totalDeposit.plus(
+        event.params.bufferDelta
+    );
+    accountTokenSnapshot.save();
 
     // Create Event Entity
     _createBufferAdjustedEntity(event, poolDistributor.id);
@@ -267,12 +287,11 @@ export function handleFlowDistributionUpdated(
         event.block
     );
 
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const distributorUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.distributor,
         event.params.token,
         event,
         null,
-        eventName
     );
 
     // Update ATS
@@ -290,6 +309,8 @@ export function handleFlowDistributionUpdated(
 
     // Create Event Entity
     _createFlowDistributionUpdatedEntity(event, poolDistributor.id, pool.totalUnits);
+
+    if (distributorUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.distributor, event.params.token, eventName);
 }
 
 export function handleInstantDistributionUpdated(
@@ -355,16 +376,17 @@ export function handleInstantDistributionUpdated(
     updateTokenStatsStreamedUntilUpdatedAt(event.params.token, event, eventName);
 
     // Update ATS
-    updateATSStreamedAndBalanceUntilUpdatedAt(
+    const distributorUpdated = updateATSStreamedAndBalanceUntilUpdatedAt(
         event.params.distributor,
         event.params.token,
         event,
         null,
-        eventName
     );
 
     // Create Event Entity
     _createInstantDistributionUpdatedEntity(event, poolDistributor.id, pool.totalUnits);
+
+    if (distributorUpdated) _createAccountTokenSnapshotLogEntity(event, event.params.distributor, event.params.token, eventName);
 }
 
 // Event Entity Creation Functions

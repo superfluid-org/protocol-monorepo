@@ -920,6 +920,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.assume(transferAmount > 0);
         vm.assume(spender != address(0));
         vm.assume(owner != address(0));
+        vm.assume(owner != address(freePool));
         vm.assume(spender != owner);
         _helperUpdateMemberUnits(freePool, alice, owner, uint128(int128(transferAmount)), useBools_);
         _helperSuperfluidPoolApprove(freePool, owner, spender, uint256(uint128(transferAmount)));
@@ -935,6 +936,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.assume(transferAmount > 0);
         vm.assume(spender != address(0));
         vm.assume(owner != address(0));
+        vm.assume(owner != address(freePool));
         vm.assume(spender != owner);
         _helperUpdateMemberUnits(freePool, alice, owner, uint128(int128(transferAmount)), useBools_);
         _helperSuperfluidPoolIncreaseAllowance(freePool, owner, spender, uint256(uint128(transferAmount)));

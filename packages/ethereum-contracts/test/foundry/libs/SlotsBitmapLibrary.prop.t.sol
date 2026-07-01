@@ -27,7 +27,7 @@ contract SlotsBitmapLibraryPropertyTest is Test {
     uint256 private constant _SUBSCRIBER_SUB_DATA_STATE_SLOT_ID_START = 1 << 128;
 
     constructor() {
-        vm.etch(ERC1820RegistryCompiled.at, ERC1820RegistryCompiled.bin);
+        vm.etch(ERC1820RegistryCompiled.ADDRESS, ERC1820RegistryCompiled.BYTECODE);
         vm.startPrank(subscriber);
         sfDeployer = new SuperfluidFrameworkDeployer();
         sfDeployer.deployTestFramework();

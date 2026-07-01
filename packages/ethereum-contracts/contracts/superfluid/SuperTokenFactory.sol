@@ -2,7 +2,6 @@
 pragma solidity ^0.8.23;
 
 import { IERC20Metadata } from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { Ownable } from "@openzeppelin-v5/contracts/access/Ownable.sol";
 import {
     ISuperTokenFactory,
     ISuperToken
@@ -19,11 +18,6 @@ abstract contract SuperTokenFactoryBase is
     UUPSProxiable,
     ISuperTokenFactory
 {
-    struct InitializeData {
-        address underlyingToken;
-        address superToken;
-    }
-
     /**************************************************************************
     * Immutable Variables
     **************************************************************************/
@@ -53,17 +47,14 @@ abstract contract SuperTokenFactoryBase is
     // change the storage layout of the contract
     ISuperToken internal _superTokenLogicDeprecated;
 
-    /// @notice A mapping from underlying token addresses to canonical wrapper super token addresses
-    /// @dev Reasoning: (1) provide backwards compatibility for existing listed wrapper super tokens
-    /// @dev (2) prevent address retrieval issues if we ever choose to modify the bytecode of the UUPSProxy contract
-    /// @dev NOTE: address(0) key points to the NativeAssetSuperToken on the network.
-    mapping(address => address) internal _canonicalWrapperSuperTokens;
+    // @dev Deprecated mapping from removed canonical wrapper APIs (v1.4.3 experiment).
+    // It is kept here for backwards compatibility due to the fact that we cannot
+    // change the storage layout of the contract
+    mapping(address => address) internal _canonicalWrapperSuperTokensDeprecated;
 
     /// NOTE: Whenever modifying the storage layout here it is important to update the validateStorageLayout
     /// function in its respective mock contract to ensure that it doesn't break anything or lead to unexpected
     /// behaviors/layout when upgrading
-
-    error SUPER_TOKEN_FACTORY_ONLY_GOVERNANCE_OWNER();
 
     constructor(
         ISuperfluid host,
@@ -150,59 +141,6 @@ abstract contract SuperTokenFactoryBase is
         returns (ISuperToken)
     {
         return _SUPER_TOKEN_LOGIC;
-    }
-
-    /// @inheritdoc ISuperTokenFactory
-    function createCanonicalERC20Wrapper(IERC20Metadata _underlyingToken)
-        external
-        returns (ISuperToken)
-    {
-        // we use this to check if we have initialized the _canonicalWrapperSuperTokens mapping
-        // @note we must set this during initialization
-        if (_canonicalWrapperSuperTokens[address(0)] == address(0)) {
-            revert SUPER_TOKEN_FACTORY_UNINITIALIZED();
-        }
-
-        address underlyingTokenAddress = address(_underlyingToken);
-        address canonicalSuperTokenAddress = _canonicalWrapperSuperTokens[
-                underlyingTokenAddress
-            ];
-
-        // if the canonical super token address exists, revert with custom error
-        if (canonicalSuperTokenAddress != address(0)) {
-            revert SUPER_TOKEN_FACTORY_ALREADY_EXISTS();
-        }
-
-        // use create2 to deterministically create the proxy contract for the wrapper super token
-        bytes32 salt = keccak256(abi.encode(underlyingTokenAddress));
-        UUPSProxy proxy = new UUPSProxy{ salt: salt }();
-
-        // NOTE: address(proxy) is equivalent to address(superToken)
-        _canonicalWrapperSuperTokens[underlyingTokenAddress] = address(
-            proxy
-        );
-
-        // set the implementation/logic contract address for the newly deployed proxy
-        proxy.initializeProxy(address(_SUPER_TOKEN_LOGIC));
-
-        // cast it as the same type as the logic contract
-        ISuperToken superToken = ISuperToken(address(proxy));
-
-        // get underlying token info
-        uint8 underlyingDecimals = _underlyingToken.decimals();
-        string memory underlyingName = _underlyingToken.name();
-        string memory underlyingSymbol = _underlyingToken.symbol();
-        // initialize the contract (proxy constructor)
-        superToken.initialize(
-            _underlyingToken,
-            underlyingDecimals,
-            string.concat("Super ", underlyingName),
-            string.concat(underlyingSymbol, "x")
-        );
-
-        emit SuperTokenCreated(superToken);
-
-        return superToken;
     }
 
     function createERC20Wrapper(
@@ -316,72 +254,6 @@ abstract contract SuperTokenFactoryBase is
         UUPSProxy(a).initializeProxy(address(_SUPER_TOKEN_LOGIC));
 
         emit CustomSuperTokenCreated(ISuperToken(customSuperTokenProxy));
-    }
-
-    /// @inheritdoc ISuperTokenFactory
-    function computeCanonicalERC20WrapperAddress(address _underlyingToken)
-        external
-        view
-        returns (address superTokenAddress, bool isDeployed)
-    {
-        address existingAddress = _canonicalWrapperSuperTokens[
-            _underlyingToken
-        ];
-
-        if (existingAddress != address(0)) {
-            superTokenAddress = existingAddress;
-            isDeployed = true;
-        } else {
-            bytes memory bytecode = type(UUPSProxy).creationCode;
-            superTokenAddress = address(
-                uint160(
-                    uint256(
-                        keccak256(
-                            abi.encodePacked(
-                                bytes1(0xff),
-                                address(this),
-                                keccak256(abi.encode(_underlyingToken)),
-                                keccak256(bytecode)
-                            )
-                        )
-                    )
-                )
-            );
-            isDeployed = false;
-        }
-    }
-
-    /// @inheritdoc ISuperTokenFactory
-    function getCanonicalERC20Wrapper(address _underlyingTokenAddress)
-        external
-        view
-        returns (address superTokenAddress)
-    {
-        superTokenAddress = _canonicalWrapperSuperTokens[
-            _underlyingTokenAddress
-        ];
-    }
-
-    /// @notice Initializes list of canonical wrapper super tokens.
-    /// @dev Note that this should also be kind of a throwaway function which will be executed only once.
-    /// @param _data an array of canonical wrappper super tokens to be set
-    function initializeCanonicalWrapperSuperTokens(
-        InitializeData[] calldata _data
-    ) external virtual  {
-        Ownable gov = Ownable(address(_host.getGovernance()));
-        if (msg.sender != gov.owner()) revert SUPER_TOKEN_FACTORY_ONLY_GOVERNANCE_OWNER();
-
-        // once the list has been set, it cannot be reset
-        // @note this means that we must set the 0 address (Native Asset Super Token) when we call this the first time
-        if (_canonicalWrapperSuperTokens[address(0)] != address(0)) {
-            revert SUPER_TOKEN_FACTORY_ALREADY_EXISTS();
-        }
-
-        // initialize mapping
-        for (uint256 i = 0; i < _data.length; i++) {
-            _canonicalWrapperSuperTokens[_data[i].underlyingToken] = _data[i]
-                .superToken;
-        }
     }
 }
 

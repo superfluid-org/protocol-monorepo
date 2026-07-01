@@ -381,7 +381,7 @@ const E = (module.exports = {
             // Fetch exact version from solc-bin (default: truffle's version)
             // If SOLC environment variable is provided, assuming it is available as "solc", use it instead.
             // Ref, this maybe possible in the future: https://github.com/trufflesuite/truffle/pull/6007
-            version: process.env.SOLC ? "native" : "0.8.30",
+            version: process.env.SOLC ? "native" : "0.8.35",
             settings: {
                 // See the solidity docs for advice about optimization and evmVersion
                 optimizer: {

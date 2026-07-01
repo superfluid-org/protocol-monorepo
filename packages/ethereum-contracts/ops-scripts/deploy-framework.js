@@ -19,6 +19,7 @@ const {
     versionStringToPseudoAddress,
     pseudoAddressToVersionString,
     getGasConfig,
+    warnProductionUUPSProxyInitRisk,
 } = require("./libs/common");
 
 let resetSuperfluidFramework;
@@ -110,6 +111,12 @@ function ap(addr) {
  * @param {boolean} options.newSuperfluidLoader Deploy a new superfluid loader contract
  *                  (overriding env: NEW_SUPERFLUID_LOADER)
  *
+ * SECURITY (production / mainnet):
+ * Superfluid Host and PoolAdminNFT UUPS proxies are bootstrapped across separate
+ * on-chain txs below. initializeProxy is permissionless on empty proxies — see
+ * UUPSProxy.sol and warnProductionUUPSProxyInitRisk() in libs/common.js.
+ * Agreement and SuperToken factory proxies are safe: atomic inside gov host calls.
+ *
  * Usage: npx truffle exec ops-scripts/deploy-framework.js
  */
 
@@ -154,6 +161,10 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
 
     if (config.isTestnet) {
         output += "IS_TESTNET=1\n";
+    } else {
+        warnProductionUUPSProxyInitRisk(
+            "deploy-framework.js started on a production network (config.isTestnet=false)"
+        );
     }
     output += `NETWORK_ID=${networkId}\n`;
 
@@ -376,6 +387,12 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             output += `SUPERFLUID_HOST_LOGIC=${superfluidLogic.address}\n`;
 
             if (!nonUpgradable) {
+                // SECURITY: split-tx UUPS bootstrap — see file header and UUPSProxy.sol.
+                if (!config.isTestnet) {
+                    warnProductionUUPSProxyInitRisk(
+                        "Superfluid Host: UUPSProxy.new, then initializeProxy, then Superfluid.initialize (3 txs)"
+                    );
+                }
                 const proxy = await web3tx(
                     UUPSProxy.new,
                     "Create Superfluid proxy"
@@ -1099,6 +1116,12 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             const gdaAddr = await superfluid.getAgreementClass.call(GDAv1_TYPE);
 
             if (poolAdminNFTProxyAddress === ZERO_ADDRESS) {
+                // SECURITY: split-tx UUPS bootstrap — proxy deploy may precede logic by several txs.
+                if (!config.isTestnet) {
+                    warnProductionUUPSProxyInitRisk(
+                        "PoolAdminNFT: UUPSProxy.new, then logic deploy, then initializeProxy, then initialize (4+ txs)"
+                    );
+                }
                 console.log("BOOTSTRAPPING: Deploying PoolAdminNFT proxy...");
                 const poolAdminNFTProxy = await web3tx(
                     UUPSProxy.new,

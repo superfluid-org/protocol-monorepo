@@ -34,7 +34,7 @@
       system:
       let
         minDevSolcVer = "solc_0_8_11"; # minimum solidity version used for external development
-        solcVer = "solc_0_8_30";
+        solcVer = "solc_0_8_35";
         ghcVer92 = "ghc928";
         ghcVer94 = "ghc948";
 
@@ -56,6 +56,9 @@
         commonDevInputs = with pkgs; [
           mk-cache-key-pkg
           gnumake
+          # nodejs
+          yarn
+          nodemon
           # for shell script linting
           shellcheck
           # used by some scripts
@@ -78,13 +81,11 @@
         # nodejs ecosystem
         nodeDevInputsWith = nodejs: [
           nodejs
-          nodejs.pkgs.yarn
-          nodejs.pkgs.nodemon
         ];
-        node20DevInputs = nodeDevInputsWith pkgs.nodejs_20;
         node22DevInputs = nodeDevInputsWith pkgs.nodejs_22;
         node24DevInputs = nodeDevInputsWith pkgs.nodejs_24;
-        defaultNodeDevInputs = node24DevInputs;
+        node26DevInputs = nodeDevInputsWith pkgs.nodejs_26;
+        defaultNodeDevInputs = node26DevInputs;
 
         # CI inputs
         ciInputs = with pkgs; [
@@ -188,9 +189,9 @@
         };
 
         devShells.ci-default = mkShellForNodeCI defaultNodeDevInputs;
-        devShells.ci-node20 = mkShellForNodeCI node20DevInputs;
         devShells.ci-node22 = mkShellForNodeCI node22DevInputs;
         devShells.ci-node24 = mkShellForNodeCI node24DevInputs;
+        devShells.ci-node26 = mkShellForNodeCI node26DevInputs;
 
         devShells.ci-spec-ghc92 = mkShellForSpecCI ghcVer92;
         devShells.ci-spec-ghc94 = mkShellForSpecCI ghcVer94;

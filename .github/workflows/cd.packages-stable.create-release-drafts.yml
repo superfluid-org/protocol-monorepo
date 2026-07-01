@@ -19,15 +19,16 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js 24.x
+      - name: Use Node.js 26.x
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 26.x
           registry-url: https://registry.npmjs.org/
 
       - name: Check package versions
@@ -35,12 +36,12 @@ jobs:
 
       - name: Create ethereum-contracts stable release draft
         if: env.SHOULD_PUBLISH_ETHEREUM_CONTRACTS == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: ethereum-contracts@v${{ env.ETHEREUM_CONTRACTS_NEW_VERSION }}
-          release_name: ethereum-contracts@v${{ env.ETHEREUM_CONTRACTS_NEW_VERSION }}
+          name: ethereum-contracts@v${{ env.ETHEREUM_CONTRACTS_NEW_VERSION }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
 
@@ -49,15 +50,17 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
+
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js 24.x
+      - name: Use Node.js 26.x
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 26.x
           registry-url: https://registry.npmjs.org/
 
       - name: Check package versions
@@ -75,29 +78,31 @@ jobs:
 
       - name: Create subgraph stable release draft
         if: env.SHOULD_PUBLISH_SUBGRAPH == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: subgraph@v${{ env.SUBGRAPH_NEW_VERSION }}
-          release_name: subgraph@v${{ env.SUBGRAPH_NEW_VERSION }}
+          name: subgraph@v${{ env.SUBGRAPH_NEW_VERSION }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
 
-  create-and-publish-metadata-package:
-    name: Create Metadata Release Draft and Publish to NPM
+  create-metadata-release-draft:
+    name: Create Metadata Release Draft
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
+
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js 24.x
+      - name: Use Node.js 26.x
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 26.x
           registry-url: https://registry.npmjs.org/
 
       - name: Check package versions
@@ -105,23 +110,15 @@ jobs:
 
       - name: Create metadata stable release draft
         if: env.SHOULD_PUBLISH_METADATA == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: metadata@v${{ env.METADATA_NEW_VERSION }}
-          release_name: metadata@v${{ env.METADATA_NEW_VERSION }}
+          name: metadata@v${{ env.METADATA_NEW_VERSION }}
           body: |
             Please refer to the CHANGELOG.md file in metadata package for more details on the changeset.
-          draft: false
-      - name: Publish metadata package
-        if: env.SHOULD_PUBLISH_METADATA == 1
-        run: |
-          yarn --cwd packages/metadata build
-          tasks/npm-publish.sh packages/metadata/ latest
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPMJS_TOKEN: ${{ secrets.NPMJS_TOKEN }}
+          draft: true
 
   check-sdk-core-version:
     name: Checking if SDK-Core should be published
@@ -129,14 +126,18 @@ jobs:
     runs-on: ubuntu-22.04
 
     outputs:
-      publish_sdk_core: ${{ env.SHOULD_PUBLISH_SDK_CORE }}
-      sdk_core_new_version: ${{ env.SDK_CORE_NEW_VERSION }}
+      publish_sdk_core: ${{ steps.check-version.outputs.SHOULD_PUBLISH_SDK_CORE }}
+      sdk_core_new_version: ${{ steps.check-version.outputs.SDK_CORE_NEW_VERSION }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Check package versions
-        run: ./tasks/check-package-version.sh sdk-core SHOULD_PUBLISH_SDK_CORE SDK_CORE_NEW_VERSION >> "$GITHUB_ENV"
+        id: check-version
+        run: |
+          OUTPUT=$(./tasks/check-package-version.sh sdk-core SHOULD_PUBLISH_SDK_CORE SDK_CORE_NEW_VERSION)
+          echo "$OUTPUT" >> "$GITHUB_ENV"
+          echo "$OUTPUT" >> "$GITHUB_OUTPUT"
 
   test-sdk-core-query-schema-against-deployed-v1-subgraphs:
     uses: ./.github/workflows/call.check-query-schema-against-subgraph.yml
@@ -166,25 +167,26 @@ jobs:
         check-sdk-core-version,
       ]
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js 24.x
+      - name: Use Node.js 26.x
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 26.x
           registry-url: https://registry.npmjs.org/
 
       - name: Create sdk-core stable release draft
         if: needs.check-sdk-core-version.outputs.publish_sdk_core == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: sdk-core@v${{ needs.check-sdk-core-version.outputs.sdk_core_new_version }}
-          release_name: sdk-core@v${{ needs.check-sdk-core-version.outputs.sdk_core_new_version }}
+          name: sdk-core@v${{ needs.check-sdk-core-version.outputs.sdk_core_new_version }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true
 
@@ -193,15 +195,16 @@ jobs:
 
     runs-on: ubuntu-22.04
 
-    permissions: write-all
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js 24.x
+      - name: Use Node.js 26.x
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: 26.x
           registry-url: https://registry.npmjs.org/
 
       - name: Check package versions
@@ -209,11 +212,11 @@ jobs:
 
       - name: Create sdk-redux stable release draft
         if: env.SHOULD_PUBLISH_SDK_REDUX == 1
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: sdk-redux@v${{ env.SDK_REDUX_NEW_VERSION }}
-          release_name: sdk-redux@v${{ env.SDK_REDUX_NEW_VERSION }}
+          name: sdk-redux@v${{ env.SDK_REDUX_NEW_VERSION }}
           body_path: .github/RELEASE_TEMPLATE/release-notes.md
           draft: true

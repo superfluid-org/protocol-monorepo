@@ -1,24 +1,26 @@
 {
     "name": "@superfluid-finance/ethereum-contracts",
     "description": " Ethereum contracts implementation for the Superfluid Protocol",
-    "version": "1.14.1",
+    "version": "1.15.2",
     "dependencies": {
         "@decentral.ee/web3-helpers": "0.5.3",
         "@nomiclabs/hardhat-ethers": "2.2.3",
         "@safe-global/api-kit": "4.0.1",
+        "@safe-global/protocol-kit": "6.1.2",
         "@truffle/contract": "4.6.31",
         "ethereumjs-tx": "2.1.2",
         "ethereumjs-util": "7.1.5",
         "hardhat": "2.27.2"
     },
     "devDependencies": {
+        "viem": "^2.48.4",
         "@d10r/truffle-plugin-verify": "^0.7.2",
         "@nomiclabs/hardhat-truffle5": "^2.1.2",
         "@safe-global/safe-core-sdk": "^3.3.5",
         "@safe-global/safe-service-client": "^2.0.3",
         "@safe-global/safe-web3-lib": "^1.9.4",
         "@superfluid-finance/js-sdk": "^0.6.3",
-        "@superfluid-finance/metadata": "^1.6.2",
+        "@superfluid-finance/metadata": "^1.6.3",
         "async": "^3.2.6",
         "csv-writer": "^1.6.0",
         "ethers": "^5.8.0",
@@ -44,7 +46,7 @@
         "dev-scripts/**/*",
         "utils/**/*"
     ],
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/ethereum-contracts#readme",
+    "homepage": "https://github.com/superfluid-org/protocol-monorepo/tree/dev/packages/ethereum-contracts#readme",
     "license": "AGPL-3.0-or-later OR MIT",
     "main": "./dev-scripts/index.js",
     "peerDependencies": {
@@ -53,7 +55,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "url": "https://github.com/superfluid-org/protocol-monorepo.git",
         "directory": "packages/ethereum-contracts"
     },
     "scripts": {
@@ -91,7 +93,8 @@
         "test-coverage:foundry": "yarn run-foundry coverage --gas-limit 999999999999 --report lcov",
         "test-slither": "tasks/test-slither.sh",
         "lint": "run-s lint:*",
-        "lint:sol": "solhint -w 0 `find contracts -name *.sol` && echo '✔  Your .sol files look good.'",
+        "lint:forge": "yarn run-foundry lint contracts",
+        "lint:sol": "solhint --disc -w 0 `find contracts -name *.sol` && echo '✔  Your .sol files look good.'",
         "lint-js": "eslint test -c .eslintrc.json --ext .js",
         "lint:js-eslint": "yarn lint-js --max-warnings=0 --report-unused-disable-directives && echo '✔  Your .js files look good.'",
         "lint-ts": "eslint test -c .eslintrc.ts.json --ext .ts",

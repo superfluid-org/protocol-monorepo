@@ -7,13 +7,13 @@
         "path": false
     },
     "dependencies": {
-        "@superfluid-finance/metadata": "^1.6.2",
+        "@superfluid-finance/metadata": "^1.6.3",
         "@truffle/contract": "4.6.31",
         "auto-bind": "4.0.0",
         "node-fetch": "2.7.0"
     },
     "devDependencies": {
-        "@superfluid-finance/ethereum-contracts": "^1.14.1",
+        "@superfluid-finance/ethereum-contracts": "^1.15.2",
         "chai-as-promised": "^8.0.2",
         "webpack": "^5.104.1",
         "webpack-bundle-analyzer": "^4.10.2",
@@ -26,12 +26,12 @@
         "src/**/*.js",
         "dist/index.js"
     ],
-    "homepage": "https://github.com/superfluid-finance/protocol-monorepo/tree/dev/packages/js-sdk#readme",
+    "homepage": "https://github.com/superfluid-org/protocol-monorepo/tree/dev/packages/js-sdk#readme",
     "license": "MIT",
     "main": "src/index.js",
     "repository": {
         "type": "git",
-        "url": "https://github.com/superfluid-finance/protocol-monorepo.git",
+        "url": "https://github.com/superfluid-org/protocol-monorepo.git",
         "directory": "packages/js-sdk"
     },
     "scripts": {

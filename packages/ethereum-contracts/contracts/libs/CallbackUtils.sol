@@ -86,8 +86,7 @@ library CallbackUtils {
     function consumeAllGas() internal pure {
         // Neither revert or assert consume all gas since Solidity 0.8.20
         // https://docs.soliditylang.org/en/v0.8.20/control-structures.html#panic-via-assert-and-error-via-require
-        // @solidity memory-safe-assembly
         // solhint-disable-next-line no-inline-assembly
-        assembly { invalid() }
+        assembly ("memory-safe") { invalid() }
     }
 }

@@ -26,9 +26,9 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ inputs.run-coverage-tests }}" == "true" ];then
-            echo "matrix={\"node-version\": [24]}" >> "$GITHUB_OUTPUT"
+            echo "matrix={\"node-version\": [26]}" >> "$GITHUB_OUTPUT"
           else
-            echo "matrix={\"node-version\": [20, 22, 24]}" >> "$GITHUB_OUTPUT"
+            echo "matrix={\"node-version\": [22, 24, 26]}" >> "$GITHUB_OUTPUT"
           fi
 
   test-ethereum-contracts:
@@ -98,6 +98,8 @@ jobs:
         env:
           HARDHAT_TEST_JOBS: 4
           HARDHAT_RUN_PARALLEL: 1
+          ETH_MAINNET_ARCHIVE_RPC_URL: ${{ vars.ETH_MAINNET_ARCHIVE_RPC_URL }}
+          BASE_MAINNET_ARCHIVE_RPC_URL: ${{ vars.BASE_MAINNET_ARCHIVE_RPC_URL }}
 
       - name: Run coverage test
         if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == true
@@ -115,6 +117,8 @@ jobs:
           IS_COVERAGE_TEST: true
           HARDHAT_TEST_JOBS: 2
           HARDHAT_RUN_PARALLEL: 0
+          ETH_MAINNET_ARCHIVE_RPC_URL: ${{ vars.ETH_MAINNET_ARCHIVE_RPC_URL }}
+          BASE_MAINNET_ARCHIVE_RPC_URL: ${{ vars.BASE_MAINNET_ARCHIVE_RPC_URL }}
 
       - name: Clean up and merge coverage artifacts
         if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == true

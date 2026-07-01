@@ -304,6 +304,7 @@ export function getOrInitStream(event: FlowUpdated): Stream {
         stream.receiver = event.params.receiver.toHex();
         stream.currentFlowRate = BigInt.fromI32(0);
         stream.deposit = BigInt.fromI32(0);
+        stream.owedDeposit = BigInt.fromI32(0);
         stream.streamedUntilUpdatedAt = BigInt.fromI32(0);
         stream.updatedAtTimestamp = currentTimestamp;
         stream.updatedAtBlockNumber = event.block.number;
@@ -692,6 +693,7 @@ export function _createAccountTokenSnapshotLogEntity(
     tokenAddress: Address,
     eventName: string
 ): void {
+    return;
     if (accountAddress.equals(ZERO_ADDRESS)) {
         return;
     }
@@ -1081,8 +1083,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
     tokenAddress: Address,
     event: ethereum.Event,
     balanceDelta: BigInt | null,
-    eventName: string
-): void {
+): boolean {
     const block = event.block;
 
     let ats = getOrInitAccountTokenSnapshot(
@@ -1116,7 +1117,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
         && balanceUntilUpdatedAtBeforeUpdate.equals(balanceUntilUpdatedAtAfterUpdate)
     ) {
         // ATS has already been updated in the block and no new balance change discovered. It's safe to return early.
-        return;
+        return false;
     }
 
     //////////////// CFA + GDA streamed amounts ////////////////
@@ -1210,12 +1211,7 @@ export function updateATSStreamedAndBalanceUntilUpdatedAt(
     // update the updatedAt property of the account that just made an update
     updateAccountUpdatedAt(accountAddress, block);
 
-    _createAccountTokenSnapshotLogEntity(
-        event,
-        accountAddress,
-        tokenAddress,
-        eventName
-    );
+    return true;
 }
 
 /**
@@ -1302,6 +1298,10 @@ export function updateTokenStatisticStreamData(
         tokenStatistic.totalNumberOfClosedStreams +
         totalNumberOfClosedStreamsDelta;
 
+    // `depositDelta` only reflects deposit changes coming from stream / flow
+    // updates. GDA buffer-only deposit changes are handled separately in
+    // `handleBufferAdjusted()`, because `BufferAdjusted` events do not flow
+    // through this helper.
     tokenStatistic.totalDeposit =
         tokenStatistic.totalDeposit.plus(depositDelta);
 

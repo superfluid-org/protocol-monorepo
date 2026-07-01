@@ -6,10 +6,13 @@ import {
     ISuperfluidGovernance,
     SuperfluidGovernanceConfigs
 } from "../interfaces/superfluid/ISuperfluid.sol";
+import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 pragma solidity ^0.8.23;
 
 library SolvencyHelperLibrary {
+    using SafeCast for uint256;
+
     function decode3PsData(ISuperfluid host, ISuperfluidToken token)
         internal
         view
@@ -31,9 +34,11 @@ library SolvencyHelperLibrary {
             return false;
         }
 
+        int256 signedLiquidationPeriod = liquidationPeriod.toInt256();
+        int256 signedPatricianPeriodTail = (liquidationPeriod - patricianPeriod).toInt256();
         int256 totalRewardLeft = availableBalance + signedTotalDeposit;
-        int256 totalOutflowRate = signedTotalDeposit / int256(liquidationPeriod);
+        int256 totalOutflowRate = signedTotalDeposit / signedLiquidationPeriod;
 
-        return totalRewardLeft / totalOutflowRate > int256(liquidationPeriod - patricianPeriod);
+        return totalRewardLeft / totalOutflowRate > signedPatricianPeriodTail;
     }
 }

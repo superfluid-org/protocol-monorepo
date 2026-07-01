@@ -29,9 +29,9 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ inputs.run-coverage-tests }}" == "true" ];then
-            echo "matrix={\"node-version\": [24]}" >> "$GITHUB_OUTPUT"
+            echo "matrix={\"node-version\": [26]}" >> "$GITHUB_OUTPUT"
           else
-            echo "matrix={\"node-version\": [20, 22, 24]}" >> "$GITHUB_OUTPUT"
+            echo "matrix={\"node-version\": [22, 24, 26]}" >> "$GITHUB_OUTPUT"
           fi
 
   test-sdk-core:
@@ -118,17 +118,13 @@ jobs:
       - name: Setup graph node
         if: steps.base.outputs.cache-hit != 'true'
         run: |
-          ./tasks/setup-graph-node.sh &
-          # wait for it to warm up
-          sleep 15
+          ./tasks/setup-graph-node.sh
         working-directory: ${{ env.subgraph-working-directory }}
 
       - name: Build and deploy local subgraph
         if: steps.base.outputs.cache-hit != 'true'
         run: |
           yarn build-and-deploy-local
-          # wait for it to sync
-          sleep 15
         working-directory: ${{ env.subgraph-working-directory }}
 
       - name: Run test suite

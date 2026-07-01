@@ -19,6 +19,8 @@ import { SETHProxy } from "../tokens/SETH.sol";
 ///      - ERC1820 must be deployed as a prerequisite to using this contract.
 ///      - Some test frameworks may have difficulties in tuning its maximum contract code size limit. Using deployment
 ///        steps contract solves this issue.
+/// Local test deployer only; step indices and test token transfers are bounded.
+/// forge-lint: disable-next-item(unsafe-typecast,erc20-unchecked-transfer)
 contract SuperfluidFrameworkDeployer is SuperfluidFrameworkDeploymentSteps {
     /// @notice Deploys the Superfluid Framework (Test)
     /// @dev This uses default configurations for the framework.

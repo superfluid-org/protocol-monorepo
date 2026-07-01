@@ -1,5 +1,6 @@
 /cache
 **/cache
+/.cache
 out
 **/out
 /data
@@ -26,6 +27,7 @@ package-lock.json
 .vscode/
 *-workspace
 .npmrc
+.cursor
 
 # echidna litters
 crytic-export
@@ -33,3 +35,7 @@ corpus
 
 /broadcast
 /.direnv
+
+.pnpm-store
+.corepack
+.tmp

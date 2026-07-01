@@ -50,7 +50,7 @@ contract TestGovernance is
     function _requireAuthorised(ISuperfluid host)
         internal view override
     {
-        assert(host == _host);
+        assert(address(host) == address(_host));
         assert(owner() == _msgSender());
     }
 }

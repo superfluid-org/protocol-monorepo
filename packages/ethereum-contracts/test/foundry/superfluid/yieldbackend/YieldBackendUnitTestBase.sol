@@ -23,14 +23,24 @@ abstract contract YieldBackendUnitTestBase is Test {
     // ============ Abstract functions for network configuration ============
 
     /// @notice Get the RPC URL for forking
-    function getRpcUrl() internal pure virtual returns (string memory);
+    function getRpcUrl() internal view virtual returns (string memory);
 
     /// @notice Get the expected chain ID
     function getChainId() internal pure virtual returns (uint256);
 
+    /// @notice Fork at this block (0 = latest). Concrete tests should pin via YieldBackendForkConstants.
+    function getForkBlockNumber() internal pure virtual returns (uint256) {
+        return 0;
+    }
+
     /// @notice Set up the test environment - must be implemented by concrete tests
     function setUp() public virtual {
-        vm.createSelectFork(getRpcUrl());
+        uint256 forkBlock = getForkBlockNumber();
+        if (forkBlock == 0) {
+            vm.createSelectFork(getRpcUrl());
+        } else {
+            vm.createSelectFork(getRpcUrl(), forkBlock);
+        }
         assertEq(block.chainid, getChainId(), "Chainid mismatch");
         
         // Deploy and configure backend (implemented by concrete tests)

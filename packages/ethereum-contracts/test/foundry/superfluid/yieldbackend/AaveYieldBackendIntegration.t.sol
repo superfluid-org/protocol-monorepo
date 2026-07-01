@@ -6,6 +6,7 @@ import { AaveYieldBackend } from "../../../../contracts/superfluid/AaveYieldBack
 import { IERC20 } from "../../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { IYieldBackend } from "../../../../contracts/interfaces/superfluid/IYieldBackend.sol";
 import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
+import { YieldBackendForkConstants } from "./YieldBackendForkConstants.sol";
 
 /**
  * @title AaveYieldBackendIntegrationTest
@@ -22,11 +23,15 @@ contract AaveYieldBackendIntegrationTest is YieldBackendIntegrationTestBase {
     address internal constant A_USDC = 0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB; // aUSDC on Base
 
     function _chainId() internal pure override returns (uint256) {
-        return 8453;
+        return YieldBackendForkConstants.CHAIN_ID_BASE;
     }
 
-    function _rpcUrl() internal pure override returns (string memory) {
-        return "https://mainnet.base.org";
+    function _forkBlockNumber() internal pure override returns (uint256) {
+        return YieldBackendForkConstants.FORK_BLOCK_BASE;
+    }
+
+    function _rpcUrl() internal view override returns (string memory) {
+        return vm.envOr("BASE_MAINNET_ARCHIVE_RPC_URL", string("https://mainnet.base.org"));
     }
 
     function _superToken() internal pure override returns (address) {

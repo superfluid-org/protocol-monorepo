@@ -9,9 +9,10 @@
 /dev-scripts/**/*.d.ts
 /dev-scripts/**/*.d.ts.map
 /.gas-snapshot
-/lib
+# lib -> ../../lib is a tracked symlink to the monorepo forge lib/
 /packages
 /testing-benchmark.json
 /broadcast
+/.tmp
 
 /addrs

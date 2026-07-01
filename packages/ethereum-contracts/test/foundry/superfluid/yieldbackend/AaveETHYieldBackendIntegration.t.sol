@@ -8,6 +8,7 @@ import { ISuperToken } from "../../../../contracts/interfaces/superfluid/ISuperT
 import { ISETH } from "../../../../contracts/interfaces/tokens/ISETH.sol";
 import { SuperToken } from "../../../../contracts/superfluid/SuperToken.sol";
 import { IPool } from "aave-v3/src/contracts/interfaces/IPool.sol";
+import { YieldBackendForkConstants } from "./YieldBackendForkConstants.sol";
 
 /**
  * @title AaveETHYieldBackendIntegrationTest
@@ -19,8 +20,7 @@ contract AaveETHYieldBackendIntegrationTest is Test {
     address internal constant ADMIN = address(0xAAA);
 
     // Base network constants
-    uint256 internal constant CHAIN_ID = 8453;
-    string internal constant RPC_URL = "https://mainnet.base.org";
+    uint256 internal constant CHAIN_ID = YieldBackendForkConstants.CHAIN_ID_BASE;
 
     // Aave V3 Pool on Base (verified address)
     address internal constant AAVE_POOL = 0xA238Dd80C259a72e81d7e4664a9801593F98d1c5;
@@ -44,7 +44,10 @@ contract AaveETHYieldBackendIntegrationTest is Test {
 
     /// @notice Set up the test environment by forking the chain and deploying AaveETHYieldBackend
     function setUp() public {
-        vm.createSelectFork(RPC_URL);
+        vm.createSelectFork(
+            vm.envOr("BASE_MAINNET_ARCHIVE_RPC_URL", string("https://mainnet.base.org")),
+            YieldBackendForkConstants.FORK_BLOCK_BASE
+        );
 
         // Verify chain id
         assertEq(block.chainid, CHAIN_ID, "Chainid mismatch");
@@ -291,11 +294,14 @@ contract AaveETHYieldBackendIntegrationTest is Test {
         // 2 operations: enable deposits + withdraw surplus
         _verifyInvariants(false, 2);
     }
+}
 
-    /*//////////////////////////////////////////////////////////////////////////
-                        Random Sequence Fuzz Tests
-    //////////////////////////////////////////////////////////////////////////*/
-
+/**
+ * @title Random Sequence Fuzz Tests
+ * RPC-heavy fork fuzz suite for random yield-backend sequences.
+ * Excluded from default CI: `yarn test` runs Foundry with `--no-match-contract Fork`.
+ */
+contract AaveETHYieldBackendIntegrationForkFuzzTest is AaveETHYieldBackendIntegrationTest {
     struct YieldBackendStep {
         uint8 a; // action type: 0 enable, 1 disable, 2 switch, 3 upgrade, 4 downgrade, 5 withdraw surplus
         uint32 v; // action param (amount for upgrade/downgrade, unused for others)
@@ -395,7 +401,7 @@ contract AaveETHYieldBackendIntegrationTest is Test {
                     uint256 aTokenBalance = IERC20(aWETH).balanceOf(address(superToken));
                     (uint256 normalizedTotalSupply,) = superToken.toUnderlyingAmount(superToken.totalSupply());
                     uint256 totalAssets = underlyingBalance + aTokenBalance;
-                    
+
                     // Only withdraw if there's actual surplus (after 100 wei margin)
                     if (totalAssets > normalizedTotalSupply + 100) {
                         vm.startPrank(ADMIN);
