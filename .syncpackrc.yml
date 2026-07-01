@@ -17,10 +17,6 @@ semverGroups:
   - label: Use looser range by default
     range: "^"
 versionGroups:
-  - label: Pin stack-trace to the same version, since newer version starts to use ES module
-    dependencies:
-      - "stack-trace"
-    pinVersion: "0.0.10"
   - label: Pin hardhat due to a bug during deployment of contracts
     dependencies:
       - "hardhat"
