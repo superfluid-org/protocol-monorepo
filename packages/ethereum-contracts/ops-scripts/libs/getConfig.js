@@ -44,7 +44,8 @@ module.exports = function getConfig(chainId) {
 
         // Celo Mainnet
         42220: {
-            gov_enableAppWhiteListing: false,
+            // permissionless nomore
+            //gov_enableAppWhiteListing: false,
         },
 
         // scroll-mainnet
