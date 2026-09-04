@@ -103,8 +103,12 @@ library CallUtils {
         assembly { bytesOffset := mload(add(data, 32)) }
         if (bytesOffset != 32) return false;
         assembly { bytesLen := mload(add(data, 64)) }
-        // the data length should be bytesData.length + 64 + padded bytes length
-        return data.length == 64 + padLength32(bytesLen);
+        // Reject a claimed inner length that cannot fit. Do this before padLength32: a lying
+        // bytesLen near uint256.max overflows the pad multiply and would panic the Host
+        // before terminate can jail.
+        uint256 payloadLength = data.length - 64;
+        if (bytesLen > payloadLength) return false;
+        return payloadLength == padLength32(bytesLen);
     }
 
 }
