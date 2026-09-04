@@ -74,6 +74,73 @@ contract OversizedTerminateCbApp is ISuperApp {
     }
 }
 
+/// @dev `beforeAgreementTerminated` succeeds with a 64-byte ABI head: offset 32, inner length
+///      `uint256.max`, no payload. That is small enough to copy (under the returndata cap) but
+///      makes `isValidAbiEncodedBytes` panic in `padLength32` unless it rejects the length first.
+contract MaxInnerLengthTerminateCbApp is ISuperApp {
+    constructor(ISuperfluid host) {
+        host.registerApp(
+            SuperAppDefinitions.APP_LEVEL_FINAL
+                | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
+                | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP
+                | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
+                | SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP
+        );
+    }
+
+    function beforeAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return "";
+    }
+
+    function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return ctx;
+    }
+
+    function beforeAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return "";
+    }
+
+    function afterAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return ctx;
+    }
+
+    function beforeAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external
+        pure
+        returns (bytes memory)
+    {
+        assembly {
+            mstore(0x00, 0x20)
+            mstore(0x20, not(0))
+            return(0x00, 0x40)
+        }
+    }
+
+    function afterAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return ctx;
+    }
+}
+
 contract CallbackReturnSizeGriefTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
 
@@ -113,6 +180,26 @@ contract CallbackReturnSizeGriefTest is FoundrySuperfluidTester {
             ISuperApp(address(app)), SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED
         );
 
+        vm.startPrank(bob);
+        superToken.deleteFlow(alice, address(app));
+        vm.stopPrank();
+
+        assertTrue(sf.host.isAppJailed(ISuperApp(address(app))));
+        assertEq(superToken.getFlowRate(alice, address(app)), 0);
+    }
+
+    function test_terminateCallback_maxInnerLength_thirdPartyDeleteJails() public {
+        MaxInnerLengthTerminateCbApp app = new MaxInnerLengthTerminateCbApp(sf.host);
+        _addAccount(address(app));
+
+        vm.startPrank(alice);
+        superToken.setMaxFlowPermissions(bob);
+        vm.stopPrank();
+
+        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+
+        // Desired: jail 22 and close the flow. Today Host panics in isValidAbiEncodedBytes
+        // before _jailApp, so this call reverts and the stream stays open.
         vm.startPrank(bob);
         superToken.deleteFlow(alice, address(app));
         vm.stopPrank();

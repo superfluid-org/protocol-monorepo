@@ -61,6 +61,17 @@ contract CallUtilsAnvil is Test {
         assertTrue(CallUtils.isValidAbiEncodedBytes(abi.encode(data)));
     }
 
+    /// Hostile `returns (bytes)`: 64-byte ABI head with offset 32 and inner length `uint256.max`.
+    /// Must return false, not panic in `padLength32`, so Host terminate can jail-and-continue.
+    function testIsValidAbiEncodedBytes_maxInnerLengthDoesNotPanic() public pure {
+        bytes memory data = new bytes(64);
+        assembly {
+            mstore(add(data, 32), 32)
+            mstore(add(data, 64), not(0))
+        }
+        assertFalse(CallUtils.isValidAbiEncodedBytes(data));
+    }
+
     function testDelegateCallChecked_Success() public {
         DelegateCallTarget target = new DelegateCallTarget();
         DelegateCallChecker checker = new DelegateCallChecker();
