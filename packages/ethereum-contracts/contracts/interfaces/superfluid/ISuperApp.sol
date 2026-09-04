@@ -7,6 +7,12 @@ import { ISuperToken } from "./ISuperToken.sol";
  * @title SuperApp interface
  * @author Superfluid
  * @dev Be aware of the app being jailed, when the word permitted is used.
+ *
+ * Callback return values (`cbdata` from before-hooks, `newCtx` from after-hooks) are ABI-encoded
+ * `bytes`. The Host caps EVM returndata (the ABI encoding, not the inner `bytes` length) at
+ * max(32 KiB, this callback's calldata size), so returning the provided `ctx` from an after-hook
+ * is always within the limit. Exceeding the cap, or returning data that is not a well-formed
+ * `bytes`, is not permitted (`APP_RULE_CTX_IS_MALFORMATED`).
  */
 interface ISuperApp {
 
@@ -23,6 +29,7 @@ interface ISuperApp {
      * @custom:note 
      * - It will be invoked with `staticcall`, no state changes are permitted.
      * - Only revert with a "reason" is permitted.
+     * - ABI-encoded returndata must not exceed max(32 KiB, calldata size).
      */
     function beforeAgreementCreated(
         ISuperToken superToken,
@@ -48,6 +55,7 @@ interface ISuperApp {
      * @custom:note 
      * - State changes is permitted.
      * - Only revert with a "reason" is permitted.
+     * - ABI-encoded returndata must not exceed max(32 KiB, calldata size).
      */
     function afterAgreementCreated(
         ISuperToken superToken,
@@ -73,6 +81,7 @@ interface ISuperApp {
      * @custom:note 
      * - It will be invoked with `staticcall`, no state changes are permitted.
      * - Only revert with a "reason" is permitted.
+     * - ABI-encoded returndata must not exceed max(32 KiB, calldata size).
      */
     function beforeAgreementUpdated(
         ISuperToken superToken,
@@ -99,6 +108,7 @@ interface ISuperApp {
     * @custom:note 
     * - State changes is permitted.
     * - Only revert with a "reason" is permitted.
+    * - ABI-encoded returndata must not exceed max(32 KiB, calldata size).
     */
     function afterAgreementUpdated(
         ISuperToken superToken,
@@ -124,6 +134,7 @@ interface ISuperApp {
     * @custom:note 
     * - It will be invoked with `staticcall`, no state changes are permitted.
     * - Revert is not permitted.
+    * - ABI-encoded returndata must not exceed max(32 KiB, calldata size).
     */
     function beforeAgreementTerminated(
         ISuperToken superToken,
@@ -149,6 +160,7 @@ interface ISuperApp {
     * @custom:note 
     * - State changes is permitted.
     * - Revert is not permitted.
+    * - ABI-encoded returndata must not exceed max(32 KiB, calldata size).
     */
     function afterAgreementTerminated(
         ISuperToken superToken,
