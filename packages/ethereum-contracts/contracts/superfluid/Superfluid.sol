@@ -520,7 +520,7 @@ contract Superfluid is
         (bool success, bytes memory returnedData) = _callCallback(app, true, isTermination, callData, ctx);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
-                cbdata = abi.decode(returnedData, (bytes));
+                cbdata = CallUtils.unwrapAbiEncodedBytes(returnedData);
             } else {
                 if (!isTermination) {
                     revert APP_RULE(SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
@@ -546,7 +546,7 @@ contract Superfluid is
         if (success) {
             // the non static callback should not return empty ctx
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
-                newCtx = abi.decode(returnedData, (bytes));
+                newCtx = CallUtils.unwrapAbiEncodedBytes(returnedData);
                 if (!_isCtxValid(newCtx)) {
                     if (!isTermination) {
                         revert APP_RULE(SuperAppDefinitions.APP_RULE_CTX_IS_READONLY);

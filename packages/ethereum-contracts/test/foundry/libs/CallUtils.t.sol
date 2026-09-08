@@ -72,6 +72,35 @@ contract CallUtilsAnvil is Test {
         assertFalse(CallUtils.isValidAbiEncodedBytes(data));
     }
 
+    function testUnwrapAbiEncodedBytes_matchesDecode(bytes memory inner) public pure {
+        bytes memory encoded = abi.encode(inner);
+        assertTrue(CallUtils.isValidAbiEncodedBytes(encoded));
+        bytes memory unwrapped = CallUtils.unwrapAbiEncodedBytes(encoded);
+        assertEq(unwrapped, inner);
+        assertEq(unwrapped, abi.decode(encoded, (bytes)));
+        uint256 encodedPtr;
+        uint256 unwrappedPtr;
+        assembly {
+            encodedPtr := encoded
+            unwrappedPtr := unwrapped
+        }
+        assertEq(unwrappedPtr, encodedPtr + 0x40, "unwrap must alias inner length word");
+    }
+
+    /// isValid does not require padding zeros. Dirty pad bytes must not change unwrap vs decode.
+    function testUnwrapAbiEncodedBytes_dirtyPaddingStillMatchesDecode(bytes memory inner, uint8 dirt) public pure {
+        vm.assume(inner.length % 32 != 0);
+        bytes memory encoded = abi.encode(inner);
+        uint256 innerLen = inner.length;
+        assembly {
+            // encoded+96 is start of inner data; pad begins at +innerLen
+            mstore8(add(encoded, add(96, innerLen)), dirt)
+        }
+        assertTrue(CallUtils.isValidAbiEncodedBytes(encoded));
+        assertEq(CallUtils.unwrapAbiEncodedBytes(encoded), abi.decode(encoded, (bytes)));
+        assertEq(CallUtils.unwrapAbiEncodedBytes(encoded), inner);
+    }
+
     function testDelegateCallChecked_Success() public {
         DelegateCallTarget target = new DelegateCallTarget();
         DelegateCallChecker checker = new DelegateCallChecker();
@@ -117,11 +146,4 @@ contract CallUtilsAnvil is Test {
         vm.expectRevert("CallUtils: target panicked: 0x01");
         checker.delegateCallPanic(address(target));
     }
-
-    // TODO this is a hard fuzzing case, because we need to know if there is a case that:
-    // 1. CallUtils.isValidAbiEncodedBytes returns true
-    // 2. and abi.decode reverts
-    /* function testNegativeIsValidAbiEncodedBytes(bytes memory data) public {
-        vm.assume(CallUtils.isValidAbiEncodedBytes(data) == true);
-    } */
 }

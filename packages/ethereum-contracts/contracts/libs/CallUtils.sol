@@ -111,4 +111,18 @@ library CallUtils {
         return payloadLength == padLength32(untrustedBytesLen);
     }
 
+    /// @dev Zero-copy alias of the inner `bytes` in an `abi.encode(bytes)` blob.
+    ///      `data` MUST have passed `isValidAbiEncodedBytes` first. Layout at that point:
+    ///      `data+0x00` Solidity length, `data+0x20` ABI offset (32), `data+0x40` inner length.
+    function unwrapAbiEncodedBytes(bytes memory data)
+        internal
+        pure
+        returns (bytes memory inner)
+    {
+        // solhint-disable-next-line no-inline-assembly
+        assembly ("memory-safe") {
+            inner := add(data, 0x40)
+        }
+    }
+
 }
