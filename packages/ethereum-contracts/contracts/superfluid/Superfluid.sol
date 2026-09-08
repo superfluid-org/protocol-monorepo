@@ -55,6 +55,7 @@ contract Superfluid is
     // solhint-disable-next-line var-name-mixedcase
     bool immutable public APP_WHITE_LISTING_ENABLED;
 
+    /// @dev Gas budget shared by each SuperApp's matching before and after callback pair.
     uint64 immutable public CALLBACK_GAS_LIMIT;
 
     // simple forwarder contract used to relay arbitrary calls for batch operations
@@ -1111,11 +1112,36 @@ contract Superfluid is
 
         callData = _replacePlaceholderCtx(callData, ctx);
 
+        bytes32 callbackGasLimitSlot =
+            keccak256(abi.encodePacked("org.superfluid-finance.callbackGasLimit", app));
         uint256 callbackGasLimit = CALLBACK_GAS_LIMIT;
+        if (!isStaticall) {
+            uint256 storedCallbackGasLimit;
+            assembly ("memory-safe") {
+                storedCallbackGasLimit := tload(callbackGasLimitSlot)
+            }
+            if (storedCallbackGasLimit != 0) {
+                callbackGasLimit = storedCallbackGasLimit - 1;
+            }
+        }
+
+        uint256 gasLeftBefore = gasleft();
         bool insufficientCallbackGasProvided;
         (success, insufficientCallbackGasProvided, returnedData) = isStaticall ?
             CallbackUtils.staticCall(address(app), callData, callbackGasLimit) :
             CallbackUtils.externalCall(address(app), callData, callbackGasLimit);
+
+        if (isStaticall) {
+            uint256 gasPaid = gasLeftBefore - gasleft();
+            uint256 remainingCallbackGas = gasPaid >= callbackGasLimit ? 0 : callbackGasLimit - gasPaid;
+            assembly ("memory-safe") {
+                tstore(callbackGasLimitSlot, add(remainingCallbackGas, 1))
+            }
+        } else {
+            assembly ("memory-safe") {
+                tstore(callbackGasLimitSlot, 0)
+            }
+        }
 
         if (!success) {
             if (!insufficientCallbackGasProvided) {
