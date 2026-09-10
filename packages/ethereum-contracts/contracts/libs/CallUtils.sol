@@ -82,7 +82,9 @@ library CallUtils {
     }
 
     /**
-     * @dev Pad length to 32 bytes word boundary
+     * @dev Pad length to 32 bytes word boundary.
+     *      Safe domain is `[0, type(uint256).max - 32]`; this cannot be expressed in the type
+     *      system. Larger `len` overflows the round-up multiply and panics.
      */
     function padLength32(uint256 len) internal pure returns (uint256 paddedLen) {
         return ((len / 32) +  (((len & 31) > 0) /* rounding? */ ? 1 : 0)) * 32;
