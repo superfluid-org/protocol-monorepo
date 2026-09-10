@@ -57,7 +57,7 @@ pragma solidity ^0.8.23;
  *
  * High-level `call`/`staticcall` copies all returndata into memory. A SuperApp can return hundreds
  * of kilobytes of well-formed `bytes`, which later OOMs the agreement when encoding `cbdata`.
- * If `returndatasize()` exceeds `max(CALLBACK_RETURNDATA_CAP, callData.length)`, returndata is not
+ * If `returndatasize()` exceeds `CALLBACK_RETURNDATA_CAP`, returndata is not
  * copied (`bytes("")`). The CALL `success` bit is left unchanged so the Host's existing malformed-ctx
  * path jails on terminate (rule 22) and reverts `APP_RULE(22)` otherwise. EIP-150 detection stays on
  * the raw CALL result in Solidity after the copy.
@@ -67,9 +67,7 @@ library CallbackUtils {
     /// The magic N constant from the EIP-150
     uint256 internal constant EIP150_MAGIC_N = 64;
 
-    /// Default cap on copied callback returndata. Effective limit is
-    /// `max(this, callData.length)` so an after-hook that returns `ctx` is not jailed merely
-    /// because the caller passed large `userData`.
+    /// Fixed cap on total ABI-encoded callback returndata, regardless of calldata size.
     uint256 internal constant CALLBACK_RETURNDATA_CAP = 32 * 1024;
 
     /// Make a call to the target with a callback gas limit.
@@ -77,12 +75,11 @@ library CallbackUtils {
         returns (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData)
     {
         uint256 gasLeftBefore = gasleft();
-        uint256 maxReturnSize = _maxCallbackReturnSize(callData.length);
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             success := call(callbackGasLimit, target, 0, add(callData, 0x20), mload(callData), 0, 0)
         }
-        returnedData = _copyCallbackReturndata(maxReturnSize);
+        returnedData = _copyCallbackReturndata();
         if (!success) {
             if (gasleft() <= gasLeftBefore / EIP150_MAGIC_N) insufficientCallbackGasProvided = true;
         }
@@ -93,31 +90,26 @@ library CallbackUtils {
         returns (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData)
     {
         uint256 gasLeftBefore = gasleft();
-        uint256 maxReturnSize = _maxCallbackReturnSize(callData.length);
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             success := staticcall(callbackGasLimit, target, add(callData, 0x20), mload(callData), 0, 0)
         }
-        returnedData = _copyCallbackReturndata(maxReturnSize);
+        returnedData = _copyCallbackReturndata();
         if (!success) {
             if (gasleft() <= gasLeftBefore / EIP150_MAGIC_N) insufficientCallbackGasProvided = true;
         }
     }
 
-    function _maxCallbackReturnSize(uint256 callDataLength) private pure returns (uint256) {
-        return callDataLength < CALLBACK_RETURNDATA_CAP ? CALLBACK_RETURNDATA_CAP : callDataLength;
-    }
-
-    /// Copy returndata if `returndatasize() <= maxReturnSize`, else empty `bytes`.
+    /// Copy returndata if `returndatasize() <= CALLBACK_RETURNDATA_CAP`, else empty `bytes`.
     /// Must run immediately after the CALL/STATICCALL (output size 0, 0); internal, so returndata is preserved.
-    function _copyCallbackReturndata(uint256 maxReturnSize) private pure
+    function _copyCallbackReturndata() private pure
         returns (bytes memory returnedData)
     {
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             let rds := returndatasize()
             returnedData := mload(0x40)
-            switch gt(rds, maxReturnSize)
+            switch gt(rds, CALLBACK_RETURNDATA_CAP)
             case 1 {
                 mstore(returnedData, 0)
                 mstore(0x40, add(returnedData, 0x20))

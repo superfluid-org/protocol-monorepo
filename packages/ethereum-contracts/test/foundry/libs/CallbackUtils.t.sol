@@ -134,25 +134,25 @@ contract CallbackUtilsTest is Test {
         assertEq(decoded.length, 100);
     }
 
-    function testCapFollowsCallDataLength(bool isStaticCall) external {
-        uint256 cap = CallbackUtils.CALLBACK_RETURNDATA_CAP + 512;
+    function testLargeCallDataDoesNotRaiseReturnCap(bool isStaticCall) external {
+        uint256 cap = CallbackUtils.CALLBACK_RETURNDATA_CAP;
+        uint256 callDataSize = cap + 512;
         bytes memory atCap = abi.encodeCall(this._returnRaw, (cap));
-        atCap = bytes.concat(atCap, new bytes(cap - atCap.length));
-        assertEq(atCap.length, cap);
+        atCap = bytes.concat(atCap, new bytes(callDataSize - atCap.length));
+        assertEq(atCap.length, callDataSize);
 
         (bool success, bool insufficient, bytes memory data) = _invoke(isStaticCall, atCap, 1_000_000);
         assertTrue(success);
         assertFalse(insufficient);
-        assertEq(data.length, cap, "return size == fat callData.length must copy (honest ctx echo)");
+        assertEq(data.length, cap, "return size == fixed cap must copy");
 
         bytes memory overCap = abi.encodeCall(this._returnRaw, (cap + 1));
-        overCap = bytes.concat(overCap, new bytes(cap - overCap.length));
-        assertEq(overCap.length, cap);
+        overCap = bytes.concat(overCap, new bytes(callDataSize - overCap.length));
+        assertEq(overCap.length, callDataSize);
 
         (success, insufficient, data) = _invoke(isStaticCall, overCap, 1_000_000);
         assertTrue(success);
         assertFalse(insufficient);
-        assertEq(data.length, 0, "return size > fat callData.length must not copy");
+        assertEq(data.length, 0, "oversized returndata must not copy even when smaller than calldata");
     }
 }
-
