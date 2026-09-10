@@ -84,6 +84,67 @@ contract CallbackGasBudgetApp is ISuperApp {
     }
 }
 
+/// @dev One before-hook consumes most of its budget; enabled after-hooks need more than the remainder.
+contract CallbackGasBudgetNoopApp is ISuperApp {
+    bytes4 internal immutable _heavyBefore;
+    uint256 public afterGas;
+
+    constructor(ISuperfluid host, bytes4 heavyBefore, uint256 noopMask) {
+        _heavyBefore = heavyBefore;
+        host.registerApp(SuperAppDefinitions.APP_LEVEL_FINAL | noopMask);
+    }
+
+    function _before() internal view returns (bytes memory) {
+        if (msg.sig == _heavyBefore) {
+            while (gasleft() > 500_000) { }
+        }
+        return "";
+    }
+
+    function _after(bytes calldata ctx) internal returns (bytes memory) {
+        uint256 start = gasleft();
+        afterGas = start;
+        while (start - gasleft() < 700_000) { }
+        return ctx;
+    }
+
+    function beforeAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external view returns (bytes memory)
+    {
+        return _before();
+    }
+
+    function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external returns (bytes memory)
+    {
+        return _after(ctx);
+    }
+
+    function beforeAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external view returns (bytes memory)
+    {
+        return _before();
+    }
+
+    function afterAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external returns (bytes memory)
+    {
+        return _after(ctx);
+    }
+
+    function beforeAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external view returns (bytes memory)
+    {
+        return _before();
+    }
+
+    function afterAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external returns (bytes memory)
+    {
+        return _after(ctx);
+    }
+}
+
 contract SharedCallbackGasBudgetTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
 
@@ -137,6 +198,60 @@ contract SharedCallbackGasBudgetTest is FoundrySuperfluidTester {
 
         assertEq(superToken.getFlowRate(alice, address(app)), 0, "flow should be closed");
         assertFalse(sf.host.isAppJailed(ISuperApp(address(app))), "app must not be jailed");
+    }
+
+    // Each test executes multiple Host operations in one transaction, as a batch/router can.
+    // The before-only operation and the after-only operation must have independent budgets.
+    function test_beforeOnlyCreate_doesNotReduceTerminateBudget() public {
+        CallbackGasBudgetNoopApp app = new CallbackGasBudgetNoopApp(
+            sf.host, ISuperApp.beforeAgreementCreated.selector,
+            SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP
+                | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
+                | SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP
+                | SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP
+        );
+        _addAccount(address(app));
+        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+        _helperDeleteFlow(superToken, alice, alice, address(app));
+        _assertIndependentAfterBudget(app);
+        assertEq(superToken.getFlowRate(alice, address(app)), 0, "flow should be closed");
+    }
+
+    function test_beforeOnlyUpdate_doesNotReduceTerminateBudget() public {
+        CallbackGasBudgetNoopApp app = new CallbackGasBudgetNoopApp(
+            sf.host, ISuperApp.beforeAgreementUpdated.selector,
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
+                | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP
+                | SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP
+                | SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP
+        );
+        _addAccount(address(app));
+        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+        _helperUpdateFlow(superToken, alice, address(app), FLOW_RATE * 2);
+        _helperDeleteFlow(superToken, alice, alice, address(app));
+        _assertIndependentAfterBudget(app);
+        assertEq(superToken.getFlowRate(alice, address(app)), 0, "flow should be closed");
+    }
+
+    function test_beforeOnlyTerminate_doesNotReduceCreateBudget() public {
+        CallbackGasBudgetNoopApp app = new CallbackGasBudgetNoopApp(
+            sf.host, ISuperApp.beforeAgreementTerminated.selector,
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
+                | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
+                | SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP
+                | SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
+        );
+        _addAccount(address(app));
+        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+        _helperDeleteFlow(superToken, alice, alice, address(app));
+        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+        _assertIndependentAfterBudget(app);
+        assertEq(superToken.getFlowRate(alice, address(app)), FLOW_RATE, "flow should be reopened");
+    }
+
+    function _assertIndependentAfterBudget(CallbackGasBudgetNoopApp app) internal view {
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))), "independent callback must not jail an honest app");
+        assertGt(app.afterGas(), 2_500_000, "NOOP before should leave the full callback budget");
     }
 
     function _deployApp(CallbackGasBudgetApp.BeforeCreatedMode mode)

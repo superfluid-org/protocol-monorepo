@@ -1119,6 +1119,8 @@ contract Superfluid is
             uint256 storedCallbackGasLimit;
             assembly ("memory-safe") {
                 storedCallbackGasLimit := tload(callbackGasLimitSlot)
+                // Consume the remainder before entering app code.
+                tstore(callbackGasLimitSlot, 0)
             }
             if (storedCallbackGasLimit != 0) {
                 callbackGasLimit = storedCallbackGasLimit - 1;
@@ -1134,12 +1136,13 @@ contract Superfluid is
         if (isStaticall) {
             uint256 gasPaid = gasLeftBefore - gasleft();
             uint256 remainingCallbackGas = gasPaid >= callbackGasLimit ? 0 : callbackGasLimit - gasPaid;
+            // AgreementLibrary skips NOOP after-hooks entirely. Do not leave a remainder
+            // for a later, unrelated operation on the same app in this transaction.
+            // A reverted before-hook either aborts the operation or jails the app.
+            uint256 storedCallbackGasLimit = success && _hasMatchingAfterCallback(app, callData)
+                ? remainingCallbackGas + 1 : 0;
             assembly ("memory-safe") {
-                tstore(callbackGasLimitSlot, add(remainingCallbackGas, 1))
-            }
-        } else {
-            assembly ("memory-safe") {
-                tstore(callbackGasLimitSlot, 0)
+                tstore(callbackGasLimitSlot, storedCallbackGasLimit)
             }
         }
 
@@ -1157,6 +1160,22 @@ contract Superfluid is
                 revert HOST_NEED_MORE_GAS();
             }
         }
+    }
+
+    /// @dev App callback NOOP flags are fixed at registration.
+    function _hasMatchingAfterCallback(ISuperApp app, bytes memory callData) private view returns (bool) {
+        bytes4 beforeSelector = CallUtils.parseSelector(callData);
+        uint256 afterNoopBit;
+        if (beforeSelector == ISuperApp.beforeAgreementCreated.selector) {
+            afterNoopBit = SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
+        } else if (beforeSelector == ISuperApp.beforeAgreementUpdated.selector) {
+            afterNoopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
+        } else if (beforeSelector == ISuperApp.beforeAgreementTerminated.selector) {
+            afterNoopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
+        } else {
+            return false;
+        }
+        return (_appManifests[app].configWord & afterNoopBit) == 0;
     }
 
     /**
