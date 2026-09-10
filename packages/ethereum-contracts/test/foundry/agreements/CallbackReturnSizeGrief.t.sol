@@ -198,8 +198,11 @@ contract CallbackReturnSizeGriefTest is FoundrySuperfluidTester {
 
         _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
 
-        // Desired: jail 22 and close the flow. Today Host panics in isValidAbiEncodedBytes
-        // before _jailApp, so this call reverts and the stream stays open.
+        vm.expectEmit(true, false, false, true, address(sf.host));
+        emit ISuperfluid.Jail(
+            ISuperApp(address(app)), SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED
+        );
+
         vm.startPrank(bob);
         superToken.deleteFlow(alice, address(app));
         vm.stopPrank();

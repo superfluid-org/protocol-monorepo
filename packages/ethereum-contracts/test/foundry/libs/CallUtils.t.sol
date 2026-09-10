@@ -61,6 +61,44 @@ contract CallUtilsAnvil is Test {
         assertTrue(CallUtils.isValidAbiEncodedBytes(abi.encode(data)));
     }
 
+    /// No filtering: malformed offsets, truncated heads, and arbitrary lengths must not panic.
+    function testIsValidAbiEncodedBytes_arbitraryInputDoesNotPanic(bytes memory data) public pure {
+        _assertAbiEncodedBytesValidation(data);
+    }
+
+    /// Random bytes almost never contain offset 32. Force it to exercise the untrusted length path.
+    function testIsValidAbiEncodedBytes_untrustedLengthDoesNotPanic(bytes memory payload, uint256 claimedLength)
+        public pure
+    {
+        bytes memory data = abi.encode(payload);
+        assembly ("memory-safe") {
+            mstore(add(data, 64), claimedLength)
+        }
+        _assertAbiEncodedBytesValidation(data);
+    }
+
+    function _assertAbiEncodedBytesValidation(bytes memory data) internal pure {
+        bool expected;
+        if (data.length >= 64) {
+            uint256 offset;
+            uint256 claimedLength;
+            assembly ("memory-safe") {
+                offset := mload(add(data, 32))
+                claimedLength := mload(add(data, 64))
+            }
+            uint256 available = data.length - 64;
+            // Independent layout oracle: whole words, a payload that fits, and less than one word of padding.
+            // Do not use padLength32 here: its safety on hostile lengths is what we are testing.
+            expected = offset == 32 && claimedLength <= available
+                && available % 32 == 0 && available - claimedLength < 32;
+        }
+        bool valid = CallUtils.isValidAbiEncodedBytes(data);
+        assertEq(valid, expected, "validator must return the expected boolean without reverting");
+        if (valid) {
+            assertEq(CallUtils.unwrapAbiEncodedBytes(data), abi.decode(data, (bytes)));
+        }
+    }
+
     /// Hostile `returns (bytes)`: 64-byte ABI head with offset 32 and inner length `uint256.max`.
     /// Must return false, not panic in `padLength32`, so Host terminate can jail-and-continue.
     function testIsValidAbiEncodedBytes_maxInnerLengthDoesNotPanic() public pure {
