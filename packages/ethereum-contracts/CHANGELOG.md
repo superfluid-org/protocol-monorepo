@@ -5,6 +5,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [UNRELEASED]
 
+### Fixed
+- CFA/GDA liquidation now uses account-level `totalDeposit` from `realtimeBalanceOf` (sum across agreements) instead of the per-agreement deposit.
+
 ### Breaking
 
 - **Monorepo:** Yarn 4 (`nodeLinker: node-modules`). Use `yarn install --immutable` (vendored via `.yarn/releases` / `yarnPath`; Nix exposes it on `PATH`).

@@ -16,9 +16,8 @@ abstract contract GDAHotFuzzMixin is HotFuzzBase {
     ISuperfluidPool[] public pools;
 
     function getRandomPool(uint8 input) public view returns (ISuperfluidPool pool) {
-        if (pools.length > 0) {
-            pool = pools[input % (pools.length - 1)];
-        }
+        // GDAHotFuzz / SuperHotFuzz constructors always seed pools; length only grows via createPool.
+        pool = pools[input % pools.length];
     }
 
     function createPool(uint8 a, PoolConfig memory config) public {
@@ -52,26 +51,30 @@ abstract contract GDAHotFuzzMixin is HotFuzzBase {
     }
 
     /// @notice testerA liquidates a flow from testerB to pool
-    /// @dev testerA can be the same as testerB
+    /// @dev Skips when liquidator == distributor (self-liquidate not exercised here).
     function gdaLiquidateFlow(uint8 a, uint8 b, uint8 c) public {
         (SuperfluidTester liquidator, SuperfluidTester distributor) = _getTwoTesters(a, b);
+        if (address(liquidator) == address(distributor)) return;
         ISuperfluidPool pool = getRandomPool(c);
+        if (address(pool) == address(0)) return;
 
-        // we first check the condition for whether a flow exists
         bool flowExists = superToken.getFlowDistributionFlowRate(address(distributor), pool) > 0;
+        (,, uint256 singleDeposit,) =
+            superToken.getFlowInfo(address(distributor), address(pool));
+        (bool isPatricianPeriod,) = sf.gda.isPatricianPeriodNow(superToken, address(distributor));
+        LiquidationExpectations memory expectations =
+            _getLiquidationExpectations(address(distributor), address(liquidator), singleDeposit, isPatricianPeriod);
 
-        // then we ensure that the sender has a critical balance
-        (int256 availableBalance,,,) = superToken.realtimeBalanceOfNow(address(distributor));
-        bool isDistributorCritical = availableBalance < 0;
+        if (!(flowExists && expectations.isCritical)) return;
 
-        // if both conditions are met, a liquidation should occur without fail
-        bool isLiquidationValid = flowExists && isDistributorCritical;
-        if (isLiquidationValid) {
-            // solhint-disable-next-line no-empty-blocks
-            try liquidator.gdaLiquidate(address(distributor), pool) {}
-            catch {
-                liquidationFails = true;
+        try liquidator.gdaLiquidate(address(distributor), pool) {
+            if (superToken.getFlowDistributionFlowRate(address(distributor), pool) != 0) {
+                liquidationPostconditionViolated = true;
+            } else if (!_checkLiquidationBalances(expectations, address(liquidator))) {
+                liquidationPostconditionViolated = true;
             }
+        } catch {
+            liquidationFails = true;
         }
     }
 
