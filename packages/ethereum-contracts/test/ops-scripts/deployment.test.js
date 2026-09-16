@@ -122,15 +122,24 @@ contract("Embedded deployment scripts", (accounts) => {
 
     it("IDA freeze config is chain-dependent without env vars", () => {
         const optimism = getConfig(10);
-        assert.isFalse(optimism.idaNewActivityFrozen, "optimism-mainnet should keep IDA enabled");
+        assert.isFalse(
+            optimism.idaNewActivityFrozen,
+            "optimism-mainnet should keep IDA enabled"
+        );
         assert.equal(optimism.idaMaxNumSubscriptions, 32);
 
         const opSepolia = getConfig(11155420);
-        assert.isFalse(opSepolia.idaNewActivityFrozen, "optimism-sepolia should keep IDA enabled");
+        assert.isFalse(
+            opSepolia.idaNewActivityFrozen,
+            "optimism-sepolia should keep IDA enabled"
+        );
         assert.equal(opSepolia.idaMaxNumSubscriptions, 32);
 
         const polygon = getConfig(137);
-        assert.isTrue(polygon.idaNewActivityFrozen, "polygon should freeze IDA new activity");
+        assert.isTrue(
+            polygon.idaNewActivityFrozen,
+            "polygon should freeze IDA new activity"
+        );
         assert.equal(polygon.idaMaxNumSubscriptions, 256);
 
         const ethereum = getConfig(1);
@@ -141,7 +150,10 @@ contract("Embedded deployment scripts", (accounts) => {
         assert.isTrue(base.idaNewActivityFrozen);
 
         const local = getConfig(31337);
-        assert.isFalse(local.idaNewActivityFrozen, "local tests keep IDA fully usable");
+        assert.isFalse(
+            local.idaNewActivityFrozen,
+            "local tests keep IDA fully usable"
+        );
         assert.equal(local.idaMaxNumSubscriptions, 256);
     });
 
