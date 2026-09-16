@@ -20,20 +20,6 @@ export interface UserFlowOptions {
     by?: string;
 }
 
-export interface CreatePoolOptions {
-    poolId: number;
-}
-
-export interface GiveSharesOptions {
-    recipient: string;
-    shares: number | BN;
-    poolId: number;
-}
-
-export interface DistributeToPoolOptions {
-    poolId: number;
-    amount: number | BN;
-}
 
 export interface UserDetails {
     cfa: {
@@ -56,7 +42,4 @@ export declare class User {
         flowRate,
         ...options
     }: UserFlowOptions): Promise<Transaction | undefined>;
-    createPool({ poolId: indexId }: CreatePoolOptions): Promise<Transaction | undefined>;
-    giveShares({ recipient, shares, poolId: indexId }: GiveSharesOptions): Promise<Transaction | undefined>;
-    distributeToPool({ poolId: indexId, amount }: DistributeToPoolOptions): Promise<void>;
 }

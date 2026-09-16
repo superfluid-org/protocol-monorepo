@@ -85,7 +85,6 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
     // 0 units to > 0 units
     const didPoolMemberBecomeActive = previousUnits.equals(BIG_INT_ZERO) && event.params.newUnits.gt(BIG_INT_ZERO);
     if (didPoolMemberBecomeActive) {
-        pool.totalMembers = pool.totalMembers + 1;
         // if the member is connected with units now, we add one to connected
         if (poolMember.isConnected) {
             pool.totalConnectedMembers = pool.totalConnectedMembers + 1;
@@ -93,6 +92,8 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
             // if the member is disconnected with units now, we add one to disconnected
             pool.totalDisconnectedMembers = pool.totalDisconnectedMembers + 1;
         }
+        // totalMembers is always the sum of connected and disconnected members
+        pool.totalMembers = pool.totalConnectedMembers + pool.totalDisconnectedMembers;
 
         updateAggregateDistributionAgreementData(
             event.params.member,
@@ -111,7 +112,6 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
     // > 0 units to 0 units
     const didPoolMemberBecomeInactive = previousUnits.gt(BIG_INT_ZERO) && poolMember.units.equals(BIG_INT_ZERO);
     if (didPoolMemberBecomeInactive) {
-        pool.totalMembers = pool.totalMembers - 1;
         // if the member is connected with no units now, we subtract one from connected
         if (poolMember.isConnected) {
             pool.totalConnectedMembers = pool.totalConnectedMembers - 1;
@@ -119,6 +119,8 @@ export function handleMemberUnitsUpdated(event: MemberUnitsUpdated): void {
             // if the member is disconnected with no units now, we subtract one from disconnected
             pool.totalDisconnectedMembers = pool.totalDisconnectedMembers - 1;
         }
+        // totalMembers is always the sum of connected and disconnected members
+        pool.totalMembers = pool.totalConnectedMembers + pool.totalDisconnectedMembers;
 
         updateAggregateDistributionAgreementData(
             event.params.member,
