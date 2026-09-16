@@ -15,6 +15,15 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
   In order to not confuse devs (human or non), this part of the API is therefore removed.
   The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
+- `InstantDistributionAgreementV1` constructor is now `(host, newActivityFrozen, maxNumSubscriptions)`.
+  `MAX_NUM_SUBSCRIPTIONS` is an immutable (was a constant).
+
+### Changed
+
+- IDA soft-freeze:
+  Optimism (mainnet and testnet) retain active IDA because Super DCA still uses it. Max approved subscriptions is reduced to at most 32 approved subscriptions per subscriber per token.
+  Other networks freeze `createIndex`, `updateIndex`, `distribute`, `updateSubscription`, and `approveSubscription`; `claim`, `revokeSubscription`, and `deleteSubscription` remain available.
+  Existing subscription slots and balances are preserved. Local test deployments remain unfrozen with a 256-subscription cap.
 
 ## [v1.15.2]
 

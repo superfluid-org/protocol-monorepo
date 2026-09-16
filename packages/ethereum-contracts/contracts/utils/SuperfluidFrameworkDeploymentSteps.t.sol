@@ -356,7 +356,7 @@ library SuperfluidIDAv1DeployerLibrary {
         external
         returns (InstantDistributionAgreementV1)
     {
-        return new InstantDistributionAgreementV1(_host);
+        return new InstantDistributionAgreementV1(_host, false, 256);
     }
 }
 

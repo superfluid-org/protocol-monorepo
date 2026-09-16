@@ -13,6 +13,8 @@ contract SuperfluidFrameworkDeployerTest is FoundrySuperfluidTester {
         assertTrue(address(sf.host) != address(0), "SFDeployer: host not deployed");
         assertTrue(address(sf.cfa) != address(0), "SFDeployer: cfa not deployed");
         assertTrue(address(sf.ida) != address(0), "SFDeployer: ida not deployed");
+        assertFalse(sf.ida.NEW_ACTIVITY_FROZEN(), "SFDeployer: test IDA should not be frozen");
+        assertEq(sf.ida.MAX_NUM_SUBSCRIPTIONS(), 256, "SFDeployer: test IDA max slots");
         assertTrue(address(sf.gda) != address(0), "SFDeployer: gda not deployed");
         assertTrue(address(sf.superTokenFactory) != address(0), "SFDeployer: superTokenFactory not deployed");
         assertTrue(address(sf.superTokenLogic) != address(0), "SFDeployer: superTokenLogic not deployed");
