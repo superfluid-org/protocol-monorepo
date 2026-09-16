@@ -24,6 +24,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Optimism (mainnet and testnet) retain active IDA because Super DCA still uses it. Max approved subscriptions is reduced to at most 32 approved subscriptions per subscriber per token.
   Other networks freeze `createIndex`, `updateIndex`, `distribute`, `updateSubscription`, and `approveSubscription`; `claim`, `revokeSubscription`, and `deleteSubscription` remain available.
   Existing subscription slots and balances are preserved. Local test deployments remain unfrozen with a 256-subscription cap.
+- Default SuperApp `CALLBACK_GAS_LIMIT` reduced from 15M to 12M so terminate+jail can fit under EIP-7825's ~16.78M per-tx cap. Per-chain overrides (Ethereum/Scroll 3M, Avalanche 7.5M, Gnosis 8.5M) are unchanged. Host upgrades may decrease the immutable.
 
 ## [v1.15.2]
 

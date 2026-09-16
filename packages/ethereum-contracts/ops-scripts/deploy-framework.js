@@ -931,12 +931,13 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         const simpleAclAddress = await superfluid.getSimpleACL();
         console.log("SimpleACL address", simpleAclAddress);
 
-        // get previous callback gas limit, make sure we don't decrease it
+        // CALLBACK_GAS_LIMIT is a constructor immutable; a change deploys new Host logic.
+        // Decreasing is allowed: 15M stipends plus Host/CFA/EIP-150 overhead do not fit
+        // EIP-7825's 2^24 (~16.78M) per-tx cap.
         const prevCallbackGasLimit = await superfluid.CALLBACK_GAS_LIMIT();
-        if (prevCallbackGasLimit.toNumber() > appCallbackGasLimit) {
-            throw new Error("Cannot decrease app callback gas limit");
-        } else if (prevCallbackGasLimit.toNumber() !== appCallbackGasLimit) {
-            console.log(` !!! CHANGING APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
+        if (prevCallbackGasLimit.toNumber() !== appCallbackGasLimit) {
+            const direction = prevCallbackGasLimit.toNumber() > appCallbackGasLimit ? "DECREASING" : "CHANGING";
+            console.log(` !!! ${direction} APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
         }
 
         // deploy new superfluid host logic
