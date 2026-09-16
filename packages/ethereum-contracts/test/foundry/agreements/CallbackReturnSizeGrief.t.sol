@@ -1,208 +1,52 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { FoundrySuperfluidTester, SuperTokenV1Library } from "../FoundrySuperfluidTester.t.sol";
-import {
-    ISuperfluid,
-    ISuperApp,
-    ISuperToken,
-    SuperAppDefinitions
-} from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { CallbackReturndataTestBase, TerminationReturndataBombApp } from "../apps/CallbackReturndataTestBase.t.sol";
+import { ISuperApp, ISuperToken, SuperAppDefinitions } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
+import { CallbackUtils } from "../../../contracts/libs/CallbackUtils.sol";
 
-/// @dev `beforeAgreementTerminated` returns well-formed `abi.encode(bytes)` of length `bombSize`.
-///      Create/update callbacks are NOOP so only the terminate path is under test.
-contract OversizedTerminateCbApp is ISuperApp {
-    uint256 internal immutable _bombSize;
-
-    constructor(ISuperfluid host, uint256 bombSize) {
-        _bombSize = bombSize;
-        host.registerApp(
-            SuperAppDefinitions.APP_LEVEL_FINAL
-                | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
-                | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP
-                | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
-                | SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP
-        );
-    }
-
-    function beforeAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return "";
-    }
-
-    function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return ctx;
-    }
-
-    function beforeAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return "";
-    }
-
-    function afterAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return ctx;
-    }
-
-    function beforeAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
-        external
-        view
-        returns (bytes memory)
-    {
-        return new bytes(_bombSize);
-    }
-
-    function afterAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return ctx;
-    }
-}
-
-/// @dev `beforeAgreementTerminated` succeeds with a 64-byte ABI head: offset 32, inner length
-///      `uint256.max`, no payload. That is small enough to copy (under the returndata cap) but
-///      makes `isValidAbiEncodedBytes` panic in `padLength32` unless it rejects the length first.
-contract MaxInnerLengthTerminateCbApp is ISuperApp {
-    constructor(ISuperfluid host) {
-        host.registerApp(
-            SuperAppDefinitions.APP_LEVEL_FINAL
-                | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
-                | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP
-                | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
-                | SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP
-        );
-    }
-
-    function beforeAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return "";
-    }
-
-    function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return ctx;
-    }
-
-    function beforeAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return "";
-    }
-
-    function afterAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return ctx;
-    }
-
-    function beforeAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
-        external
-        pure
-        returns (bytes memory)
-    {
-        assembly {
-            mstore(0x00, 0x20)
-            mstore(0x20, not(0))
-            return(0x00, 0x40)
-        }
-    }
-
-    function afterAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
-        external
-        pure
-        returns (bytes memory)
-    {
-        return ctx;
-    }
-}
-
-contract CallbackReturnSizeGriefTest is FoundrySuperfluidTester {
+contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
     using SuperTokenV1Library for ISuperToken;
 
-    int96 internal constant FLOW_RATE = 1e9;
-    /// Inner `bytes` payload. ABI returndata is 64+this, well above the 128KiB CallbackUtils cap,
-    /// while `new bytes` still fits in the 3M callback stipend.
+    // Above the cap, while ABI encoding still fits in the 3M callback stipend.
     uint256 internal constant BOMB_SIZE = 200 * 1024;
 
-    constructor() FoundrySuperfluidTester(3) { }
-
     function test_terminateCallback_smallReturn_doesNotJail() public {
-        OversizedTerminateCbApp app = new OversizedTerminateCbApp(sf.host, 32);
-        _addAccount(address(app));
+        _assertAcceptedCbdata(32);
+    }
 
-        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+    function test_terminateCallback_returnAtCap_roundtripsAtGasBudget() public {
+        // Offset and length words occupy 64 bytes; this payload is word-aligned.
+        _assertAcceptedCbdata(CallbackUtils.CALLBACK_RETURNDATA_CAP - 64);
+    }
 
-        vm.startPrank(alice);
-        superToken.deleteFlow(alice, address(app));
-        vm.stopPrank();
-
+    function _assertAcceptedCbdata(uint256 size) internal {
+        TerminationReturndataBombApp app =
+            new TerminationReturndataBombApp(sf.host, TerminationReturndataBombApp.Mode.EncodedBeforeCbdata, size);
+        _openFlow(address(app));
+        _terminateAtGasBudget(address(app));
         assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
-        assertEq(superToken.getFlowRate(alice, address(app)), 0);
+        assertEq(app.receivedCbdataLength(), size, "after callback must receive the entire inner payload");
+        assertEq(app.receivedCbdataHash(), keccak256(new bytes(size)), "cbdata must survive downstream encoding");
     }
 
-    function test_terminateCallback_oversizedReturn_thirdPartyDeleteJails() public {
-        OversizedTerminateCbApp app = new OversizedTerminateCbApp(sf.host, BOMB_SIZE);
-        _addAccount(address(app));
+    function test_terminateCallback_oversizedReturn_operatorDeleteJails() public {
+        _assertOperatorDeleteJails(TerminationReturndataBombApp.Mode.EncodedBeforeCbdata, BOMB_SIZE);
+    }
 
+    function test_terminateCallback_maxInnerLength_operatorDeleteJails() public {
+        _assertOperatorDeleteJails(TerminationReturndataBombApp.Mode.MaxInnerLength, 0);
+    }
+
+    function _assertOperatorDeleteJails(TerminationReturndataBombApp.Mode mode, uint256 size) internal {
+        TerminationReturndataBombApp app = new TerminationReturndataBombApp(sf.host, mode, size);
+        _openFlow(address(app));
         vm.startPrank(alice);
         superToken.setMaxFlowPermissions(bob);
         vm.stopPrank();
 
-        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
-
-        vm.expectEmit(true, false, false, true, address(sf.host));
-        emit ISuperfluid.Jail(
-            ISuperApp(address(app)), SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED
-        );
-
-        vm.startPrank(bob);
-        superToken.deleteFlow(alice, address(app));
-        vm.stopPrank();
-
-        assertTrue(sf.host.isAppJailed(ISuperApp(address(app))));
-        assertEq(superToken.getFlowRate(alice, address(app)), 0);
-    }
-
-    function test_terminateCallback_maxInnerLength_thirdPartyDeleteJails() public {
-        MaxInnerLengthTerminateCbApp app = new MaxInnerLengthTerminateCbApp(sf.host);
-        _addAccount(address(app));
-
-        vm.startPrank(alice);
-        superToken.setMaxFlowPermissions(bob);
-        vm.stopPrank();
-
-        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
-
-        vm.expectEmit(true, false, false, true, address(sf.host));
-        emit ISuperfluid.Jail(
-            ISuperApp(address(app)), SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED
-        );
-
+        _expectJail(address(app), SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
         vm.startPrank(bob);
         superToken.deleteFlow(alice, address(app));
         vm.stopPrank();

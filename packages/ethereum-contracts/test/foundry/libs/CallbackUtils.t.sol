@@ -93,7 +93,12 @@ contract CallbackUtilsTest is Test {
         return CallbackUtils.externalCall(address(this), callData, callbackGasLimit);
     }
 
-    function testOversizedReturn_notCopied_successUnchanged(bool isStaticCall) external {
+    function testOversizedReturn_notCopied_successUnchanged() external {
+        _assertOversizedReturn_notCopied_successUnchanged(false);
+        _assertOversizedReturn_notCopied_successUnchanged(true);
+    }
+
+    function _assertOversizedReturn_notCopied_successUnchanged(bool isStaticCall) internal {
         // ABI-encoded `bytes` of length CAP is 64+CAP > default cap; callData is tiny.
         bytes memory callData = abi.encodeCall(this._returnNBytes, (CallbackUtils.CALLBACK_RETURNDATA_CAP));
         (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData) =
@@ -103,7 +108,12 @@ contract CallbackUtilsTest is Test {
         assertEq(returnedData.length, 0, "oversized returndata must not be copied");
     }
 
-    function testOversizedRevert_notCopied_eip150Unpoisoned(bool isStaticCall) external {
+    function testOversizedRevert_notCopied_eip150Unpoisoned() external {
+        _assertOversizedRevert_notCopied_eip150Unpoisoned(false);
+        _assertOversizedRevert_notCopied_eip150Unpoisoned(true);
+    }
+
+    function _assertOversizedRevert_notCopied_eip150Unpoisoned(bool isStaticCall) internal {
         bytes memory callData = abi.encodeCall(this._revertRaw, (CallbackUtils.CALLBACK_RETURNDATA_CAP + 1));
         (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData) =
             _invoke(isStaticCall, callData, 500_000);
@@ -112,7 +122,12 @@ contract CallbackUtilsTest is Test {
         assertEq(returnedData.length, 0, "oversized revert data must not be copied");
     }
 
-    function testReturnAtCap_isCopied(bool isStaticCall) external {
+    function testReturnAtCap_isCopied() external {
+        _assertReturnAtCap_isCopied(false);
+        _assertReturnAtCap_isCopied(true);
+    }
+
+    function _assertReturnAtCap_isCopied(bool isStaticCall) internal {
         uint256 cap = CallbackUtils.CALLBACK_RETURNDATA_CAP;
         bytes memory callData = abi.encodeCall(this._returnRaw, (cap));
         (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData) =
@@ -134,7 +149,12 @@ contract CallbackUtilsTest is Test {
         assertEq(decoded.length, 100);
     }
 
-    function testLargeCallDataDoesNotRaiseReturnCap(bool isStaticCall) external {
+    function testLargeCallDataDoesNotRaiseReturnCap() external {
+        _assertLargeCallDataDoesNotRaiseReturnCap(false);
+        _assertLargeCallDataDoesNotRaiseReturnCap(true);
+    }
+
+    function _assertLargeCallDataDoesNotRaiseReturnCap(bool isStaticCall) internal {
         uint256 cap = CallbackUtils.CALLBACK_RETURNDATA_CAP;
         uint256 callDataSize = cap + 512;
         bytes memory atCap = abi.encodeCall(this._returnRaw, (cap));
