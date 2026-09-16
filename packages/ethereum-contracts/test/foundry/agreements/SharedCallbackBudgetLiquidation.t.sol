@@ -169,6 +169,8 @@ contract SharedCallbackBudgetLiquidationTest is FoundrySuperfluidTester {
     function test_insolventBailout_honestClosesWithoutJail() public {
         TerminateBudgetApp app = _deployTerminateApp(0, 0);
         _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+        // Tester mints uint88.max; drain available so warp stays inside uint32 timestamps.
+        _helperTransferAll(superToken, alice, bob);
         (uint256 liquidationPeriod,) = sf.governance.getPPPConfig(sf.host, superToken);
         // Clip-up of CFA deposits can cover a few extra seconds at this flow rate.
         _helperWarpToInsolvency(superToken, alice, liquidationPeriod, 1 hours);
@@ -207,6 +209,8 @@ contract SharedCallbackBudgetLiquidationTest is FoundrySuperfluidTester {
 
     function _openAndWarpCritical(address app) internal {
         _helperCreateFlow(superToken, alice, app, FLOW_RATE);
+        // Tester mints uint88.max; drain available so warp stays inside uint32 timestamps.
+        _helperTransferAll(superToken, alice, bob);
         _helperWarpToCritical(superToken, alice, 1);
         assertTrue(superToken.isAccountCriticalNow(alice), "setup: alice must be critical");
     }
