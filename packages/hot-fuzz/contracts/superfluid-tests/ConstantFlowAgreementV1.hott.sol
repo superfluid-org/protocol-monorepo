@@ -23,25 +23,28 @@ abstract contract CFAHotFuzzMixin is HotFuzzBase {
     }
 
     /// @notice testerA liquidates a flow from testerB to testerC
-    /// @dev testerA can be the same as testerB or testerC
+    /// @dev Self-liquidate (A == B) is allowed; reward balance asserts are skipped in that case
+    ///      because sender and liquidator are the same account.
     function cfaLiquidateFlow(uint8 a, uint8 b, uint8 c) public {
         (SuperfluidTester liquidator, SuperfluidTester sender, SuperfluidTester recipient) = _getThreeTesters(a, b, c);
 
-        // we first check the condition for whether a flow exists
         bool flowExists = superToken.getFlowRate(address(sender), address(recipient)) > 0;
+        (,, uint256 singleDeposit,) = superToken.getFlowInfo(address(sender), address(recipient));
+        (bool isPatricianPeriod,) = sf.cfa.isPatricianPeriodNow(superToken, address(sender));
+        LiquidationExpectations memory expectations =
+            _getLiquidationExpectations(address(sender), address(liquidator), singleDeposit, isPatricianPeriod);
 
-        // then we ensure that the sender has a critical balance
-        (int256 availableBalance,,,) = superToken.realtimeBalanceOfNow(address(sender));
-        bool isSenderCritical = availableBalance < 0;
+        if (!(flowExists && expectations.isCritical)) return;
 
-        // if both conditions are met, a liquidation should occur without fail
-        bool isLiquidationValid = flowExists && isSenderCritical;
-        if (isLiquidationValid) {
-            // solhint-disable-next-line no-empty-blocks
-            try liquidator.cfaLiquidate(address(sender), address(recipient)) {}
-            catch {
-                liquidationFails = true;
+        bool selfLiquidate = address(liquidator) == address(sender);
+        try liquidator.cfaLiquidate(address(sender), address(recipient)) {
+            if (superToken.getFlowRate(address(sender), address(recipient)) != 0) {
+                liquidationPostconditionViolated = true;
+            } else if (!selfLiquidate && !_checkLiquidationBalances(expectations, address(liquidator))) {
+                liquidationPostconditionViolated = true;
             }
+        } catch {
+            liquidationFails = true;
         }
     }
 
