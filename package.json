@@ -48,7 +48,8 @@
     "private": true,
     "repository": "github:superfluid-org/protocol-monorepo",
     "resolutions": {
-        "cross-fetch": "^4.0.0"
+        "cross-fetch": "^4.0.0",
+        "fast-uri": ">=3.0.0"
     },
     "scripts": {
         "prepare": "yarn git-submodule:init && husky",
