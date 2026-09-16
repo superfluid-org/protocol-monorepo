@@ -19,6 +19,8 @@ import { AgreementLibrary } from "./AgreementLibrary.sol";
  * @author Superfluid
  * @dev Please read IInstantDistributionAgreementV1 for implementation notes.
  * @dev For more technical notes, please visit protocol-monorepo wiki area.
+ * @dev New activity can be frozen per logic deployment via constructor immutables
+ *      (`NEW_ACTIVITY_FROZEN`, `MAX_NUM_SUBSCRIPTIONS`). Unwind ops stay available.
  *
  * Storage Layout Notes
  * Agreement State
@@ -69,8 +71,14 @@ contract InstantDistributionAgreementV1 is
 
     address public constant SLOTS_BITMAP_LIBRARY_ADDRESS = address(SlotsBitmapLibrary);
 
-    /// @dev Maximum number of subscriptions a subscriber can have
-    uint32 public constant MAX_NUM_SUBSCRIPTIONS = SlotsBitmapLibrary._MAX_NUM_SLOTS;
+    /// @notice When true, new activity and approval of subscriptions revert.
+    ///         Unwind ops (claim, revoke, delete) remain available.
+    bool public immutable NEW_ACTIVITY_FROZEN;
+
+    /// @notice Cap on newly approved subscriptions per subscriber.
+    /// @dev Listing still iterates the 256-bit slots bitmap, so subscriptions that already
+    ///      exist above this cap remain visible in realtimeBalanceOf after an upgrade.
+    uint32 public immutable MAX_NUM_SUBSCRIPTIONS;
 
     /// @dev Subscriber state slot id for storing subs bitmap
     uint256 private constant _SUBSCRIBER_SUBS_BITMAP_STATE_SLOT_ID = 0;
@@ -82,8 +90,23 @@ contract InstantDistributionAgreementV1 is
     /// @dev A special id that indicating the subscription is not approved yet
     uint32 private constant _UNALLOCATED_SUB_ID = type(uint32).max;
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor(ISuperfluid host) AgreementBase(address(host)) {}
+    constructor(
+        ISuperfluid host,
+        bool newActivityFrozen,
+        uint32 maxNumSubscriptions
+    )
+        AgreementBase(address(host))
+    {
+        if (maxNumSubscriptions == 0 || maxNumSubscriptions > SlotsBitmapLibrary._MAX_NUM_SLOTS) {
+            revert IDA_INVALID_MAX_NUM_SUBSCRIPTIONS();
+        }
+        NEW_ACTIVITY_FROZEN = newActivityFrozen;
+        MAX_NUM_SUBSCRIPTIONS = maxNumSubscriptions;
+    }
+
+    function _requireNewActivityEnabled() private view {
+        if (NEW_ACTIVITY_FROZEN) revert IDA_NEW_ACTIVITY_FROZEN();
+    }
 
     /// @dev Agreement data for the index
     struct IndexData {
@@ -170,6 +193,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         ISuperfluid.Context memory context = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address publisher = context.msgSender;
         bytes32 iId = _getPublisherId(publisher, indexId);
@@ -240,6 +264,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         ISuperfluid.Context memory context = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address publisher = context.msgSender;
         (bytes32 iId, IndexData memory idata) = _loadIndexData(token, publisher, indexId);
@@ -261,6 +286,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         ISuperfluid.Context memory context = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address publisher = context.msgSender;
         (bytes32 iId, IndexData memory idata) = _loadIndexData(token, publisher, indexId);
@@ -358,6 +384,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         _SubscriptionOperationVars memory vars;
         AgreementLibrary.CallbackInputs memory cbStates;
         address subscriber;
@@ -517,6 +544,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         if (subscriber == address(0)) {
             revert IDA_ZERO_ADDRESS_SUBSCRIBER();
         }
@@ -1109,6 +1137,13 @@ contract InstantDistributionAgreementV1 is
         private
         returns (uint32 subId)
     {
+        uint256 nUsed = SlotsBitmapLibrary.countUsedSlots(
+            token,
+            subscriber,
+            _SUBSCRIBER_SUBS_BITMAP_STATE_SLOT_ID);
+        if (nUsed >= MAX_NUM_SUBSCRIPTIONS) {
+            revert IDA_TOO_MANY_SUBSCRIPTIONS();
+        }
         return SlotsBitmapLibrary.findEmptySlotAndFill(
             token,
             subscriber,

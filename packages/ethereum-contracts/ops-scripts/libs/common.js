@@ -114,68 +114,40 @@ async function hasCode(web3, address) {
 }
 
 /**
- * @dev Check if the code at the address differs from the contract object provided
- * @param replacements should contain all immutable contract fields, encoded as words
- * This comes with the following limitations:
- * - possible false positive if a replacement value by chance is part of the code
- *   other than as the immutable to be replaced
- * - if an update only involves changing the value of an immutable,
- *   the check will wrongly claim that nothing changed
+ * @dev Compare deployed runtime code with a simulated deployment using the desired
+ * constructor arguments. eth_call discards all constructor writes. Unlike textual
+ * immutable replacement, this also detects changes to immutable values.
+ * Constructors must produce deterministic runtime code from these arguments and
+ * the current chain state (e.g. no address(this) or block-dependent immutables).
  */
 async function codeChanged(
     web3,
     contract,
     address,
-    replacements = [],
+    constructorArgs = [],
     debug = false
 ) {
-    // Use .binary instead of .bytecode to include linked library addresses
-    let binaryFromCompiler = contract.binary.toLowerCase();
-    // Trim `binaryFromCompiler` to start from the first occurrence of "6080604052"
-    const firstIndex = binaryFromCompiler.indexOf("6080604052");
-    if (firstIndex !== -1) {
-        binaryFromCompiler = binaryFromCompiler.slice(firstIndex);
-    }
-
-    let code = (await web3.eth.getCode(address)).toLowerCase().replace(/^0x/, "");;
-
-    // No code at the address indicates a change
+    const code = (await web3.eth.getCode(address)).toLowerCase();
     if (code.length <= 3) return true;
 
-    // Apply replacements only to the on-chain code for dynamic values (e.g., constructor parameters)
+    // .binary includes linked library addresses, unlike .bytecode.
+    const data = new web3.eth.Contract(contract.abi).deploy({
+        data: contract.binary,
+        arguments: constructorArgs,
+    }).encodeABI();
+    const expected = (await web3.eth.call({
+        from: contract.defaults().from,
+        data,
+    })).toLowerCase();
+    if (expected.length <= 3) {
+        throw new Error(`${contract.contractName} creation simulation returned no runtime code`);
+    }
     if (debug) {
-        console.log("replacements", replacements);
+        console.log("constructorArgs", constructorArgs);
+        console.log("expected runtime code", expected);
+        console.log("deployed runtime code", code);
     }
-    let codeReplaced = code;
-    replacements.forEach((r) => {
-        codeReplaced = codeReplaced.replace(
-            new RegExp(r, "g"),
-            "0".repeat(r.length)
-        );
-    });
-
-    // Check if the on-chain code (with replacements) is a subset of the binary from the compiler
-    const isSubset = binaryFromCompiler.includes(codeReplaced);
-
-    if (debug) {
-        console.log("  binaryFromCompiler", binaryFromCompiler);
-        console.log("  code", code);
-        console.log("  codeReplaced", codeReplaced);
-    }
-
-    if (isSubset) {
-        // Find where `codeReplaced` ends within `binaryFromCompiler`
-        const endIndex = binaryFromCompiler.indexOf(codeReplaced) + codeReplaced.length;
-
-        // Verify that either `binaryFromCompiler` ends there or has "6080604052" following
-        const isMatch = endIndex === binaryFromCompiler.length ||
-                        binaryFromCompiler.slice(endIndex).startsWith("6080604052");
-
-        return !isMatch;
-    }
-
-    // If not a subset, it's a mismatch
-    return true;
+    return code !== expected;
 }
 
 
