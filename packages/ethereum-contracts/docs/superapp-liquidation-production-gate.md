@@ -29,7 +29,7 @@ Validator properties already added:
 
 Retain deterministic malformed-head cases. Add missing boundary cases where useful: total lengths 0, 31, 32, 63, 64, and 65; offsets 0, 31, 32, and 64; claimed lengths around actual payload size and uint256.max. Do not restrict hostile claimed lengths to values that already fit.
 
-For raw returndata, exercise cap minus one, cap, and cap plus one for CALL and STATICCALL, successful returns and reverts. The cap applies to the complete ABI returndata, including its 64-byte header. Keep coverage where calldata exceeds 32 KiB, including an honest large-context echo.
+For raw returndata, exercise cap minus one, cap, and cap plus one for CALL and STATICCALL, successful returns and reverts. The cap applies to the complete ABI returndata, including its 64-byte header. Keep coverage where calldata exceeds 128 KiB, including an honest large-context echo.
 
 ## 2. Test budget ownership through short operation sequences
 

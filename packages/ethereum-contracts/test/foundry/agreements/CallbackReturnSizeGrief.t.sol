@@ -145,9 +145,9 @@ contract CallbackReturnSizeGriefTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
 
     int96 internal constant FLOW_RATE = 1e9;
-    /// Inner `bytes` payload. ABI returndata is 64+this, well above the 32KiB CallbackUtils cap,
+    /// Inner `bytes` payload. ABI returndata is 64+this, well above the 128KiB CallbackUtils cap,
     /// while `new bytes` still fits in the 3M callback stipend.
-    uint256 internal constant BOMB_SIZE = 100 * 1024;
+    uint256 internal constant BOMB_SIZE = 200 * 1024;
 
     constructor() FoundrySuperfluidTester(3) { }
 

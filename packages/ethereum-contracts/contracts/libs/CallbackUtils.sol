@@ -68,7 +68,7 @@ library CallbackUtils {
     uint256 internal constant EIP150_MAGIC_N = 64;
 
     /// Fixed cap on total ABI-encoded callback returndata, regardless of calldata size.
-    uint256 internal constant CALLBACK_RETURNDATA_CAP = 32 * 1024;
+    uint256 internal constant CALLBACK_RETURNDATA_CAP = 128 * 1024;
 
     /// Make a call to the target with a callback gas limit.
     function externalCall(address target, bytes memory callData, uint256 callbackGasLimit) internal
