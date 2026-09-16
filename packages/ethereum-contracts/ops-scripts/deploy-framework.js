@@ -151,6 +151,9 @@ async function assertIdaFreezeCannotBeReenabled(
  * @param {boolean} options.newSuperfluidLoader Deploy a new superfluid loader contract
  *                  (overriding env: NEW_SUPERFLUID_LOADER)
  *
+ * Upgrade path: decreasing Host CALLBACK_GAS_LIMIT is refused unless
+ * ALLOW_DECREASE_APP_CALLBACK_GAS_LIMIT is set.
+ *
  * SECURITY (production / mainnet):
  * Superfluid Host and PoolAdminNFT UUPS proxies are bootstrapped across separate
  * on-chain txs below. initializeProxy is permissionless on empty proxies — see
@@ -932,12 +935,17 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         console.log("SimpleACL address", simpleAclAddress);
 
         // CALLBACK_GAS_LIMIT is a constructor immutable; a change deploys new Host logic.
-        // Decreasing is allowed: 15M stipends plus Host/CFA/EIP-150 overhead do not fit
-        // EIP-7825's 2^24 (~16.78M) per-tx cap.
         const prevCallbackGasLimit = await superfluid.CALLBACK_GAS_LIMIT();
-        if (prevCallbackGasLimit.toNumber() !== appCallbackGasLimit) {
-            const direction = prevCallbackGasLimit.toNumber() > appCallbackGasLimit ? "DECREASING" : "CHANGING";
-            console.log(` !!! ${direction} APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
+        if (prevCallbackGasLimit.toNumber() > appCallbackGasLimit) {
+            if (!process.env.ALLOW_DECREASE_APP_CALLBACK_GAS_LIMIT) {
+                throw new Error(
+                    "Cannot decrease app callback gas limit " +
+                    "(set ALLOW_DECREASE_APP_CALLBACK_GAS_LIMIT=1 to override)"
+                );
+            }
+            console.log(` !!! DECREASING APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
+        } else if (prevCallbackGasLimit.toNumber() !== appCallbackGasLimit) {
+            console.log(` !!! CHANGING APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
         }
 
         // deploy new superfluid host logic
