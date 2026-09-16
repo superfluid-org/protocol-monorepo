@@ -516,9 +516,12 @@ contract Superfluid is
         external override
         onlyAgreement
         assertValidCtx(ctx)
-        returns(bytes memory cbdata)
+        returns(bytes memory cbdata, uint256 remainingCallbackGas)
     {
-        (bool success, bytes memory returnedData) = _callCallback(app, true, isTermination, callData, ctx);
+        bool success;
+        bytes memory returnedData;
+        (success, returnedData, remainingCallbackGas) = _callCallback(
+            app, true, isTermination, callData, ctx, CALLBACK_GAS_LIMIT);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
                 cbdata = CallUtils.unwrapAbiEncodedBytes(returnedData);
@@ -536,14 +539,19 @@ contract Superfluid is
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external override
         onlyAgreement
         assertValidCtx(ctx)
         returns(bytes memory newCtx)
     {
-        (bool success, bytes memory returnedData) = _callCallback(app, false, isTermination, callData, ctx);
+        if (callbackGasLimit > CALLBACK_GAS_LIMIT) {
+            callbackGasLimit = CALLBACK_GAS_LIMIT;
+        }
+        (bool success, bytes memory returnedData,) = _callCallback(
+            app, false, isTermination, callData, ctx, callbackGasLimit);
         if (success) {
             // the non static callback should not return empty ctx
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
@@ -1100,51 +1108,27 @@ contract Superfluid is
 
     function _callCallback(
         ISuperApp app,
-        bool isStaticall,
+        bool isStaticCall,
         bool isTermination,
         bytes memory callData,
-        bytes memory ctx
+        bytes memory ctx,
+        uint256 callbackGasLimit
     )
         private
-        returns(bool success, bytes memory returnedData)
+        returns(bool success, bytes memory returnedData, uint256 remainingCallbackGas)
     {
         assert(address(app) != address(0));
 
         callData = _replacePlaceholderCtx(callData, ctx);
 
-        bytes32 callbackGasLimitSlot =
-            keccak256(abi.encodePacked("org.superfluid-finance.callbackGasLimit", app));
-        uint256 callbackGasLimit = CALLBACK_GAS_LIMIT;
-        if (!isStaticall) {
-            uint256 storedCallbackGasLimit;
-            assembly ("memory-safe") {
-                storedCallbackGasLimit := tload(callbackGasLimitSlot)
-                // Consume the remainder before entering app code.
-                tstore(callbackGasLimitSlot, 0)
-            }
-            if (storedCallbackGasLimit != 0) {
-                callbackGasLimit = storedCallbackGasLimit - 1;
-            }
-        }
-
         uint256 gasLeftBefore = gasleft();
         bool insufficientCallbackGasProvided;
-        (success, insufficientCallbackGasProvided, returnedData) = isStaticall ?
+        (success, insufficientCallbackGasProvided, returnedData) = isStaticCall ?
             CallbackUtils.staticCall(address(app), callData, callbackGasLimit) :
             CallbackUtils.externalCall(address(app), callData, callbackGasLimit);
 
-        if (isStaticall) {
-            uint256 gasPaid = gasLeftBefore - gasleft();
-            uint256 remainingCallbackGas = gasPaid >= callbackGasLimit ? 0 : callbackGasLimit - gasPaid;
-            // AgreementLibrary skips NOOP after-hooks entirely. Do not leave a remainder
-            // for a later, unrelated operation on the same app in this transaction.
-            // A reverted before-hook either aborts the operation or jails the app.
-            uint256 storedCallbackGasLimit = success && _hasMatchingAfterCallback(app, callData)
-                ? remainingCallbackGas + 1 : 0;
-            assembly ("memory-safe") {
-                tstore(callbackGasLimitSlot, storedCallbackGasLimit)
-            }
-        }
+        uint256 gasPaid = gasLeftBefore - gasleft();
+        remainingCallbackGas = gasPaid >= callbackGasLimit ? 0 : callbackGasLimit - gasPaid;
 
         if (!success) {
             if (!insufficientCallbackGasProvided) {
@@ -1160,22 +1144,6 @@ contract Superfluid is
                 revert HOST_NEED_MORE_GAS();
             }
         }
-    }
-
-    /// @dev App callback NOOP flags are fixed at registration.
-    function _hasMatchingAfterCallback(ISuperApp app, bytes memory callData) private view returns (bool) {
-        bytes4 beforeSelector = CallUtils.parseSelector(callData);
-        uint256 afterNoopBit;
-        if (beforeSelector == ISuperApp.beforeAgreementCreated.selector) {
-            afterNoopBit = SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
-        } else if (beforeSelector == ISuperApp.beforeAgreementUpdated.selector) {
-            afterNoopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-        } else if (beforeSelector == ISuperApp.beforeAgreementTerminated.selector) {
-            afterNoopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
-        } else {
-            return false;
-        }
-        return (_appManifests[app].configWord & afterNoopBit) == 0;
     }
 
     /**

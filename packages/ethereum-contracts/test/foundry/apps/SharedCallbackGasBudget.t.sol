@@ -149,6 +149,9 @@ contract SharedCallbackGasBudgetTest is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
 
     int96 internal constant FLOW_RATE = 1e9;
+    /// Leave enough gas for the before-hook to return; 256 OOGs the return and reverts create.
+    uint256 internal constant EXHAUST_BEFORE_LEAVE = 50_000;
+    uint256 internal constant HEAVY_BEFORE_LEAVE = 500_000;
 
     constructor() FoundrySuperfluidTester(3) { }
 
@@ -260,5 +263,199 @@ contract SharedCallbackGasBudgetTest is FoundrySuperfluidTester {
     {
         app = new CallbackGasBudgetApp(sf.host, mode);
         _addAccount(address(app));
+    }
+
+    /// @dev Exhaust the before-hook stipend (leave a few hundred gas to return). After is NOOP
+    ///      so remainder 0 is discarded. The next after-only hook must still get a full budget.
+    function test_zeroRemainder_isNotAFreshBudget() public {
+        CallbackBudgetProbeApp app = _deployProbe({
+            createBeforeNoop: false,
+            createAfterNoop: true,
+            terminateBeforeNoop: true,
+            beforeLeave: EXHAUST_BEFORE_LEAVE
+        });
+
+        _helperCreateFlow(superToken, alice, address(app), FLOW_RATE);
+        _helperDeleteFlow(superToken, alice, alice, address(app));
+
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))), "discarded zero remainder must not jail");
+        assertGt(app.lastAfterGas(), 2_500_000, "after-only terminate must not inherit remainder 0");
+        assertEq(superToken.getFlowRate(alice, address(app)), 0, "flow should be closed");
+    }
+
+    /// @dev Matching pair: before exhausts the stipend, after is enabled. Remainder 0
+    ///      must not be treated as an absent budget (which would give after a full stipend).
+    function test_exhaustMatchingPair_afterDoesNotGetFreshBudget() public {
+        CallbackBudgetProbeApp app = _deployProbe({
+            createBeforeNoop: false,
+            createAfterNoop: false,
+            terminateBeforeNoop: true,
+            beforeLeave: EXHAUST_BEFORE_LEAVE
+        });
+
+        bool opened = _tryCreateFlow(address(app));
+        if (opened) {
+            assertLt(app.lastAfterGas(), 100_000, "after must see remainder ~0, not a fresh stipend");
+            _helperDeleteFlow(superToken, alice, alice, address(app));
+        } else {
+            assertEq(superToken.getFlowRate(alice, address(app)), 0, "failed create leaves no flow");
+        }
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))), "failed or starved create must not jail");
+    }
+
+    /// @dev Valid 2–3 operation templates. NOOP mask and before-hook workload vary.
+    ///      After-hooks only record gasleft so honest apps stay inside the allowance.
+    /// forge-config: default.fuzz.runs = 64
+    /// forge-config: ci.fuzz.runs = 64
+    function testFuzz_budgetSequence(
+        uint8 template,
+        uint8 beforeLeaveKind,
+        bool createBeforeNoop,
+        bool createAfterNoop,
+        bool twoApps
+    ) public {
+        template = uint8(bound(template, 0, 1));
+        beforeLeaveKind = uint8(bound(beforeLeaveKind, 0, 2));
+        uint256 beforeLeave = _beforeLeaveForKind(beforeLeaveKind);
+
+        CallbackBudgetProbeApp app = _deployProbe({
+            createBeforeNoop: createBeforeNoop,
+            createAfterNoop: createAfterNoop,
+            terminateBeforeNoop: true,
+            beforeLeave: createBeforeNoop ? 0 : beforeLeave
+        });
+
+        bool opened = _tryCreateFlow(address(app));
+        if (!opened) {
+            assertFalse(createAfterNoop, "create can fail only when after runs on an exhausted before");
+            assertFalse(createBeforeNoop, "NOOP before cannot exhaust the stipend");
+            assertEq(beforeLeaveKind, 2, "create can fail only on exhaust");
+            assertEq(superToken.getFlowRate(alice, address(app)), 0, "failed create leaves no flow");
+            assertLt(app.lastAfterGas(), 100_000, "remainder 0 is not a full after stipend");
+        } else if (!createAfterNoop) {
+            if (createBeforeNoop || beforeLeaveKind == 0) {
+                assertGt(app.lastAfterGas(), 2_500_000, "cheap/NOOP before leaves a full after stipend");
+            } else if (beforeLeaveKind == 1) {
+                assertLt(app.lastAfterGas(), 1_200_000, "heavy before must shrink the after stipend");
+            } else {
+                assertLt(app.lastAfterGas(), 100_000, "exhaust before must leave ~0 after stipend");
+            }
+        }
+
+        if (twoApps) {
+            CallbackBudgetProbeApp other = _deployProbe({
+                createBeforeNoop: true,
+                createAfterNoop: false,
+                terminateBeforeNoop: true,
+                beforeLeave: 0
+            });
+            _helperCreateFlow(superToken, alice, address(other), FLOW_RATE);
+            assertGt(other.lastAfterGas(), 2_500_000, "second app must get a full independent stipend");
+            assertFalse(sf.host.isAppJailed(ISuperApp(address(other))), "second app must not be jailed");
+            _helperDeleteFlow(superToken, alice, alice, address(other));
+        }
+
+        if (opened) {
+            if (template == 1) {
+                _helperUpdateFlow(superToken, alice, address(app), FLOW_RATE * 2);
+            }
+            _helperDeleteFlow(superToken, alice, alice, address(app));
+            assertGt(app.lastAfterGas(), 2_500_000, "later after-only pair must start from a full stipend");
+            assertFalse(sf.host.isAppJailed(ISuperApp(address(app))), "honest record-only after must not jail");
+            assertEq(superToken.getFlowRate(alice, address(app)), 0, "flow should be closed");
+        }
+    }
+
+    function helperCreateAsAlice(address app) external {
+        _helperCreateFlow(superToken, alice, app, FLOW_RATE);
+    }
+
+    function _tryCreateFlow(address app) internal returns (bool opened) {
+        try this.helperCreateAsAlice(app) {
+            opened = true;
+        } catch {
+            opened = false;
+        }
+    }
+
+    function _beforeLeaveForKind(uint8 kind) internal pure returns (uint256) {
+        if (kind == 1) return HEAVY_BEFORE_LEAVE;
+        if (kind == 2) return EXHAUST_BEFORE_LEAVE;
+        return 0;
+    }
+
+    function _deployProbe(
+        bool createBeforeNoop,
+        bool createAfterNoop,
+        bool terminateBeforeNoop,
+        uint256 beforeLeave
+    ) internal returns (CallbackBudgetProbeApp app) {
+        uint256 noopMask = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
+            | SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
+        if (createBeforeNoop) noopMask |= SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
+        if (createAfterNoop) noopMask |= SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
+        if (terminateBeforeNoop) noopMask |= SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
+        app = new CallbackBudgetProbeApp(sf.host, noopMask, beforeLeave);
+        _addAccount(address(app));
+    }
+}
+
+/// @dev Records after-hook gasleft. Optional before-hook burn until `gasleft() <= beforeLeave`.
+contract CallbackBudgetProbeApp is ISuperApp {
+    uint256 public immutable beforeLeave;
+    uint256 public lastAfterGas;
+
+    constructor(ISuperfluid host, uint256 noopMask, uint256 beforeLeave_) {
+        beforeLeave = beforeLeave_;
+        host.registerApp(SuperAppDefinitions.APP_LEVEL_FINAL | noopMask);
+    }
+
+    function _before() internal view returns (bytes memory) {
+        uint256 leave = beforeLeave;
+        if (leave > 0) {
+            while (gasleft() > leave) { }
+        }
+        return "";
+    }
+
+    function _after(bytes calldata ctx) internal returns (bytes memory) {
+        lastAfterGas = gasleft();
+        return ctx;
+    }
+
+    function beforeAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external view returns (bytes memory)
+    {
+        return _before();
+    }
+
+    function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external returns (bytes memory)
+    {
+        return _after(ctx);
+    }
+
+    function beforeAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external view returns (bytes memory)
+    {
+        return _before();
+    }
+
+    function afterAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external returns (bytes memory)
+    {
+        return _after(ctx);
+    }
+
+    function beforeAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external view returns (bytes memory)
+    {
+        return _before();
+    }
+
+    function afterAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external returns (bytes memory)
+    {
+        return _after(ctx);
     }
 }

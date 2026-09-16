@@ -771,7 +771,8 @@ describe("Superfluid Host Contract", function () {
                             ZERO_ADDRESS,
                             "0x",
                             false,
-                            "0x"
+                            "0x",
+                            0
                         )
                     );
                     await expectReverted(

@@ -147,7 +147,7 @@ contract AgreementMock is AgreementBase {
     function tryCallAppBeforeCallback(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        return host.callAppBeforeCallback(
+        (newCtx,) = host.callAppBeforeCallback(
             appMock,
             abi.encodeCall(
                 appMock.beforeAgreementCreated,
@@ -180,7 +180,8 @@ contract AgreementMock is AgreementBase {
                 )
             ),
             true, /* isTermination */
-            hackCtx ? new bytes(0) : ctx);
+            hackCtx ? new bytes(0) : ctx,
+            type(uint256).max);
     }
 
     function tryAppCallbackPush(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
@@ -261,7 +262,7 @@ contract AgreementMock is AgreementBase {
             "" /* agreementData */
         );
         cbStates.noopBit = noopBit;
-        bytes memory cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
+        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
         emit AppBeforeCallbackResult(
             context.appCallbackLevel,
             context.callType,
@@ -292,7 +293,8 @@ contract AgreementMock is AgreementBase {
         );
         cbStates.noopBit = noopBit;
         ISuperfluid.Context memory appContext;
-        (appContext, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, "", ctx);
+        (appContext, newCtx) = AgreementLibrary.callAppAfterCallback(
+            cbStates, "", type(uint256).max, ctx);
         if (isJailed) {
             // appContext.callType is a sufficient check that the callback was not called at all
             require(appContext.callType == 0, "AgreementMock: callback should not reach jailed app");
