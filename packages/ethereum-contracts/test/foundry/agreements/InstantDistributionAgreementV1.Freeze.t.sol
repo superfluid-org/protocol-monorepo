@@ -165,7 +165,7 @@ contract InstantDistributionAgreementV1FreezeTest is FoundrySuperfluidTester {
         assertEq(deposit, 0);
     }
 
-    function testApproveAfterFreezeSettlesPendingIntoSubscriberBalance() public {
+    function testApproveAfterFreezeIsBlockedAndPendingBalanceRemains() public {
         _createIndex(alice, INDEX_A);
         _updateSubscription(alice, INDEX_A, bob, ONE_UNIT);
         _distribute(alice, INDEX_A, DIST_AMOUNT);
@@ -173,16 +173,96 @@ contract InstantDistributionAgreementV1FreezeTest is FoundrySuperfluidTester {
         (int256 bobBefore,,,) = superToken.realtimeBalanceOfNow(bob);
         _upgradeIda(true, 256);
 
-        _approve(bob, alice, INDEX_A);
+        vm.startPrank(bob);
+        vm.expectRevert(IInstantDistributionAgreementV1.IDA_NEW_ACTIVITY_FROZEN.selector);
+        _idaCall(abi.encodeCall(sf.ida.approveSubscription, (superToken, alice, INDEX_A, EMPTY)));
+        vm.stopPrank();
 
         (bool exist, bool approved, uint128 units, uint256 pending) =
             sf.ida.getSubscription(superToken, alice, INDEX_A, bob);
         assertTrue(exist);
-        assertTrue(approved);
+        assertFalse(approved);
         assertEq(units, ONE_UNIT);
-        assertEq(pending, 0);
+        assertEq(pending, DIST_AMOUNT);
 
         (int256 bobAfter,,,) = superToken.realtimeBalanceOfNow(bob);
-        assertEq(uint256(int256(bobAfter - bobBefore)), DIST_AMOUNT);
+        assertEq(bobAfter, bobBefore);
+    }
+
+    function testFrozenApprovalCannotAllocateNewSlot() public {
+        _createIndex(alice, INDEX_A);
+        _upgradeIda(true, 256);
+        vm.startPrank(bob);
+        vm.expectRevert(IInstantDistributionAgreementV1.IDA_NEW_ACTIVITY_FROZEN.selector);
+        _idaCall(abi.encodeCall(sf.ida.approveSubscription, (superToken, alice, INDEX_A, EMPTY)));
+        vm.stopPrank();
+    }
+
+    function testMax32CountsZeroUnitApprovalsAndReusesRevokedSlot() public {
+        _upgradeIda(false, 32);
+        for (uint32 i = 0; i < 32; ++i) {
+            _createIndex(alice, i);
+            _approve(bob, alice, i);
+        }
+        _createIndex(alice, 32);
+        vm.startPrank(bob);
+        vm.expectRevert(IInstantDistributionAgreementV1.IDA_TOO_MANY_SUBSCRIPTIONS.selector);
+        _idaCall(abi.encodeCall(sf.ida.approveSubscription, (superToken, alice, uint32(32), EMPTY)));
+        vm.stopPrank();
+
+        vm.prank(bob);
+        _idaCall(abi.encodeCall(sf.ida.revokeSubscription, (superToken, alice, 0, EMPTY)));
+        _approve(bob, alice, 32);
+        (address[] memory publishers,,) = sf.ida.listSubscriptions(superToken, bob);
+        assertEq(publishers.length, 32);
+    }
+
+    function testLegacyApprovalsAboveNewCapRemainReadable() public {
+        _upgradeIda(false, 256);
+        for (uint32 i = 0; i < 33; ++i) {
+            _createIndex(alice, i);
+            _updateSubscription(alice, i, bob, ONE_UNIT);
+            _approve(bob, alice, i);
+        }
+        _upgradeIda(false, 32);
+        (address[] memory publishers,,) = sf.ida.listSubscriptions(superToken, bob);
+        assertEq(publishers.length, 33);
+        _distribute(alice, 32, DIST_AMOUNT);
+        (int256 dynamicBalance,,) = sf.ida.realtimeBalanceOf(superToken, bob, block.timestamp);
+        assertEq(uint256(dynamicBalance), DIST_AMOUNT);
+        _createIndex(alice, 33);
+        vm.startPrank(bob);
+        vm.expectRevert(IInstantDistributionAgreementV1.IDA_TOO_MANY_SUBSCRIPTIONS.selector);
+        _idaCall(abi.encodeCall(sf.ida.approveSubscription, (superToken, alice, uint32(33), EMPTY)));
+        vm.stopPrank();
+    }
+
+    function testFuzzFrozenRevokedSlotCannotBeReused(uint32 indexId) public {
+        _createIndex(alice, indexId);
+        _approve(bob, alice, indexId);
+        _upgradeIda(true, 256);
+        vm.startPrank(bob);
+        _idaCall(abi.encodeCall(sf.ida.revokeSubscription, (superToken, alice, indexId, EMPTY)));
+        _expectFrozen(abi.encodeCall(sf.ida.approveSubscription, (superToken, alice, indexId, EMPTY)));
+        vm.stopPrank();
+        (address[] memory publishers,,) = sf.ida.listSubscriptions(superToken, bob);
+        assertEq(publishers.length, 0);
+    }
+
+    function testFuzzPendingDistributionCanBeClaimedAfterFreeze(uint96 amountSeed) public {
+        uint256 amount = bound(amountSeed, 1, DIST_AMOUNT);
+        _createIndex(alice, INDEX_A);
+        _updateSubscription(alice, INDEX_A, bob, ONE_UNIT);
+        _distribute(alice, INDEX_A, amount);
+        (int256 beforeBalance,,,) = superToken.realtimeBalanceOfNow(bob);
+        _upgradeIda(true, 256);
+        vm.prank(bob);
+        _idaCall(abi.encodeCall(sf.ida.claim, (superToken, alice, INDEX_A, bob, EMPTY)));
+        (int256 afterBalance,,,) = superToken.realtimeBalanceOfNow(bob);
+        assertEq(afterBalance - beforeBalance, int256(amount));
+        (,,, uint256 pending) = sf.ida.getSubscription(superToken, alice, INDEX_A, bob);
+        assertEq(pending, 0);
+        (, uint256 deposit,,) = superToken.realtimeBalanceOfNow(alice);
+        assertEq(deposit, 0);
     }
 }

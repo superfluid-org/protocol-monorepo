@@ -97,8 +97,7 @@ module.exports = function getConfig(chainId) {
         trustedForwarders: sfNw?.trustedForwarders,
         appCallbackGasLimit: 15000000,
         // Freeze IDA new activity by default. Optimism (+ op sepolia) override in EXTRA_CONFIG.
-        // Frozen networks keep max=256 so existing subscribers with >32 approved slots can
-        // still unwind (approve remaining pending) without hitting a tighter cap.
+        // Frozen networks cannot allocate approved slots; preserve the historical cap.
         idaNewActivityFrozen: true,
         idaMaxNumSubscriptions: 256,
         ...EXTRA_CONFIG[chainId]

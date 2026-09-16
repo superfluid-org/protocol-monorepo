@@ -74,21 +74,61 @@ async function deployContractIfCodeChanged(
     Contract,
     codeAddress,
     deployFunc,
-    codeReplacements,
+    constructorArgs,
     debug = false
 ) {
     return deployContractIf(
         web3,
         Contract,
         async () =>
-            await codeChanged(web3, Contract, codeAddress, codeReplacements, debug),
+            await codeChanged(web3, Contract, codeAddress, constructorArgs, debug),
         deployFunc
     );
 }
 
-// helper function: encode an address as word
-function ap(addr) {
-    return addr.toLowerCase().slice(2).padStart(64, "0");
+// Inspect the implementation, not the UUPS proxy (which has no IDA selectors).
+// Legacy IDA has no freeze getter; all other read failures abort deployment.
+async function assertIdaFreezeCannotBeReenabled(
+    web3,
+    host,
+    idaType,
+    desiredFrozen
+) {
+    const ida = await host.getAgreementClass.call(idaType);
+    if (ida.toLowerCase() === ZERO_ADDRESS) return;
+    const read = (signature) =>
+        web3.eth.call({
+            to: ida,
+            data: web3.utils.sha3(signature).slice(0, 10),
+        });
+    const implementation = web3.eth.abi.decodeParameter(
+        "address",
+        await read("getCodeAddress()")
+    );
+    // Non-upgradable frameworks register IDA directly, without a proxy.
+    const codeAddress =
+        implementation.toLowerCase() === ZERO_ADDRESS ? ida : implementation;
+    const code = (await web3.eth.getCode(codeAddress)).toLowerCase();
+    if (code.length <= 3)
+        throw new Error("Existing IDA implementation has no code");
+    const selector = web3.utils.sha3("NEW_ACTIVITY_FROZEN()").slice(2, 10);
+    if (!code.includes(selector)) {
+        // Verify the expected legacy getter before accepting a pre-freeze deployment.
+        const max = await read("MAX_NUM_SUBSCRIPTIONS()");
+        if (max.length !== 66 || BigInt(max) !== 256n) {
+            throw new Error("Unrecognized legacy IDA implementation");
+        }
+        return;
+    }
+    const result = await read("NEW_ACTIVITY_FROZEN()");
+    if (result.length !== 66 || ![0n, 1n].includes(BigInt(result))) {
+        throw new Error(`Unexpected IDA freeze state response: ${result}`);
+    }
+    if (BigInt(result) === 1n && !desiredFrozen) {
+        throw new Error(
+            "Refusing to re-enable IDA new activity on a previously frozen network"
+        );
+    }
 }
 
 /**
@@ -158,8 +198,16 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
     console.log("chain ID: ", chainId);
     console.log("deployer: ", deployerAddr);
     const config = getConfig(chainId);
-    const idaNewActivityFrozen = !!config.idaNewActivityFrozen;
+    const idaNewActivityFrozen = config.idaNewActivityFrozen;
     const idaMaxNumSubscriptions = Number(config.idaMaxNumSubscriptions);
+    if (
+        typeof idaNewActivityFrozen !== "boolean" ||
+        !Number.isInteger(idaMaxNumSubscriptions) ||
+        idaMaxNumSubscriptions < 1 ||
+        idaMaxNumSubscriptions > 256
+    ) {
+        throw new Error("Invalid IDA policy in getConfig");
+    }
     console.log("IDA new activity frozen: ", idaNewActivityFrozen);
     console.log("IDA max num subscriptions: ", idaMaxNumSubscriptions);
 
@@ -214,10 +262,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
     if (newSuperfluidLoader) {
         console.log("**** !ATTN! DEPLOYING NEW SUPERFLUID LOADER ****");
     }
-
-    await deployERC1820((err) => {
-        if (err) throw err;
-    }, options);
 
     const contracts = [
         "Ownable",
@@ -295,6 +339,31 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         networkId,
         gasConfig: getGasConfig(networkId),
     });
+
+    // Check the existing deployment before any bootstrap/deployment writes.
+    // A frozen IDA is a one-way network policy for this script.
+    if (config.resolverAddress) {
+        const guardResolver = await Resolver.at(config.resolverAddress);
+        // A different release name must not bypass the production freeze.
+        for (const release of new Set(["v1", protocolReleaseVersion])) {
+            const existingHostAddress = await guardResolver.get.call(
+                `Superfluid.${release}`
+            );
+            if (existingHostAddress.toLowerCase() !== ZERO_ADDRESS) {
+                const existingHost = await Superfluid.at(existingHostAddress);
+                await assertIdaFreezeCannotBeReenabled(
+                    web3,
+                    existingHost,
+                    IDAv1_TYPE,
+                    idaNewActivityFrozen
+                );
+            }
+        }
+    }
+
+    await deployERC1820((err) => {
+        if (err) throw err;
+    }, options);
 
     if (!newTestResolver && config.resolverAddress) {
         resolver = await Resolver.at(config.resolverAddress);
@@ -428,12 +497,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         }
     );
 
-    // helper objects needed later on
-    const superfluidConstructorParam = superfluid.address
-        .toLowerCase()
-        .slice(2)
-        .padStart(64, "0");
-
     sfObjForGovAndResolver.host = superfluid;
 
     // load existing governance if needed
@@ -559,15 +622,17 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
     let slotsBitmapLibraryAddress = ZERO_ADDRESS;
     // list IDA v1
     const deployIDAv1 = async () => {
-        // small inefficiency: this may be re-deployed even if not changed
-        // deploySlotsBitmapLibrary
-        const slotsBitmapLibrary = await deployExternalLibraryAndLink(
-            SlotsBitmapLibrary,
-            "SlotsBitmapLibrary",
-            "SLOTS_BITMAP_LIBRARY",
-            InstantDistributionAgreementV1
-        );
-        slotsBitmapLibraryAddress = slotsBitmapLibrary.address;
+        // Upgrades already link the existing library below. Reuse it for both
+        // comparison and deployment; only a fresh framework needs a new library.
+        if (slotsBitmapLibraryAddress === ZERO_ADDRESS) {
+            const slotsBitmapLibrary = await deployExternalLibraryAndLink(
+                SlotsBitmapLibrary,
+                "SlotsBitmapLibrary",
+                "SLOTS_BITMAP_LIBRARY",
+                InstantDistributionAgreementV1
+            );
+            slotsBitmapLibraryAddress = slotsBitmapLibrary.address;
+        }
         const agreement = await web3tx(
             InstantDistributionAgreementV1.new,
             "InstantDistributionAgreementV1.new"
@@ -891,10 +956,8 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 return superfluidLogic.address;
             },
             [
-                ap(erc2771ForwarderAddress),
-                ap(simpleForwarderAddress),
-                ap(simpleAclAddress),
-                appCallbackGasLimit.toString(16).padStart(64, "0")
+                nonUpgradable, appWhiteListing, appCallbackGasLimit,
+                simpleForwarderAddress, erc2771ForwarderAddress, simpleAclAddress
             ],
         );
 
@@ -908,22 +971,12 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 )
             ).getCodeAddress(),
             async () => (await deployCFAv1()).address,
-            [ superfluidConstructorParam ]
+            [superfluid.address]
         );
         if (cfaNewLogicAddress !== ZERO_ADDRESS) {
             agreementsToUpdate.push(cfaNewLogicAddress);
         }
         // deploy new IDA logic
-        // Constructor immutables are baked into bytecode. Include them in replacements so
-        // consecutive upgrades with the same chain config do not look like a code change,
-        // and a different chain's freeze/max settings cannot accidentally match.
-        const idaCodeReplacements = [ superfluidConstructorParam ];
-        if (idaNewActivityFrozen) {
-            idaCodeReplacements.push("1".padStart(64, "0"));
-        }
-        idaCodeReplacements.push(
-            BigInt(idaMaxNumSubscriptions).toString(16).padStart(64, "0")
-        );
         const idaNewLogicAddress = await deployContractIfCodeChanged(
             web3,
             InstantDistributionAgreementV1,
@@ -933,7 +986,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                 )
             ).getCodeAddress(),
             async () => (await deployIDAv1()).address,
-            idaCodeReplacements
+            [superfluid.address, idaNewActivityFrozen, idaMaxNumSubscriptions]
         );
         if (idaNewLogicAddress !== ZERO_ADDRESS) {
             agreementsToUpdate.push(idaNewLogicAddress);
@@ -950,8 +1003,8 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             gdaLogicAddr,
             async () => (await deployGDAv1(superfluidPoolBeaconAddr)).address,
             [
-                superfluidConstructorParam,
-                ap(superfluidPoolBeaconAddr)
+                superfluid.address,
+                superfluidPoolBeaconAddr
             ]
         );
         if (gdaNewLogicAddress !== ZERO_ADDRESS) {
@@ -1044,7 +1097,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                     web3,
                     PoolAdminNFT,
                     poolAdminNFTLAddr,
-                    [superfluidConstructorParam, ap(gdaPAddr)]
+                    [superfluid.address, gdaPAddr]
                 );
                 console.log("   poolAdminNFTLogicChanged:", poolAdminNFTLogicChanged);
 
@@ -1052,8 +1105,8 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                     web3,
                     SuperTokenFactoryLogic,
                     await superfluid.getSuperTokenFactoryLogic.call(),
-                    [superfluidConstructorParam, ap(superTokenLogicAddress),
-                    ap(poolAdminNFTLAddr), ap(poolMemberNFTLAddr)]
+                    [superfluid.address, superTokenLogicAddress,
+                    poolAdminNFTLAddr, poolMemberNFTLAddr]
                 );
                 console.log("   superTokenFactoryCodeChanged:", superTokenFactoryCodeChanged);
 
@@ -1061,11 +1114,9 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
                     web3,
                     SuperTokenLogic,
                     await factory.getSuperTokenLogic.call(),
-                    // this replacement does not support SuperTokenMock
-                    [
-                        superfluidConstructorParam,
-                        ap(poolAdminNFTPAddr), ap(poolMemberNFTPAddr)
-                    ]
+                    useMocks
+                        ? [superfluid.address, 0, poolAdminNFTPAddr]
+                        : [superfluid.address, poolAdminNFTPAddr]
                 );
                 console.log("   superTokenLogicCodeChanged:", superTokenLogicCodeChanged);
                 return (
@@ -1255,7 +1306,7 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
             output += `SUPERFLUID_POOL_LOGIC=${superfluidPoolLogic.address}\n`;
             return superfluidPoolLogic.address;
         },
-        [ap(gdaV1Contract.address)]
+        [gdaV1Contract.address]
     );
 
     if (
@@ -1309,3 +1360,6 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         (new web3.utils.BN(deployerInitialBalance)).sub(new web3.utils.BN(deployerFinalBalance)));
     console.log(`consumed native coins: ${consumed}`);
 });
+
+// Expose the preflight for deployment-script tests.
+module.exports.assertIdaFreezeCannotBeReenabled = assertIdaFreezeCannotBeReenabled;

@@ -71,8 +71,8 @@ contract InstantDistributionAgreementV1 is
 
     address public constant SLOTS_BITMAP_LIBRARY_ADDRESS = address(SlotsBitmapLibrary);
 
-    /// @notice When true, createIndex/updateIndex/distribute/updateSubscription revert.
-    ///         Unwind ops (claim, approve, revoke, delete) remain available.
+    /// @notice When true, new activity and approval of subscriptions revert.
+    ///         Unwind ops (claim, revoke, delete) remain available.
     bool public immutable NEW_ACTIVITY_FROZEN;
 
     /// @notice Cap on newly approved subscriptions per subscriber.
@@ -384,6 +384,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         _SubscriptionOperationVars memory vars;
         AgreementLibrary.CallbackInputs memory cbStates;
         address subscriber;

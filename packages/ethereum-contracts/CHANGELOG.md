@@ -20,9 +20,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- IDA soft-freeze: `deploy-framework.js` freezes new activity (`createIndex` / `updateIndex` / `distribute` / `updateSubscription`) on all networks except Optimism mainnet and Optimism Sepolia.
-  Unwind ops (`claim`, `approveSubscription`, `revokeSubscription`, `deleteSubscription`) stay available.
-  On remaining IDA-enabled networks the approved-subscription cap is 32 (was 256). Frozen networks keep the 256 cap so existing high-slot accounts can still unwind.
+- IDA soft-freeze:
+  Optimism mainnet and Optimism Sepolia retain active IDA with at most 32 approved subscriptions per subscriber per token.
+  Other networks freeze `createIndex`, `updateIndex`, `distribute`, `updateSubscription`, and `approveSubscription`; `claim`, `revokeSubscription`, and `deleteSubscription` remain available.
+  Existing subscription slots and balances are preserved. Local test deployments remain unfrozen with a 256-subscription cap.
 
 ## [v1.15.2]
 
