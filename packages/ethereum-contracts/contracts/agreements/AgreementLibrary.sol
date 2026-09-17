@@ -46,10 +46,11 @@ library AgreementLibrary {
     /**************************************************************************
      * Agreement callback helpers
      *
-     * One Host callback gas stipend is shared by a matching before/after pair.
-     * Remaining gas is a stack value, like cbdata, not Host storage.
-     * `type(uint256).max` means the pair budget has not been drawn yet; the Host
-     * caps the after-hook stipend.
+     * Each before/after callback pair shares one Host gas budget.
+     * Callers start each pair with type(uint256).max.
+     * An executed before-hook returns the remaining budget; a skipped
+     * before-hook preserves the supplied value. The Host caps the
+     * after-hook's budget to CALLBACK_GAS_LIMIT.
      *************************************************************************/
 
     struct CallbackInputs {
@@ -79,17 +80,18 @@ library AgreementLibrary {
 
     function callAppBeforeCallback(
         CallbackInputs memory inputs,
+        uint256 currentRemainingCallbackGas,
         bytes memory ctx
     )
         internal
-        returns(bytes memory cbdata, uint256 remainingCallbackGas)
+        returns(bytes memory cbdata, uint256 newRemainingCallbackGas)
     {
+        newRemainingCallbackGas = currentRemainingCallbackGas;
         bool isSuperApp;
         bool isJailed;
         uint256 noopMask;
         (isSuperApp, isJailed, noopMask) = ISuperfluid(msg.sender).getAppManifest(ISuperApp(inputs.account));
         if (isSuperApp && !isJailed) {
-            remainingCallbackGas = type(uint256).max;
             bytes memory appCtx = _pushCallbackStack(ctx, inputs);
             if ((noopMask & inputs.noopBit) == 0) {
                 bytes memory callData = abi.encodeWithSelector(
@@ -100,7 +102,7 @@ library AgreementLibrary {
                     inputs.agreementData,
                     new bytes(0) // placeholder ctx
                 );
-                (cbdata, remainingCallbackGas) = ISuperfluid(msg.sender).callAppBeforeCallback(
+                (cbdata, newRemainingCallbackGas) = ISuperfluid(msg.sender).callAppBeforeCallback(
                     ISuperApp(inputs.account),
                     callData,
                     inputs.noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP,
@@ -114,7 +116,7 @@ library AgreementLibrary {
     function callAppAfterCallback(
         CallbackInputs memory inputs,
         bytes memory cbdata,
-        uint256 callbackGasLimit,
+        uint256 currentRemainingCallbackGas,
         bytes /* const */ memory ctx
     )
         internal
@@ -143,7 +145,7 @@ library AgreementLibrary {
                     callData,
                     inputs.noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP,
                     newCtx,
-                    callbackGasLimit);
+                    currentRemainingCallbackGas);
 
                 appContext = ISuperfluid(msg.sender).decodeCtx(newCtx);
 

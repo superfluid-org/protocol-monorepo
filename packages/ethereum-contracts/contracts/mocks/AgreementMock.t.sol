@@ -262,7 +262,7 @@ contract AgreementMock is AgreementBase {
             "" /* agreementData */
         );
         cbStates.noopBit = noopBit;
-        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
+        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(cbStates, type(uint256).max, ctx);
         emit AppBeforeCallbackResult(
             context.appCallbackLevel,
             context.callType,
