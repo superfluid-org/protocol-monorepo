@@ -356,9 +356,6 @@ interface ISuperfluid {
      * These functions can only be called by registered agreements.
      *************************************************************************/
 
-    /// @dev Maximum gas stipend for an individual app callback, in gas units.
-    function CALLBACK_GAS_LIMIT() external view returns (uint64);
-
     /**
      * @dev (For agreements) StaticCall the app before callback
      * @param  app                  The super app.
@@ -366,6 +363,7 @@ interface ISuperfluid {
      * @param  isTermination        Is it a termination callback?
      * @param  ctx                  Current ctx, it will be validated.
      * @param  callbackGasLimit     Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                              Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return cbdata               Data returned from the callback.
      * @return remainingCallbackGas Unused portion of the capped callback gas stipend.
      */
@@ -388,6 +386,7 @@ interface ISuperfluid {
      * @param  isTermination     Is it a termination callback?
      * @param  ctx               Current ctx, it will be validated.
      * @param  callbackGasLimit  Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                           Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(

@@ -63,6 +63,10 @@ pragma solidity ^0.8.23;
  *
  */
 library CallbackUtils {
+    /// @dev Sentinel requesting the full callback gas limit configured by the Host.
+    /// The Host resolves it by capping the requested stipend before executing either hook.
+    uint256 internal constant HOST_CALLBACK_GAS_LIMIT = type(uint256).max;
+
     /// The magic N constant from the EIP-150
     uint256 internal constant EIP150_MAGIC_N = 64;
 

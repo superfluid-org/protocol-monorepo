@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 import {
@@ -161,7 +162,7 @@ contract AgreementMock is AgreementBase {
             ),
             true, /* isTermination */
             hackCtx ? new bytes(0) : ctx,
-            host.CALLBACK_GAS_LIMIT());
+            CallbackUtils.HOST_CALLBACK_GAS_LIMIT);
     }
 
     function tryCallAppAfterCallback(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
@@ -264,7 +265,7 @@ contract AgreementMock is AgreementBase {
         );
         cbStates.noopBit = noopBit;
         (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(
-            cbStates, ISuperfluid(msg.sender).CALLBACK_GAS_LIMIT(), ctx);
+            cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, ctx);
         emit AppBeforeCallbackResult(
             context.appCallbackLevel,
             context.callType,

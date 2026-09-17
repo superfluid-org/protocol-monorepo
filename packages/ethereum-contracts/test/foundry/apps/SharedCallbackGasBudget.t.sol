@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { CallbackUtils } from "../../../contracts/libs/CallbackUtils.sol";
 import "../FoundrySuperfluidTester.t.sol";
 import {
     ISuperfluid,
@@ -517,9 +518,9 @@ contract ExplicitCallbackGasBudgetTest is FoundrySuperfluidTester {
         assertFalse(sf.host.isAppJailed(app));
     }
 
-    function test_budgetAboveHostLimit_isCapped() public {
+    function test_hostLimitSentinel_grantsHostBudget() public {
         CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        _runBefore(app, type(uint256).max);
+        _runBefore(app, CallbackUtils.HOST_CALLBACK_GAS_LIMIT);
         uint256 hostLimit = sf.host.CALLBACK_GAS_LIMIT();
         assertGt(_agreement.observedBeforeGas(), hostLimit - 100_000);
         assertLt(_agreement.observedBeforeGas(), hostLimit);

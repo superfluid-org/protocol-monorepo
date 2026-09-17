@@ -56,7 +56,7 @@ contract Superfluid is
     bool immutable public APP_WHITE_LISTING_ENABLED;
 
     /// @dev Gas budget shared by each SuperApp's matching before and after callback pair.
-    uint64 immutable public override CALLBACK_GAS_LIMIT;
+    uint64 immutable public CALLBACK_GAS_LIMIT;
 
     // simple forwarder contract used to relay arbitrary calls for batch operations
     SimpleForwarder immutable public SIMPLE_FORWARDER;
