@@ -1099,7 +1099,7 @@ contract Superfluid is
 
     function _callCallback(
         ISuperApp app,
-        bool isStaticall,
+        bool isStaticCall,
         bool isTermination,
         bytes memory callData,
         bytes memory ctx
@@ -1113,9 +1113,17 @@ contract Superfluid is
 
         uint256 callbackGasLimit = CALLBACK_GAS_LIMIT;
         bool insufficientCallbackGasProvided;
-        (success, insufficientCallbackGasProvided, returnedData) = isStaticall ?
+        bool returndataTooLarge;
+        (success, insufficientCallbackGasProvided, returnedData, returndataTooLarge) = isStaticCall ?
             CallbackUtils.staticCall(address(app), callData, callbackGasLimit) :
             CallbackUtils.externalCall(address(app), callData, callbackGasLimit);
+
+        // Both the successful after-hook response and abi.encode(input ctx) exceed the cap.
+        // Roll back callback and agreement changes together: the discarded return value may
+        // contain updated credit accounting. The word-aligned cap includes the 64-byte ABI header.
+        if (success && !isStaticCall && returndataTooLarge && ctx.length > CallbackUtils.CALLBACK_RETURNDATA_CAP - 64) {
+            revert HOST_CALLBACK_CONTEXT_TOO_LARGE();
+        }
 
         if (!success) {
             if (!insufficientCallbackGasProvided) {

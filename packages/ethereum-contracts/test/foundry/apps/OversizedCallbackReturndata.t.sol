@@ -4,11 +4,11 @@ pragma solidity ^0.8.23;
 import { CallbackReturndataTestBase, TerminationReturndataBombApp } from "./CallbackReturndataTestBase.t.sol";
 import { ISuperApp, SuperAppDefinitions } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 
-/// @dev Desired spec (red on unpatched Host): a successful fat callback return / revert
-///      must not deny termination. Gas-budget delete closes the flow and jails the app.
-///      Unpatched Host copies returndata after the gas-capped callback and OOGs instead of jailing.
+/// @dev Termination with a 3.6M execution gas budget. Each app either returns or reverts with
+///      1,000,000 bytes, exceeding the 128 KiB returndata cap. The Host discards the payload,
+///      jails the app under the applicable callback rule, and completes deletion of the flow.
 contract OversizedCallbackReturndataTest is CallbackReturndataTestBase {
-    /// Large enough that Host RETURNDATACOPY OOGs a ~3.6M termination call; small enough to fit in the 3M stipend.
+    /// Raw payload emitted within the 3M callback stipend; exceeds the 128 KiB returndata cap.
     uint256 internal constant FAT_PAYLOAD_SIZE = 1_000_000;
 
     function test_honestTerminate_succeedsAtGasBudget() public {

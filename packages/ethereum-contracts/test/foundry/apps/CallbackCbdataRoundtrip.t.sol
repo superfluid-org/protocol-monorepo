@@ -10,7 +10,7 @@ import {
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 
 /// @dev before-hook returns a chosen inner `bytes`; after-hook records the `cbdata` it received.
-///      Asserts Host unwrap + CFA re-encode still deliver the inner payload, not the ABI wrapper.
+///      Verifies that Host decoding and CFA encoding preserve the cbdata payload received by the after-hook.
 contract EchoCbdataApp is ISuperApp {
     bytes internal _payload;
     bytes public lastCbdata;

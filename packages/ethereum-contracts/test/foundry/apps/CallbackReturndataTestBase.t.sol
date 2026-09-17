@@ -8,6 +8,7 @@ import {
     ISuperApp,
     SuperAppDefinitions
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 
 /// @dev Super App that bombs one termination-callback returndata channel.
@@ -116,8 +117,8 @@ contract TerminationReturndataBombApp is ISuperApp {
         return ctx;
     }
 
-    /// Cheap fat payload: expand via RETURN/REVERT, no zeroing, no ABI wrapper.
-    /// `new bytes(n)` would OOG inside CALLBACK_GAS_LIMIT and jail as a revert — not the Host-copy bug.
+    /// RETURN/REVERT expands memory to emit payloadSize raw bytes. This keeps payload generation
+    /// within the callback stipend so the tests exercise the Host's returndata handling.
     function _returnOrRevertFat(bool doRevert) internal view {
         uint256 n = payloadSize;
         assembly {
@@ -131,7 +132,7 @@ abstract contract CallbackReturndataTestBase is FoundrySuperfluidTester {
     using SuperTokenV1Library for ISuperToken;
 
     int96 internal constant FLOW_RATE = 1e9;
-    // Budget for sender-initiated termination, not a liquidation transaction.
+    // Execution gas budget for the sender-initiated deleteFlow call.
     uint256 internal constant TERMINATION_GAS_BUDGET = 3_600_000;
 
     constructor() FoundrySuperfluidTester(3) { }
@@ -157,5 +158,127 @@ abstract contract CallbackReturndataTestBase is FoundrySuperfluidTester {
     function _expectJail(address app, uint256 reason) internal {
         vm.expectEmit(true, false, false, true, address(sf.host));
         emit ISuperfluid.Jail(ISuperApp(app), reason);
+    }
+}
+
+/// @dev All after-hooks share a configurable response. Before-hooks are NOOP.
+/// Shrink/Grow call the CFA through callAgreementWithContext to replace userData and obtain
+/// an authenticated context. Counters and operator permissions expose rollback behavior.
+contract ContextReturnApp is ISuperApp {
+    enum Response {
+        Echo,
+        Shrink,
+        Grow,
+        Raw,
+        Revert,
+        InvalidContext,
+        ShrinkThenOversize
+    }
+    ISuperfluid internal immutable _host;
+    address public constant OPERATOR = address(0xBEEF);
+    Response public response;
+    uint256 public size;
+    uint256 public calls;
+    uint256 public inputCtxLength;
+    uint256 public outputCtxLength;
+
+    constructor(ISuperfluid host) {
+        _host = host;
+        host.registerApp(
+            SuperAppDefinitions.APP_LEVEL_FINAL | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
+                | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
+                | SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP
+        );
+    }
+
+    function configure(Response response_, uint256 size_) external {
+        response = response_;
+        size = size_;
+    }
+
+    function _after(ISuperToken token, address agreement, bytes calldata ctx) internal returns (bytes memory newCtx) {
+        ++calls;
+        inputCtxLength = ctx.length;
+        Response r = response;
+        newCtx = ctx;
+        if (r == Response.Shrink || r == Response.Grow || r == Response.ShrinkThenOversize) {
+            IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(agreement);
+            (newCtx,) = _host.callAgreementWithContext(
+                cfa,
+                abi.encodeCall(cfa.authorizeFlowOperatorWithFullControl, (token, OPERATOR, new bytes(0))),
+                new bytes(r == Response.Grow ? size : 0),
+                ctx
+            );
+        }
+        outputCtxLength = newCtx.length;
+        if (r == Response.Raw || r == Response.Revert || r == Response.ShrinkThenOversize) {
+            // Zero-filled returndata has an invalid ABI bytes offset for every nonempty payload.
+            uint256 n = size;
+            bool isRevert = r == Response.Revert;
+            assembly {
+                let p := mload(0x40)
+                calldatacopy(p, calldatasize(), n)
+                if isRevert { revert(p, n) }
+                return(p, n)
+            }
+        }
+        if (r == Response.InvalidContext) return hex"01";
+    }
+
+    function beforeAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return "";
+    }
+
+    function beforeAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return "";
+    }
+
+    function beforeAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata)
+        external
+        pure
+        returns (bytes memory)
+    {
+        return "";
+    }
+
+    function afterAgreementCreated(
+        ISuperToken token,
+        address agreement,
+        bytes32,
+        bytes calldata,
+        bytes calldata,
+        bytes calldata ctx
+    ) external returns (bytes memory) {
+        return _after(token, agreement, ctx);
+    }
+
+    function afterAgreementUpdated(
+        ISuperToken token,
+        address agreement,
+        bytes32,
+        bytes calldata,
+        bytes calldata,
+        bytes calldata ctx
+    ) external returns (bytes memory) {
+        return _after(token, agreement, ctx);
+    }
+
+    function afterAgreementTerminated(
+        ISuperToken token,
+        address agreement,
+        bytes32,
+        bytes calldata,
+        bytes calldata,
+        bytes calldata ctx
+    ) external returns (bytes memory) {
+        return _after(token, agreement, ctx);
     }
 }

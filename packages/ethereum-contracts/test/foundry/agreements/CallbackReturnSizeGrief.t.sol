@@ -1,15 +1,27 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { CallbackReturndataTestBase, TerminationReturndataBombApp } from "../apps/CallbackReturndataTestBase.t.sol";
-import { ISuperApp, ISuperToken, SuperAppDefinitions } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import {
+    CallbackReturndataTestBase,
+    TerminationReturndataBombApp,
+    ContextReturnApp
+} from "../apps/CallbackReturndataTestBase.t.sol";
+import {
+    ISuperfluid,
+    ISuperApp,
+    ISuperToken,
+    SuperAppDefinitions
+} from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { CallbackUtils } from "../../../contracts/libs/CallbackUtils.sol";
+import { Superfluid } from "../../../contracts/superfluid/Superfluid.sol";
+import { CallUtils } from "../../../contracts/libs/CallUtils.sol";
 
+/// @dev Before-hook cbdata validation and round-trip tests. The returndata cap applies to ABI-encoded cbdata.
 contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
     using SuperTokenV1Library for ISuperToken;
 
-    // Above the cap, while ABI encoding still fits in the 3M callback stipend.
+    // A 200 KiB payload exceeds the 128 KiB returndata cap and can be encoded within the 3M callback stipend.
     uint256 internal constant BOMB_SIZE = 200 * 1024;
 
     function test_terminateCallback_smallReturn_doesNotJail() public {
@@ -39,6 +51,39 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
         _assertOperatorDeleteJails(TerminationReturndataBombApp.Mode.MaxInnerLength, 0);
     }
 
+    /// A before-only app accepts 128 KiB of userData and returns empty cbdata; its after-hook is NOOP.
+    function test_oversizedCtx_beforeOnlyHook_succeeds() public {
+        TerminationReturndataBombApp app =
+            new TerminationReturndataBombApp(sf.host, TerminationReturndataBombApp.Mode.FatBeforeCbdata, 0);
+        _openFlow(address(app));
+
+        vm.expectCall(address(app), abi.encodeWithSelector(ISuperApp.beforeAgreementTerminated.selector));
+        vm.prank(alice);
+        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_RETURNDATA_CAP));
+
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))), "before-only app must not be jailed");
+        assertEq(superToken.getFlowRate(alice, address(app)), 0, "flow must close");
+    }
+
+    function test_beforeOversizedReturn_largeInput_stillJails() public {
+        TerminationReturndataBombApp app =
+            new TerminationReturndataBombApp(sf.host, TerminationReturndataBombApp.Mode.EncodedBeforeCbdata, BOMB_SIZE);
+        _openFlow(address(app));
+        _expectJail(address(app), SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
+        vm.prank(alice);
+        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_RETURNDATA_CAP));
+        assertTrue(sf.host.isAppJailed(ISuperApp(address(app))));
+        assertEq(superToken.getFlowRate(alice, address(app)), 0);
+    }
+
+    /// A transfer between non-app accounts accepts 128 KiB of userData without invoking callbacks.
+    function test_eoaToEoa_fatUserData_succeeds() public {
+        _helperCreateFlow(superToken, alice, bob, FLOW_RATE);
+        vm.prank(alice);
+        superToken.deleteFlow(alice, bob, new bytes(CallbackUtils.CALLBACK_RETURNDATA_CAP));
+        assertEq(superToken.getFlowRate(alice, bob), 0);
+    }
+
     function _assertOperatorDeleteJails(TerminationReturndataBombApp.Mode mode, uint256 size) internal {
         TerminationReturndataBombApp app = new TerminationReturndataBombApp(sf.host, mode, size);
         _openFlow(address(app));
@@ -53,5 +98,219 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
 
         assertTrue(sf.host.isAppJailed(ISuperApp(address(app))));
         assertEq(superToken.getFlowRate(alice, address(app)), 0);
+    }
+}
+
+/// @dev After-hook result handling. C = CALLBACK_RETURNDATA_CAP (128 KiB).
+/// I = abi.encode(inputCtx).length: 64 bytes of ABI header plus ctx padded to 32 bytes.
+/// R = actual returndata length, including ABI encoding when the callback returns bytes.
+/// Test names use "smallInput" for I <= C and "largeInput" for I > C.
+///
+/// Callback result                    | I <= C          | I > C
+/// Success, R <= C, authenticated ctx  | accept          | accept
+/// Success, R <= C, malformed ABI     | rule 22         | rule 22
+/// Success, R <= C, invalid ctx stamp | rule 20         | rule 20
+/// Success, R > C                     | rule 22         | HOST_CALLBACK_CONTEXT_TOO_LARGE
+/// Revert, any R                      | callback failure| callback failure
+///
+/// Rules 22 and 20 jail the app and continue termination; creation/update revert APP_RULE.
+/// Callback failure jails with rule 10 on termination and propagates the revert on creation/update.
+/// Insufficient caller gas instead reverts HOST_NEED_MORE_GAS; gas classification is tested in CallbackUtilsTest.
+/// HOST_CALLBACK_CONTEXT_TOO_LARGE reverts the operation without jailing; callback writes and nested
+/// agreement changes roll back together. An app can use callAgreementWithContext to replace userData
+/// and return a smaller authenticated ctx. These tests exercise that path with a real CFA operation.
+/// Boundary tests include ABI headers and padding. Before-hook/EOA cases are in CallbackReturnSizeGriefTest;
+/// CALL/STATICCALL copying and the returndataTooLarge flag are covered in CallbackUtilsTest.
+contract AfterCallbackReturndataTest is CallbackReturndataTestBase {
+    using SuperTokenV1Library for ISuperToken;
+
+    // Context encodes 448 bytes of overhead; ABI bytes return adds another 64.
+    uint256 internal constant USER_DATA_AT_CAP = CallbackUtils.CALLBACK_RETURNDATA_CAP - 512;
+
+    function test_echo_atCap_succeeds() public {
+        _assertEcho(USER_DATA_AT_CAP);
+    }
+
+    function test_echo_unalignedAtCap_succeeds() public {
+        _assertEcho(USER_DATA_AT_CAP - 1);
+    }
+
+    function test_echo_oneByteOverCap_revertsAndCanRetry() public {
+        ContextReturnApp app = _app();
+        _assertHostRevert(app, USER_DATA_AT_CAP + 1);
+        vm.prank(alice);
+        superToken.deleteFlow(alice, address(app));
+        _assertClosed(app, false);
+    }
+
+    function test_largeInput_shrunkValidContext_succeeds() public {
+        ContextReturnApp app = _app();
+        app.configure(ContextReturnApp.Response.Shrink, 0);
+        _delete(app, USER_DATA_AT_CAP + 1);
+        _assertClosed(app, false);
+        assertGt(app.inputCtxLength(), CallbackUtils.CALLBACK_RETURNDATA_CAP - 64);
+        assertLt(app.outputCtxLength(), app.inputCtxLength());
+        (, uint8 permissions,) = sf.cfa.getFlowOperatorData(superToken, address(app), app.OPERATOR());
+        assertEq(permissions, 7, "nested CFA operation must persist on success");
+    }
+
+    function test_largeInput_oversizedResult_rollsBackNestedAgreement() public {
+        ContextReturnApp app = _app();
+        app.configure(ContextReturnApp.Response.ShrinkThenOversize, CallbackUtils.CALLBACK_RETURNDATA_CAP + 1);
+        _assertHostRevert(app, USER_DATA_AT_CAP + 1);
+        (, uint8 permissions,) = sf.cfa.getFlowOperatorData(superToken, address(app), app.OPERATOR());
+        assertEq(permissions, 0, "nested CFA changes must roll back with rejected context");
+    }
+
+    function test_smallInput_grownValidContext_overCap_jails() public {
+        // A 15M stipend lets nested Host/CFA encoding complete and return an authenticated
+        // context whose ABI-encoded size exceeds the 128 KiB returndata cap.
+        Superfluid host = Superfluid(address(sf.host));
+        Superfluid higherStipend = new Superfluid(
+            host.NON_UPGRADABLE_DEPLOYMENT(),
+            host.APP_WHITE_LISTING_ENABLED(),
+            15_000_000,
+            address(host.SIMPLE_FORWARDER()),
+            host.getERC2771Forwarder(),
+            address(host.getSimpleACL())
+        );
+        vm.etch(address(host), address(higherStipend).code);
+        ContextReturnApp app = _app();
+        app.configure(ContextReturnApp.Response.Grow, USER_DATA_AT_CAP + 1);
+        _assertViolation(app, 0, SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
+    }
+
+    function test_rawEmptyResponse_largeInput_jails() public {
+        _assertRawViolation(USER_DATA_AT_CAP + 1, 0);
+    }
+
+    function test_rawResponse_atCap_largeInput_jails() public {
+        _assertRawViolation(USER_DATA_AT_CAP + 1, CallbackUtils.CALLBACK_RETURNDATA_CAP);
+    }
+
+    function test_rawOversizedResponse_smallInput_jails() public {
+        _assertRawViolation(USER_DATA_AT_CAP, CallbackUtils.CALLBACK_RETURNDATA_CAP + 1);
+    }
+
+    /// forge-config: default.fuzz.runs = 16
+    /// forge-config: ci.fuzz.runs = 16
+    function testFuzz_rawWithinCap_largeInput_jails(uint256 size) public {
+        _assertRawViolation(USER_DATA_AT_CAP + 1, bound(size, 0, CallbackUtils.CALLBACK_RETURNDATA_CAP));
+    }
+
+    function test_invalidContext_largeInput_jails() public {
+        ContextReturnApp app = _app();
+        app.configure(ContextReturnApp.Response.InvalidContext, 0);
+        _assertViolation(app, USER_DATA_AT_CAP + 1, SuperAppDefinitions.APP_RULE_CTX_IS_READONLY);
+    }
+
+    function test_revert_largeInput_jails() public {
+        _assertRevertViolation(0);
+    }
+
+    function test_oversizedRevert_largeInput_jails() public {
+        _assertRevertViolation(CallbackUtils.CALLBACK_RETURNDATA_CAP + 1);
+    }
+
+    function test_createAndUpdate_largeInput_shrunkContext_succeed() public {
+        ContextReturnApp app = new ContextReturnApp(sf.host);
+        _addAccount(address(app));
+        app.configure(ContextReturnApp.Response.Shrink, 0);
+        _change(app, false, USER_DATA_AT_CAP + 1);
+        _change(app, true, USER_DATA_AT_CAP + 1);
+        assertEq(superToken.getFlowRate(alice, address(app)), FLOW_RATE * 2);
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
+    }
+
+    function test_createAndUpdate_largeInput_echo_revertsWithoutJail() public {
+        ContextReturnApp app = new ContextReturnApp(sf.host);
+        _addAccount(address(app));
+        vm.expectRevert(ISuperfluid.HOST_CALLBACK_CONTEXT_TOO_LARGE.selector);
+        _change(app, false, USER_DATA_AT_CAP + 1);
+        assertEq(superToken.getFlowRate(alice, address(app)), 0);
+        _change(app, false, 0);
+        vm.expectRevert(ISuperfluid.HOST_CALLBACK_CONTEXT_TOO_LARGE.selector);
+        _change(app, true, USER_DATA_AT_CAP + 1);
+        assertEq(superToken.getFlowRate(alice, address(app)), FLOW_RATE);
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
+    }
+
+    function test_createAndUpdate_largeInput_malformedResponse_revertsAppRule() public {
+        ContextReturnApp app = new ContextReturnApp(sf.host);
+        _addAccount(address(app));
+        app.configure(ContextReturnApp.Response.Raw, 0);
+        bytes memory reason =
+            abi.encodeWithSelector(ISuperfluid.APP_RULE.selector, SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
+        vm.expectRevert(reason);
+        _change(app, false, USER_DATA_AT_CAP + 1);
+        app.configure(ContextReturnApp.Response.Echo, 0);
+        _change(app, false, 0);
+        app.configure(ContextReturnApp.Response.Raw, 0);
+        vm.expectRevert(reason);
+        _change(app, true, USER_DATA_AT_CAP + 1);
+        assertEq(superToken.getFlowRate(alice, address(app)), FLOW_RATE);
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
+    }
+
+    function _app() internal returns (ContextReturnApp app) {
+        app = new ContextReturnApp(sf.host);
+        _openFlow(address(app));
+    }
+
+    function _assertEcho(uint256 userDataSize) internal {
+        ContextReturnApp app = _app();
+        _delete(app, userDataSize);
+        _assertClosed(app, false);
+        assertEq(64 + CallUtils.padLength32(app.inputCtxLength()), CallbackUtils.CALLBACK_RETURNDATA_CAP);
+    }
+
+    function _assertHostRevert(ContextReturnApp app, uint256 userDataSize) internal {
+        uint256 callsBefore = app.calls();
+        vm.expectRevert(ISuperfluid.HOST_CALLBACK_CONTEXT_TOO_LARGE.selector);
+        _delete(app, userDataSize);
+        assertEq(superToken.getFlowRate(alice, address(app)), FLOW_RATE, "flow must survive rejection");
+        assertFalse(sf.host.isAppJailed(ISuperApp(address(app))), "Host error must not jail");
+        assertEq(app.calls(), callsBefore, "callback writes must roll back");
+    }
+
+    function _assertRawViolation(uint256 userDataSize, uint256 rawSize) internal {
+        ContextReturnApp app = _app();
+        app.configure(ContextReturnApp.Response.Raw, rawSize);
+        _assertViolation(app, userDataSize, SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
+    }
+
+    function _assertRevertViolation(uint256 size) internal {
+        ContextReturnApp app = _app();
+        app.configure(ContextReturnApp.Response.Revert, size);
+        _assertViolation(app, USER_DATA_AT_CAP + 1, SuperAppDefinitions.APP_RULE_NO_REVERT_ON_TERMINATION_CALLBACK);
+    }
+
+    function _assertViolation(ContextReturnApp app, uint256 userDataSize, uint256 rule) internal {
+        _expectJail(address(app), rule);
+        _delete(app, userDataSize);
+        _assertClosed(app, true);
+    }
+
+    function _assertClosed(ContextReturnApp app, bool jailed) internal view {
+        assertEq(superToken.getFlowRate(alice, address(app)), 0);
+        assertEq(sf.host.isAppJailed(ISuperApp(address(app))), jailed);
+    }
+
+    function _delete(ContextReturnApp app, uint256 userDataSize) internal {
+        vm.prank(alice);
+        sf.host
+            .callAgreement(
+                sf.cfa,
+                abi.encodeCall(sf.cfa.deleteFlow, (superToken, alice, address(app), new bytes(0))),
+                new bytes(userDataSize)
+            );
+    }
+
+    function _change(ContextReturnApp app, bool update, uint256 userDataSize) internal {
+        bytes memory callData = update
+            ? abi.encodeCall(sf.cfa.updateFlow, (superToken, address(app), FLOW_RATE * 2, new bytes(0)))
+            : abi.encodeCall(sf.cfa.createFlow, (superToken, address(app), FLOW_RATE, new bytes(0)));
+        vm.prank(alice);
+        sf.host.callAgreement(sf.cfa, callData, new bytes(userDataSize));
     }
 }
