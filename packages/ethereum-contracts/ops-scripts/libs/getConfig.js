@@ -96,7 +96,8 @@ module.exports = function getConfig(chainId) {
         metadata: sfNw,
         resolverAddress: global?.process.env.RESOLVER_ADDRESS || sfNw?.contractsV1?.resolver,
         trustedForwarders: sfNw?.trustedForwarders,
-        appCallbackGasLimit: 15000000,
+        // 12M (was 15M) so terminate+jail fits under EIP-7825's 2^24 (~16.78M) tx gas cap
+        appCallbackGasLimit: 12000000,
         // Freeze IDA new activity by default. Optimism (+ op sepolia) override in EXTRA_CONFIG.
         // Frozen networks cannot allocate approved slots; preserve the historical cap.
         idaNewActivityFrozen: true,
