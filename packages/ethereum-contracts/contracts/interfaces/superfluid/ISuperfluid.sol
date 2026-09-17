@@ -491,12 +491,10 @@ interface ISuperfluid {
       * @param agreementClass The agreement address you are calling
       * @param callData The contextual call data with placeholder ctx
       * @param userData Extra user data being sent to the super app callbacks.
-      *        This data becomes part of the callback input context. If an after-hook returns
-      *        successfully and both its returndata and `abi.encode(inputCtx)` exceed
-      *        `CallbackUtils.CALLBACK_RETURNDATA_CAP` (128 KiB), the Host reverts
-      *        `HOST_CALLBACK_CONTEXT_TOO_LARGE`, rolling back the call without jailing the app.
-      *        `inputCtx` is the context supplied to that after-hook; its encoded size includes
-      *        the ABI header and padding.
+      *        This data becomes part of each callback's context. Before invoking a before-
+      *        or after-hook, the Host requires ctx.length <= CALLBACK_CONTEXT_CAP
+      *        (32 KiB, or 32,768 bytes). Exceeding the bound reverts HOST_CALLBACK_CONTEXT_TOO_LARGE,
+      *        rolling back the operation without jailing the app.
       */
      function callAgreement(
          ISuperAgreement agreementClass,
@@ -595,13 +593,8 @@ interface ISuperfluid {
      * @param agreementClass The agreement address you are calling
      * @param callData The contextual call data with placeholder ctx
      * @param userData Extra user data being sent to nested super app callbacks.
-     *        Replaces `userData` in the context passed to the agreement. The returned `newCtx`
-     *        retains that replacement, allowing the calling app to change its context's size.
-     *        If an after-hook returns successfully and both its returndata and
-     *        `abi.encode(inputCtx)` exceed `CallbackUtils.CALLBACK_RETURNDATA_CAP` (128 KiB),
-     *        the Host reverts `HOST_CALLBACK_CONTEXT_TOO_LARGE`, rolling back the call without
-     *        jailing the app. `inputCtx` is the context supplied to that after-hook; its encoded
-     *        size includes the ABI header and padding.
+     *        Replaces userData in the context passed to the agreement. Each invoked before-
+     *        or after-hook is subject to the context-size bound described in {callAgreement}.
      * @param ctx The current context of the transaction.
      */
     function callAgreementWithContext(

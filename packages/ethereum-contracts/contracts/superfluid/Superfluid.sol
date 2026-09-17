@@ -1119,24 +1119,20 @@ contract Superfluid is
     {
         assert(address(app) != address(0));
 
+        // Bound the context supplied to every callback before invoking the app.
+        if (ctx.length > CallbackUtils.CALLBACK_CONTEXT_CAP) {
+            revert HOST_CALLBACK_CONTEXT_TOO_LARGE();
+        }
         callData = _replacePlaceholderCtx(callData, ctx);
 
         uint256 gasLeftBefore = gasleft();
         bool insufficientCallbackGasProvided;
-        bool returndataTooLarge;
-        (success, insufficientCallbackGasProvided, returnedData, returndataTooLarge) = isStaticCall ?
+        (success, insufficientCallbackGasProvided, returnedData) = isStaticCall ?
             CallbackUtils.staticCall(address(app), callData, callbackGasLimit) :
             CallbackUtils.externalCall(address(app), callData, callbackGasLimit);
 
         uint256 gasPaid = gasLeftBefore - gasleft();
         remainingCallbackGas = gasPaid >= callbackGasLimit ? 0 : callbackGasLimit - gasPaid;
-
-        // Both the successful after-hook response and abi.encode(input ctx) exceed the cap.
-        // Roll back callback and agreement changes together: the discarded return value may
-        // contain updated credit accounting. The word-aligned cap includes the 64-byte ABI header.
-        if (success && !isStaticCall && returndataTooLarge && ctx.length > CallbackUtils.CALLBACK_RETURNDATA_CAP - 64) {
-            revert HOST_CALLBACK_CONTEXT_TOO_LARGE();
-        }
 
         if (!success) {
             if (!insufficientCallbackGasProvided) {
