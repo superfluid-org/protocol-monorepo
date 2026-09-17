@@ -9,10 +9,9 @@ import { ISuperToken } from "./ISuperToken.sol";
  * @dev Be aware of the app being jailed, when the word permitted is used.
  *
  * Each invoked before- or after-hook receives at most
- * `CallbackUtils.CALLBACK_RETURNDATA_CAP - 64` bytes of context (131,008 bytes).
+ * `CallbackUtils.CALLBACK_CONTEXT_CAP` bytes of context (32 KiB, or 32,768 bytes).
  * The Host checks this bound before calling the app. Exceeding it reverts
  * `HOST_CALLBACK_CONTEXT_TOO_LARGE`, rolling back the operation without jailing the app.
- * The 64 reserved bytes accommodate the ABI offset and length words when returning ctx.
  *
  * Callback return values (`cbdata` from before-hooks, `newCtx` from after-hooks) are ABI-encoded
  * `bytes`. The Host copies at most `CallbackUtils.CALLBACK_RETURNDATA_CAP` (128 KiB) of returndata,

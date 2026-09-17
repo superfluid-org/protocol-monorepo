@@ -488,8 +488,8 @@ interface ISuperfluid {
       * @param callData The contextual call data with placeholder ctx
       * @param userData Extra user data being sent to the super app callbacks.
       *        This data becomes part of each callback's context. Before invoking a before-
-      *        or after-hook, the Host requires ctx.length <= CALLBACK_RETURNDATA_CAP - 64
-      *        (131,008 bytes). Exceeding the bound reverts HOST_CALLBACK_CONTEXT_TOO_LARGE,
+      *        or after-hook, the Host requires ctx.length <= CALLBACK_CONTEXT_CAP
+      *        (32 KiB, or 32,768 bytes). Exceeding the bound reverts HOST_CALLBACK_CONTEXT_TOO_LARGE,
       *        rolling back the operation without jailing the app.
       */
      function callAgreement(

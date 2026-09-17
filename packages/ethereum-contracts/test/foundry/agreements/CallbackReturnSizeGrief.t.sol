@@ -14,7 +14,6 @@ import {
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 import { CallbackUtils } from "../../../contracts/libs/CallbackUtils.sol";
-import { CallUtils } from "../../../contracts/libs/CallUtils.sol";
 
 /// @dev Before-hook cbdata validation and round-trip tests. The returndata cap applies to ABI-encoded cbdata.
 contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
@@ -57,7 +56,7 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
 
         vm.expectRevert(ISuperfluid.HOST_CALLBACK_CONTEXT_TOO_LARGE.selector);
         vm.prank(alice);
-        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_RETURNDATA_CAP - 511));
+        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_CONTEXT_CAP - 447));
         assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
         assertEq(superToken.getFlowRate(alice, address(app)), FLOW_RATE);
 
@@ -72,7 +71,7 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
         _openFlow(address(app));
         vm.expectCall(address(app), abi.encodeWithSelector(ISuperApp.beforeAgreementTerminated.selector));
         vm.prank(alice);
-        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_RETURNDATA_CAP - 512));
+        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_CONTEXT_CAP - 448));
         assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
         assertEq(superToken.getFlowRate(alice, address(app)), 0);
     }
@@ -112,9 +111,10 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
     }
 }
 
-/// @dev Callback context and returndata boundaries. C = CALLBACK_RETURNDATA_CAP (128 KiB).
-/// Before invoking a callback, the Host requires ctx.length <= C - 64. The reserved 64 bytes
-/// accommodate the ABI offset and length words; C is word-aligned and includes payload padding.
+/// @dev Callback context and returndata boundaries.
+/// Before invoking a callback, the Host requires ctx.length <= CALLBACK_CONTEXT_CAP (32 KiB).
+/// Returned ABI-encoded bytes are limited to C = CALLBACK_RETURNDATA_CAP (128 KiB), including
+/// the offset, length word and payload padding.
 /// Exceeding the input bound reverts HOST_CALLBACK_CONTEXT_TOO_LARGE without invoking the hook.
 /// The operation rolls back without jailing, and the caller can retry with smaller userData.
 ///
@@ -130,8 +130,8 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
 contract AfterCallbackReturndataTest is CallbackReturndataTestBase {
     using SuperTokenV1Library for ISuperToken;
 
-    // Encoded context has 448 bytes of overhead; returning bytes adds 64 ABI header bytes.
-    uint256 internal constant USER_DATA_AT_CAP = CallbackUtils.CALLBACK_RETURNDATA_CAP - 512;
+    // Encoded context has 448 bytes of overhead in addition to padded userData.
+    uint256 internal constant USER_DATA_AT_CAP = CallbackUtils.CALLBACK_CONTEXT_CAP - 448;
 
     function test_contextAtLimit_succeeds() public {
         _assertEcho(USER_DATA_AT_CAP);
@@ -226,7 +226,7 @@ contract AfterCallbackReturndataTest is CallbackReturndataTestBase {
         ContextReturnApp app = _app();
         _delete(app, userDataSize);
         _assertClosed(app, false);
-        assertEq(64 + CallUtils.padLength32(app.inputCtxLength()), CallbackUtils.CALLBACK_RETURNDATA_CAP);
+        assertEq(app.inputCtxLength(), CallbackUtils.CALLBACK_CONTEXT_CAP);
     }
 
     function _assertHostRevert(ContextReturnApp app, uint256 userDataSize) internal {

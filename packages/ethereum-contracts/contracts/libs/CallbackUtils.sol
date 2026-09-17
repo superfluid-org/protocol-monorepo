@@ -66,6 +66,9 @@ library CallbackUtils {
     /// The magic N constant from the EIP-150
     uint256 internal constant EIP150_MAGIC_N = 64;
 
+    /// Maximum context length supplied to a SuperApp callback.
+    uint256 internal constant CALLBACK_CONTEXT_CAP = 32 * 1024;
+
     /// Fixed cap on total ABI-encoded callback returndata, regardless of calldata size.
     uint256 internal constant CALLBACK_RETURNDATA_CAP = 128 * 1024;
 
