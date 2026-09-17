@@ -8,19 +8,19 @@ import { ISuperToken } from "./ISuperToken.sol";
  * @author Superfluid
  * @dev Be aware of the app being jailed, when the word permitted is used.
  *
- * Callback return values (`cbdata` from before-hooks, `newCtx` from after-hooks) are ABI-encoded
- * `bytes`. The Host copies at most `CallbackUtils.CALLBACK_RETURNDATA_CAP` (128 KiB) of returndata.
- * This size includes the 64-byte ABI header and the payload padded to a 32-byte boundary.
- * After-hooks must return a context authenticated by the Host. Calling `callAgreementWithContext`
- * can replace the context's `userData`, so the returned context may differ in size from the input.
+ * Each invoked before- or after-hook receives at most
+ * `CallbackUtils.CALLBACK_RETURNDATA_CAP - 64` bytes of context (131,008 bytes).
+ * The Host checks this bound before calling the app. Exceeding it reverts
+ * `HOST_CALLBACK_CONTEXT_TOO_LARGE`, rolling back the operation without jailing the app.
+ * The 64 reserved bytes accommodate the ABI offset and length words when returning ctx.
  *
- * Let `inputCtx` be the context supplied to the after-hook.
- * If an after-hook returns successfully and both its returndata and `abi.encode(inputCtx)` exceed
- * the cap, the Host reverts `HOST_CALLBACK_CONTEXT_TOO_LARGE`. This rolls back the agreement and
- * callback changes without jailing the app. In all other cases, a successful callback returning
- * more than the cap or malformed ABI bytes triggers `APP_RULE_CTX_IS_MALFORMATED`: termination
- * jails the app and continues; creation and update revert. A well-encoded but unauthenticated
- * after-hook context triggers `APP_RULE_CTX_IS_READONLY` with the same jail/revert behavior.
+ * Callback return values (`cbdata` from before-hooks, `newCtx` from after-hooks) are ABI-encoded
+ * `bytes`. The Host copies at most `CallbackUtils.CALLBACK_RETURNDATA_CAP` (128 KiB) of returndata,
+ * including ABI headers and padding to a 32-byte boundary. A successful callback returning more
+ * than the cap or malformed ABI bytes triggers `APP_RULE_CTX_IS_MALFORMATED`: termination jails
+ * the app and continues; creation and update revert. An after-hook must return a context
+ * authenticated by the Host; invalid authentication triggers `APP_RULE_CTX_IS_READONLY`
+ * with the same jail/revert behavior.
  *
  * Callback reverts jail the app on termination and propagate on creation/update. If the caller
  * supplied insufficient callback gas, the Host reverts `HOST_NEED_MORE_GAS` without jailing.

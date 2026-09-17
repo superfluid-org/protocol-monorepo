@@ -8,7 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 
 - CFA/GDA liquidation now uses account-level `totalDeposit` from `realtimeBalanceOf` (sum across agreements) instead of the per-agreement deposit.
-- SuperApp callback returndata is limited to `CALLBACK_RETURNDATA_CAP` (128 KiB, including ABI headers and padding). If an after-hook returns successfully and both its returndata and the ABI-encoded context supplied to that hook exceed the limit, the Host reverts `HOST_CALLBACK_CONTEXT_TOO_LARGE` and rolls back agreement and callback changes without jailing the app. Other successful responses exceeding the limit or containing malformed ABI bytes jail the app on termination and revert on creation/update. Apps can replace `userData` through `callAgreementWithContext` to return a smaller authenticated context.
+- SuperApp callbacks have a 128 KiB ABI-encoded returndata cap. Before invoking either callback type, the Host requires the context to fit within that cap with its 64-byte ABI header (`ctx.length <= 131,008`). Exceeding the input bound reverts `HOST_CALLBACK_CONTEXT_TOO_LARGE` without jailing the app; callers can retry with smaller `userData`. Successful responses exceeding the returndata cap or containing malformed ABI bytes jail the app on termination and revert on creation/update.
 
 ### Breaking
 

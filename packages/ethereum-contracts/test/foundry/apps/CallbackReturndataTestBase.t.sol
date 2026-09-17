@@ -8,7 +8,6 @@ import {
     ISuperApp,
     SuperAppDefinitions
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
-import { IConstantFlowAgreementV1 } from "../../../contracts/interfaces/agreements/IConstantFlowAgreementV1.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 
 /// @dev Super App that bombs one termination-callback returndata channel.
@@ -19,7 +18,8 @@ contract TerminationReturndataBombApp is ISuperApp {
         FatAfterNewCtx,
         FatRevertData,
         EncodedBeforeCbdata,
-        MaxInnerLength
+        MaxInnerLength,
+        AllNoop
     }
 
     uint256 public receivedCbdataLength;
@@ -39,6 +39,10 @@ contract TerminationReturndataBombApp is ISuperApp {
             configWord |= SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
         } else if (mode_ == Mode.FatAfterNewCtx) {
             configWord |= SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
+        }
+        if (mode_ == Mode.AllNoop) {
+            configWord |= SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP
+            | SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
         }
         host.registerApp(configWord);
     }
@@ -161,29 +165,21 @@ abstract contract CallbackReturndataTestBase is FoundrySuperfluidTester {
     }
 }
 
-/// @dev All after-hooks share a configurable response. Before-hooks are NOOP.
-/// Shrink/Grow call the CFA through callAgreementWithContext to replace userData and obtain
-/// an authenticated context. Counters and operator permissions expose rollback behavior.
+/// @dev Configurable after-hook responses for context bounds and return validation.
+/// Counters record callback execution; before-hooks are NOOP.
 contract ContextReturnApp is ISuperApp {
     enum Response {
         Echo,
-        Shrink,
-        Grow,
         Raw,
         Revert,
-        InvalidContext,
-        ShrinkThenOversize
+        InvalidContext
     }
-    ISuperfluid internal immutable _host;
-    address public constant OPERATOR = address(0xBEEF);
     Response public response;
     uint256 public size;
     uint256 public calls;
     uint256 public inputCtxLength;
-    uint256 public outputCtxLength;
 
     constructor(ISuperfluid host) {
-        _host = host;
         host.registerApp(
             SuperAppDefinitions.APP_LEVEL_FINAL | SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP
                 | SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP
@@ -196,22 +192,12 @@ contract ContextReturnApp is ISuperApp {
         size = size_;
     }
 
-    function _after(ISuperToken token, address agreement, bytes calldata ctx) internal returns (bytes memory newCtx) {
+    function _after(bytes calldata ctx) internal returns (bytes memory newCtx) {
         ++calls;
         inputCtxLength = ctx.length;
         Response r = response;
         newCtx = ctx;
-        if (r == Response.Shrink || r == Response.Grow || r == Response.ShrinkThenOversize) {
-            IConstantFlowAgreementV1 cfa = IConstantFlowAgreementV1(agreement);
-            (newCtx,) = _host.callAgreementWithContext(
-                cfa,
-                abi.encodeCall(cfa.authorizeFlowOperatorWithFullControl, (token, OPERATOR, new bytes(0))),
-                new bytes(r == Response.Grow ? size : 0),
-                ctx
-            );
-        }
-        outputCtxLength = newCtx.length;
-        if (r == Response.Raw || r == Response.Revert || r == Response.ShrinkThenOversize) {
+        if (r == Response.Raw || r == Response.Revert) {
             // Zero-filled returndata has an invalid ABI bytes offset for every nonempty payload.
             uint256 n = size;
             bool isRevert = r == Response.Revert;
@@ -249,36 +235,24 @@ contract ContextReturnApp is ISuperApp {
         return "";
     }
 
-    function afterAgreementCreated(
-        ISuperToken token,
-        address agreement,
-        bytes32,
-        bytes calldata,
-        bytes calldata,
-        bytes calldata ctx
-    ) external returns (bytes memory) {
-        return _after(token, agreement, ctx);
+    function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external
+        returns (bytes memory)
+    {
+        return _after(ctx);
     }
 
-    function afterAgreementUpdated(
-        ISuperToken token,
-        address agreement,
-        bytes32,
-        bytes calldata,
-        bytes calldata,
-        bytes calldata ctx
-    ) external returns (bytes memory) {
-        return _after(token, agreement, ctx);
+    function afterAgreementUpdated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external
+        returns (bytes memory)
+    {
+        return _after(ctx);
     }
 
-    function afterAgreementTerminated(
-        ISuperToken token,
-        address agreement,
-        bytes32,
-        bytes calldata,
-        bytes calldata,
-        bytes calldata ctx
-    ) external returns (bytes memory) {
-        return _after(token, agreement, ctx);
+    function afterAgreementTerminated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
+        external
+        returns (bytes memory)
+    {
+        return _after(ctx);
     }
 }

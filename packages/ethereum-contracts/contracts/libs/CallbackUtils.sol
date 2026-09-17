@@ -57,10 +57,9 @@ pragma solidity ^0.8.23;
  *
  * Copying callback returndata consumes gas for memory allocation and copying in the caller.
  * `CALLBACK_RETURNDATA_CAP` bounds the bytes copied after each CALL or STATICCALL, including
- * revert data. If `returndatasize()` exceeds the cap, the result is empty bytes with
- * `returndataTooLarge = true`; an empty response has `returndataTooLarge = false`.
- * `success` reports the CALL/STATICCALL result. The Host uses these values to apply its
- * callback validation and rollback rules. EIP-150 detection runs after the copy.
+ * revert data. If `returndatasize()` exceeds the cap, the result is empty bytes.
+ * `success` reports the CALL/STATICCALL result. The Host validates successful responses
+ * and handles callback failures. EIP-150 detection runs after the copy.
  *
  */
 library CallbackUtils {
@@ -72,14 +71,14 @@ library CallbackUtils {
 
     /// Make a call to the target with a callback gas limit.
     function externalCall(address target, bytes memory callData, uint256 callbackGasLimit) internal
-        returns (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData, bool returndataTooLarge)
+        returns (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData)
     {
         uint256 gasLeftBefore = gasleft();
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             success := call(callbackGasLimit, target, 0, add(callData, 0x20), mload(callData), 0, 0)
         }
-        (returnedData, returndataTooLarge) = _copyCallbackReturndata();
+        returnedData = _copyCallbackReturndata();
         if (!success) {
             if (gasleft() <= gasLeftBefore / EIP150_MAGIC_N) insufficientCallbackGasProvided = true;
         }
@@ -87,30 +86,29 @@ library CallbackUtils {
 
     /// Make a staticcall to the target with a callback gas limit.
     function staticCall(address target, bytes memory callData, uint256 callbackGasLimit) internal view
-        returns (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData, bool returndataTooLarge)
+        returns (bool success, bool insufficientCallbackGasProvided, bytes memory returnedData)
     {
         uint256 gasLeftBefore = gasleft();
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             success := staticcall(callbackGasLimit, target, add(callData, 0x20), mload(callData), 0, 0)
         }
-        (returnedData, returndataTooLarge) = _copyCallbackReturndata();
+        returnedData = _copyCallbackReturndata();
         if (!success) {
             if (gasleft() <= gasLeftBefore / EIP150_MAGIC_N) insufficientCallbackGasProvided = true;
         }
     }
 
-    /// Copy returndata within the cap; otherwise return empty bytes and an explicit overflow flag.
+    /// Copy returndata within the cap; otherwise return empty bytes.
     /// Must run immediately after the CALL/STATICCALL (output size 0, 0); internal, so returndata is preserved.
     function _copyCallbackReturndata() private pure
-        returns (bytes memory returnedData, bool returndataTooLarge)
+        returns (bytes memory returnedData)
     {
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             let rds := returndatasize()
             returnedData := mload(0x40)
-            returndataTooLarge := gt(rds, CALLBACK_RETURNDATA_CAP)
-            switch returndataTooLarge
+            switch gt(rds, CALLBACK_RETURNDATA_CAP)
             case 1 {
                 mstore(returnedData, 0)
                 mstore(0x40, add(returnedData, 0x20))
