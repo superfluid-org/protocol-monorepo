@@ -160,7 +160,8 @@ contract AgreementMock is AgreementBase {
                 )
             ),
             true, /* isTermination */
-            hackCtx ? new bytes(0) : ctx);
+            hackCtx ? new bytes(0) : ctx,
+            host.CALLBACK_GAS_LIMIT());
     }
 
     function tryCallAppAfterCallback(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
@@ -262,7 +263,8 @@ contract AgreementMock is AgreementBase {
             "" /* agreementData */
         );
         cbStates.noopBit = noopBit;
-        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(cbStates, type(uint256).max, ctx);
+        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(
+            cbStates, ISuperfluid(msg.sender).CALLBACK_GAS_LIMIT(), ctx);
         emit AppBeforeCallbackResult(
             context.appCallbackLevel,
             context.callType,

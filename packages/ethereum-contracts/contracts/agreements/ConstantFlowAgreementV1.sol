@@ -1048,7 +1048,7 @@ contract ConstantFlowAgreementV1 is
     // solhint-disable-next-line contract-name-camelcase
     struct _StackVars_changeFlowToApp {
         bytes cbdata;
-        uint256 callbackGasLimit;
+        uint256 remainingCallbackGas;
         FlowData newFlowData;
         ISuperfluid.Context appContext;
     }
@@ -1085,8 +1085,8 @@ contract ConstantFlowAgreementV1 is
             } else /* if (optype == FlowChangeType.DELETE_FLOW) */ {
                 cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
             }
-            (vars.cbdata, vars.callbackGasLimit) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, type(uint256).max, ctx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, ISuperfluid(msg.sender).CALLBACK_GAS_LIMIT(), ctx);
 
             ISuperfluidGovernance gov = ISuperfluidGovernance(ISuperfluid(msg.sender).getGovernance());
 
@@ -1125,7 +1125,7 @@ contract ConstantFlowAgreementV1 is
                 cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
             }
             (vars.appContext, newCtx) = AgreementLibrary.callAppAfterCallback(
-                cbStates, vars.cbdata, vars.callbackGasLimit, newCtx);
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
 
             // NB: the callback might update the same flow!!
             // reload the flow data

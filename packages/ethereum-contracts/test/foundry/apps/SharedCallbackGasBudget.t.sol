@@ -8,6 +8,8 @@ import {
     ISuperApp,
     SuperAppDefinitions
 } from "../../../contracts/interfaces/superfluid/ISuperfluid.sol";
+import { AgreementMock } from "../../../contracts/mocks/AgreementMock.t.sol";
+import { AgreementLibrary } from "../../../contracts/agreements/AgreementLibrary.sol";
 import { SuperTokenV1Library } from "../../../contracts/apps/SuperTokenV1Library.sol";
 
 contract CallbackGasBudgetApp is ISuperApp {
@@ -40,7 +42,7 @@ contract CallbackGasBudgetApp is ISuperApp {
         if (beforeCreatedMode == BeforeCreatedMode.Heavy) {
             while (gasleft() > 500_000) { }
         }
-        return "";
+        return abi.encode(gasleft());
     }
 
     function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
@@ -457,5 +459,83 @@ contract CallbackBudgetProbeApp is ISuperApp {
         external returns (bytes memory)
     {
         return _after(ctx);
+    }
+}
+
+
+/// @dev Exercises explicit budgets through the agreement helper and the real Host.
+contract CallbackBudgetAgreement is AgreementMock {
+    uint256 public remainingGas;
+    uint256 public observedBeforeGas;
+
+    constructor(address host) AgreementMock(host, keccak256("CallbackBudgetAgreement"), 1) { }
+
+    function runBefore(ISuperApp app, uint256 budget, bytes calldata ctx) external returns (bytes memory) {
+        AgreementLibrary.CallbackInputs memory inputs = AgreementLibrary.createCallbackInputs(
+            ISuperfluidToken(address(0)), address(app), bytes32(0), ""
+        );
+        inputs.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
+        bytes memory cbdata;
+        (cbdata, remainingGas) = AgreementLibrary.callAppBeforeCallback(inputs, budget, ctx);
+        if (cbdata.length != 0) observedBeforeGas = abi.decode(cbdata, (uint256));
+        return ctx;
+    }
+}
+
+/// @dev Explicit budgets apply to executed hooks, including zero. Skipped hooks preserve
+/// the supplied budget. The Host limits requests above its configured callback stipend.
+contract ExplicitCallbackGasBudgetTest is FoundrySuperfluidTester {
+    CallbackBudgetAgreement private _agreement;
+
+    constructor() FoundrySuperfluidTester(3) { }
+
+    function setUp() public override {
+        super.setUp();
+        CallbackBudgetAgreement implementation = new CallbackBudgetAgreement(address(sf.host));
+        vm.prank(sf.governance.owner());
+        sf.governance.registerAgreementClass(sf.host, address(implementation));
+        _agreement = CallbackBudgetAgreement(address(sf.host.getAgreementClass(implementation.agreementType())));
+    }
+
+    function _runBefore(ISuperApp app, uint256 budget) private {
+        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runBefore, (app, budget, new bytes(0))), "");
+    }
+
+    function test_finiteBudget_limitsBeforeExecutionAndRemainder() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
+        _runBefore(app, 100_000);
+        assertGt(_agreement.observedBeforeGas(), 0);
+        assertLt(_agreement.observedBeforeGas(), 100_000);
+        assertGt(_agreement.remainingGas(), 0);
+        assertLt(_agreement.remainingGas(), 100_000);
+    }
+
+    function test_zeroBudget_doesNotGrantFreshStipend() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
+        vm.expectRevert(bytes("CallUtils: target revert()"));
+        _runBefore(app, 0);
+        assertFalse(sf.host.isAppJailed(app));
+    }
+
+    function test_budgetAboveHostLimit_isCapped() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
+        _runBefore(app, type(uint256).max);
+        uint256 hostLimit = sf.host.CALLBACK_GAS_LIMIT();
+        assertGt(_agreement.observedBeforeGas(), hostLimit - 100_000);
+        assertLt(_agreement.observedBeforeGas(), hostLimit);
+        assertLt(_agreement.remainingGas(), hostLimit);
+    }
+
+    function testFuzz_noopBefore_preservesBudget(uint256 budget) public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Noop);
+        _runBefore(app, budget);
+        assertEq(_agreement.remainingGas(), budget);
+        assertEq(_agreement.observedBeforeGas(), 0);
+    }
+
+    function test_zeroBudget_noopBeforeSucceeds() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Noop);
+        _runBefore(app, 0);
+        assertEq(_agreement.remainingGas(), 0);
     }
 }

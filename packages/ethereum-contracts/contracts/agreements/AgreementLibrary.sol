@@ -46,11 +46,9 @@ library AgreementLibrary {
     /**************************************************************************
      * Agreement callback helpers
      *
-     * Each before/after callback pair shares one Host gas budget.
-     * Callers start each pair with type(uint256).max.
-     * An executed before-hook returns the remaining budget; a skipped
-     * before-hook preserves the supplied value. The Host caps the
-     * after-hook's budget to CALLBACK_GAS_LIMIT.
+     * Callers supply the current callback gas budget. An executed before-hook
+     * returns the unused portion; a skipped before-hook preserves it unchanged.
+     * The Host caps each callback stipend to CALLBACK_GAS_LIMIT.
      *************************************************************************/
 
     struct CallbackInputs {
@@ -106,7 +104,8 @@ library AgreementLibrary {
                     ISuperApp(inputs.account),
                     callData,
                     inputs.noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP,
-                    appCtx);
+                    appCtx,
+                    currentRemainingCallbackGas);
             }
             // [SECURITY] NOTE: ctx should be const, do not modify it ever to ensure callback stack correctness
             _popCallbackStack(ctx, 0);
@@ -116,7 +115,7 @@ library AgreementLibrary {
     function callAppAfterCallback(
         CallbackInputs memory inputs,
         bytes memory cbdata,
-        uint256 currentRemainingCallbackGas,
+        uint256 remainingCallbackGas,
         bytes /* const */ memory ctx
     )
         internal
@@ -145,7 +144,7 @@ library AgreementLibrary {
                     callData,
                     inputs.noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP,
                     newCtx,
-                    currentRemainingCallbackGas);
+                    remainingCallbackGas);
 
                 appContext = ISuperfluid(msg.sender).decodeCtx(newCtx);
 
