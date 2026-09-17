@@ -6,17 +6,19 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [UNRELEASED]
 
 ### Fixed
+
 - CFA/GDA liquidation now uses account-level `totalDeposit` from `realtimeBalanceOf` (sum across agreements) instead of the per-agreement deposit.
+- SuperApp callback returndata is limited to `CALLBACK_RETURNDATA_CAP` (128 KiB, including ABI headers and padding). If an after-hook returns successfully and both its returndata and the ABI-encoded context supplied to that hook exceed the limit, the Host reverts `HOST_CALLBACK_CONTEXT_TOO_LARGE` and rolls back agreement and callback changes without jailing the app. Other successful responses exceeding the limit or containing malformed ABI bytes jail the app on termination and revert on creation/update. Apps can replace `userData` through `callAgreementWithContext` to return a smaller authenticated context.
 
 ### Breaking
 
 - **Monorepo:** Yarn 4 (`nodeLinker: node-modules`). Use `yarn install --immutable` (vendored via `.yarn/releases` / `yarnPath`; Nix exposes it on `PATH`).
 - `SuperTokenFactory`: removed canonical wrapper APIs (`createCanonicalERC20Wrapper`, `computeCanonicalERC20WrapperAddress`, `getCanonicalERC20Wrapper`, `initializeCanonicalWrapperSuperTokens`).
-  These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
-  In order to not confuse devs (human or non), this part of the API is therefore removed.
-  The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
+ These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
+ In order to not confuse devs (human or non), this part of the API is therefore removed.
+ The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
 - `InstantDistributionAgreementV1` constructor is now `(host, newActivityFrozen, maxNumSubscriptions)`.
-  `MAX_NUM_SUBSCRIPTIONS` is an immutable (was a constant).
+ `MAX_NUM_SUBSCRIPTIONS` is an immutable (was a constant).
 - SuperApp `before`/`after` callbacks share one `CALLBACK_GAS_LIMIT` stipend per pair. `ISuperfluid.callAppBeforeCallback` returns unused gas; `callAppAfterCallback` takes that stipend (capped by the Host). Host, CFA, and IDA must be upgraded together.
 
 ### Changed

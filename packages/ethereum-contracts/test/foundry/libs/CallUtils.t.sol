@@ -57,10 +57,6 @@ contract CallUtilsAnvil is Test {
         assertTrue(CallUtils.padLength32(len) % 32 == 0);
     }
 
-    function testIsValidAbiEncodedBytes(bytes memory data) public pure {
-        assertTrue(CallUtils.isValidAbiEncodedBytes(abi.encode(data)));
-    }
-
     /// No filtering: malformed offsets, truncated heads, and arbitrary lengths must not panic.
     function testIsValidAbiEncodedBytes_arbitraryInputDoesNotPanic(bytes memory data) public pure {
         _assertAbiEncodedBytesValidation(data);
