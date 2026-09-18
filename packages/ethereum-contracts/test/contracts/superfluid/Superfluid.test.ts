@@ -763,8 +763,7 @@ describe("Superfluid Host Contract", function () {
                             ZERO_ADDRESS,
                             "0x",
                             false,
-                            "0x",
-                            0
+                            "0x"
                         )
                     );
                     await expectReverted(
@@ -772,8 +771,7 @@ describe("Superfluid Host Contract", function () {
                             ZERO_ADDRESS,
                             "0x",
                             false,
-                            "0x",
-                            0
+                            "0x"
                         )
                     );
                     await expectReverted(
@@ -785,7 +783,7 @@ describe("Superfluid Host Contract", function () {
                             ZERO_ADDRESS
                         )
                     );
-                    await expectReverted(superfluid.appCallbackPop("0x", 0));
+                    await expectReverted(superfluid.appCallbackPop("0x", 0, 0));
                     await expectReverted(superfluid.ctxUseCredit("0x", 0));
                 });
 

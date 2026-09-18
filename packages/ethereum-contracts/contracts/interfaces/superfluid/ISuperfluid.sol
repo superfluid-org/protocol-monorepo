@@ -97,6 +97,11 @@ interface ISuperfluid {
 
     function getNow() external view returns (uint256);
 
+    /**
+     * @dev Get the callback gas stipend shared by each SuperApp callback pair.
+     */
+    function CALLBACK_GAS_LIMIT() external view returns (uint64);
+
     /**************************************************************************
      * Governance
      *************************************************************************/
@@ -362,22 +367,19 @@ interface ISuperfluid {
      * @param  callData             The call data sending to the super app.
      * @param  isTermination        Is it a termination callback?
      * @param  ctx                  Current ctx, it will be validated.
-     * @param  callbackGasLimit     Gas stipend for this callback. Capped to the Host callback gas stipend.
-     *                              Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return cbdata               Data returned from the callback.
-     * @return remainingCallbackGas Unused portion of the capped callback gas stipend.
+     * @return newCtx               The updated callback context containing the remaining pair stipend.
      */
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx,
-        uint256 callbackGasLimit
+        bytes calldata ctx
     )
         external
         // onlyAgreement
         // assertValidCtx(ctx)
-        returns(bytes memory cbdata, uint256 remainingCallbackGas);
+        returns(bytes memory cbdata, bytes memory newCtx);
 
     /**
      * @dev (For agreements) Call the app after callback
@@ -385,16 +387,13 @@ interface ISuperfluid {
      * @param  callData          The call data sending to the super app.
      * @param  isTermination     Is it a termination callback?
      * @param  ctx               Current ctx, it will be validated.
-     * @param  callbackGasLimit  Gas stipend for this callback. Capped to the Host callback gas stipend.
-     *                           Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx,
-        uint256 callbackGasLimit
+        bytes calldata ctx
     )
         external
         // onlyAgreement
@@ -425,6 +424,7 @@ interface ISuperfluid {
      * @dev (For agreements) Pop from the current app callback stack
      * @param  ctx                     The ctx that was pushed before the callback stack.
      * @param  appCreditUsedDelta      App credit used by the app.
+     * @param  callbackGasLeft         Remaining gas stipend for the callback pair.
      * @return newCtx                  The current context of the transaction.
      *
      * @custom:security
@@ -433,7 +433,8 @@ interface ISuperfluid {
      */
     function appCallbackPop(
         bytes calldata ctx,
-        int256 appCreditUsedDelta
+        int256 appCreditUsedDelta,
+        uint256 callbackGasLeft
     )
         external
         // onlyAgreement
@@ -589,6 +590,10 @@ interface ISuperfluid {
         address appAddress;
         // app credit in super token
         ISuperfluidToken appCreditToken;
+        // Remaining gas stipend for the current SuperApp before/after callback pair.
+        // 0 means exhausted (after-hook must not treat this as "unset → full budget").
+        // This ABI-compatible field is appended to the Context.
+        uint256 callbackGasLeft;
     }
 
     /**

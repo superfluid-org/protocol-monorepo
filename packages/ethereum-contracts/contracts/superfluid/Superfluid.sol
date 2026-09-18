@@ -511,21 +511,21 @@ contract Superfluid is
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx,
-        uint256 callbackGasLimit
+        bytes calldata ctx
     )
         external override
         onlyAgreement
         assertValidCtx(ctx)
-        returns(bytes memory cbdata, uint256 remainingCallbackGas)
+        returns(bytes memory cbdata, bytes memory newCtx)
     {
         bool success;
         bytes memory returnedData;
-        if (callbackGasLimit > CALLBACK_GAS_LIMIT) {
-            callbackGasLimit = CALLBACK_GAS_LIMIT;
-        }
+        uint256 remainingCallbackGas;
         (success, returnedData, remainingCallbackGas) = _callCallback(
-            app, true, isTermination, callData, ctx, callbackGasLimit);
+            app, true, isTermination, callData, ctx, CALLBACK_GAS_LIMIT);
+        Context memory context = decodeCtx(ctx);
+        context.callbackGasLeft = remainingCallbackGas;
+        newCtx = _updateContext(context);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
                 cbdata = CallUtils.unwrapAbiEncodedBytes(returnedData);
@@ -543,14 +543,14 @@ contract Superfluid is
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx,
-        uint256 callbackGasLimit
+        bytes calldata ctx
     )
         external override
         onlyAgreement
         assertValidCtx(ctx)
         returns(bytes memory newCtx)
     {
+        uint256 callbackGasLimit = decodeCtx(ctx).callbackGasLeft;
         if (callbackGasLimit > CALLBACK_GAS_LIMIT) {
             callbackGasLimit = CALLBACK_GAS_LIMIT;
         }
@@ -612,7 +612,8 @@ contract Superfluid is
 
     function appCallbackPop(
         bytes calldata ctx,
-        int256 appCreditUsedDelta
+        int256 appCreditUsedDelta,
+        uint256 callbackGasLeft
     )
         external override
         onlyAgreement
@@ -620,6 +621,7 @@ contract Superfluid is
     {
         Context memory context = decodeCtx(ctx);
         context.appCreditUsed += appCreditUsedDelta;
+        context.callbackGasLeft = callbackGasLeft;
         newCtx = _updateContext(context);
     }
 
@@ -682,7 +684,8 @@ contract Superfluid is
             appCreditWantedDeprecated: 0,
             appCreditUsed: 0,
             appAddress: address(0),
-            appCreditToken: ISuperfluidToken(address(0))
+            appCreditToken: ISuperfluidToken(address(0)),
+            callbackGasLeft: CALLBACK_GAS_LIMIT
         }));
         bool success;
         (success, returnedData) = _callExternalWithReplacedCtx(address(agreementClass), callData, 0, ctx);
@@ -728,7 +731,8 @@ contract Superfluid is
             appCreditWantedDeprecated: 0,
             appCreditUsed: 0,
             appAddress: address(app),
-            appCreditToken: ISuperfluidToken(address(0))
+            appCreditToken: ISuperfluidToken(address(0)),
+            callbackGasLeft: CALLBACK_GAS_LIMIT
         }));
         bool success;
         (success, returnedData) = _callExternalWithReplacedCtx(address(app), callData, value, ctx);
@@ -1031,7 +1035,8 @@ contract Superfluid is
                 creditIO,
                 context.appCreditUsed,
                 context.appAddress,
-                context.appCreditToken
+                context.appCreditToken,
+                context.callbackGasLeft
             )
         );
         _ctxStamp = keccak256(ctx);
@@ -1066,12 +1071,14 @@ contract Superfluid is
                 creditIO,
                 context.appCreditUsed,
                 context.appAddress,
-                context.appCreditToken
+                context.appCreditToken,
+                context.callbackGasLeft
             ) = abi.decode(ctx2, (
                 uint256,
                 int256,
                 address,
-                ISuperfluidToken));
+                ISuperfluidToken,
+                uint256));
             context.appCreditGranted = creditIO & type(uint128).max;
             context.appCreditWantedDeprecated = creditIO >> 128;
         }

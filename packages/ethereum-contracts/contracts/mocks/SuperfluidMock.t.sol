@@ -125,6 +125,12 @@ contract SuperfluidUpgradabilityTester is Superfluid {
             assembly { mstore(add(context, mul(32, 10)), 42) }
             require(address(context.appCreditToken) == address(42), "appCreditToken changed location");
         }
+        // context.callbackGasLeft
+        {
+            Context memory context;
+            assembly { mstore(add(context, mul(32, 11)), 42) }
+            require(context.callbackGasLeft == 42, "callbackGasLeft changed location");
+        }
     }
 }
 

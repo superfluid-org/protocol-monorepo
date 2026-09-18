@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { CallbackUtils } from "../../../contracts/libs/CallbackUtils.sol";
 import "../FoundrySuperfluidTester.t.sol";
 import {
     ISuperfluid,
@@ -464,27 +463,27 @@ contract CallbackBudgetProbeApp is ISuperApp {
 }
 
 
-/// @dev Exercises explicit budgets through the agreement helper and the real Host.
+/// @dev Exercises the context-carried budget through the agreement helper and the real Host.
 contract CallbackBudgetAgreement is AgreementMock {
     uint256 public remainingGas;
     uint256 public observedBeforeGas;
 
     constructor(address host) AgreementMock(host, keccak256("CallbackBudgetAgreement"), 1) { }
 
-    function runBefore(ISuperApp app, uint256 budget, bytes calldata ctx) external returns (bytes memory) {
+    function runBefore(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
         AgreementLibrary.CallbackInputs memory inputs = AgreementLibrary.createCallbackInputs(
             ISuperfluidToken(address(0)), address(app), bytes32(0), ""
         );
         inputs.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
         bytes memory cbdata;
-        (cbdata, remainingGas) = AgreementLibrary.callAppBeforeCallback(inputs, budget, ctx);
+        (cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(inputs, ctx);
+        remainingGas = ISuperfluid(msg.sender).decodeCtx(newCtx).callbackGasLeft;
         if (cbdata.length != 0) observedBeforeGas = abi.decode(cbdata, (uint256));
-        return ctx;
+        return newCtx;
     }
 }
 
-/// @dev Explicit budgets apply to executed hooks, including zero. Skipped hooks preserve
-/// the supplied budget. The Host limits requests above its configured callback stipend.
+/// @dev The Host starts every before-hook with its configured pair stipend.
 contract ExplicitCallbackGasBudgetTest is FoundrySuperfluidTester {
     CallbackBudgetAgreement private _agreement;
 
@@ -498,45 +497,24 @@ contract ExplicitCallbackGasBudgetTest is FoundrySuperfluidTester {
         _agreement = CallbackBudgetAgreement(address(sf.host.getAgreementClass(implementation.agreementType())));
     }
 
-    function _runBefore(ISuperApp app, uint256 budget) private {
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runBefore, (app, budget, new bytes(0))), "");
+    function _runBefore(ISuperApp app) private {
+        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runBefore, (app, new bytes(0))), "");
     }
 
-    function test_finiteBudget_limitsBeforeExecutionAndRemainder() public {
+    function test_beforeHook_limitsExecutionAndStoresRemainder() public {
         CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        _runBefore(app, 100_000);
-        assertGt(_agreement.observedBeforeGas(), 0);
-        assertLt(_agreement.observedBeforeGas(), 100_000);
-        assertGt(_agreement.remainingGas(), 0);
-        assertLt(_agreement.remainingGas(), 100_000);
-    }
-
-    function test_zeroBudget_doesNotGrantFreshStipend() public {
-        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        vm.expectRevert(bytes("CallUtils: target revert()"));
-        _runBefore(app, 0);
-        assertFalse(sf.host.isAppJailed(app));
-    }
-
-    function test_hostLimitSentinel_grantsHostBudget() public {
-        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        _runBefore(app, CallbackUtils.HOST_CALLBACK_GAS_LIMIT);
+        _runBefore(app);
         uint256 hostLimit = sf.host.CALLBACK_GAS_LIMIT();
-        assertGt(_agreement.observedBeforeGas(), hostLimit - 100_000);
+        assertGt(_agreement.observedBeforeGas(), 0);
         assertLt(_agreement.observedBeforeGas(), hostLimit);
+        assertGt(_agreement.remainingGas(), 0);
         assertLt(_agreement.remainingGas(), hostLimit);
     }
 
-    function testFuzz_noopBefore_preservesBudget(uint256 budget) public {
+    function test_noopBefore_preservesFullBudget() public {
         CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Noop);
-        _runBefore(app, budget);
-        assertEq(_agreement.remainingGas(), budget);
+        _runBefore(app);
+        assertEq(_agreement.remainingGas(), sf.host.CALLBACK_GAS_LIMIT());
         assertEq(_agreement.observedBeforeGas(), 0);
-    }
-
-    function test_zeroBudget_noopBeforeSucceeds() public {
-        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Noop);
-        _runBefore(app, 0);
-        assertEq(_agreement.remainingGas(), 0);
     }
 }

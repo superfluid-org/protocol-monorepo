@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 import {
@@ -373,7 +372,6 @@ contract InstantDistributionAgreementV1 is
          IndexData idata;
          SubscriptionData sdata;
          bytes cbdata;
-         uint256 remainingCallbackGas;
      }
 
     /// @dev IInstantDistributionAgreementV1.approveSubscription implementation
@@ -421,8 +419,7 @@ contract InstantDistributionAgreementV1 is
 
         if (!vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
-            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+            (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
 
             vars.sdata = SubscriptionData({
                 publisher: publisher,
@@ -436,12 +433,10 @@ contract InstantDistributionAgreementV1 is
             token.createAgreement(vars.sId, _encodeSubscriptionData(vars.sdata));
 
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(
-                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
         } else {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
-            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+            (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
             // NOTE casting these values to int256 is okay because the original values
             // are uint128
             int balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -461,8 +456,7 @@ contract InstantDistributionAgreementV1 is
             token.updateAgreementData(vars.sId, _encodeSubscriptionData(vars.sdata));
 
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(
-                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
         }
 
         // can index up to three words, hence splitting into two events from publisher or subscriber's view.
@@ -511,8 +505,7 @@ contract InstantDistributionAgreementV1 is
         newCtx = ctx;
 
         cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
-        (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-            cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+        (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
         // NOTE downcasting these values to int256 is okay because the original values
         // are uint128
         int256 balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -534,8 +527,7 @@ contract InstantDistributionAgreementV1 is
         token.settleBalance(subscriber, balanceDelta);
 
         cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
-        (, newCtx) = AgreementLibrary.callAppAfterCallback(
-            cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
+        (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
 
         emit IndexUnsubscribed(token, publisher, indexId, subscriber, userData);
         emit SubscriptionRevoked(token, subscriber, publisher, indexId, userData);
@@ -584,12 +576,10 @@ contract InstantDistributionAgreementV1 is
         // before-hook callback
         if (vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
-            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+            (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
         } else {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
-            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+            (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
         }
 
         // update publisher data
@@ -653,12 +643,10 @@ contract InstantDistributionAgreementV1 is
         // after-hook callback
         if (vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(
-                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
         } else {
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(
-                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
         }
 
         emit IndexUnitsUpdated(token, publisher, indexId, subscriber, units, userData);
@@ -811,8 +799,7 @@ contract InstantDistributionAgreementV1 is
         newCtx = ctx;
 
         cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
-        (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-            cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+        (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
         // NOTE casting these values to int256 is okay because the original values
         // are uint128
         int256 balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -844,8 +831,7 @@ contract InstantDistributionAgreementV1 is
         token.settleBalance(subscriber, balanceDelta);
 
         cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
-        (, newCtx) = AgreementLibrary.callAppAfterCallback(
-            cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
+        (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
 
         emit IndexUnsubscribed(token, publisher, indexId, subscriber, userData);
         emit SubscriptionRevoked(token, subscriber, publisher, indexId, userData);
@@ -896,8 +882,7 @@ contract InstantDistributionAgreementV1 is
 
         if (pendingDistribution > 0) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
-            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+            (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
             int256 signedPendingDistribution = pendingDistribution.toInt256();
 
             // adjust publisher's deposits
@@ -913,8 +898,7 @@ contract InstantDistributionAgreementV1 is
             emit SubscriptionDistributionClaimed(token, subscriber, publisher, indexId, pendingDistribution);
 
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(
-                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
         } else {
             // nothing to be recorded in this case
             newCtx = ctx;

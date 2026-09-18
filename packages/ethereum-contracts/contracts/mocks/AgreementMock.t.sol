@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
-import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 import {
@@ -148,7 +147,7 @@ contract AgreementMock is AgreementBase {
     function tryCallAppBeforeCallback(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        (newCtx,) = host.callAppBeforeCallback(
+        (, newCtx) = host.callAppBeforeCallback(
             appMock,
             abi.encodeCall(
                 appMock.beforeAgreementCreated,
@@ -161,8 +160,7 @@ contract AgreementMock is AgreementBase {
                 )
             ),
             true, /* isTermination */
-            hackCtx ? new bytes(0) : ctx,
-            CallbackUtils.HOST_CALLBACK_GAS_LIMIT);
+            hackCtx ? new bytes(0) : ctx);
     }
 
     function tryCallAppAfterCallback(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
@@ -182,8 +180,7 @@ contract AgreementMock is AgreementBase {
                 )
             ),
             true, /* isTermination */
-            hackCtx ? new bytes(0) : ctx,
-            type(uint256).max);
+            hackCtx ? new bytes(0) : ctx);
     }
 
     function tryAppCallbackPush(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
@@ -195,7 +192,7 @@ contract AgreementMock is AgreementBase {
     function tryAppCallbackPop(ISuperfluid host, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        return host.appCallbackPop(ctx, 0);
+        return host.appCallbackPop(ctx, 0, 0);
     }
 
     function tryCtxUseCredit(ISuperfluid host, bool hackCtx, bytes calldata ctx)
@@ -264,8 +261,7 @@ contract AgreementMock is AgreementBase {
             "" /* agreementData */
         );
         cbStates.noopBit = noopBit;
-        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(
-            cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, ctx);
+        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
         emit AppBeforeCallbackResult(
             context.appCallbackLevel,
             context.callType,
@@ -296,8 +292,7 @@ contract AgreementMock is AgreementBase {
         );
         cbStates.noopBit = noopBit;
         ISuperfluid.Context memory appContext;
-        (appContext, newCtx) = AgreementLibrary.callAppAfterCallback(
-            cbStates, "", type(uint256).max, ctx);
+        (appContext, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, "", ctx);
         if (isJailed) {
             // appContext.callType is a sufficient check that the callback was not called at all
             require(appContext.callType == 0, "AgreementMock: callback should not reach jailed app");

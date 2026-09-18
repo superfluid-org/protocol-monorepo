@@ -56,7 +56,7 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
 
         vm.expectRevert(ISuperfluid.HOST_CALLBACK_CONTEXT_TOO_LARGE.selector);
         vm.prank(alice);
-        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_CONTEXT_CAP - 447));
+        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_CONTEXT_CAP - 479));
         assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
         assertEq(superToken.getFlowRate(alice, address(app)), FLOW_RATE);
 
@@ -71,7 +71,7 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
         _openFlow(address(app));
         vm.expectCall(address(app), abi.encodeWithSelector(ISuperApp.beforeAgreementTerminated.selector));
         vm.prank(alice);
-        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_CONTEXT_CAP - 448));
+        superToken.deleteFlow(alice, address(app), new bytes(CallbackUtils.CALLBACK_CONTEXT_CAP - 480));
         assertFalse(sf.host.isAppJailed(ISuperApp(address(app))));
         assertEq(superToken.getFlowRate(alice, address(app)), 0);
     }
@@ -130,8 +130,8 @@ contract CallbackReturnSizeGriefTest is CallbackReturndataTestBase {
 contract AfterCallbackReturndataTest is CallbackReturndataTestBase {
     using SuperTokenV1Library for ISuperToken;
 
-    // Encoded context has 448 bytes of overhead in addition to padded userData.
-    uint256 internal constant USER_DATA_AT_CAP = CallbackUtils.CALLBACK_CONTEXT_CAP - 448;
+    // Encoded context has 480 bytes of overhead in addition to padded userData.
+    uint256 internal constant USER_DATA_AT_CAP = CallbackUtils.CALLBACK_CONTEXT_CAP - 480;
 
     function test_contextAtLimit_succeeds() public {
         _assertEcho(USER_DATA_AT_CAP);
