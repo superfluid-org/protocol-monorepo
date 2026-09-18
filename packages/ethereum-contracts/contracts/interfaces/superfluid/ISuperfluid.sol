@@ -547,7 +547,7 @@ interface ISuperfluid {
      * - The order of the fields hence should not be rearranged in order to be backward compatible:
      *    - non-dynamic fields will be parsed at the same memory location,
      *    - and dynamic fields will simply have a greater offset than it was.
-     * - We cannot change the structure of the Context struct because of ABI compatibility requirements
+     * - The struct is append-only! Changing or removing fields could break deployed SuperApps!
      */
     struct Context {
         //
@@ -592,7 +592,6 @@ interface ISuperfluid {
         ISuperfluidToken appCreditToken;
         // Remaining gas stipend for the current SuperApp before/after callback pair.
         // 0 means exhausted (after-hook must not treat this as "unset → full budget").
-        // This ABI-compatible field is appended to the Context.
         uint256 callbackGasLeft;
     }
 
