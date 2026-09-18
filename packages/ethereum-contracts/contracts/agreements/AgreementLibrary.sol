@@ -78,13 +78,13 @@ library AgreementLibrary {
 
     function callAppBeforeCallback(
         CallbackInputs memory inputs,
-        uint256 currentRemainingCallbackGas,
+        uint256 remainingCallbackGas,
         bytes memory ctx
     )
         internal
         returns(bytes memory cbdata, uint256 newRemainingCallbackGas)
     {
-        newRemainingCallbackGas = currentRemainingCallbackGas;
+        newRemainingCallbackGas = remainingCallbackGas;
         bool isSuperApp;
         bool isJailed;
         uint256 noopMask;
@@ -105,7 +105,7 @@ library AgreementLibrary {
                     callData,
                     inputs.noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP,
                     appCtx,
-                    currentRemainingCallbackGas);
+                    remainingCallbackGas);
             }
             // [SECURITY] NOTE: ctx should be const, do not modify it ever to ensure callback stack correctness
             _popCallbackStack(ctx, 0);
