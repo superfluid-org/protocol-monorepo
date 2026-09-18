@@ -521,7 +521,7 @@ contract Superfluid is
     {
         bool success;
         bytes memory returnedData;
-        if (callbackGasLimit == SENTINEL_CALLBACK_GAS_LIMIT) {
+        if (callbackGasLimit == CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT) {
             callbackGasLimit = CALLBACK_GAS_LIMIT;
         }
         (success, returnedData, remainingCallbackGas) = _callCallback(

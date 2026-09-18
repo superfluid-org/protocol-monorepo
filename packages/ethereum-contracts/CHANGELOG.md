@@ -17,9 +17,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
  These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
  In order to not confuse devs (human or non), this part of the API is therefore removed.
  The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
-- `InstantDistributionAgreementV1` constructor is now `(host, newActivityFrozen, maxNumSubscriptions)`.
- `MAX_NUM_SUBSCRIPTIONS` is an immutable (was a constant).
-- SuperApp `before`/`after` callbacks share one `CALLBACK_GAS_LIMIT` stipend per pair. `ISuperfluid.callAppBeforeCallback` returns unused gas; `callAppAfterCallback` takes that stipend (capped by the Host). Host, CFA, and IDA must be upgraded together.
 
 ### Changed
 
@@ -29,6 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Existing subscription slots and balances are preserved. Local test deployments remain unfrozen with a 256-subscription cap.
 - Max SuperApp `CALLBACK_GAS_LIMIT` reduced from 15M to 12M so there's sufficient margin left after the introduction of EIP-7825's ~16.78M per-tx cap.
   On chains which had this lower already, it remains unchanged.
+- SuperApp `before`/`after` callbacks share one `CALLBACK_GAS_LIMIT` stipend per pair.
 
 ## [v1.15.2]
 
