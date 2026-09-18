@@ -510,7 +510,7 @@ contract Superfluid is
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
-        bool isTermination,
+        uint256 noopBit,
         bytes calldata ctx
     )
         external override
@@ -518,12 +518,15 @@ contract Superfluid is
         assertValidCtx(ctx)
         returns(bytes memory cbdata, bytes memory newCtx)
     {
+        newCtx = _updateCallbackGas(ctx, CALLBACK_GAS_LIMIT);
+        if ((_appManifests[app].configWord & noopBit) != 0) return (cbdata, newCtx);
+
+        bool isTermination = noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
         bool success;
         bytes memory returnedData;
         uint256 remainingCallbackGas;
-        newCtx = ctx;
         (success, returnedData, remainingCallbackGas) = _callCallback(
-            app, true, isTermination, callData, newCtx, _getCallbackGasLeft(ctx));
+            app, true, isTermination, callData, newCtx, CALLBACK_GAS_LIMIT);
         newCtx = _updateCallbackGas(newCtx, remainingCallbackGas);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
@@ -541,7 +544,7 @@ contract Superfluid is
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
-        bool isTermination,
+        uint256 noopBit,
         bytes calldata ctx
     )
         external override
@@ -549,6 +552,9 @@ contract Superfluid is
         assertValidCtx(ctx)
         returns(bytes memory newCtx)
     {
+        if ((_appManifests[app].configWord & noopBit) != 0) return ctx;
+
+        bool isTermination = noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
         (bool success, bytes memory returnedData, uint256 remainingCallbackGas) = _callCallback(
             app, false, isTermination, callData, ctx, _getCallbackGasLeft(ctx));
         if (success) {
@@ -582,8 +588,7 @@ contract Superfluid is
         ISuperApp app,
         uint256 appCreditGranted,
         int256 appCreditUsed,
-        ISuperfluidToken appCreditToken,
-        bool isBeforeCallback
+        ISuperfluidToken appCreditToken
     )
         external override
         onlyAgreement
@@ -604,7 +609,6 @@ contract Superfluid is
         context.appCreditUsed = appCreditUsed;
         context.appAddress = address(app);
         context.appCreditToken = appCreditToken;
-        if (isBeforeCallback) context.callbackGasLeft = CALLBACK_GAS_LIMIT;
         appCtx = _updateContext(context);
     }
 

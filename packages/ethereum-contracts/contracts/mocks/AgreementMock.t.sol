@@ -159,7 +159,7 @@ contract AgreementMock is AgreementBase {
                     new bytes(0) /* placeholder ctx */
                 )
             ),
-            true, /* isTermination */
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP,
             hackCtx ? new bytes(0) : ctx);
     }
 
@@ -179,14 +179,14 @@ contract AgreementMock is AgreementBase {
                     new bytes(0) /* placeholder ctx */
                 )
             ),
-            true, /* isTermination */
+            SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
             hackCtx ? new bytes(0) : ctx);
     }
 
     function tryAppCallbackPush(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        return host.appCallbackPush(hackCtx ? new bytes(0) : ctx, appMock, 0, 0, ISuperfluidToken(address(0)), true);
+        return host.appCallbackPush(hackCtx ? new bytes(0) : ctx, appMock, 0, 0, ISuperfluidToken(address(0)));
     }
 
     function tryAppCallbackPop(ISuperfluid host, bytes calldata ctx)

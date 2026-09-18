@@ -357,10 +357,11 @@ interface ISuperfluid {
      *************************************************************************/
 
     /**
-     * @dev (For agreements) StaticCall the app before callback
+     * @dev (For agreements) Start a fresh pair budget and StaticCall the app before callback.
+     * A NOOP hook returns empty cbdata and the full budget without invoking the app.
      * @param  app                  The super app.
      * @param  callData             The call data sending to the super app.
-     * @param  isTermination        Is it a termination callback?
+     * @param  noopBit              The BEFORE_AGREEMENT_*_NOOP bit matching callData's hook.
      * @param  ctx                  Current ctx, it will be validated.
      * @return cbdata               Data returned from the callback.
      * @return newCtx               The updated callback context containing the remaining pair stipend.
@@ -368,7 +369,7 @@ interface ISuperfluid {
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
-        bool isTermination,
+        uint256 noopBit,
         bytes calldata ctx
     )
         external
@@ -377,17 +378,18 @@ interface ISuperfluid {
         returns(bytes memory cbdata, bytes memory newCtx);
 
     /**
-     * @dev (For agreements) Call the app after callback
+     * @dev (For agreements) Call the app after callback using the remaining Context budget.
+     * A NOOP hook returns ctx unchanged without invoking the app.
      * @param  app               The super app.
      * @param  callData          The call data sending to the super app.
-     * @param  isTermination     Is it a termination callback?
+     * @param  noopBit           The AFTER_AGREEMENT_*_NOOP bit matching callData's hook.
      * @param  ctx               Current ctx, it will be validated.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
-        bool isTermination,
+        uint256 noopBit,
         bytes calldata ctx
     )
         external
@@ -402,7 +404,6 @@ interface ISuperfluid {
      * @param  appCreditGranted        App credit granted so far.
      * @param  appCreditUsed           App credit used so far.
      * @param  appCreditToken          Token used for app credit.
-     * @param  isBeforeCallback        Start a fresh pair budget for a before-hook; preserve it for an after-hook.
      * @return newCtx                  The current context of the transaction.
      */
     function appCallbackPush(
@@ -410,8 +411,7 @@ interface ISuperfluid {
         ISuperApp app,
         uint256 appCreditGranted,
         int256 appCreditUsed,
-        ISuperfluidToken appCreditToken,
-        bool isBeforeCallback
+        ISuperfluidToken appCreditToken
     )
         external
         // onlyAgreement

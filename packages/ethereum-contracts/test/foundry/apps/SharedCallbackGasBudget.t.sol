@@ -488,6 +488,35 @@ contract CallbackBudgetAgreement is AgreementMock {
         require(keccak256(abi.encode(updated)) == keccak256(abi.encode(original)), "other context fields changed");
     }
 
+    function runHostPair(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
+        ISuperfluid host = ISuperfluid(msg.sender);
+        bytes memory appCtx = host.appCallbackPush(ctx, app, 0, 0, ISuperfluidToken(address(0)));
+        bytes memory cbdata;
+        (cbdata, appCtx) = host.callAppBeforeCallback(
+            app,
+            abi.encodeCall(app.beforeAgreementCreated, (ISuperToken(address(0)), address(this), bytes32(0), "", "")),
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP,
+            appCtx
+        );
+        remainingGas = host.decodeCtx(appCtx).callbackGasLeft;
+        appCtx = host.callAppAfterCallback(
+            app,
+            abi.encodeCall(app.afterAgreementCreated, (ISuperToken(address(0)), address(this), bytes32(0), "", cbdata, "")),
+            SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
+            appCtx
+        );
+        afterRemainingGas = host.decodeCtx(appCtx).callbackGasLeft;
+        return host.appCallbackPop(ctx, 0, appCtx);
+    }
+
+    function runBeforeThenPush(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
+        (, newCtx) = _before(app, ctx);
+        ISuperfluid host = ISuperfluid(msg.sender);
+        bytes memory appCtx = host.appCallbackPush(newCtx, app, 0, 0, ISuperfluidToken(address(0)));
+        require(host.decodeCtx(appCtx).callbackGasLeft == remainingGas, "push changed callback budget");
+        return host.appCallbackPop(newCtx, 0, appCtx);
+    }
+
     function runTwoPairs(ISuperApp first, ISuperApp second, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
@@ -617,6 +646,36 @@ contract ContextCallbackGasBudgetTest is FoundrySuperfluidTester {
             abi.encodeCall(_agreement.runPairAndCheckContext, (app, new bytes(0))),
             userData
         );
+    }
+
+    function test_hostNoopCallbacks_skipInvocationAndContextCap() public {
+        CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(
+            sf.host,
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
+            0
+        );
+        sf.host.callAgreement(
+            _agreement, abi.encodeCall(_agreement.runHostPair, (app, new bytes(0))), new bytes(32 * 1024)
+        );
+        assertEq(_agreement.remainingGas(), sf.host.CALLBACK_GAS_LIMIT());
+        assertEq(_agreement.afterRemainingGas(), sf.host.CALLBACK_GAS_LIMIT());
+        assertEq(app.lastAfterGas(), 0);
+    }
+
+    function test_hostNoopAfter_preservesConsumedBudget() public {
+        CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(
+            sf.host, SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP, 500_000
+        );
+        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runHostPair, (app, new bytes(0))), "");
+        assertLt(_agreement.remainingGas(), 500_000);
+        assertEq(_agreement.afterRemainingGas(), _agreement.remainingGas());
+        assertEq(app.lastAfterGas(), 0);
+    }
+
+    function test_stackPush_preservesConsumedBudget() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Heavy);
+        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runBeforeThenPush, (app, new bytes(0))), "");
+        assertLt(_agreement.remainingGas(), 500_000);
     }
 
     function test_afterHook_updatesContextRemainder() public {

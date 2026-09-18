@@ -762,7 +762,7 @@ describe("Superfluid Host Contract", function () {
                         superfluid.callAppBeforeCallback(
                             ZERO_ADDRESS,
                             "0x",
-                            false,
+                            0,
                             "0x"
                         )
                     );
@@ -770,7 +770,7 @@ describe("Superfluid Host Contract", function () {
                         superfluid.callAppAfterCallback(
                             ZERO_ADDRESS,
                             "0x",
-                            false,
+                            0,
                             "0x"
                         )
                     );
@@ -780,8 +780,7 @@ describe("Superfluid Host Contract", function () {
                             ZERO_ADDRESS,
                             0,
                             0,
-                            ZERO_ADDRESS,
-                            true
+                            ZERO_ADDRESS
                         )
                     );
                     await expectReverted(superfluid.appCallbackPop("0x", 0, "0x"));

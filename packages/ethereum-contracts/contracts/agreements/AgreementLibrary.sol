@@ -47,7 +47,7 @@ library AgreementLibrary {
      * Agreement callback helpers
      *
      * The Host carries each before/after pair's remaining gas in Context.callbackGasLeft.
-     * Pushing a before-hook starts a fresh budget, including when the hook is NOOP.
+     * The Host before-callback method starts a fresh budget, including for NOOP hooks.
      * Popping a hook restores the outer context and carries back the remaining budget.
      *************************************************************************/
 
@@ -85,26 +85,23 @@ library AgreementLibrary {
     {
         bool isSuperApp;
         bool isJailed;
-        uint256 noopMask;
         newCtx = ctx;
-        (isSuperApp, isJailed, noopMask) = ISuperfluid(msg.sender).getAppManifest(ISuperApp(inputs.account));
+        (isSuperApp, isJailed,) = ISuperfluid(msg.sender).getAppManifest(ISuperApp(inputs.account));
         if (isSuperApp && !isJailed) {
-            bytes memory appCtx = _pushCallbackStack(ctx, inputs, true);
-            if ((noopMask & inputs.noopBit) == 0) {
-                bytes memory callData = abi.encodeWithSelector(
-                    _selectorFromNoopBit(inputs.noopBit),
-                    inputs.token,
-                    address(this) /* agreementClass */,
-                    inputs.agreementId,
-                    inputs.agreementData,
-                    new bytes(0) // placeholder ctx
-                );
-                (cbdata, appCtx) = ISuperfluid(msg.sender).callAppBeforeCallback(
-                    ISuperApp(inputs.account),
-                    callData,
-                    inputs.noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP,
-                    appCtx);
-            }
+            bytes memory appCtx = _pushCallbackStack(ctx, inputs);
+            bytes memory callData = abi.encodeWithSelector(
+                _selectorFromNoopBit(inputs.noopBit),
+                inputs.token,
+                address(this) /* agreementClass */,
+                inputs.agreementId,
+                inputs.agreementData,
+                new bytes(0) // placeholder ctx
+            );
+            (cbdata, appCtx) = ISuperfluid(msg.sender).callAppBeforeCallback(
+                ISuperApp(inputs.account),
+                callData,
+                inputs.noopBit,
+                appCtx);
             // Restore the outer context fields while retaining the callback's remaining budget.
             newCtx = ISuperfluid(msg.sender).appCallbackPop(ctx, 0, appCtx);
         }
@@ -125,23 +122,24 @@ library AgreementLibrary {
 
         newCtx = ctx;
         if (isSuperApp && !isJailed) {
-            newCtx = _pushCallbackStack(newCtx, inputs, false);
-            if ((noopMask & inputs.noopBit) == 0) {
-                bytes memory callData = abi.encodeWithSelector(
-                    _selectorFromNoopBit(inputs.noopBit),
-                    inputs.token,
-                    address(this) /* agreementClass */,
-                    inputs.agreementId,
-                    inputs.agreementData,
-                    cbdata,
-                    new bytes(0) // placeholder ctx
-                );
-                newCtx = ISuperfluid(msg.sender).callAppAfterCallback(
-                    ISuperApp(inputs.account),
-                    callData,
-                    inputs.noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP,
-                    newCtx);
+            newCtx = _pushCallbackStack(newCtx, inputs);
+            bytes memory callData = abi.encodeWithSelector(
+                _selectorFromNoopBit(inputs.noopBit),
+                inputs.token,
+                address(this) /* agreementClass */,
+                inputs.agreementId,
+                inputs.agreementData,
+                cbdata,
+                new bytes(0) // placeholder ctx
+            );
+            newCtx = ISuperfluid(msg.sender).callAppAfterCallback(
+                ISuperApp(inputs.account),
+                callData,
+                inputs.noopBit,
+                newCtx);
 
+            // NOOP hooks contribute no app credit.
+            if ((noopMask & inputs.noopBit) == 0) {
                 appContext = ISuperfluid(msg.sender).decodeCtx(newCtx);
 
                 // adjust credit used to the range [appCreditUsed..appCreditGranted]
@@ -200,8 +198,7 @@ library AgreementLibrary {
 
     function _pushCallbackStack(
         bytes memory ctx,
-        CallbackInputs memory inputs,
-        bool isBeforeCallback
+        CallbackInputs memory inputs
     )
         private
         returns (bytes memory appCtx)
@@ -213,8 +210,7 @@ library AgreementLibrary {
             ISuperApp(inputs.account),
             inputs.appCreditGranted,
             inputs.appCreditUsed,
-            inputs.token,
-            isBeforeCallback);
+            inputs.token);
     }
 
     /**************************************************************************
