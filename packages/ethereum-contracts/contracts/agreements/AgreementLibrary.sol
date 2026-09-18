@@ -102,7 +102,8 @@ library AgreementLibrary {
                 callData,
                 inputs.noopBit,
                 appCtx);
-            // Restore the outer context fields while retaining the callback's remaining budget.
+            // [SECURITY] Keep ctx unchanged: it is the saved outer frame restored by
+            // appCallbackPop. Carry callback updates through appCtx/newCtx.
             newCtx = ISuperfluid(msg.sender).appCallbackPop(ctx, 0, appCtx);
         }
     }
@@ -148,7 +149,8 @@ library AgreementLibrary {
                     appContext.appCreditUsed
                 );
             }
-            // Restore the outer context fields while retaining the callback's remaining budget.
+            // [SECURITY] Keep ctx unchanged: it is the saved outer frame restored by
+            // appCallbackPop. Carry callback updates through appCtx/newCtx.
             newCtx = ISuperfluid(msg.sender).appCallbackPop(ctx, appContext.appCreditUsed, newCtx);
         }
     }
