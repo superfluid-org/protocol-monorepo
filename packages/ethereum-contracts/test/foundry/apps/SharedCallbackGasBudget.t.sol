@@ -520,7 +520,7 @@ contract ExplicitCallbackGasBudgetTest is FoundrySuperfluidTester {
 
     function test_hostLimitSentinel_grantsHostBudget() public {
         CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        _runBefore(app, CallbackUtils.HOST_CALLBACK_GAS_LIMIT);
+        _runBefore(app, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT);
         uint256 hostLimit = sf.host.CALLBACK_GAS_LIMIT();
         assertGt(_agreement.observedBeforeGas(), hostLimit - 100_000);
         assertLt(_agreement.observedBeforeGas(), hostLimit);

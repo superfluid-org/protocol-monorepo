@@ -1087,7 +1087,7 @@ contract ConstantFlowAgreementV1 is
                 cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
             }
             (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, ctx);
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, ctx);
 
             ISuperfluidGovernance gov = ISuperfluidGovernance(ISuperfluid(msg.sender).getGovernance());
 
