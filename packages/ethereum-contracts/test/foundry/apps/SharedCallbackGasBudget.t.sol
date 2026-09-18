@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { CallbackUtils } from "../../../contracts/libs/CallbackUtils.sol";
 import "../FoundrySuperfluidTester.t.sol";
 import {
     ISuperfluid,
@@ -47,7 +48,6 @@ contract CallbackGasBudgetApp is ISuperApp {
 
     function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
         external
-        virtual
         returns (bytes memory)
     {
         afterCreatedGas = gasleft();
@@ -268,9 +268,9 @@ contract SharedCallbackGasBudgetTest is FoundrySuperfluidTester {
         _addAccount(address(app));
     }
 
-    /// @dev A before-only pair consumes most of its stipend. The next after-only pair
-    /// starts with the full Host budget.
-    function test_nearlyExhaustedBeforeOnlyPair_doesNotReduceNextBudget() public {
+    /// @dev Exhaust the before-hook stipend (leave a few hundred gas to return). After is NOOP
+    ///      so remainder 0 is discarded. The next after-only hook must still get a full budget.
+    function test_zeroRemainder_isNotAFreshBudget() public {
         CallbackBudgetProbeApp app = _deployProbe({
             createBeforeNoop: false,
             createAfterNoop: true,
@@ -286,7 +286,8 @@ contract SharedCallbackGasBudgetTest is FoundrySuperfluidTester {
         assertEq(superToken.getFlowRate(alice, address(app)), 0, "flow should be closed");
     }
 
-    /// @dev A nearly exhausted pair gives its enabled after-hook only the remaining gas.
+    /// @dev Matching pair: before exhausts the stipend, after is enabled. Remainder 0
+    ///      must not be treated as an absent budget (which would give after a full stipend).
     function test_exhaustMatchingPair_afterDoesNotGetFreshBudget() public {
         CallbackBudgetProbeApp app = _deployProbe({
             createBeforeNoop: false,
@@ -463,141 +464,28 @@ contract CallbackBudgetProbeApp is ISuperApp {
 }
 
 
-/// @dev Exercises the context-carried budget through the agreement helper and the real Host.
+/// @dev Exercises explicit budgets through the agreement helper and the real Host.
 contract CallbackBudgetAgreement is AgreementMock {
     uint256 public remainingGas;
     uint256 public observedBeforeGas;
-    uint256 public afterRemainingGas;
 
     constructor(address host) AgreementMock(host, keccak256("CallbackBudgetAgreement"), 1) { }
 
-    function runBefore(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
-        (, newCtx) = _before(app, ctx);
-    }
-
-    function runPair(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
-        return _pair(app, ctx);
-    }
-
-    function runPairAndCheckContext(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
-        newCtx = _pair(app, ctx);
-        ISuperfluid.Context memory original = ISuperfluid(msg.sender).decodeCtx(ctx);
-        ISuperfluid.Context memory updated = ISuperfluid(msg.sender).decodeCtx(newCtx);
-        require(updated.callbackGasLeft < original.callbackGasLeft, "pair must consume gas");
-        updated.callbackGasLeft = original.callbackGasLeft;
-        require(keccak256(abi.encode(updated)) == keccak256(abi.encode(original)), "other context fields changed");
-    }
-
-    function runHostPair(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
-        ISuperfluid host = ISuperfluid(msg.sender);
-        bytes memory appCtx = host.appCallbackPush(ctx, app, 0, 0, ISuperfluidToken(address(0)));
-        bytes memory cbdata;
-        (cbdata, appCtx) = host.callAppBeforeCallback(
-            app,
-            abi.encodeCall(app.beforeAgreementCreated, (ISuperToken(address(0)), address(this), bytes32(0), "", "")),
-            appCtx
-        );
-        remainingGas = host.decodeCtx(appCtx).callbackGasLeft;
-        appCtx = host.callAppAfterCallback(
-            app,
-            abi.encodeCall(app.afterAgreementCreated, (ISuperToken(address(0)), address(this), bytes32(0), "", cbdata, "")),
-            appCtx
-        );
-        afterRemainingGas = host.decodeCtx(appCtx).callbackGasLeft;
-        return host.appCallbackPop(ctx, 0, appCtx);
-    }
-
-    function runHostHook(ISuperApp app, bytes calldata callData, bool beforeHook, bytes calldata ctx)
-        external returns (bytes memory newCtx)
-    {
-        ISuperfluid host = ISuperfluid(msg.sender);
-        bytes memory appCtx = host.appCallbackPush(ctx, app, 0, 0, ISuperfluidToken(address(0)));
-        if (beforeHook) {
-            (, appCtx) = host.callAppBeforeCallback(app, callData, appCtx);
-        } else {
-            appCtx = host.callAppAfterCallback(app, callData, appCtx);
-        }
-        return host.appCallbackPop(ctx, 0, appCtx);
-    }
-
-    function runBeforeThenPush(ISuperApp app, bytes calldata ctx) external returns (bytes memory newCtx) {
-        (, newCtx) = _before(app, ctx);
-        ISuperfluid host = ISuperfluid(msg.sender);
-        bytes memory appCtx = host.appCallbackPush(newCtx, app, 0, 0, ISuperfluidToken(address(0)));
-        require(host.decodeCtx(appCtx).callbackGasLeft == remainingGas, "push changed callback budget");
-        return host.appCallbackPop(newCtx, 0, appCtx);
-    }
-
-    function runTwoPairs(ISuperApp first, ISuperApp second, bytes calldata ctx)
-        external returns (bytes memory newCtx)
-    {
-        newCtx = _pair(first, ctx);
-        return _pair(second, newCtx);
-    }
-
-    function _pair(ISuperApp app, bytes memory ctx) private returns (bytes memory newCtx) {
-        bytes memory cbdata;
-        (cbdata, newCtx) = _before(app, ctx);
-        AgreementLibrary.CallbackInputs memory inputs = AgreementLibrary.createCallbackInputs(
-            ISuperfluidToken(address(0)), address(app), bytes32(0), ""
-        );
-        inputs.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
-        (, newCtx) = AgreementLibrary.callAppAfterCallback(inputs, cbdata, newCtx);
-        afterRemainingGas = ISuperfluid(msg.sender).decodeCtx(newCtx).callbackGasLeft;
-    }
-
-    function _before(ISuperApp app, bytes memory ctx) private returns (bytes memory cbdata, bytes memory newCtx) {
+    function runBefore(ISuperApp app, uint256 budget, bytes calldata ctx) external returns (bytes memory) {
         AgreementLibrary.CallbackInputs memory inputs = AgreementLibrary.createCallbackInputs(
             ISuperfluidToken(address(0)), address(app), bytes32(0), ""
         );
         inputs.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
-        (cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(inputs, ctx);
-        remainingGas = ISuperfluid(msg.sender).decodeCtx(newCtx).callbackGasLeft;
+        bytes memory cbdata;
+        (cbdata, remainingGas) = AgreementLibrary.callAppBeforeCallback(inputs, budget, ctx);
         if (cbdata.length != 0) observedBeforeGas = abi.decode(cbdata, (uint256));
+        return ctx;
     }
 }
 
-/// @dev Checks nested agreement context restoration and attempts to overwrite the budget.
-contract ContextBudgetApp is CallbackGasBudgetApp {
-    ISuperfluid private immutable _host;
-    CallbackBudgetAgreement private immutable _agreement;
-    bool private immutable _tamper;
-    uint256 public budgetOnEntry;
-    uint256 public budgetAfterNested;
-
-    constructor(ISuperfluid host, CallbackBudgetAgreement agreement, bool tamper)
-        CallbackGasBudgetApp(host, BeforeCreatedMode.Cheap)
-    {
-        _host = host;
-        _agreement = agreement;
-        _tamper = tamper;
-    }
-
-    function afterAgreementCreated(ISuperToken, address, bytes32, bytes calldata, bytes calldata, bytes calldata ctx)
-        external override returns (bytes memory newCtx)
-    {
-        budgetOnEntry = _host.decodeCtx(ctx).callbackGasLeft;
-        if (_tamper) {
-            (bytes memory ctx1, bytes memory ctx2) = abi.decode(ctx, (bytes, bytes));
-            (uint256 creditIO, int256 used, address app, address token,) =
-                abi.decode(ctx2, (uint256, int256, address, address, uint256));
-            return abi.encode(ctx1, abi.encode(creditIO, used, app, token, type(uint256).max));
-        }
-        (newCtx,) = _host.callAgreementWithContext(
-            _agreement,
-            abi.encodeCall(_agreement.runBefore, (ISuperApp(address(0xBEEF)), new bytes(0))),
-            "",
-            ctx
-        );
-        budgetAfterNested = _host.decodeCtx(newCtx).callbackGasLeft;
-    }
-}
-
-/// @dev Each pair starts with the Host stipend. Executed hooks reduce the Context budget,
-/// NOOP hooks preserve it, and subsequent pairs initialize independent budgets.
-/// Nested agreements preserve the enclosing callback's Context budget; their execution
-/// consumes the enclosing callback's gas. Apps cannot edit the budget in their returned ctx.
-contract ContextCallbackGasBudgetTest is FoundrySuperfluidTester {
+/// @dev Explicit budgets apply to executed hooks, including zero. Skipped hooks preserve
+/// the supplied budget. The Host limits requests above its configured callback stipend.
+contract ExplicitCallbackGasBudgetTest is FoundrySuperfluidTester {
     CallbackBudgetAgreement private _agreement;
 
     constructor() FoundrySuperfluidTester(3) { }
@@ -610,198 +498,45 @@ contract ContextCallbackGasBudgetTest is FoundrySuperfluidTester {
         _agreement = CallbackBudgetAgreement(address(sf.host.getAgreementClass(implementation.agreementType())));
     }
 
-    function _runBefore(ISuperApp app) private {
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runBefore, (app, new bytes(0))), "");
+    function _runBefore(ISuperApp app, uint256 budget) private {
+        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runBefore, (app, budget, new bytes(0))), "");
     }
 
-    function test_beforeHook_limitsExecutionAndStoresRemainder() public {
+    function test_finiteBudget_limitsBeforeExecutionAndRemainder() public {
         CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        _runBefore(app);
-        uint256 hostLimit = sf.host.CALLBACK_GAS_LIMIT();
+        _runBefore(app, 100_000);
         assertGt(_agreement.observedBeforeGas(), 0);
-        assertLt(_agreement.observedBeforeGas(), hostLimit);
+        assertLt(_agreement.observedBeforeGas(), 100_000);
         assertGt(_agreement.remainingGas(), 0);
+        assertLt(_agreement.remainingGas(), 100_000);
+    }
+
+    function test_zeroBudget_doesNotGrantFreshStipend() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
+        vm.expectRevert(bytes("CallUtils: target revert()"));
+        _runBefore(app, 0);
+        assertFalse(sf.host.isAppJailed(app));
+    }
+
+    function test_hostLimitSentinel_grantsHostBudget() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
+        _runBefore(app, CallbackUtils.HOST_CALLBACK_GAS_LIMIT);
+        uint256 hostLimit = sf.host.CALLBACK_GAS_LIMIT();
+        assertGt(_agreement.observedBeforeGas(), hostLimit - 100_000);
+        assertLt(_agreement.observedBeforeGas(), hostLimit);
         assertLt(_agreement.remainingGas(), hostLimit);
     }
 
-    function test_exhaustedContextBudget_isZero() public {
-        CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(
-            sf.host, SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP, 600
-        );
-        _runBefore(app);
-        assertEq(_agreement.remainingGas(), 0);
-        assertFalse(sf.host.isAppJailed(app));
-
-        CallbackBudgetProbeApp enabledAfter = new CallbackBudgetProbeApp(sf.host, 0, 600);
-        vm.expectRevert(bytes("CallUtils: target revert()"));
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runPair, (enabledAfter, new bytes(0))), "");
-        assertFalse(sf.host.isAppJailed(enabledAfter));
-    }
-
-    /// forge-config: default.fuzz.runs = 64
-    /// forge-config: ci.fuzz.runs = 64
-    function testFuzz_budgetUpdate_preservesOtherContextFields(uint16 userDataLength) public {
-        _checkContextPreservation(bound(userDataLength, 0, 32 * 1024 - 480));
-    }
-
-    function test_budgetUpdate_preservesContextAtSizeLimit() public {
-        _checkContextPreservation(32 * 1024 - 480);
-    }
-
-    function _checkContextPreservation(uint256 userDataLength) private {
-        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        bytes memory userData = new bytes(userDataLength);
-        for (uint256 i; i < userData.length; ++i) userData[i] = bytes1(uint8(i % 256));
-        sf.host.callAgreement(
-            _agreement,
-            abi.encodeCall(_agreement.runPairAndCheckContext, (app, new bytes(0))),
-            userData
-        );
-    }
-
-    function test_allCallbackSelectors_resolveTheirOwnNoopBit() public {
-        bytes4[6] memory selectors = [
-            ISuperApp.beforeAgreementCreated.selector, ISuperApp.beforeAgreementUpdated.selector,
-            ISuperApp.beforeAgreementTerminated.selector, ISuperApp.afterAgreementCreated.selector,
-            ISuperApp.afterAgreementUpdated.selector, ISuperApp.afterAgreementTerminated.selector
-        ];
-        uint256[6] memory bits = [
-            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP, SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP,
-            SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP, SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
-            SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP, SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
-        ];
-        for (uint256 i; i < selectors.length; ++i) {
-            CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(sf.host, bits[i], 0);
-            // A skipped callback needs no argument decoding or placeholder replacement.
-            sf.host.callAgreement(
-                _agreement,
-                abi.encodeCall(_agreement.runHostHook, (app, abi.encodePacked(selectors[i]), i < 3, new bytes(0))),
-                ""
-            );
-            assertEq(app.lastAfterGas(), 0);
-        }
-    }
-
-    function test_unknownCallbackSelector_isRejected() public {
-        _expectInvalidHook(hex"deadbeef", true);
-        _expectInvalidHook(hex"deadbeef", false);
-    }
-
-    function test_wrongCallbackPhase_isRejected() public {
-        _expectInvalidHook(abi.encodePacked(ISuperApp.afterAgreementCreated.selector), true);
-        _expectInvalidHook(abi.encodePacked(ISuperApp.beforeAgreementCreated.selector), false);
-    }
-
-    function test_truncatedCallbackSelectors_areRejected() public {
-        for (uint256 length; length < 4; ++length) {
-            _expectInvalidHook(new bytes(length), true);
-            _expectInvalidHook(new bytes(length), false);
-        }
-    }
-
-    function _expectInvalidHook(bytes memory callData, bool beforeHook) private {
-        CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(
-            sf.host,
-            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
-            0
-        );
-        vm.expectRevert();
-        sf.host.callAgreement(
-            _agreement, abi.encodeCall(_agreement.runHostHook, (app, callData, beforeHook, new bytes(0))), ""
-        );
-        assertFalse(sf.host.isAppJailed(app));
-    }
-
-    function test_hostNoopCallbacks_skipInvocationAndContextCap() public {
-        CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(
-            sf.host,
-            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
-            0
-        );
-        sf.host.callAgreement(
-            _agreement, abi.encodeCall(_agreement.runHostPair, (app, new bytes(0))), new bytes(32 * 1024)
-        );
-        assertEq(_agreement.remainingGas(), sf.host.CALLBACK_GAS_LIMIT());
-        assertEq(_agreement.afterRemainingGas(), sf.host.CALLBACK_GAS_LIMIT());
-        assertEq(app.lastAfterGas(), 0);
-    }
-
-    function test_hostNoopAfter_preservesConsumedBudget() public {
-        CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(
-            sf.host, SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP, 500_000
-        );
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runHostPair, (app, new bytes(0))), "");
-        assertLt(_agreement.remainingGas(), 500_000);
-        assertEq(_agreement.afterRemainingGas(), _agreement.remainingGas());
-        assertEq(app.lastAfterGas(), 0);
-    }
-
-    function test_stackPush_preservesConsumedBudget() public {
-        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Heavy);
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runBeforeThenPush, (app, new bytes(0))), "");
-        assertLt(_agreement.remainingGas(), 500_000);
-    }
-
-    function test_afterHook_updatesContextRemainder() public {
-        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runPair, (app, new bytes(0))), "");
-        assertGt(_agreement.afterRemainingGas(), 0);
-        assertLt(_agreement.afterRemainingGas(), _agreement.remainingGas(), "after execution must consume budget");
-    }
-
-    function test_noopAfter_preservesContextRemainder() public {
-        CallbackGasBudgetNoopApp app = new CallbackGasBudgetNoopApp(
-            sf.host, ISuperApp.beforeAgreementCreated.selector, SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP
-        );
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runPair, (app, new bytes(0))), "");
-        assertGt(_agreement.remainingGas(), 0);
-        assertLt(_agreement.remainingGas(), sf.host.CALLBACK_GAS_LIMIT());
-        assertEq(_agreement.afterRemainingGas(), _agreement.remainingGas());
-    }
-
-    function test_twoPairsInOneAgreement_startIndependentBudgets() public {
-        CallbackGasBudgetApp first = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Heavy);
-        CallbackGasBudgetApp second = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Noop);
-        sf.host.callAgreement(
-            _agreement, abi.encodeCall(_agreement.runTwoPairs, (first, second, new bytes(0))), ""
-        );
-        assertEq(_agreement.remainingGas(), sf.host.CALLBACK_GAS_LIMIT());
-        assertGt(second.afterCreatedGas(), 2_500_000);
-        assertLt(_agreement.afterRemainingGas(), _agreement.remainingGas());
-    }
-
-    function test_nestedAgreement_preservesEnclosingBudget() public {
-        ContextBudgetApp app = new ContextBudgetApp(sf.host, _agreement, false);
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runPair, (app, new bytes(0))), "");
-        assertEq(app.budgetAfterNested(), app.budgetOnEntry());
-        assertLt(_agreement.afterRemainingGas(), app.budgetOnEntry());
-        assertFalse(sf.host.isAppJailed(app));
-    }
-
-    function test_appCannotOverwriteContextBudget() public {
-        ContextBudgetApp app = new ContextBudgetApp(sf.host, _agreement, true);
-        vm.expectRevert(abi.encodeWithSelector(ISuperfluid.APP_RULE.selector, SuperAppDefinitions.APP_RULE_CTX_IS_READONLY));
-        sf.host.callAgreement(_agreement, abi.encodeCall(_agreement.runPair, (app, new bytes(0))), "");
-        assertFalse(sf.host.isAppJailed(app));
-    }
-
-    function test_mockBeforeCallback_returnsUpdatedContext() public {
-        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Cheap);
-        bytes memory returnedData = sf.host.callAgreement(
-            _agreement,
-            abi.encodeCall(_agreement.callAppBeforeAgreementCreatedCallback, (app, new bytes(0))),
-            ""
-        );
-        bytes memory ctx = abi.decode(returnedData, (bytes));
-        uint256 remainingGas = sf.host.decodeCtx(ctx).callbackGasLeft;
-        assertGt(remainingGas, 0);
-        assertLt(remainingGas, sf.host.CALLBACK_GAS_LIMIT());
-    }
-
-    function test_noopBefore_preservesFullBudget() public {
+    function testFuzz_noopBefore_preservesBudget(uint256 budget) public {
         CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Noop);
-        _runBefore(app);
-        assertEq(_agreement.remainingGas(), sf.host.CALLBACK_GAS_LIMIT());
+        _runBefore(app, budget);
+        assertEq(_agreement.remainingGas(), budget);
         assertEq(_agreement.observedBeforeGas(), 0);
+    }
+
+    function test_zeroBudget_noopBeforeSucceeds() public {
+        CallbackGasBudgetApp app = new CallbackGasBudgetApp(sf.host, CallbackGasBudgetApp.BeforeCreatedMode.Noop);
+        _runBefore(app, 0);
+        assertEq(_agreement.remainingGas(), 0);
     }
 }

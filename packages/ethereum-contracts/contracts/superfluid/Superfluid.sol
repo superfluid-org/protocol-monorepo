@@ -510,24 +510,22 @@ contract Superfluid is
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
-        bytes calldata ctx
+        bool isTermination,
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external override
         onlyAgreement
         assertValidCtx(ctx)
-        returns(bytes memory cbdata, bytes memory newCtx)
+        returns(bytes memory cbdata, uint256 remainingCallbackGas)
     {
-        uint256 noopBit = _beforeCallbackNoopBit(callData);
-        newCtx = _updateCallbackGas(ctx, CALLBACK_GAS_LIMIT);
-        if ((_appManifests[app].configWord & noopBit) != 0) return (cbdata, newCtx);
-
-        bool isTermination = noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
         bool success;
         bytes memory returnedData;
-        uint256 remainingCallbackGas;
+        if (callbackGasLimit > CALLBACK_GAS_LIMIT) {
+            callbackGasLimit = CALLBACK_GAS_LIMIT;
+        }
         (success, returnedData, remainingCallbackGas) = _callCallback(
-            app, true, isTermination, callData, newCtx, CALLBACK_GAS_LIMIT);
-        newCtx = _updateCallbackGas(newCtx, remainingCallbackGas);
+            app, true, isTermination, callData, ctx, callbackGasLimit);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
                 cbdata = CallUtils.unwrapAbiEncodedBytes(returnedData);
@@ -544,19 +542,20 @@ contract Superfluid is
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
-        bytes calldata ctx
+        bool isTermination,
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external override
         onlyAgreement
         assertValidCtx(ctx)
         returns(bytes memory newCtx)
     {
-        uint256 noopBit = _afterCallbackNoopBit(callData);
-        if ((_appManifests[app].configWord & noopBit) != 0) return ctx;
-
-        bool isTermination = noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
-        (bool success, bytes memory returnedData, uint256 remainingCallbackGas) = _callCallback(
-            app, false, isTermination, callData, ctx, _getCallbackGasLeft(ctx));
+        if (callbackGasLimit > CALLBACK_GAS_LIMIT) {
+            callbackGasLimit = CALLBACK_GAS_LIMIT;
+        }
+        (bool success, bytes memory returnedData,) = _callCallback(
+            app, false, isTermination, callData, ctx, callbackGasLimit);
         if (success) {
             // the non static callback should not return empty ctx
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
@@ -580,7 +579,6 @@ contract Superfluid is
         } else {
             newCtx = ctx;
         }
-        newCtx = _updateCallbackGas(newCtx, remainingCallbackGas);
     }
 
     function appCallbackPush(
@@ -614,17 +612,14 @@ contract Superfluid is
 
     function appCallbackPop(
         bytes calldata ctx,
-        int256 appCreditUsedDelta,
-        bytes calldata callbackCtx
+        int256 appCreditUsedDelta
     )
         external override
         onlyAgreement
-        assertValidCtx(callbackCtx)
         returns (bytes memory newCtx)
     {
         Context memory context = decodeCtx(ctx);
         context.appCreditUsed += appCreditUsedDelta;
-        context.callbackGasLeft = _getCallbackGasLeft(callbackCtx);
         newCtx = _updateContext(context);
     }
 
@@ -687,8 +682,7 @@ contract Superfluid is
             appCreditWantedDeprecated: 0,
             appCreditUsed: 0,
             appAddress: address(0),
-            appCreditToken: ISuperfluidToken(address(0)),
-            callbackGasLeft: CALLBACK_GAS_LIMIT
+            appCreditToken: ISuperfluidToken(address(0))
         }));
         bool success;
         (success, returnedData) = _callExternalWithReplacedCtx(address(agreementClass), callData, 0, ctx);
@@ -734,8 +728,7 @@ contract Superfluid is
             appCreditWantedDeprecated: 0,
             appCreditUsed: 0,
             appAddress: address(app),
-            appCreditToken: ISuperfluidToken(address(0)),
-            callbackGasLeft: CALLBACK_GAS_LIMIT
+            appCreditToken: ISuperfluidToken(address(0))
         }));
         bool success;
         (success, returnedData) = _callExternalWithReplacedCtx(address(app), callData, value, ctx);
@@ -778,7 +771,6 @@ contract Superfluid is
         if (context.appAddress != msg.sender) revert HOST_CALL_AGREEMENT_WITH_CTX_FROM_WRONG_ADDRESS();
 
         address oldSender = context.msgSender;
-        uint256 outerCallbackGasLeft = context.callbackGasLeft;
         context.msgSender = msg.sender;
         //context.agreementSelector =;
         context.userData = userData;
@@ -792,8 +784,6 @@ contract Superfluid is
             // back to old msg.sender
             context = decodeCtx(newCtx);
             context.msgSender = oldSender;
-            // Nested agreement pairs do not replace the enclosing callback's budget.
-            context.callbackGasLeft = outerCallbackGasLeft;
             newCtx = _updateContext(context);
         } else {
             CallUtils.revertFromReturnedData(returnedData);
@@ -1041,8 +1031,7 @@ contract Superfluid is
                 creditIO,
                 context.appCreditUsed,
                 context.appAddress,
-                context.appCreditToken,
-                context.callbackGasLeft
+                context.appCreditToken
             )
         );
         _ctxStamp = keccak256(ctx);
@@ -1077,33 +1066,15 @@ contract Superfluid is
                 creditIO,
                 context.appCreditUsed,
                 context.appAddress,
-                context.appCreditToken,
-                context.callbackGasLeft
+                context.appCreditToken
             ) = abi.decode(ctx2, (
                 uint256,
                 int256,
                 address,
-                ISuperfluidToken,
-                uint256));
+                ISuperfluidToken));
             context.appCreditGranted = creditIO & type(uint128).max;
             context.appCreditWantedDeprecated = creditIO >> 128;
         }
-    }
-
-    // _updateContext encodes callbackGasLeft as the final word of ctx2, the final
-    // component of ctx. These helpers accept only canonical Host-generated contexts:
-    // validated callback inputs, validated app returns, or the original input on failure.
-    function _getCallbackGasLeft(bytes calldata ctx) private pure returns (uint256) {
-        return abi.decode(ctx[ctx.length - 32:], (uint256));
-    }
-
-    function _updateCallbackGas(bytes memory ctx, uint256 callbackGasLeft) private returns (bytes memory) {
-        // Change only the gas word, retaining every other context byte and its allocation.
-        assembly ("memory-safe") {
-            mstore(add(ctx, mload(ctx)), callbackGasLeft)
-        }
-        _ctxStamp = keccak256(ctx);
-        return ctx;
     }
 
     function _isCtxValid(bytes memory ctx) private view returns (bool) {
@@ -1139,31 +1110,6 @@ contract Superfluid is
         }
     }
 
-    // Registered agreements must supply a callback selector matching the entry point.
-    function _beforeCallbackNoopBit(bytes calldata callData) private pure returns (uint256) {
-        bytes4 selector = bytes4(callData[:4]);
-        if (selector == ISuperApp.beforeAgreementCreated.selector) {
-            return SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
-        }
-        if (selector == ISuperApp.beforeAgreementUpdated.selector) {
-            return SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
-        }
-        assert(selector == ISuperApp.beforeAgreementTerminated.selector);
-        return SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
-    }
-
-    function _afterCallbackNoopBit(bytes calldata callData) private pure returns (uint256) {
-        bytes4 selector = bytes4(callData[:4]);
-        if (selector == ISuperApp.afterAgreementCreated.selector) {
-            return SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
-        }
-        if (selector == ISuperApp.afterAgreementUpdated.selector) {
-            return SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-        }
-        assert(selector == ISuperApp.afterAgreementTerminated.selector);
-        return SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
-    }
-
     function _callCallback(
         ISuperApp app,
         bool isStaticCall,
@@ -1176,7 +1122,6 @@ contract Superfluid is
         returns(bool success, bytes memory returnedData, uint256 remainingCallbackGas)
     {
         assert(address(app) != address(0));
-        if (callbackGasLimit > CALLBACK_GAS_LIMIT) callbackGasLimit = CALLBACK_GAS_LIMIT;
 
         // Bound the context supplied to every callback before invoking the app.
         if (ctx.length > CallbackUtils.CALLBACK_CONTEXT_CAP) {

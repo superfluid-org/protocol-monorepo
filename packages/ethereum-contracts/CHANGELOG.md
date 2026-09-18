@@ -19,7 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
  The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
 - `InstantDistributionAgreementV1` constructor is now `(host, newActivityFrozen, maxNumSubscriptions)`.
  `MAX_NUM_SUBSCRIPTIONS` is an immutable (was a constant).
-- SuperApp `before`/`after` callbacks share one `CALLBACK_GAS_LIMIT` stipend per pair tracked as the appended `Context.callbackGasLeft` field. The Host initializes the budget in its before-callback method, including for NOOP hooks, and updates the remainder after each executed hook. The Host derives NOOP and termination policy from each callback selector. Host, CFA, and IDA must be upgraded together because callback and pop signatures change.
+- SuperApp `before`/`after` callbacks share one `CALLBACK_GAS_LIMIT` stipend per pair. `ISuperfluid.callAppBeforeCallback` returns unused gas; `callAppAfterCallback` takes that stipend (capped by the Host). Host, CFA, and IDA must be upgraded together.
 
 ### Changed
 

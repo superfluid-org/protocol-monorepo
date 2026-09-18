@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import {
     ISuperfluid,
     ISuperfluidGovernance,
@@ -1048,6 +1049,7 @@ contract ConstantFlowAgreementV1 is
     // solhint-disable-next-line contract-name-camelcase
     struct _StackVars_changeFlowToApp {
         bytes cbdata;
+        uint256 remainingCallbackGas;
         FlowData newFlowData;
         ISuperfluid.Context appContext;
     }
@@ -1084,7 +1086,8 @@ contract ConstantFlowAgreementV1 is
             } else /* if (optype == FlowChangeType.DELETE_FLOW) */ {
                 cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
             }
-            (vars.cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, ctx);
 
             ISuperfluidGovernance gov = ISuperfluidGovernance(ISuperfluid(msg.sender).getGovernance());
 
@@ -1122,7 +1125,8 @@ contract ConstantFlowAgreementV1 is
             } else /* if (optype == FlowChangeType.DELETE_FLOW) */ {
                 cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
             }
-            (vars.appContext, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+            (vars.appContext, newCtx) = AgreementLibrary.callAppAfterCallback(
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
 
             // NB: the callback might update the same flow!!
             // reload the flow data

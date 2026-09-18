@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 import {
@@ -147,7 +148,7 @@ contract AgreementMock is AgreementBase {
     function tryCallAppBeforeCallback(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        (, newCtx) = host.callAppBeforeCallback(
+        (newCtx,) = host.callAppBeforeCallback(
             appMock,
             abi.encodeCall(
                 appMock.beforeAgreementCreated,
@@ -159,7 +160,9 @@ contract AgreementMock is AgreementBase {
                     new bytes(0) /* placeholder ctx */
                 )
             ),
-            hackCtx ? new bytes(0) : ctx);
+            true, /* isTermination */
+            hackCtx ? new bytes(0) : ctx,
+            CallbackUtils.HOST_CALLBACK_GAS_LIMIT);
     }
 
     function tryCallAppAfterCallback(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
@@ -178,7 +181,9 @@ contract AgreementMock is AgreementBase {
                     new bytes(0) /* placeholder ctx */
                 )
             ),
-            hackCtx ? new bytes(0) : ctx);
+            true, /* isTermination */
+            hackCtx ? new bytes(0) : ctx,
+            type(uint256).max);
     }
 
     function tryAppCallbackPush(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
@@ -190,7 +195,7 @@ contract AgreementMock is AgreementBase {
     function tryAppCallbackPop(ISuperfluid host, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        return host.appCallbackPop(ctx, 0, ctx);
+        return host.appCallbackPop(ctx, 0);
     }
 
     function tryCtxUseCredit(ISuperfluid host, bool hackCtx, bytes calldata ctx)
@@ -249,7 +254,7 @@ contract AgreementMock is AgreementBase {
         uint256 noopBit,
         bytes calldata ctx
     )
-        private returns (bytes memory newCtx)
+        private
     {
         ISuperfluid.Context memory context = ISuperfluid(msg.sender).decodeCtx(ctx);
         AgreementLibrary.CallbackInputs memory cbStates = AgreementLibrary.createCallbackInputs(
@@ -259,8 +264,8 @@ contract AgreementMock is AgreementBase {
             "" /* agreementData */
         );
         cbStates.noopBit = noopBit;
-        bytes memory cbdata;
-        (cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
+        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(
+            cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, ctx);
         emit AppBeforeCallbackResult(
             context.appCallbackLevel,
             context.callType,
@@ -291,7 +296,8 @@ contract AgreementMock is AgreementBase {
         );
         cbStates.noopBit = noopBit;
         ISuperfluid.Context memory appContext;
-        (appContext, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, "", ctx);
+        (appContext, newCtx) = AgreementLibrary.callAppAfterCallback(
+            cbStates, "", type(uint256).max, ctx);
         if (isJailed) {
             // appContext.callType is a sufficient check that the callback was not called at all
             require(appContext.callType == 0, "AgreementMock: callback should not reach jailed app");
@@ -312,7 +318,8 @@ contract AgreementMock is AgreementBase {
         requireValidCtx(ctx)
         returns (bytes memory newCtx)
     {
-        return _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP, ctx);
+        _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP, ctx);
+        return ctx;
     }
 
     function callAppAfterAgreementCreatedCallback(
@@ -334,7 +341,8 @@ contract AgreementMock is AgreementBase {
         requireValidCtx(ctx)
         returns (bytes memory newCtx)
     {
-        return _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP, ctx);
+        _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP, ctx);
+        return ctx;
     }
 
     function callAppAfterAgreementUpdatedCallback(
@@ -356,7 +364,8 @@ contract AgreementMock is AgreementBase {
         requireValidCtx(ctx)
         returns (bytes memory newCtx)
     {
-        return _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP, ctx);
+        _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP, ctx);
+        newCtx = ctx;
     }
 
     function callAppAfterAgreementTerminatedCallback(

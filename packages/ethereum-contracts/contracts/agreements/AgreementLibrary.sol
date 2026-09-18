@@ -46,9 +46,9 @@ library AgreementLibrary {
     /**************************************************************************
      * Agreement callback helpers
      *
-     * The Host carries each before/after pair's remaining gas in Context.callbackGasLeft.
-     * The Host before-callback method starts a fresh budget, including for NOOP hooks.
-     * Popping a hook restores the outer context and carries back the remaining budget.
+     * Callers supply the current callback gas budget. An executed before-hook
+     * returns the unused portion; a skipped before-hook preserves it unchanged.
+     * The Host caps each callback stipend to CALLBACK_GAS_LIMIT.
      *************************************************************************/
 
     struct CallbackInputs {
@@ -78,38 +78,44 @@ library AgreementLibrary {
 
     function callAppBeforeCallback(
         CallbackInputs memory inputs,
+        uint256 currentRemainingCallbackGas,
         bytes memory ctx
     )
         internal
-        returns(bytes memory cbdata, bytes memory newCtx)
+        returns(bytes memory cbdata, uint256 newRemainingCallbackGas)
     {
+        newRemainingCallbackGas = currentRemainingCallbackGas;
         bool isSuperApp;
         bool isJailed;
-        newCtx = ctx;
-        (isSuperApp, isJailed,) = ISuperfluid(msg.sender).getAppManifest(ISuperApp(inputs.account));
+        uint256 noopMask;
+        (isSuperApp, isJailed, noopMask) = ISuperfluid(msg.sender).getAppManifest(ISuperApp(inputs.account));
         if (isSuperApp && !isJailed) {
             bytes memory appCtx = _pushCallbackStack(ctx, inputs);
-            bytes memory callData = abi.encodeWithSelector(
-                _selectorFromNoopBit(inputs.noopBit),
-                inputs.token,
-                address(this) /* agreementClass */,
-                inputs.agreementId,
-                inputs.agreementData,
-                new bytes(0) // placeholder ctx
-            );
-            (cbdata, appCtx) = ISuperfluid(msg.sender).callAppBeforeCallback(
-                ISuperApp(inputs.account),
-                callData,
-                appCtx);
-            // [SECURITY] Keep ctx unchanged: it is the saved outer frame restored by
-            // appCallbackPop. Carry callback updates through appCtx/newCtx.
-            newCtx = ISuperfluid(msg.sender).appCallbackPop(ctx, 0, appCtx);
+            if ((noopMask & inputs.noopBit) == 0) {
+                bytes memory callData = abi.encodeWithSelector(
+                    _selectorFromNoopBit(inputs.noopBit),
+                    inputs.token,
+                    address(this) /* agreementClass */,
+                    inputs.agreementId,
+                    inputs.agreementData,
+                    new bytes(0) // placeholder ctx
+                );
+                (cbdata, newRemainingCallbackGas) = ISuperfluid(msg.sender).callAppBeforeCallback(
+                    ISuperApp(inputs.account),
+                    callData,
+                    inputs.noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP,
+                    appCtx,
+                    currentRemainingCallbackGas);
+            }
+            // [SECURITY] NOTE: ctx should be const, do not modify it ever to ensure callback stack correctness
+            _popCallbackStack(ctx, 0);
         }
     }
 
     function callAppAfterCallback(
         CallbackInputs memory inputs,
         bytes memory cbdata,
+        uint256 remainingCallbackGas,
         bytes /* const */ memory ctx
     )
         internal
@@ -123,22 +129,23 @@ library AgreementLibrary {
         newCtx = ctx;
         if (isSuperApp && !isJailed) {
             newCtx = _pushCallbackStack(newCtx, inputs);
-            bytes memory callData = abi.encodeWithSelector(
-                _selectorFromNoopBit(inputs.noopBit),
-                inputs.token,
-                address(this) /* agreementClass */,
-                inputs.agreementId,
-                inputs.agreementData,
-                cbdata,
-                new bytes(0) // placeholder ctx
-            );
-            newCtx = ISuperfluid(msg.sender).callAppAfterCallback(
-                ISuperApp(inputs.account),
-                callData,
-                newCtx);
-
-            // NOOP hooks contribute no app credit.
             if ((noopMask & inputs.noopBit) == 0) {
+                bytes memory callData = abi.encodeWithSelector(
+                    _selectorFromNoopBit(inputs.noopBit),
+                    inputs.token,
+                    address(this) /* agreementClass */,
+                    inputs.agreementId,
+                    inputs.agreementData,
+                    cbdata,
+                    new bytes(0) // placeholder ctx
+                );
+                newCtx = ISuperfluid(msg.sender).callAppAfterCallback(
+                    ISuperApp(inputs.account),
+                    callData,
+                    inputs.noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP,
+                    newCtx,
+                    remainingCallbackGas);
+
                 appContext = ISuperfluid(msg.sender).decodeCtx(newCtx);
 
                 // adjust credit used to the range [appCreditUsed..appCreditGranted]
@@ -147,9 +154,8 @@ library AgreementLibrary {
                     appContext.appCreditUsed
                 );
             }
-            // [SECURITY] Keep ctx unchanged: it is the saved outer frame restored by
-            // appCallbackPop. Carry callback updates through appCtx/newCtx.
-            newCtx = ISuperfluid(msg.sender).appCallbackPop(ctx, appContext.appCreditUsed, newCtx);
+            // [SECURITY] NOTE: ctx should be const, do not modify it ever to ensure callback stack correctness
+            newCtx = _popCallbackStack(ctx, appContext.appCreditUsed);
         }
     }
 
@@ -211,6 +217,17 @@ library AgreementLibrary {
             inputs.appCreditGranted,
             inputs.appCreditUsed,
             inputs.token);
+    }
+
+    function _popCallbackStack(
+        bytes memory ctx,
+        int256 appCreditUsedDelta
+    )
+        private
+        returns (bytes memory newCtx)
+    {
+        // app credit params stack POP
+        return ISuperfluid(msg.sender).appCallbackPop(ctx, appCreditUsedDelta);
     }
 
     /**************************************************************************

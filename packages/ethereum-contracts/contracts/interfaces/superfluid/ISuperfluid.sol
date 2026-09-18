@@ -357,38 +357,44 @@ interface ISuperfluid {
      *************************************************************************/
 
     /**
-     * @dev (For agreements) Start a fresh pair budget and StaticCall the app before callback.
-     * The selector must identify a before-hook; it determines NOOP and termination policy.
-     * A NOOP hook returns empty cbdata and the full budget without invoking the app.
+     * @dev (For agreements) StaticCall the app before callback
      * @param  app                  The super app.
      * @param  callData             The call data sending to the super app.
+     * @param  isTermination        Is it a termination callback?
      * @param  ctx                  Current ctx, it will be validated.
+     * @param  callbackGasLimit     Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                              Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return cbdata               Data returned from the callback.
-     * @return newCtx               The updated callback context containing the remaining pair stipend.
+     * @return remainingCallbackGas Unused portion of the capped callback gas stipend.
      */
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
-        bytes calldata ctx
+        bool isTermination,
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external
         // onlyAgreement
         // assertValidCtx(ctx)
-        returns(bytes memory cbdata, bytes memory newCtx);
+        returns(bytes memory cbdata, uint256 remainingCallbackGas);
 
     /**
-     * @dev (For agreements) Call the app after callback using the remaining Context budget.
-     * The selector must identify an after-hook; it determines NOOP and termination policy.
-     * A NOOP hook returns ctx unchanged without invoking the app.
+     * @dev (For agreements) Call the app after callback
      * @param  app               The super app.
      * @param  callData          The call data sending to the super app.
+     * @param  isTermination     Is it a termination callback?
      * @param  ctx               Current ctx, it will be validated.
+     * @param  callbackGasLimit  Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                           Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
-        bytes calldata ctx
+        bool isTermination,
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external
         // onlyAgreement
@@ -401,7 +407,6 @@ interface ISuperfluid {
      * @param  app                     The super app.
      * @param  appCreditGranted        App credit granted so far.
      * @param  appCreditUsed           App credit used so far.
-     * @param  appCreditToken          Token used for app credit.
      * @return newCtx                  The current context of the transaction.
      */
     function appCallbackPush(
@@ -420,17 +425,15 @@ interface ISuperfluid {
      * @dev (For agreements) Pop from the current app callback stack
      * @param  ctx                     The ctx that was pushed before the callback stack.
      * @param  appCreditUsedDelta      App credit used by the app.
-     * @param  callbackCtx             Current callback context, validated before restoring its gas remainder.
      * @return newCtx                  The current context of the transaction.
      *
      * @custom:security
      * - Here we cannot do assertValidCtx(ctx), since we do not really save the stack in memory.
-     * - callbackCtx must be valid. The agreement is trusted to supply the matching outer ctx.
+     * - Hence there is still implicit trust that the agreement handles the callback push/pop pair correctly.
      */
     function appCallbackPop(
         bytes calldata ctx,
-        int256 appCreditUsedDelta,
-        bytes calldata callbackCtx
+        int256 appCreditUsedDelta
     )
         external
         // onlyAgreement
@@ -543,7 +546,7 @@ interface ISuperfluid {
      * - The order of the fields hence should not be rearranged in order to be backward compatible:
      *    - non-dynamic fields will be parsed at the same memory location,
      *    - and dynamic fields will simply have a greater offset than it was.
-     * - The struct is append-only! Changing or removing fields could break deployed SuperApps!
+     * - We cannot change the structure of the Context struct because of ABI compatibility requirements
      */
     struct Context {
         //
@@ -586,9 +589,6 @@ interface ISuperfluid {
         address appAddress;
         // app credit in super token
         ISuperfluidToken appCreditToken;
-        // Remaining gas stipend for the current SuperApp before/after callback pair.
-        // Updated after each executed hook; zero means the pair has exhausted its budget.
-        uint256 callbackGasLeft;
     }
 
     /**
