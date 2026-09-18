@@ -495,17 +495,28 @@ contract CallbackBudgetAgreement is AgreementMock {
         (cbdata, appCtx) = host.callAppBeforeCallback(
             app,
             abi.encodeCall(app.beforeAgreementCreated, (ISuperToken(address(0)), address(this), bytes32(0), "", "")),
-            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP,
             appCtx
         );
         remainingGas = host.decodeCtx(appCtx).callbackGasLeft;
         appCtx = host.callAppAfterCallback(
             app,
             abi.encodeCall(app.afterAgreementCreated, (ISuperToken(address(0)), address(this), bytes32(0), "", cbdata, "")),
-            SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
             appCtx
         );
         afterRemainingGas = host.decodeCtx(appCtx).callbackGasLeft;
+        return host.appCallbackPop(ctx, 0, appCtx);
+    }
+
+    function runHostHook(ISuperApp app, bytes calldata callData, bool beforeHook, bytes calldata ctx)
+        external returns (bytes memory newCtx)
+    {
+        ISuperfluid host = ISuperfluid(msg.sender);
+        bytes memory appCtx = host.appCallbackPush(ctx, app, 0, 0, ISuperfluidToken(address(0)));
+        if (beforeHook) {
+            (, appCtx) = host.callAppBeforeCallback(app, callData, appCtx);
+        } else {
+            appCtx = host.callAppAfterCallback(app, callData, appCtx);
+        }
         return host.appCallbackPop(ctx, 0, appCtx);
     }
 
@@ -646,6 +657,59 @@ contract ContextCallbackGasBudgetTest is FoundrySuperfluidTester {
             abi.encodeCall(_agreement.runPairAndCheckContext, (app, new bytes(0))),
             userData
         );
+    }
+
+    function test_allCallbackSelectors_resolveTheirOwnNoopBit() public {
+        bytes4[6] memory selectors = [
+            ISuperApp.beforeAgreementCreated.selector, ISuperApp.beforeAgreementUpdated.selector,
+            ISuperApp.beforeAgreementTerminated.selector, ISuperApp.afterAgreementCreated.selector,
+            ISuperApp.afterAgreementUpdated.selector, ISuperApp.afterAgreementTerminated.selector
+        ];
+        uint256[6] memory bits = [
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP, SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP,
+            SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP, SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
+            SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP, SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP
+        ];
+        for (uint256 i; i < selectors.length; ++i) {
+            CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(sf.host, bits[i], 0);
+            // A skipped callback needs no argument decoding or placeholder replacement.
+            sf.host.callAgreement(
+                _agreement,
+                abi.encodeCall(_agreement.runHostHook, (app, abi.encodePacked(selectors[i]), i < 3, new bytes(0))),
+                ""
+            );
+            assertEq(app.lastAfterGas(), 0);
+        }
+    }
+
+    function test_unknownCallbackSelector_isRejected() public {
+        _expectInvalidHook(hex"deadbeef", true);
+        _expectInvalidHook(hex"deadbeef", false);
+    }
+
+    function test_wrongCallbackPhase_isRejected() public {
+        _expectInvalidHook(abi.encodePacked(ISuperApp.afterAgreementCreated.selector), true);
+        _expectInvalidHook(abi.encodePacked(ISuperApp.beforeAgreementCreated.selector), false);
+    }
+
+    function test_truncatedCallbackSelectors_areRejected() public {
+        for (uint256 length; length < 4; ++length) {
+            _expectInvalidHook(new bytes(length), true);
+            _expectInvalidHook(new bytes(length), false);
+        }
+    }
+
+    function _expectInvalidHook(bytes memory callData, bool beforeHook) private {
+        CallbackBudgetProbeApp app = new CallbackBudgetProbeApp(
+            sf.host,
+            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP | SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
+            0
+        );
+        vm.expectRevert();
+        sf.host.callAgreement(
+            _agreement, abi.encodeCall(_agreement.runHostHook, (app, callData, beforeHook, new bytes(0))), ""
+        );
+        assertFalse(sf.host.isAppJailed(app));
     }
 
     function test_hostNoopCallbacks_skipInvocationAndContextCap() public {

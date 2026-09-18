@@ -100,7 +100,6 @@ library AgreementLibrary {
             (cbdata, appCtx) = ISuperfluid(msg.sender).callAppBeforeCallback(
                 ISuperApp(inputs.account),
                 callData,
-                inputs.noopBit,
                 appCtx);
             // [SECURITY] Keep ctx unchanged: it is the saved outer frame restored by
             // appCallbackPop. Carry callback updates through appCtx/newCtx.
@@ -136,7 +135,6 @@ library AgreementLibrary {
             newCtx = ISuperfluid(msg.sender).callAppAfterCallback(
                 ISuperApp(inputs.account),
                 callData,
-                inputs.noopBit,
                 newCtx);
 
             // NOOP hooks contribute no app credit.

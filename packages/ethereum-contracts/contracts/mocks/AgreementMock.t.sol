@@ -159,7 +159,6 @@ contract AgreementMock is AgreementBase {
                     new bytes(0) /* placeholder ctx */
                 )
             ),
-            SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP,
             hackCtx ? new bytes(0) : ctx);
     }
 
@@ -179,7 +178,6 @@ contract AgreementMock is AgreementBase {
                     new bytes(0) /* placeholder ctx */
                 )
             ),
-            SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP,
             hackCtx ? new bytes(0) : ctx);
     }
 

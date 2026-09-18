@@ -358,10 +358,10 @@ interface ISuperfluid {
 
     /**
      * @dev (For agreements) Start a fresh pair budget and StaticCall the app before callback.
+     * The selector must identify a before-hook; it determines NOOP and termination policy.
      * A NOOP hook returns empty cbdata and the full budget without invoking the app.
      * @param  app                  The super app.
      * @param  callData             The call data sending to the super app.
-     * @param  noopBit              The BEFORE_AGREEMENT_*_NOOP bit matching callData's hook.
      * @param  ctx                  Current ctx, it will be validated.
      * @return cbdata               Data returned from the callback.
      * @return newCtx               The updated callback context containing the remaining pair stipend.
@@ -369,7 +369,6 @@ interface ISuperfluid {
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
-        uint256 noopBit,
         bytes calldata ctx
     )
         external
@@ -379,17 +378,16 @@ interface ISuperfluid {
 
     /**
      * @dev (For agreements) Call the app after callback using the remaining Context budget.
+     * The selector must identify an after-hook; it determines NOOP and termination policy.
      * A NOOP hook returns ctx unchanged without invoking the app.
      * @param  app               The super app.
      * @param  callData          The call data sending to the super app.
-     * @param  noopBit           The AFTER_AGREEMENT_*_NOOP bit matching callData's hook.
      * @param  ctx               Current ctx, it will be validated.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
-        uint256 noopBit,
         bytes calldata ctx
     )
         external

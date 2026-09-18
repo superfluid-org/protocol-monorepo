@@ -510,7 +510,6 @@ contract Superfluid is
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
-        uint256 noopBit,
         bytes calldata ctx
     )
         external override
@@ -518,6 +517,7 @@ contract Superfluid is
         assertValidCtx(ctx)
         returns(bytes memory cbdata, bytes memory newCtx)
     {
+        uint256 noopBit = _beforeCallbackNoopBit(callData);
         newCtx = _updateCallbackGas(ctx, CALLBACK_GAS_LIMIT);
         if ((_appManifests[app].configWord & noopBit) != 0) return (cbdata, newCtx);
 
@@ -544,7 +544,6 @@ contract Superfluid is
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
-        uint256 noopBit,
         bytes calldata ctx
     )
         external override
@@ -552,6 +551,7 @@ contract Superfluid is
         assertValidCtx(ctx)
         returns(bytes memory newCtx)
     {
+        uint256 noopBit = _afterCallbackNoopBit(callData);
         if ((_appManifests[app].configWord & noopBit) != 0) return ctx;
 
         bool isTermination = noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
@@ -1137,6 +1137,31 @@ contract Superfluid is
                 revert APP_RULE(SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
             }
         }
+    }
+
+    // Registered agreements must supply a callback selector matching the entry point.
+    function _beforeCallbackNoopBit(bytes calldata callData) private pure returns (uint256) {
+        bytes4 selector = bytes4(callData[:4]);
+        if (selector == ISuperApp.beforeAgreementCreated.selector) {
+            return SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
+        }
+        if (selector == ISuperApp.beforeAgreementUpdated.selector) {
+            return SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
+        }
+        assert(selector == ISuperApp.beforeAgreementTerminated.selector);
+        return SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
+    }
+
+    function _afterCallbackNoopBit(bytes calldata callData) private pure returns (uint256) {
+        bytes4 selector = bytes4(callData[:4]);
+        if (selector == ISuperApp.afterAgreementCreated.selector) {
+            return SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
+        }
+        if (selector == ISuperApp.afterAgreementUpdated.selector) {
+            return SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
+        }
+        assert(selector == ISuperApp.afterAgreementTerminated.selector);
+        return SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
     }
 
     function _callCallback(

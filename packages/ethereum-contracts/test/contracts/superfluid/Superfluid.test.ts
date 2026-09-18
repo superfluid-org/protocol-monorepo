@@ -762,7 +762,6 @@ describe("Superfluid Host Contract", function () {
                         superfluid.callAppBeforeCallback(
                             ZERO_ADDRESS,
                             "0x",
-                            0,
                             "0x"
                         )
                     );
@@ -770,7 +769,6 @@ describe("Superfluid Host Contract", function () {
                         superfluid.callAppAfterCallback(
                             ZERO_ADDRESS,
                             "0x",
-                            0,
                             "0x"
                         )
                     );
