@@ -186,13 +186,13 @@ contract AgreementMock is AgreementBase {
     function tryAppCallbackPush(ISuperfluid host, ISuperApp appMock, bool hackCtx, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        return host.appCallbackPush(hackCtx ? new bytes(0) : ctx, appMock, 0, 0, ISuperfluidToken(address(0)));
+        return host.appCallbackPush(hackCtx ? new bytes(0) : ctx, appMock, 0, 0, ISuperfluidToken(address(0)), true);
     }
 
     function tryAppCallbackPop(ISuperfluid host, bytes calldata ctx)
         external returns (bytes memory newCtx)
     {
-        return host.appCallbackPop(ctx, 0, 0);
+        return host.appCallbackPop(ctx, 0, ctx);
     }
 
     function tryCtxUseCredit(ISuperfluid host, bool hackCtx, bytes calldata ctx)
@@ -251,7 +251,7 @@ contract AgreementMock is AgreementBase {
         uint256 noopBit,
         bytes calldata ctx
     )
-        private
+        private returns (bytes memory newCtx)
     {
         ISuperfluid.Context memory context = ISuperfluid(msg.sender).decodeCtx(ctx);
         AgreementLibrary.CallbackInputs memory cbStates = AgreementLibrary.createCallbackInputs(
@@ -261,7 +261,8 @@ contract AgreementMock is AgreementBase {
             "" /* agreementData */
         );
         cbStates.noopBit = noopBit;
-        (bytes memory cbdata,) = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
+        bytes memory cbdata;
+        (cbdata, newCtx) = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
         emit AppBeforeCallbackResult(
             context.appCallbackLevel,
             context.callType,
@@ -313,8 +314,7 @@ contract AgreementMock is AgreementBase {
         requireValidCtx(ctx)
         returns (bytes memory newCtx)
     {
-        _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP, ctx);
-        return ctx;
+        return _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP, ctx);
     }
 
     function callAppAfterAgreementCreatedCallback(
@@ -336,8 +336,7 @@ contract AgreementMock is AgreementBase {
         requireValidCtx(ctx)
         returns (bytes memory newCtx)
     {
-        _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP, ctx);
-        return ctx;
+        return _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP, ctx);
     }
 
     function callAppAfterAgreementUpdatedCallback(
@@ -359,8 +358,7 @@ contract AgreementMock is AgreementBase {
         requireValidCtx(ctx)
         returns (bytes memory newCtx)
     {
-        _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP, ctx);
-        newCtx = ctx;
+        return _callAppBeforeCallback(app, SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP, ctx);
     }
 
     function callAppAfterAgreementTerminatedCallback(

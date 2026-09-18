@@ -521,11 +521,10 @@ contract Superfluid is
         bool success;
         bytes memory returnedData;
         uint256 remainingCallbackGas;
+        newCtx = ctx;
         (success, returnedData, remainingCallbackGas) = _callCallback(
-            app, true, isTermination, callData, ctx, CALLBACK_GAS_LIMIT);
-        Context memory context = decodeCtx(ctx);
-        context.callbackGasLeft = remainingCallbackGas;
-        newCtx = _updateContext(context);
+            app, true, isTermination, callData, newCtx, _getCallbackGasLeft(ctx));
+        newCtx = _updateCallbackGas(newCtx, remainingCallbackGas);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
                 cbdata = CallUtils.unwrapAbiEncodedBytes(returnedData);
@@ -550,12 +549,8 @@ contract Superfluid is
         assertValidCtx(ctx)
         returns(bytes memory newCtx)
     {
-        uint256 callbackGasLimit = decodeCtx(ctx).callbackGasLeft;
-        if (callbackGasLimit > CALLBACK_GAS_LIMIT) {
-            callbackGasLimit = CALLBACK_GAS_LIMIT;
-        }
-        (bool success, bytes memory returnedData,) = _callCallback(
-            app, false, isTermination, callData, ctx, callbackGasLimit);
+        (bool success, bytes memory returnedData, uint256 remainingCallbackGas) = _callCallback(
+            app, false, isTermination, callData, ctx, _getCallbackGasLeft(ctx));
         if (success) {
             // the non static callback should not return empty ctx
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
@@ -579,6 +574,7 @@ contract Superfluid is
         } else {
             newCtx = ctx;
         }
+        newCtx = _updateCallbackGas(newCtx, remainingCallbackGas);
     }
 
     function appCallbackPush(
@@ -586,7 +582,8 @@ contract Superfluid is
         ISuperApp app,
         uint256 appCreditGranted,
         int256 appCreditUsed,
-        ISuperfluidToken appCreditToken
+        ISuperfluidToken appCreditToken,
+        bool isBeforeCallback
     )
         external override
         onlyAgreement
@@ -607,21 +604,23 @@ contract Superfluid is
         context.appCreditUsed = appCreditUsed;
         context.appAddress = address(app);
         context.appCreditToken = appCreditToken;
+        if (isBeforeCallback) context.callbackGasLeft = CALLBACK_GAS_LIMIT;
         appCtx = _updateContext(context);
     }
 
     function appCallbackPop(
         bytes calldata ctx,
         int256 appCreditUsedDelta,
-        uint256 callbackGasLeft
+        bytes calldata callbackCtx
     )
         external override
         onlyAgreement
+        assertValidCtx(callbackCtx)
         returns (bytes memory newCtx)
     {
         Context memory context = decodeCtx(ctx);
         context.appCreditUsed += appCreditUsedDelta;
-        context.callbackGasLeft = callbackGasLeft;
+        context.callbackGasLeft = _getCallbackGasLeft(callbackCtx);
         newCtx = _updateContext(context);
     }
 
@@ -775,6 +774,7 @@ contract Superfluid is
         if (context.appAddress != msg.sender) revert HOST_CALL_AGREEMENT_WITH_CTX_FROM_WRONG_ADDRESS();
 
         address oldSender = context.msgSender;
+        uint256 outerCallbackGasLeft = context.callbackGasLeft;
         context.msgSender = msg.sender;
         //context.agreementSelector =;
         context.userData = userData;
@@ -788,6 +788,8 @@ contract Superfluid is
             // back to old msg.sender
             context = decodeCtx(newCtx);
             context.msgSender = oldSender;
+            // Nested agreement pairs do not replace the enclosing callback's budget.
+            context.callbackGasLeft = outerCallbackGasLeft;
             newCtx = _updateContext(context);
         } else {
             CallUtils.revertFromReturnedData(returnedData);
@@ -1084,6 +1086,22 @@ contract Superfluid is
         }
     }
 
+    // _updateContext encodes callbackGasLeft as the final word of ctx2, the final
+    // component of ctx. These helpers accept only canonical Host-generated contexts:
+    // validated callback inputs, validated app returns, or the original input on failure.
+    function _getCallbackGasLeft(bytes calldata ctx) private pure returns (uint256) {
+        return abi.decode(ctx[ctx.length - 32:], (uint256));
+    }
+
+    function _updateCallbackGas(bytes memory ctx, uint256 callbackGasLeft) private returns (bytes memory) {
+        // Change only the gas word, retaining every other context byte and its allocation.
+        assembly ("memory-safe") {
+            mstore(add(ctx, mload(ctx)), callbackGasLeft)
+        }
+        _ctxStamp = keccak256(ctx);
+        return ctx;
+    }
+
     function _isCtxValid(bytes memory ctx) private view returns (bool) {
         return ctx.length != 0 && keccak256(ctx) == _ctxStamp;
     }
@@ -1129,6 +1147,7 @@ contract Superfluid is
         returns(bool success, bytes memory returnedData, uint256 remainingCallbackGas)
     {
         assert(address(app) != address(0));
+        if (callbackGasLimit > CALLBACK_GAS_LIMIT) callbackGasLimit = CALLBACK_GAS_LIMIT;
 
         // Bound the context supplied to every callback before invoking the app.
         if (ctx.length > CallbackUtils.CALLBACK_CONTEXT_CAP) {

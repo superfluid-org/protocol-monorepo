@@ -97,11 +97,6 @@ interface ISuperfluid {
 
     function getNow() external view returns (uint256);
 
-    /**
-     * @dev Get the callback gas stipend shared by each SuperApp callback pair.
-     */
-    function CALLBACK_GAS_LIMIT() external view returns (uint64);
-
     /**************************************************************************
      * Governance
      *************************************************************************/
@@ -406,6 +401,8 @@ interface ISuperfluid {
      * @param  app                     The super app.
      * @param  appCreditGranted        App credit granted so far.
      * @param  appCreditUsed           App credit used so far.
+     * @param  appCreditToken          Token used for app credit.
+     * @param  isBeforeCallback        Start a fresh pair budget for a before-hook; preserve it for an after-hook.
      * @return newCtx                  The current context of the transaction.
      */
     function appCallbackPush(
@@ -413,7 +410,8 @@ interface ISuperfluid {
         ISuperApp app,
         uint256 appCreditGranted,
         int256 appCreditUsed,
-        ISuperfluidToken appCreditToken
+        ISuperfluidToken appCreditToken,
+        bool isBeforeCallback
     )
         external
         // onlyAgreement
@@ -424,17 +422,17 @@ interface ISuperfluid {
      * @dev (For agreements) Pop from the current app callback stack
      * @param  ctx                     The ctx that was pushed before the callback stack.
      * @param  appCreditUsedDelta      App credit used by the app.
-     * @param  callbackGasLeft         Remaining gas stipend for the callback pair.
+     * @param  callbackCtx             Current callback context, validated before restoring its gas remainder.
      * @return newCtx                  The current context of the transaction.
      *
      * @custom:security
      * - Here we cannot do assertValidCtx(ctx), since we do not really save the stack in memory.
-     * - Hence there is still implicit trust that the agreement handles the callback push/pop pair correctly.
+     * - callbackCtx must be valid. The agreement is trusted to supply the matching outer ctx.
      */
     function appCallbackPop(
         bytes calldata ctx,
         int256 appCreditUsedDelta,
-        uint256 callbackGasLeft
+        bytes calldata callbackCtx
     )
         external
         // onlyAgreement
@@ -591,7 +589,7 @@ interface ISuperfluid {
         // app credit in super token
         ISuperfluidToken appCreditToken;
         // Remaining gas stipend for the current SuperApp before/after callback pair.
-        // 0 means exhausted (after-hook must not treat this as "unset → full budget").
+        // Updated after each executed hook; zero means the pair has exhausted its budget.
         uint256 callbackGasLeft;
     }
 

@@ -780,10 +780,11 @@ describe("Superfluid Host Contract", function () {
                             ZERO_ADDRESS,
                             0,
                             0,
-                            ZERO_ADDRESS
+                            ZERO_ADDRESS,
+                            true
                         )
                     );
-                    await expectReverted(superfluid.appCallbackPop("0x", 0, 0));
+                    await expectReverted(superfluid.appCallbackPop("0x", 0, "0x"));
                     await expectReverted(superfluid.ctxUseCredit("0x", 0));
                 });
 
