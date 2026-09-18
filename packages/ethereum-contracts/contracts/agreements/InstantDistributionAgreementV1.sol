@@ -422,7 +422,7 @@ contract InstantDistributionAgreementV1 is
         if (!vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
             (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
 
             vars.sdata = SubscriptionData({
                 publisher: publisher,
@@ -441,7 +441,7 @@ contract InstantDistributionAgreementV1 is
         } else {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
             (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
             // NOTE casting these values to int256 is okay because the original values
             // are uint128
             int balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -512,7 +512,7 @@ contract InstantDistributionAgreementV1 is
 
         cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
         (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-            cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+            cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         // NOTE downcasting these values to int256 is okay because the original values
         // are uint128
         int256 balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -585,11 +585,11 @@ contract InstantDistributionAgreementV1 is
         if (vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
             (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         } else {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
             (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         }
 
         // update publisher data
@@ -812,7 +812,7 @@ contract InstantDistributionAgreementV1 is
 
         cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
         (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-            cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+            cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         // NOTE casting these values to int256 is okay because the original values
         // are uint128
         int256 balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -897,7 +897,7 @@ contract InstantDistributionAgreementV1 is
         if (pendingDistribution > 0) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
             (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
-                cbStates, CallbackUtils.HOST_CALLBACK_GAS_LIMIT, newCtx);
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
             int256 signedPendingDistribution = pendingDistribution.toInt256();
 
             // adjust publisher's deposits

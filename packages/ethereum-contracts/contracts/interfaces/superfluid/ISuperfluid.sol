@@ -363,7 +363,7 @@ interface ISuperfluid {
      * @param  isTermination        Is it a termination callback?
      * @param  ctx                  Current ctx, it will be validated.
      * @param  callbackGasLimit     Gas stipend for this callback. Capped to the Host callback gas stipend.
-     *                              Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
+     *                              Use CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return cbdata               Data returned from the callback.
      * @return remainingCallbackGas Unused portion of the capped callback gas stipend.
      */
@@ -386,7 +386,7 @@ interface ISuperfluid {
      * @param  isTermination     Is it a termination callback?
      * @param  ctx               Current ctx, it will be validated.
      * @param  callbackGasLimit  Gas stipend for this callback. Capped to the Host callback gas stipend.
-     *                           Use CallbackUtils.HOST_CALLBACK_GAS_LIMIT to request the full stipend.
+     *                           Use CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(
