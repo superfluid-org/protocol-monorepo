@@ -12,7 +12,8 @@ function defaultContractLoader(name) {
 
 function setTruffleContractDefaults(c, {networkId, from, gasConfig}) {
     c.autoGas = true;
-    c.estimateGas = 1.25;
+    c.estimateGas = 1.5;
+    c.gasMultiplier = 1.5;
     c.setNetwork(networkId);
     const defaults = gasConfig || {};
     from && (defaults.from = from);

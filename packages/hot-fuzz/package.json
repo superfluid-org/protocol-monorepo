@@ -5,7 +5,7 @@
     "bin": "./hot-fuzz",
     "bugs": "https://github.com/superfluid-org/protocol-monorepo/issues",
     "devDependencies": {
-        "@superfluid-finance/ethereum-contracts": "^1.15.2"
+        "@superfluid-finance/ethereum-contracts": "^1.15.3"
     },
     "homepage": "https://github.com/superfluid-org/protocol-monorepo#readme",
     "license": "AGPL-3.0",
