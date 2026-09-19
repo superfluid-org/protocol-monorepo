@@ -358,22 +358,26 @@ interface ISuperfluid {
 
     /**
      * @dev (For agreements) StaticCall the app before callback
-     * @param  app               The super app.
-     * @param  callData          The call data sending to the super app.
-     * @param  isTermination     Is it a termination callback?
-     * @param  ctx               Current ctx, it will be validated.
-     * @return cbdata            Data returned from the callback.
+     * @param  app                  The super app.
+     * @param  callData             The call data sending to the super app.
+     * @param  isTermination        Is it a termination callback?
+     * @param  ctx                  Current ctx, it will be validated.
+     * @param  callbackGasLimit     Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                              Use CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT to request the full stipend.
+     * @return cbdata               Data returned from the callback.
+     * @return remainingCallbackGas Unused portion of the capped callback gas stipend.
      */
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external
         // onlyAgreement
         // assertValidCtx(ctx)
-        returns(bytes memory cbdata);
+        returns(bytes memory cbdata, uint256 remainingCallbackGas);
 
     /**
      * @dev (For agreements) Call the app after callback
@@ -381,13 +385,16 @@ interface ISuperfluid {
      * @param  callData          The call data sending to the super app.
      * @param  isTermination     Is it a termination callback?
      * @param  ctx               Current ctx, it will be validated.
+     * @param  callbackGasLimit  Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                           Use CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external
         // onlyAgreement

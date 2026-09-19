@@ -45,6 +45,10 @@ library AgreementLibrary {
 
     /**************************************************************************
      * Agreement callback helpers
+     *
+     * Callers supply the current callback gas budget. An executed before-hook
+     * returns the unused portion; a skipped before-hook preserves it unchanged.
+     * The Host caps each callback stipend to CALLBACK_GAS_LIMIT.
      *************************************************************************/
 
     struct CallbackInputs {
@@ -74,11 +78,13 @@ library AgreementLibrary {
 
     function callAppBeforeCallback(
         CallbackInputs memory inputs,
+        uint256 remainingCallbackGas,
         bytes memory ctx
     )
         internal
-        returns(bytes memory cbdata)
+        returns(bytes memory cbdata, uint256 newRemainingCallbackGas)
     {
+        newRemainingCallbackGas = remainingCallbackGas;
         bool isSuperApp;
         bool isJailed;
         uint256 noopMask;
@@ -94,11 +100,12 @@ library AgreementLibrary {
                     inputs.agreementData,
                     new bytes(0) // placeholder ctx
                 );
-                cbdata = ISuperfluid(msg.sender).callAppBeforeCallback(
+                (cbdata, newRemainingCallbackGas) = ISuperfluid(msg.sender).callAppBeforeCallback(
                     ISuperApp(inputs.account),
                     callData,
                     inputs.noopBit == SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP,
-                    appCtx);
+                    appCtx,
+                    remainingCallbackGas);
             }
             // [SECURITY] NOTE: ctx should be const, do not modify it ever to ensure callback stack correctness
             _popCallbackStack(ctx, 0);
@@ -108,6 +115,7 @@ library AgreementLibrary {
     function callAppAfterCallback(
         CallbackInputs memory inputs,
         bytes memory cbdata,
+        uint256 remainingCallbackGas,
         bytes /* const */ memory ctx
     )
         internal
@@ -135,7 +143,8 @@ library AgreementLibrary {
                     ISuperApp(inputs.account),
                     callData,
                     inputs.noopBit == SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP,
-                    newCtx);
+                    newCtx,
+                    remainingCallbackGas);
 
                 appContext = ISuperfluid(msg.sender).decodeCtx(newCtx);
 

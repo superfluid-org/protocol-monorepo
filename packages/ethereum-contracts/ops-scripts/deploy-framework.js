@@ -151,6 +151,9 @@ async function assertIdaFreezeCannotBeReenabled(
  * @param {boolean} options.newSuperfluidLoader Deploy a new superfluid loader contract
  *                  (overriding env: NEW_SUPERFLUID_LOADER)
  *
+ * Upgrade path: decreasing Host CALLBACK_GAS_LIMIT is refused unless
+ * ALLOW_DECREASE_APP_CALLBACK_GAS_LIMIT is set.
+ *
  * SECURITY (production / mainnet):
  * Superfluid Host and PoolAdminNFT UUPS proxies are bootstrapped across separate
  * on-chain txs below. initializeProxy is permissionless on empty proxies — see
@@ -931,10 +934,16 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         const simpleAclAddress = await superfluid.getSimpleACL();
         console.log("SimpleACL address", simpleAclAddress);
 
-        // get previous callback gas limit, make sure we don't decrease it
+        // CALLBACK_GAS_LIMIT is a constructor immutable; a change deploys new Host logic.
         const prevCallbackGasLimit = await superfluid.CALLBACK_GAS_LIMIT();
         if (prevCallbackGasLimit.toNumber() > appCallbackGasLimit) {
-            throw new Error("Cannot decrease app callback gas limit");
+            if (!process.env.ALLOW_DECREASE_APP_CALLBACK_GAS_LIMIT) {
+                throw new Error(
+                    "Cannot decrease app callback gas limit " +
+                    "(set ALLOW_DECREASE_APP_CALLBACK_GAS_LIMIT=1 to override)"
+                );
+            }
+            console.log(` !!! DECREASING APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
         } else if (prevCallbackGasLimit.toNumber() !== appCallbackGasLimit) {
             console.log(` !!! CHANGING APP CALLBACK GAS LIMIT FROM ${prevCallbackGasLimit} to ${appCallbackGasLimit} !!!`);
         }

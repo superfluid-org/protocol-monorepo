@@ -3,22 +3,22 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [UNRELEASED]
+## [v1.15.3]
 
 ### Fixed
 
 - CFA/GDA liquidation now uses account-level `totalDeposit` from `realtimeBalanceOf` (sum across agreements) instead of the per-agreement deposit.
-- SuperApp callbacks have a 128 KiB ABI-encoded returndata cap. Before invoking either callback type, the Host enforces a 32 KiB context cap (`ctx.length <= 32,768`). Exceeding the input bound reverts `HOST_CALLBACK_CONTEXT_TOO_LARGE` without jailing the app; callers can retry with smaller `userData`. Successful responses exceeding the returndata cap or containing malformed ABI bytes jail the app on termination and revert on creation/update.
+- SuperApp callbacks have a 128 KiB ABI-encoded returndata cap. Before invoking either callback type, the Host enforces a 32 KiB context cap (`ctx.length <= 32,768`).
+  Exceeding the input bound reverts `HOST_CALLBACK_CONTEXT_TOO_LARGE` without jailing the app; callers can retry with smaller `userData`.
+  Successful responses exceeding the returndata cap or containing malformed ABI bytes jail the app on termination and revert on creation/update.
 
 ### Breaking
 
 - **Monorepo:** Yarn 4 (`nodeLinker: node-modules`). Use `yarn install --immutable` (vendored via `.yarn/releases` / `yarnPath`; Nix exposes it on `PATH`).
 - `SuperTokenFactory`: removed canonical wrapper APIs (`createCanonicalERC20Wrapper`, `computeCanonicalERC20WrapperAddress`, `getCanonicalERC20Wrapper`, `initializeCanonicalWrapperSuperTokens`).
- These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
- In order to not confuse devs (human or non), this part of the API is therefore removed.
- The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
-- `InstantDistributionAgreementV1` constructor is now `(host, newActivityFrozen, maxNumSubscriptions)`.
- `MAX_NUM_SUBSCRIPTIONS` is an immutable (was a constant).
+  These were added in v1.4.3, but the necessary steps to make this feature available and useful were never taken.
+  In order to not confuse devs (human or non), this part of the API is therefore removed.
+  The reserved storage mapping is renamed to `_canonicalWrapperSuperTokensDeprecated` (slot preserved for UUPS upgrade safety).
 
 ### Changed
 
@@ -26,6 +26,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Optimism (mainnet and testnet) retain active IDA because Super DCA still uses it. Max approved subscriptions is reduced to at most 32 approved subscriptions per subscriber per token.
   Other networks freeze `createIndex`, `updateIndex`, `distribute`, `updateSubscription`, and `approveSubscription`; `claim`, `revokeSubscription`, and `deleteSubscription` remain available.
   Existing subscription slots and balances are preserved. Local test deployments remain unfrozen with a 256-subscription cap.
+- Max SuperApp `CALLBACK_GAS_LIMIT` reduced from 15M to 12M so there's sufficient margin left after the introduction of EIP-7825's ~16.78M per-tx cap.
+  On chains which had this lower already, it remains unchanged.
+- SuperApp `before`/`after` callbacks share one `CALLBACK_GAS_LIMIT` stipend per pair.
 
 ## [v1.15.2]
 
