@@ -520,7 +520,7 @@ contract Superfluid is
         (bool success, bytes memory returnedData) = _callCallback(app, true, isTermination, callData, ctx);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
-                cbdata = abi.decode(returnedData, (bytes));
+                cbdata = CallUtils.unwrapAbiEncodedBytes(returnedData);
             } else {
                 if (!isTermination) {
                     revert APP_RULE(SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
@@ -546,7 +546,7 @@ contract Superfluid is
         if (success) {
             // the non static callback should not return empty ctx
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
-                newCtx = abi.decode(returnedData, (bytes));
+                newCtx = CallUtils.unwrapAbiEncodedBytes(returnedData);
                 if (!_isCtxValid(newCtx)) {
                     if (!isTermination) {
                         revert APP_RULE(SuperAppDefinitions.APP_RULE_CTX_IS_READONLY);
@@ -1099,7 +1099,7 @@ contract Superfluid is
 
     function _callCallback(
         ISuperApp app,
-        bool isStaticall,
+        bool isStaticCall,
         bool isTermination,
         bytes memory callData,
         bytes memory ctx
@@ -1109,11 +1109,15 @@ contract Superfluid is
     {
         assert(address(app) != address(0));
 
+        // Bound the context supplied to every callback before invoking the app.
+        if (ctx.length > CallbackUtils.CALLBACK_CONTEXT_CAP) {
+            revert HOST_CALLBACK_CONTEXT_TOO_LARGE();
+        }
         callData = _replacePlaceholderCtx(callData, ctx);
 
         uint256 callbackGasLimit = CALLBACK_GAS_LIMIT;
         bool insufficientCallbackGasProvided;
-        (success, insufficientCallbackGasProvided, returnedData) = isStaticall ?
+        (success, insufficientCallbackGasProvided, returnedData) = isStaticCall ?
             CallbackUtils.staticCall(address(app), callData, callbackGasLimit) :
             CallbackUtils.externalCall(address(app), callData, callbackGasLimit);
 
