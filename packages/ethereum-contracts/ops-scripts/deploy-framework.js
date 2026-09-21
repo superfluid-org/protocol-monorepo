@@ -364,9 +364,13 @@ module.exports = eval(`(${S.toString()})({skipArgv: true})`)(async function (
         }
     }
 
-    await deployERC1820((err) => {
-        if (err) throw err;
-    }, options);
+    if (!process.env.WITHOUT_ERC1820) {
+        await deployERC1820((err) => {
+            if (err) throw err;
+        }, options);
+    } else {
+        console.log("Skipping ERC-1820 deployment (WITHOUT_ERC1820 set)");
+    }
 
     if (!newTestResolver && config.resolverAddress) {
         resolver = await Resolver.at(config.resolverAddress);

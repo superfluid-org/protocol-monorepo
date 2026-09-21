@@ -498,4 +498,19 @@ contract TOGAIntegrationTest is FoundrySuperfluidTester {
         assertEq(toga.getCurrentPIC(superToken), bob);
         _assertNetFlow(superToken, alice, 0);
     }
+
+    function testBond() public {
+        uint256 amount = DEFAULT_BOND_AMOUNT;
+        int96 exitRate = toga.getDefaultExitRateFor(superToken, amount);
+
+        vm.startPrank(alice);
+        superToken.approve(address(toga), amount);
+        toga.bond(superToken, amount, exitRate);
+        vm.stopPrank();
+
+        (address pic, uint256 picBond, int96 picExitRate) = toga.getCurrentPICInfo(superToken);
+        assertEq(pic, alice);
+        assertEq(picBond, amount);
+        assertEq(picExitRate, exitRate);
+    }
 }
