@@ -51,7 +51,7 @@ function main() {
         gdaAddress: networkMetadata.contractsV1.gdaV1 || ADDRESS_ZERO,
         superTokenFactoryAddress: networkMetadata.contractsV1.superTokenFactory,
         resolverV1Address: networkMetadata.contractsV1.resolver,
-        nativeAssetSuperTokenAddress: networkMetadata.nativeTokenWrapper,
+        nativeAssetSuperTokenAddress: networkMetadata.nativeTokenWrapper || ADDRESS_ZERO,
         indexerHints_prune: vendorHistoryPruning[vendorName] || "never",
     };
 

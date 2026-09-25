@@ -136,6 +136,7 @@ async function main(): Promise<void> {
   console.log("Network:", networkName);
   console.log("Contract:", contractName);
   console.log("Host:", host);
+  console.log("Funder:", funder);
 
   const artifact = loadForgeArtifact(contractName);
   const deployData = encodeDeployData({
