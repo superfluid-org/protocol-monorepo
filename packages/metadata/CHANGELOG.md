@@ -3,6 +3,13 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.5]
+### Added
+- new network: Arc mainnet
+
+### Changed
+- `nativeTokenWrapper` is optional
+
 ## [v1.6.4]
 ### Added
 - Arc Testnet deployment

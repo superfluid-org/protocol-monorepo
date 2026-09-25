@@ -42,7 +42,7 @@ export interface NetworkMetaData {
     readonly uppercaseName: string;
     readonly humanReadableName: string;
     readonly nativeTokenSymbol: string;
-    readonly nativeTokenWrapper: string;
+    readonly nativeTokenWrapper?: string;
     readonly contractsV1: ContractAddresses;
     readonly startBlockV1: number;
     readonly logsQueryRange: number;

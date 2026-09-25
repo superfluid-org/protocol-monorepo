@@ -8,6 +8,8 @@ set -eu
 #
 # important ENV vars:
 # RELEASE_VERSION, CFAFWD_DEPLOYER_PK
+# VERIFIERS: optional truffle-plugin-verify list (e.g. sourcify). Unset keeps the plugin default.
+# SKIP_VERIFY: set to skip verification (e.g. SKIP_VERIFY=1)
 #
 # You can use the npm package vanity-eth to get a deployer account for a given contract address:
 # Example use: npx vanityeth -i cfa1 --contract
@@ -38,10 +40,6 @@ if [[ $contractAddr != "$expectedContractAddr" ]]; then
     exit
 fi
 
-# verify (give it a few seconds to pick up the code)
-sleep 5
-npx truffle run --network "$network" verify CFAv1Forwarder@"$contractAddr"
-
 # set resolver
 ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : CFAv1Forwarder "$contractAddr"
 
@@ -49,3 +47,13 @@ ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-ke
 npx truffle exec --network "$network" ops-scripts/gov-set-trusted-forwarder.js : 0x0000000000000000000000000000000000000000 "$contractAddr" 1
 
 # TODO: on mainnets, the resolver entry should be set only after the gov action was signed & executed
+
+# verify last: a verifier failure must not skip resolver or governance
+if [[ -n "${SKIP_VERIFY:-}" ]]; then
+    echo "skipping verification (SKIP_VERIFY)"
+else
+    sleep 5
+    set +e
+    npx truffle run --network "$network" ${VERIFIERS:+--verifiers=$VERIFIERS} verify CFAv1Forwarder@"$contractAddr"
+    set -e
+fi

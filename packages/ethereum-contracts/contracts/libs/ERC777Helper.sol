@@ -24,7 +24,12 @@ library ERC777Helper {
         mapping(address => mapping(address => bool)) revokedDefaultOperators;
     }
 
+    /// @dev Register ERC-777/ERC-20 interface implementers in ERC-1820.
+    ///      No-ops when the canonical ERC-1820 registry is not deployed (no code at the well-known address),
+    ///      so Super Tokens can be initialized on networks without ERC-1820. ERC-777 ops still call the
+    ///      registry and will revert there (fail closed) until a registry exists.
     function register(address token) internal {
+        if (address(_ERC1820_REGISTRY).code.length == 0) return;
         _ERC1820_REGISTRY.setInterfaceImplementer(token, keccak256("ERC777Token"), address(this));
         _ERC1820_REGISTRY.setInterfaceImplementer(token, keccak256("ERC20Token"), address(this));
     }

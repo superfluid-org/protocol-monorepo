@@ -5,7 +5,7 @@
     "bugs": "https://github.com/superfluid-org/protocol-monorepo/issues",
     "dependencies": {
         "@superfluid-finance/ethereum-contracts": "1.15.3",
-        "@superfluid-finance/metadata": "^1.6.4",
+        "@superfluid-finance/metadata": "^1.6.5",
         "graphql-request": "6.1.0",
         "lodash": "4.18.1",
         "tsify": "5.0.4"
@@ -58,7 +58,7 @@
         "clean": "rm -rf node_modules; rm -rf dist; rm -rf typechain-types; rm -rf src/typechain; rm -rf src/abi; find . -type f -name '*.generated.ts' -exec rm {} +",
         "test-coverage": "yarn run -T nyc --reporter=html --reporter=lcov --reporter=json yarn run -T hardhat test --tsconfig \"tsconfig.test.json\"",
         "check-updates": "ncu --target minor --dep prod,dev",
-        "doc:html": "typedoc --entryPointStrategy expand ./src --options ./typedoc.js && copyfiles -f ./sf-logo.png ./dist/docs/",
+        "doc:html": "yarn run -T typedoc --entryPointStrategy expand ./src --options ./typedoc.js && yarn run -T copyfiles -f ./sf-logo.png ./dist/docs/",
         "lint": "yarn run -T run-s \"lint:*\"",
         "lint:eslint": "eslint src --ext .ts",
         "fix": "yarn run -T run-s \"fix:*\"",
