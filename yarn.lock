@@ -13150,10 +13150,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-uri@npm:^3.0.1":
-  version: 3.1.5
-  resolution: "fast-uri@npm:3.1.5"
-  checksum: 10c0/2bf60eb800dd610c65e17be436425dcb21c92aff3a87d442a8bccab0b7b071e88cf1a5d7d1ea946370b937e6fc0375c405c0296c10587e57de4f78be4646d1d0
+"fast-uri@npm:>=3.0.0":
+  version: 4.1.4
+  resolution: "fast-uri@npm:4.1.4"
+  checksum: 10c0/0e856c2891cfec34abe87563f202a5cad202b23f09514ddffa9b853463c7c81787ae80889dd90b83b7cbf5cc0e08cffbd69be602965c31ff351317aad54647a4
   languageName: node
   linkType: hard
 
