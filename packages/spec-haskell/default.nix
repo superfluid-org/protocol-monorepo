@@ -9,7 +9,7 @@
       ../../flake.nix
       ../../flake.lock
       ./cabal.project
-      ./cabal.project.freeze
+      ./all.ghc94.cabal.project.freeze
       ./Makefile
       ./pkgs
     ];

@@ -16,6 +16,7 @@ CABAL_DOCS     = $(CABAL) --builddir=$(DOCS_BUILDDIR)
 CABAL_WASM     = $(CABAL) --builddir=$(WASM_BUILDDIR)
 
 TEST_OPTIONS = \
+	-O0 \
 	--test-show-details=$(TEST_SHOW_DETAILS_MODE) \
 	--test-options="--maximum-generated-tests=$(TEST_PROP_NUM_RUNS)"
 
@@ -32,7 +33,7 @@ build:
 build-test:
 	$(CABAL_TEST) v2-build all
 
-build-wasm: 
+build-wasm:
 	$(CABAL_WASM) v2-build -v --with-compiler wasm32-wasi-ghc --with-hc-pkg wasm32-wasi-ghc-pkg semantic-money
 	wasm32-wasi-ghc \
 		-odir $(PWD)/$(WASM_BUILDDIR)/wasm -hidir $(PWD)/$(WASM_BUILDDIR)/wasm -stubdir $(PWD)/$(WASM_BUILDDIR)/wasm \
@@ -56,6 +57,10 @@ clean:
 #
 test:
 	$(CABAL_TEST) v2-test all --enable-tests \
+		$(TEST_OPTIONS)
+
+test-sm:
+	$(CABAL_TEST) v2-test semantic-money --enable-tests \
 		$(TEST_OPTIONS)
 
 test-coverage:
@@ -144,6 +149,7 @@ dev:
 	nodemon \
 		-e lhs,hs,cabal \
 		-i dist-newstyle/ -i "$(TEST_BUILDDIR)/" -i "$(TEST_COVERAGE_BUILDDIR)/" \
+		-i "#*" -i "flycheck_*.hs" \
 		-x "make $(DEV_TARGETS) || exit 1"
 
 freeze:
