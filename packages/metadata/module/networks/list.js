@@ -825,7 +825,7 @@ export default
         "logsQueryRange": 10000,
         "explorer": "https://explorer.arc.io",
         "subgraphV1": {
-            "cliName": "arc-mainnet",
+            "cliName": "arc",
             "name": "protocol-v1-arc-mainnet",
             "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/arc-mainnet/protocol-v1"
         },

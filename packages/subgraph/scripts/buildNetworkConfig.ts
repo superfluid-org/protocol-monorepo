@@ -24,9 +24,6 @@ const vendorCliNameExceptions: Record<string, Record<string, string>> = {
     },
     "superfluid": {
         "avalanche-fuji": "avalanche-fuji"
-    },
-    "graph": {
-        "arc-mainnet": "arc"
     }
 }
 
