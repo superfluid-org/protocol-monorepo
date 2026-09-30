@@ -32,6 +32,12 @@ import { IERC777Recipient } from "@openzeppelin-v5/contracts/interfaces/IERC777R
  *      Use ERC20.transfer() instead of ERC777.send() when outbid.
  *      This allows us to eliminate the custodian contract and related complexity.
  *
+ *      changes in v4:
+ *      ERC-1820 registration in the constructor is skipped if the registry is not deployed.
+ *      Added ITOGAv4.bond(token, amount, exitRate) for bidding via ERC20 approve + transferFrom
+ *      (usable without ERC-777 / ERC-1820). Callers wanting the default exit rate can pass
+ *      getDefaultExitRateFor(token, amount).
+ *
  */
 interface ITOGAv1 {
     /**
@@ -123,7 +129,18 @@ interface ITOGAv3 is ITOGAv1 {
     event BondIncreased(ISuperToken indexed token, uint256 additionalBond);
 }
 
-contract TOGA is ITOGAv3, IERC777Recipient {
+interface ITOGAv4 is ITOGAv3 {
+    /**
+     * @dev Bid to become PIC (or increase bond if already PIC) via ERC20 transferFrom.
+     * @param token The Super Token to bid for
+     * @param amount Bond amount pulled from the caller (must approve first)
+     * @param exitRate Exit rate for a new PIC bid; ignored when the caller is already the PIC.
+     *                 For the default rate, pass getDefaultExitRateFor(token, amount).
+     */
+    function bond(ISuperToken token, uint256 amount, int96 exitRate) external;
+}
+
+contract TOGA is ITOGAv4, IERC777Recipient {
 
     using SafeCast for uint256;
     // lightweight struct packing an address and a bool (reentrancy guard) into 1 word
@@ -143,10 +160,13 @@ contract TOGA is ITOGAv3, IERC777Recipient {
         _cfa = IConstantFlowAgreementV1(
             address(host_.getAgreementClass(keccak256("org.superfluid-finance.agreements.ConstantFlowAgreement.v1")))
         );
-        bytes32 erc777TokensRecipientHash = keccak256("ERC777TokensRecipient");
-        _ERC1820_REG.setInterfaceImplementer(address(this), erc777TokensRecipientHash, address(this));
-        _ERC1820_REG.setInterfaceImplementer(address(this), keccak256("TOGAv1"), address(this));
-        _ERC1820_REG.setInterfaceImplementer(address(this), keccak256("TOGAv2"), address(this));
+        // Skip when ERC-1820 is absent so TOGA can deploy without it; use bond() to bid in that case.
+        if (address(_ERC1820_REG).code.length != 0) {
+            bytes32 erc777TokensRecipientHash = keccak256("ERC777TokensRecipient");
+            _ERC1820_REG.setInterfaceImplementer(address(this), erc777TokensRecipientHash, address(this));
+            _ERC1820_REG.setInterfaceImplementer(address(this), keccak256("TOGAv1"), address(this));
+            _ERC1820_REG.setInterfaceImplementer(address(this), keccak256("TOGAv2"), address(this));
+        }
     }
 
     function getCurrentPIC(ISuperToken token) external view override returns(address pic) {
@@ -155,7 +175,7 @@ contract TOGA is ITOGAv3, IERC777Recipient {
 
     function getCurrentPICInfo(ISuperToken token)
         external view override
-        returns(address pic, uint256 bond, int96 exitRate)
+        returns(address pic, uint256 bondAmount, int96 exitRate)
     {
         (, exitRate,,) = _cfa.getFlow(token, address(this), _currentPICs[token].addr);
         return (
@@ -243,15 +263,29 @@ contract TOGA is ITOGAv3, IERC777Recipient {
         emit ExitRateChanged(token, newExitRate);
     }
 
+    /**
+     * @inheritdoc ITOGAv4
+     */
+    function bond(ISuperToken token, uint256 amount, int96 exitRate) external override {
+        // ISuperToken.transferFrom reverts on failure; no false-return path.
+        // forge-lint: disable-next-line(erc20-unchecked-transfer)
+        token.transferFrom(msg.sender, address(this), amount);
+        if (msg.sender != _currentPICs[token].addr) {
+            _becomePIC(token, msg.sender, amount, exitRate);
+        } else {
+            emit BondIncreased(token, amount);
+        }
+    }
+
     // ============ internal ============
 
-    function _getCurrentPICBond(ISuperToken token) internal view returns(uint256 bond) {
+    function _getCurrentPICBond(ISuperToken token) internal view returns(uint256 bondAmount) {
         (int256 availBal, uint256 deposit, , ) = token.realtimeBalanceOfNow(address(this));
         int256 currentBond = availBal + deposit.toInt256();
         return currentBond > 0 ? SafeCast.toUint256(currentBond) : 0;
     }
 
-    // This is the logic for designating a PIC via successful bid - invoked only by the ERC777 send() hook
+    // This is the logic for designating a PIC via successful bid - invoked by the ERC777 send() hook or bond().
     // Relies on CFA (SuperApp) hooks not being able to block the transaction by reverting.
     function _becomePIC(ISuperToken token, address newPIC, uint256 amount, int96 exitRate) internal {
         require(!_currentPICs[token].lock, "TOGA: reentrancy not allowed");
