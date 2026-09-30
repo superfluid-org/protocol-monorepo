@@ -12,9 +12,7 @@ _OPS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 _PKG_ROOT="$(cd "$_OPS_SCRIPT_DIR/.." && pwd)"
 
 # shellcheck source=/dev/null
-[[ -f "$_PKG_ROOT/.env" ]] && source "$_PKG_ROOT/.env"
-# shellcheck source=/dev/null
-[[ -f "$_PKG_ROOT/../.env" ]] && source "$_PKG_ROOT/../.env"
+_env=$(set -o posix; export -p); [[ -f "$_PKG_ROOT/.env" ]] && source "$_PKG_ROOT/.env"; [[ -f "$_PKG_ROOT/../.env" ]] && source "$_PKG_ROOT/../.env"; eval "$_env"
 
 # shellcheck source=/dev/null
 [[ -f "$_OPS_SCRIPT_DIR/lib/network-config.sh" ]] && source "$_OPS_SCRIPT_DIR/lib/network-config.sh"

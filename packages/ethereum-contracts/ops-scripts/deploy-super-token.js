@@ -24,7 +24,8 @@ const {
  *   If the name of the network's native token isn't known by the framework, it can be provided
  *   via ENV var NATIVE_TOKEN_SYMBOL.
  * - Otherwise an ERC20 super token wrapper will be created for the underlying ERC20 token specified in
- *   UNDERLYING_TOKEN_SYMBOL_OR_ADDRESS. This underlying token needs to already be registered in the resolver.
+ *   UNDERLYING_TOKEN_SYMBOL_OR_ADDRESS. A symbol must already be registered in the resolver as
+ *   `tokens.${UNDERLYING_TOKEN_SYMBOL}`. An address is used directly and does not need a resolver entry.
  * - A resolver entry `supertokens.${protocolReleaseVersion}.${UNDERLYING_TOKEN_SYMBOL}x` will be created
  *   for the super token address.
  * - The caller needs to have permission to set resolver entries.
@@ -110,7 +111,8 @@ module.exports = eval(`(${S.toString()})()`)(async function (
         };
     } else {
         // deploy wrapper for an ERC20 token
-        if (web3.utils.isAddress(tokenSymbolOrAddress)) {
+        const givenByAddress = web3.utils.isAddress(tokenSymbolOrAddress);
+        if (givenByAddress) {
             tokenAddress = tokenSymbolOrAddress;
             tokenSymbol = await (
                 await IERC20Metadata.at(tokenAddress)
@@ -125,9 +127,11 @@ module.exports = eval(`(${S.toString()})()`)(async function (
 
         superTokenKey = `supertokens.${protocolReleaseVersion}.${tokenSymbol}`;
         if ((await sf.resolver.get(superTokenKey)) === ZERO_ADDRESS) {
-            const tokenAddress = await sf.resolver.get(`tokens.${tokenSymbol}`);
-            if (tokenAddress === ZERO_ADDRESS) {
-                throw new Error("Underlying ERC20 Token not found");
+            if (!givenByAddress) {
+                tokenAddress = await sf.resolver.get(`tokens.${tokenSymbol}`);
+                if (tokenAddress === ZERO_ADDRESS) {
+                    throw new Error("Underlying ERC20 Token not found");
+                }
             }
             const iERC20Metadata =
                 await sf.contracts.IERC20Metadata.at(tokenAddress);

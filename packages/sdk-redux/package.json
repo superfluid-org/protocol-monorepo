@@ -57,8 +57,8 @@
         "test": "echo 'TODO: Tests'",
         "watch:build": "tsc -p tsconfig.json -w",
         "doc": "yarn run -T run-s doc:html",
-        "doc:html": "typedoc src/ --out dist/docs && copyfiles -f ./sf-logo.png ./dist/docs/",
-        "doc:json": "typedoc src/ --json dist/docs/typedoc.json",
+        "doc:html": "yarn run -T typedoc src/ --out dist/docs && yarn run -T copyfiles -f ./sf-logo.png ./dist/docs/",
+        "doc:json": "yarn run -T typedoc src/ --json dist/docs/typedoc.json",
         "check-updates": "ncu --target minor --dep prod,dev",
         "cloc": "sh tasks/cloc.sh"
     },
