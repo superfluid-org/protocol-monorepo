@@ -77,6 +77,7 @@ const ALIASES = {
     "base-sepolia": ["bsepolia"],
 
     "arc-testnet": ["arctest"],
+    "arc-mainnet": ["arc"],
 
     "scroll-sepolia": ["scrsepolia"],
     "scroll-mainnet": ["scroll"],
@@ -287,11 +288,10 @@ const E = (module.exports = {
         "arc-testnet": {
             ...createNetworkDefaultConfiguration("arc-testnet"),
             network_id: 5042002,
-            maxPriorityFeePerGas: 1e9, // 1 gwei
-            maxFeePerGas: 30e9, // 30 gwei
-            timeoutBlocks: 2000,
-            skipDryRun: true,
-            networkCheckTimeout: 180000,
+        },
+        "arc-mainnet": {
+            ...createNetworkDefaultConfiguration("arc-mainnet"),
+            network_id: 5042,
         },
 
         //

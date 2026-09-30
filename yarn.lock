@@ -5452,7 +5452,7 @@ __metadata:
     "@safe-global/safe-service-client": "npm:^2.0.3"
     "@safe-global/safe-web3-lib": "npm:^1.9.4"
     "@superfluid-finance/js-sdk": "npm:^0.6.3"
-    "@superfluid-finance/metadata": "npm:^1.6.4"
+    "@superfluid-finance/metadata": "npm:^1.6.5"
     "@truffle/contract": "npm:4.6.31"
     async: "npm:^3.2.6"
     csv-writer: "npm:^1.6.0"
@@ -5490,7 +5490,7 @@ __metadata:
   resolution: "@superfluid-finance/js-sdk@workspace:packages/js-sdk"
   dependencies:
     "@superfluid-finance/ethereum-contracts": "npm:^1.15.3"
-    "@superfluid-finance/metadata": "npm:^1.6.4"
+    "@superfluid-finance/metadata": "npm:^1.6.5"
     "@truffle/contract": "npm:4.6.31"
     auto-bind: "npm:4.0.0"
     chai-as-promised: "npm:^8.0.2"
@@ -5501,7 +5501,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@superfluid-finance/metadata@npm:^1.6.4, @superfluid-finance/metadata@workspace:packages/metadata":
+"@superfluid-finance/metadata@npm:^1.6.5, @superfluid-finance/metadata@workspace:packages/metadata":
   version: 0.0.0-use.local
   resolution: "@superfluid-finance/metadata@workspace:packages/metadata"
   languageName: unknown
@@ -5515,7 +5515,7 @@ __metadata:
     "@graphql-codegen/near-operation-file-preset": "npm:^3.1.0"
     "@graphql-typed-document-node/core": "npm:^3.2.0"
     "@superfluid-finance/ethereum-contracts": "npm:1.15.3"
-    "@superfluid-finance/metadata": "npm:^1.6.4"
+    "@superfluid-finance/metadata": "npm:^1.6.5"
     ajv: "npm:^8.17.1"
     browserify: "npm:^17.0.1"
     ethers: "npm:^5.8.0"
@@ -5565,7 +5565,7 @@ __metadata:
   dependencies:
     "@graphprotocol/graph-cli": "npm:0.98.1"
     "@graphprotocol/graph-ts": "npm:0.38.2"
-    "@superfluid-finance/metadata": "npm:^1.6.4"
+    "@superfluid-finance/metadata": "npm:^1.6.5"
     "@superfluid-finance/sdk-core": "npm:0.9.0"
     coingecko-api: "npm:^1.0.10"
     graphql: "npm:^16.12.0"
@@ -8277,7 +8277,7 @@ __metadata:
   resolution: "autowrap@workspace:packages/automation-contracts/autowrap"
   dependencies:
     "@superfluid-finance/ethereum-contracts": "npm:^1.15.3"
-    "@superfluid-finance/metadata": "npm:^1.6.4"
+    "@superfluid-finance/metadata": "npm:^1.6.5"
   languageName: unknown
   linkType: soft
 
@@ -22447,7 +22447,7 @@ __metadata:
   resolution: "scheduler@workspace:packages/automation-contracts/scheduler"
   dependencies:
     "@superfluid-finance/ethereum-contracts": "npm:^1.15.3"
-    "@superfluid-finance/metadata": "npm:^1.6.4"
+    "@superfluid-finance/metadata": "npm:^1.6.5"
   languageName: unknown
   linkType: soft
 
