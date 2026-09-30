@@ -31,7 +31,7 @@ if [ -z "$API_KEY" ] || [ -z "$version" ]; then
 fi
 
 # List of networks (modify this list as needed)
-networks=("polygon-mainnet" "xdai-mainnet" "eth-mainnet" "base-mainnet" "optimism-mainnet" "arbitrum-one" "bsc-mainnet" "avalanche-c" "optimism-sepolia" "scroll-mainnet" "eth-sepolia" "avalanche-fuji" "base-sepolia" "arc-testnet")
+networks=("polygon-mainnet" "xdai-mainnet" "eth-mainnet" "base-mainnet" "optimism-mainnet" "arbitrum-one" "bsc-mainnet" "avalanche-c" "optimism-sepolia" "scroll-mainnet" "eth-sepolia" "avalanche-fuji" "base-sepolia" "arc-testnet" "arc-mainnet")
 
 # Function to generate goldsky commands for each network
 generate_goldsky_commands() {
