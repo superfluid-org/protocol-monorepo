@@ -792,5 +792,44 @@
         },
         "publicRPCs": ["https://rpc.scroll.io"],
         "coinGeckoId": "scroll"
+    },
+    {
+        "name": "arc-mainnet",
+        "isTestnet": false,
+        "networkId": 5042,
+        "chainId": 5042,
+        "sfId": 10,
+        "shortName": "arc",
+        "uppercaseName": "ARC_MAINNET",
+        "humanReadableName": "Arc",
+        "nativeTokenSymbol": "USDC",
+        "contractsV1": {
+            "resolver": "0xFD4b701C75a52E9744E5a0f2905AC9765a8b678D",
+            "host": "0x43Cd22BA2aDEd92BAa390506b8F1f15BF4651A7f",
+            "governance": "0xC2C9a709A6744816b3712D520BD314fe610AEa33",
+            "cfaV1": "0xFb60b139CD14262eC4FEe466B388Bb7f5A06Bf75",
+            "cfaV1Forwarder": "0xcfA132E353cB4E398080B9700609bb008eceB125",
+            "idaV1": "0xBDa1B20e5deef07AA19C2Af5c8a3430642b2C366",
+            "gdaV1": "0xE32790AC5e6aAA8416364551b5E1E6736c64e50D",
+            "gdaV1Forwarder": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
+            "superfluidLoader": "0xFe5F089374B51B84b8E24FB493AD5217d5953f21",
+            "toga": "0x1bF9D75d50fD828a93f69ECB06f2B85767792CEB",
+            "batchLiquidator": "0x3024A39099D4FAE7c9eA8329FAfe05576AEd2c00",
+            "superTokenFactory": "0x583C78b9c93538FEfc56E49371A0dcc844027325",
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
+        },
+        "startBlockV1": 22338303,
+        "logsQueryRange": 10000,
+        "explorer": "https://explorer.arc.io",
+        "subgraphV1": {
+            "cliName": "arc-mainnet",
+            "name": "protocol-v1-arc-mainnet",
+            "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/arc-mainnet/protocol-v1"
+        },
+        "publicRPCs": [
+            "https://rpc.mainnet.arc.io",
+            "https://rpc.drpc.mainnet.arc.io"
+        ]
     }
 ]
