@@ -20,7 +20,8 @@ const ADDRESS_ZERO = "0x0000000000000000000000000000000000000000";
 const vendorCliNameExceptions: Record<string, Record<string, string>> = {
     "goldsky": {
         "xdai-mainnet": "xdai",
-        "avalanche-fuji": "avalanche-testnet"
+        "avalanche-fuji": "avalanche-testnet",
+        "arc-mainnet": "arc-mainnet"
     },
     "superfluid": {
         "avalanche-fuji": "avalanche-fuji"
