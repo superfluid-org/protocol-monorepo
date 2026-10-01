@@ -1,229 +1,260 @@
-{-# LANGUAGE DerivingStrategies     #-}
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
-
-module Money.Theory.SemanticMoney where
-
-import           Data.Default (Default (..))
-import           Data.Kind    (Type)
-
-
--- | Type system trite: types used in semantic money
+module Money.Theory.SemanticMoney
+    ( -- * Semantic Money Classes & Primitives
+      MonetaryUnit (settle, settledAt, flowRate, rtb)
+    , any_mu_settle_idempotency, any_mu_constant_rtb, any_mu_constant_flow
+    , MonetaryParticle (shift1, flow1)
+    , any_mp_shift1_reversible, any_mp_flow1_reversible
+    , shift2a, shift2b, flow2a, flow2b, align2a, align2b
+      -- * Semantic Money Instances
+    , BasicParticle (..)
+    , PDP_Index (..), PDP_Member (..), PDP_MemberMU, pdp_UpdateMember2
+      -- * Re-export Monetary Types
+    , module Money.Theory.MonetaryTypes
+    ) where
+-- base
+import           Control.Exception          (assert)
+import           Data.Tuple                 (swap)
+-- default
+import           Data.Default               (Default (..))
 --
--- Note:
---   * Index related types through associated type families.
---   * Use type family dependencies to make these types to the index type injective.
-class ( Integral (MT_TIME  mt)
-      , Integral (MT_VALUE mt)
-      , Integral (MT_UNIT  mt)
-      -- FIXME add FlowRate type
-      ) => MonetaryTypes mt where
-    mt_v_mul_t :: MT_VALUE mt -> MT_TIME mt -> MT_VALUE mt
-    mt_v_mul_t v t = v * (fromInteger . toInteger) t
-    mt_v_mul_u :: MT_VALUE mt -> MT_UNIT mt -> MT_VALUE mt
-    mt_v_mul_u v u = v * (fromInteger . toInteger) u
-    mt_v_div_u :: MT_VALUE mt -> MT_UNIT mt -> MT_VALUE mt
-    mt_v_div_u v u = let u' = (fromInteger . toInteger) u in v `div` u'
-    mt_v_mul_u_qr_u :: MT_VALUE mt -> (MT_UNIT mt, MT_UNIT mt) -> (MT_VALUE mt, MT_VALUE mt)
-    mt_v_mul_u_qr_u v (u1, u2) = (v * (fromInteger . toInteger) u1) `quotRem` (fromInteger . toInteger) u2
+import           Money.Theory.MonetaryTypes
 
-    type family MT_TIME  mt = (t :: Type) | t -> mt
-    type family MT_VALUE mt = (v :: Type) | v -> mt
-    type family MT_UNIT  mt = (u :: Type) | u -> mt
 
---
+------------------------------------------------------------------------------------------------------------------------
 -- General Payment Primitives
---
-
-class ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt
-      ) => MonetaryUnit mt t v mu | mu -> mt where
-    settle    :: t -> mu -> mu
-    settledAt :: mu -> t
-    flowRate  :: mu -> v
-    rtb       :: mu -> t -> v
-
- -- * On right side biased operations:
- --   1) Right side produces error term with which left side is adjusted accordingly.
- --   2) The adjustment must not produce new error term, or otherwise it would require recursive adjustments.
-
-class ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-      , MonetaryUnit mt t v ix, Monoid ix
-      ) => Index mt t v u ix | ix -> mt where
-    shift1 :: v -> ix -> (ix, v)
-    flow1  :: v -> ix -> (ix, v)
-
-class ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-      , MonetaryUnit mt t v mp, Index mt t v u mp
-      ) => MonetaryParticle mt t v u mp where
-    -- align 2-primitive, right side biased
-    align2 :: forall a. Index mt t v u a => u -> u -> (mp, a) -> (mp, a)
-
--- polymorphic 2-primitives
---
-
--- 2-primitive higher order function
-prim2 :: (Index mt t v u a, Index mt t v u b)
-      => ((a, b) -> (a, b)) -> t -> (a, b) -> (a, b)
-prim2 op t' (a, b) = op (settle t' a, settle t' b)
-
--- shift2, right side biased error term adjustment
-shift2 :: (Index mt t v u a, Index mt t v u b)
-       => v -> t -> (a, b) -> (a, b)
-shift2 amount = prim2 op
-    where op (a, b) = let (b', amount') = shift1 amount b
-                          (a', _) = shift1 (-amount') a
-                      in  (a', b')
-
--- flow2, right side biased error term adjustment
-flow2 :: (Index mt t v u a, Index mt t v u b)
-      => v -> t -> (a, b) -> (a, b)
-flow2 r = prim2 op
-    where op (a, b) = let (b', r') = flow1 r b
-                          (a', _) = flow1 (-r') a
-                      in  (a', b')
-
--- shiftFlow2 for the left side (a), right side biased error term adjustment
-shiftFlow2a :: (Index mt t v u a, Index mt t v u b)
-            => v -> t -> (a, b) -> (a, b)
-shiftFlow2a dr t (a, b) = let ( _, b1) = flow2 (flowRate a) t (a, mempty)
-                              (a', b2) = flow2 (-flowRate a + dr) t (a, mempty)
-                          in  (a', b <> b1 <> b2)
-
--- shiftFlow2 for the right side (b), right side biased error term adjustment
-shiftFlow2b :: (Index mt t v u a, Index mt t v u b)
-            => v -> t -> (a, b) -> (a, b)
-shiftFlow2b dr t (a, b) = let (a1,  _) = flow2 (-flowRate b) t (mempty, b)
-                              (a2, b') = flow2 (flowRate b + dr) t (mempty, b)
-                          in  (a <> a1 <> a2, b')
+------------------------------------------------------------------------------------------------------------------------
 
 --
--- Univeral Index
+-- Monetary value and its laws.
 --
 
-newtype UniversalIndex mt wp = UniversalIndex wp
-deriving newtype instance ( MonetaryTypes mt
-                          , Eq wp ) => Eq (UniversalIndex mt wp)
-deriving newtype instance ( MonetaryTypes mt
-                          , Semigroup wp ) => Semigroup (UniversalIndex mt wp)
-deriving newtype instance ( MonetaryTypes mt
-                          , Monoid wp ) => Monoid (UniversalIndex mt wp)
-deriving newtype instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt
-                          , MonetaryUnit mt t v wp ) => MonetaryUnit mt t v (UniversalIndex mt wp)
-deriving newtype instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-                          , Monoid wp
-                          , Index mt t v u wp ) => Index mt t v u (UniversalIndex mt wp)
+-- | A monetary unit and its operators.
+class (MonetaryTypes mt, Eq mu) =>
+      MonetaryUnit mt mu | mu -> mt where
+    -- | Settle the monetary unit @mu@ at time @t@.
+    settle    :: t ~ MT_TIME mt => t -> mu -> mu
+    -- | Get the settled time of the monetary unit @mu@.
+    settledAt :: t ~ MT_TIME mt => mu -> t
+    -- | Get the flow rate of the monetary unit @mu@ at time @t@.
+    flowRate  :: MonetaryTypes'tr mt t fr => mu -> t -> fr
+    -- | Get the real-time balance of the monetary unit @mu@ at time @t@.
+    rtb       :: MonetaryTypes'tvr mt t v fr => mu -> t -> v
+
+any_mu_settle_idempotency :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> Bool
+any_mu_settle_idempotency a t =
+    settledAt (settle t a) == t &&
+    settle t a == settle t (settle t a)
+
+any_mu_constant_rtb :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> t -> t -> Bool
+any_mu_constant_rtb a t1 t2 t3 =
+    rtb (settle t1 a) t3 == rtb a t3 &&
+    rtb (settle t2 a) t3 == rtb a t3 &&
+    rtb (settle t2 (settle t1 a)) t3 == rtb a t3
+
+any_mu_constant_flow :: (MonetaryUnit mt mu, t ~ MT_TIME mt) => mu -> t -> Bool
+any_mu_constant_flow a dt =
+    rtb a t + flowRate a t `mt_fr_mul_t` dt == rtb a (t + dt)
+    where t = settledAt a
 
 --
--- Proportional Distribution Pool
+-- Monetary particle and its laws.
 --
 
-data PDPoolIndex mt wp = PDPoolIndex { pdidx_total_units :: MT_UNIT mt
-                                     , pdidx_wp          :: wp -- wrapped particle
-                                     }
-instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt
-         , MonetaryUnit mt t v wp) => MonetaryUnit mt t v (PDPoolIndex mt wp) where
-    settle t' a@(PDPoolIndex _ mpi) = a { pdidx_wp = settle t' mpi }
-    settledAt (PDPoolIndex _ mpi) = settledAt mpi
-    flowRate (PDPoolIndex _ mpi) = flowRate mpi
-    rtb (PDPoolIndex _ mpi) = rtb mpi
+-- | A monetary particle and its operators (1-primitives).
+class (MonetaryUnit mt mp, Monoid mp) =>
+      MonetaryParticle mt mp | mp -> mt where
+    shift1 :: v ~ MT_VALUE mt => v -> mp -> (mp, v)
+    flow1  :: fr ~ MT_FLOWRATE mt => fr -> mp -> (mp, fr)
 
-instance (MonetaryTypes mt, Semigroup wp) => Semigroup (PDPoolIndex mt wp) where
-    -- The binary operator supports negative unit values while abiding the monoidal laws.
-    -- The practical semantics of values of mixed-sign is not of the concern of this specification.
-    (PDPoolIndex u1 a) <> (PDPoolIndex u2 b) = PDPoolIndex u' (a <> b)
-        where u' | u1 == 0 = u2 | u2 == 0 = u1 | otherwise = max u1 u2
+any_mp_shift1_reversible :: (MonetaryParticle mt mp, t ~ MT_TIME mt, v ~ MT_VALUE mt) => mp -> v -> Bool
+any_mp_shift1_reversible a v =
+    rtb a t + v' == rtb a' t &&
+    a'' == a &&
+    v'' == -v'
+    where t = settledAt a
+          (a', v') = shift1 v a
+          (a'', v'') = shift1 (-v') a'
 
-instance (MonetaryTypes mt, Monoid wp) => Monoid (PDPoolIndex mt wp) where
-    mempty = PDPoolIndex 0 mempty
-
-instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-         , MonetaryParticle mt t v u wp) => Index mt t v u (PDPoolIndex mt wp) where
-    shift1 x a@(PDPoolIndex tu mpi) = (a { pdidx_wp = mpi' }, x' `mt_v_mul_u` tu)
-        where (mpi', x') = if tu == 0 then (mpi, 0) else shift1 (x `mt_v_div_u` tu) mpi
-
-    flow1 r' a@(PDPoolIndex tu mpi) = (a { pdidx_wp = mpi' }, r'' `mt_v_mul_u` tu)
-        where (mpi', r'') = if tu == 0 then flow1 0 mpi else flow1 (r' `mt_v_div_u` tu) mpi
-
-data PDPoolMember mt wp = PDPoolMember { pdpm_owned_unit    :: MT_UNIT mt
-                                       , pdpm_settled_value :: MT_VALUE mt
-                                       , pdpm_synced_wp     :: wp
-                                       }
-instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-         , Monoid wp ) => Default (PDPoolMember mt wp) where def = PDPoolMember 0 0 mempty
-type PDPoolMemberMU mt wp = (PDPoolIndex mt wp, PDPoolMember mt wp)
-
-pdpUpdateMember2 :: ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-                    , Index mt t v u a
-                    , MonetaryParticle mt t v u wp
-                    , mu ~ PDPoolMemberMU mt wp
-                    ) => u -> t -> (a, mu) -> (a, mu)
-pdpUpdateMember2 u' t' (a, (b, pm))  = (a'', (b'', pm''))
-    where (PDPoolIndex tu mpi, pm'@(PDPoolMember u _ _)) = settle t' (b, pm)
-          tu' = tu + u' - u
-          (mpi', a'') = align2 tu tu' (mpi, settle t' a)
-          b''  = PDPoolIndex tu' mpi'
-          pm'' = pm' { pdpm_owned_unit = u', pdpm_synced_wp = mpi' }
-
-instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt
-         , MonetaryUnit mt t v wp) => MonetaryUnit mt t v (PDPoolMemberMU mt wp) where
-    settle t' (pix, pm) = (pix', pm')
-        where sv' = rtb (pix, pm) t'
-              pix'@(PDPoolIndex _ mpi') = settle t' pix
-              pm' = pm { pdpm_settled_value = sv', pdpm_synced_wp = mpi' }
-
-    settledAt (_, PDPoolMember _ _ mps) = settledAt mps
-
-    flowRate (PDPoolIndex _ mpi, PDPoolMember u _ _) = flowRate mpi `mt_v_mul_u` u
-
-    rtb (PDPoolIndex _ mpi, PDPoolMember u sv mps) t' = sv +
-        -- let ti = bp_settled_at mpi
-        --     ts = bp_settled_at mps
-        -- in (rtb mpi t' - rtb mps ti) -- include index's current accruals for the member
-        -- +  (rtb mps ti - rtb mps ts) -- cancel out-of-sync member's rtb between [ts:ti]
-        -- =>
-        (rtb mpi t' - rtb mps (settledAt mps)) `mt_v_mul_u` u
+any_mp_flow1_reversible :: (MonetaryParticle mt mp, t ~ MT_TIME mt, fr ~ MT_FLOWRATE mt) => mp -> fr -> Bool
+any_mp_flow1_reversible a fr =
+    fr' == flowRate a' t &&
+    a'' == a &&
+    fr'' == flowRate a t
+    where t = settledAt a
+          (a', fr') = flow1 fr a
+          (a'', fr'') = flow1 (flowRate a t) a'
 
 --
--- Particles: building block for indexes
+-- Polymorphic 2-primitives of monetary particles.
 --
 
-data BasicParticle mt = BasicParticle { bp_settled_at    :: MT_TIME  mt
-                                      , bp_settled_value :: MT_VALUE mt
-                                      , bp_flow_rate     :: MT_VALUE mt
-                                      }
+-- $SideBiasedOps
+--
+-- == Note on side-biased operations:
+--   1) Left side produces error term with which right side is adjusted accordingly, and vice versa.
+--   2) The adjustment must not produce new error term, or otherwise it would require recursive adjustments.
 
-deriving stock instance MonetaryTypes mt => Eq (BasicParticle mt)
+-- | Shift value for the left side (a) or right side (b).
+shift2a, shift2b ::
+    (MonetaryTypes'tv mt t v, MonetaryParticle mt a, MonetaryParticle mt b) =>
+    v -> t -> (a, b) -> (a, b)
+shift2a v t (a, b) =
+    let (a', v') = shift1 v (settle t a)
+        -- we assume second flow1 produces no more error term.
+        (b', v'') = shift1 (-v') (settle t b)
+    in assert (v'' == -v') (a', b')
+shift2b v t (a, b) = swap (shift2a (-v) t (b, a))
+
+-- | Shifting flow for the left side (a) or right side (b).
+flow2a, flow2b ::
+    (MonetaryTypes'tr mt t fr, MonetaryParticle mt a, MonetaryParticle mt b) =>
+    fr -> t -> (a, b) -> (a, b)
+flow2a dfr t (a, b) =
+    let (b1, fr_a) = flow1 (flowRate a t) (settle t mempty)
+        (b2, fr_a') = flow1 (-fr_a + dfr) (settle t mempty)
+        (a', fr_a'') = flow1 (-fr_a') (settle t a)
+    in assert (fr_a' == -fr_a'') (a', b <> b1 <> b2)
+flow2b dfr t (a, b) = swap (flow2a (-dfr) t (b, a))
+
+-- | Flow rates alignment on unit changes for the left side (a) or right side (b).
+align2a, align2b ::
+    (MonetaryParticle mt a, MonetaryParticle mt b) =>
+    MT_UNIT mt -> MT_UNIT mt -> MT_TIME mt -> (a, b) -> (a, b)
+align2a u u' t (a, b) = (a', b')
+    where fr = flowRate a t
+          (fr', e) = if u' == 0 then (0, fr `mt_fr_mul_u` u) else fr `mt_fr_mul_u_qr_u` (u, u')
+          a' = fst (flow1 fr' a)
+          b' = fst (flow1 (e + flowRate b t) b)
+align2b u u' t (a, b) = swap (align2a u u' t (b, a))
+
+------------------------------------------------------------------------------------------------------------------------
+-- Basic Particle: building block for indexes
+------------------------------------------------------------------------------------------------------------------------
+
+data BasicParticle mt = BasicParticle
+    { bp_settled_at    :: MT_TIME mt
+    , bp_settled_value :: MT_VALUE mt
+    , bp_flow_rate     :: MT_FLOWRATE mt
+    }
+
+deriving instance MonetaryTypes mt => Eq (BasicParticle mt)
 
 instance MonetaryTypes mt => Semigroup (BasicParticle mt) where
     a@(BasicParticle t1 _ _) <> b@(BasicParticle t2 _ _) = BasicParticle t' (sv1 + sv2) (r1 + r2)
         -- The binary operator supports negative time values while abiding the monoidal laws.
         -- The practical semantics of values of mixed-sign is not of the concern of this specification.
-        where t' | t1 == 0 = t2 | t2 == 0 = t1 | otherwise = max t1 t2
+        where t' = if (abs t2) > (abs t1) then t2 else t1
               (BasicParticle _ sv1 r1) = settle t' a
               (BasicParticle _ sv2 r2) = settle t' b
 
 instance MonetaryTypes mt => Monoid (BasicParticle mt) where
     mempty = BasicParticle 0 0 0
 
-instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt
-         ) => MonetaryUnit mt t v (BasicParticle mt) where
+instance MonetaryTypes mt =>
+         MonetaryUnit mt (BasicParticle mt) where
     settle t' a = a { bp_settled_at = t'
                     , bp_settled_value = rtb a t'
                     }
     settledAt = bp_settled_at
-    flowRate = bp_flow_rate
-    rtb (BasicParticle t s r) t' = r `mt_v_mul_t` (t' - t) + s
+    flowRate = const . bp_flow_rate
+    rtb (BasicParticle t s r) t' = r `mt_fr_mul_t` (t' - t) + s
 
-instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-         ) => Index mt t v u (BasicParticle mt) where
-
+instance MonetaryTypes mt =>
+         MonetaryParticle mt (BasicParticle mt) where
     shift1 x a = (a { bp_settled_value = bp_settled_value a + x }, x)
     flow1 r' a = (a { bp_flow_rate = r' }, r')
 
-instance ( MonetaryTypes mt, t ~ MT_TIME mt, v ~ MT_VALUE mt, u ~ MT_UNIT mt
-         ) => MonetaryParticle mt t v u (BasicParticle mt) where
-    align2 u u' (b, a) = (b', a')
-        where r = flowRate b
-              (r', er') = if u' == 0 then (0, r `mt_v_mul_u` u) else r `mt_v_mul_u_qr_u` (u, u')
-              b' = fst . flow1 r' $ b
-              a' = fst . flow1 (er' + flowRate a) $ a
+------------------------------------------------------------------------------------------------------------------------
+-- Proportional Distribution Pool (PDP)
+------------------------------------------------------------------------------------------------------------------------
+
+data PDP_Index mt wp = PDP_Index
+    { pdpi_total_units :: MT_UNIT mt
+    , pdpi_wp          :: wp -- wrapped particle
+    }
+
+data PDP_Member mt wp = PDP_Member
+    { pdpm_owned_unit    :: MT_UNIT mt
+    , pdpm_settled_value :: MT_VALUE mt
+    , pdpm_synced_wp     :: wp
+    }
+
+type PDP_MemberMU mt wp = (PDP_Index mt wp, PDP_Member mt wp)
+
+pdp_UpdateMember2 ::
+    ( u ~ MT_UNIT mt, t ~ MT_TIME mt
+    , MonetaryParticle mt a
+    , MonetaryParticle mt wp
+    , mu ~ PDP_MemberMU mt wp
+    ) =>
+    u -> t -> (a, mu) -> (a, mu)
+pdp_UpdateMember2 u' t' (a, (b, pm)) = (a'', (b'', pm''))
+    where (PDP_Index tu mpi, pm'@(PDP_Member u _ _)) = settle t' (b, pm)
+          tu' = tu + u' - u
+          (mpi', a'') = align2b tu tu' t' (mpi, settle t' a)
+          b''  = PDP_Index tu' mpi'
+          pm'' = pm' { pdpm_owned_unit = u', pdpm_synced_wp = mpi' }
+
+--
+-- PDP_Index as MonetaryIndex
+--
+
+deriving instance (MonetaryTypes mt, Eq wp) => Eq (PDP_Index mt wp)
+
+instance (MonetaryTypes mt, Semigroup wp) => Semigroup (PDP_Index mt wp) where
+    -- The binary operator supports negative unit values while abiding the monoidal laws.
+    -- The practical semantics of values of mixed-sign is not of the concern of this specification.
+    (PDP_Index u1 a) <> (PDP_Index u2 b) = PDP_Index u' (a <> b)
+        where u' | u1 == 0 = u2 | u2 == 0 = u1 | otherwise = max u1 u2
+
+instance (MonetaryTypes mt, Monoid wp) => Monoid (PDP_Index mt wp) where
+    mempty = PDP_Index 0 mempty
+
+instance MonetaryUnit mt wp =>
+         MonetaryUnit mt (PDP_Index mt wp) where
+    settle t' a@(PDP_Index _ mpi) = a { pdpi_wp = settle t' mpi }
+    settledAt (PDP_Index _ mpi) = settledAt mpi
+    flowRate (PDP_Index tu mpi) t = flowRate mpi t `mt_fr_mul_u` tu
+    rtb (PDP_Index tu mpi) t = rtb mpi t `mt_v_mul_u` tu
+
+instance MonetaryParticle mt wp =>
+         MonetaryParticle mt (PDP_Index mt wp) where
+    shift1 x a@(PDP_Index tu mpi) = (a { pdpi_wp = mpi' }, x' `mt_v_mul_u` tu)
+        where (mpi', x') = if tu == 0 then (mpi, 0) else shift1 (x `mt_v_quot_u` tu) mpi
+
+    flow1 r' a@(PDP_Index tu mpi) = (a { pdpi_wp = mpi' }, r'' `mt_fr_mul_u` tu)
+        where (mpi', r'') = if tu == 0 then flow1 0 mpi else flow1 (r' `mt_fr_quot_u` tu) mpi
+
+--
+-- PDP_Member
+--
+
+instance (MonetaryTypes mt, Monoid wp) =>
+         Default (PDP_Member mt wp) where
+    def = PDP_Member 0 0 mempty
+
+deriving instance (MonetaryTypes mt, Eq wp) => Eq (PDP_Member mt wp)
+
+--
+-- PDP_MemberMU as MonetaryUnit
+--
+
+instance MonetaryUnit mt wp =>
+         MonetaryUnit mt (PDP_MemberMU mt wp) where
+    settle t' (pix, pm) = (pix', pm')
+        where sv' = rtb (pix, pm) t'
+              pix'@(PDP_Index _ mpi') = settle t' pix
+              pm' = pm { pdpm_settled_value = sv', pdpm_synced_wp = mpi' }
+
+    settledAt (_, PDP_Member _ _ mps) = settledAt mps
+
+    flowRate (PDP_Index _ mpi, PDP_Member u _ _) t = flowRate mpi t `mt_fr_mul_u` u
+
+    rtb (PDP_Index _ mpi, PDP_Member u sv mps) t' = sv +
+        -- let ti = bp_settled_at mpi
+        --     ts = bp_settled_at mps
+        -- in (rtb mpi t' - rtb mps ti) -- include index's current accruals for the member
+        -- +  (rtb mps ti - rtb mps ts) -- cancel out-of-sync member's rtb between [ts:ti]
+        -- =>
+        (rtb mpi t' - rtb mps (settledAt mps)) `mt_v_mul_u` u
