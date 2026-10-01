@@ -486,9 +486,9 @@ export function getOrInitPool(event: ethereum.Event, poolId: string): Pool {
         pool.perUnitSettledValue = BIG_INT_ZERO;
         pool.perUnitFlowRate = BIG_INT_ZERO;
 
-        pool.totalMembers = 0;
         pool.totalConnectedMembers = 0;
         pool.totalDisconnectedMembers = 0;
+        pool.totalMembers = pool.totalConnectedMembers + pool.totalDisconnectedMembers;
         pool.adjustmentFlowRate = BIG_INT_ZERO;
         pool.flowRate = BIG_INT_ZERO;
         pool.totalBuffer = BIG_INT_ZERO;
