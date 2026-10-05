@@ -81,10 +81,6 @@ const networkSpecificData = {
         url: "https://api.scrollscan.com/api",
         key: process.env.SCROLLSCAN_API_KEY,
     },
-    "scroll-sepolia": {
-        url: "https://api-sepolia.scrollscan.com/api",
-        key: process.env.SCROLLSCAN_API_KEY,
-    },
     "base-mainnet": {
         url: "https://api.basescan.org/api",
         key: process.env.BASESCAN_API_KEY,

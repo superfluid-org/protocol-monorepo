@@ -10,14 +10,30 @@ module.exports = function getConfig(chainId) {
             // for local testing (hardhat node default chainId)
             // this is a fake forwarder address, it is to test the deployment script
             trustedForwarders: ["0x3075b4dc7085C48A14A5A39BBa68F58B19545971"],
+            // Keep IDA fully usable in unit tests.
+            idaNewActivityFrozen: false,
+            idaMaxNumSubscriptions: 256,
         },
         6777: {
             // for coverage testing
             // this is a fake forwarder address, it is to test the deployment script
             trustedForwarders: ["0x3075b4dc7085C48A14A5A39BBa68F58B19545971"],
+            idaNewActivityFrozen: false,
+            idaMaxNumSubscriptions: 256,
         },
 
         // persistent chains
+
+        // optimism-mainnet — IDA remains enabled; cap approved slots at 32
+        10: {
+            idaNewActivityFrozen: false,
+            idaMaxNumSubscriptions: 32,
+        },
+        // optimism-sepolia
+        11155420: {
+            idaNewActivityFrozen: false,
+            idaMaxNumSubscriptions: 32,
+        },
 
         // eth-mainnet
         1: {
@@ -44,7 +60,8 @@ module.exports = function getConfig(chainId) {
 
         // Celo Mainnet
         42220: {
-            gov_enableAppWhiteListing: false,
+            // permissionless nomore
+            //gov_enableAppWhiteListing: false,
         },
 
         // scroll-mainnet
@@ -79,7 +96,12 @@ module.exports = function getConfig(chainId) {
         metadata: sfNw,
         resolverAddress: global?.process.env.RESOLVER_ADDRESS || sfNw?.contractsV1?.resolver,
         trustedForwarders: sfNw?.trustedForwarders,
-        appCallbackGasLimit: 15000000,
+        // 12M (was 15M) so terminate+jail fits under EIP-7825's 2^24 (~16.78M) tx gas cap
+        appCallbackGasLimit: 12000000,
+        // Freeze IDA new activity by default. Optimism (+ op sepolia) override in EXTRA_CONFIG.
+        // Frozen networks cannot allocate approved slots; preserve the historical cap.
+        idaNewActivityFrozen: true,
+        idaMaxNumSubscriptions: 256,
         ...EXTRA_CONFIG[chainId]
     };
 };

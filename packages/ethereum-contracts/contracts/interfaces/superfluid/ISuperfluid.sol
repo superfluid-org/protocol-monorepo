@@ -71,6 +71,7 @@ interface ISuperfluid {
     error HOST_AGREEMENT_IS_NOT_REGISTERED();                   // 0x1c9e9bea
     error HOST_MUST_BE_CONTRACT();                              // 0xd4f6b30c
     error HOST_ONLY_LISTED_AGREEMENT();                         // 0x619c5359
+    error HOST_CALLBACK_CONTEXT_TOO_LARGE();                    // 0x62a06f45
     error HOST_NEED_MORE_GAS();                                 // 0xd4f5d496
 
     // App Related Custom Errors
@@ -357,22 +358,26 @@ interface ISuperfluid {
 
     /**
      * @dev (For agreements) StaticCall the app before callback
-     * @param  app               The super app.
-     * @param  callData          The call data sending to the super app.
-     * @param  isTermination     Is it a termination callback?
-     * @param  ctx               Current ctx, it will be validated.
-     * @return cbdata            Data returned from the callback.
+     * @param  app                  The super app.
+     * @param  callData             The call data sending to the super app.
+     * @param  isTermination        Is it a termination callback?
+     * @param  ctx                  Current ctx, it will be validated.
+     * @param  callbackGasLimit     Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                              Use CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT to request the full stipend.
+     * @return cbdata               Data returned from the callback.
+     * @return remainingCallbackGas Unused portion of the capped callback gas stipend.
      */
     function callAppBeforeCallback(
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external
         // onlyAgreement
         // assertValidCtx(ctx)
-        returns(bytes memory cbdata);
+        returns(bytes memory cbdata, uint256 remainingCallbackGas);
 
     /**
      * @dev (For agreements) Call the app after callback
@@ -380,13 +385,16 @@ interface ISuperfluid {
      * @param  callData          The call data sending to the super app.
      * @param  isTermination     Is it a termination callback?
      * @param  ctx               Current ctx, it will be validated.
+     * @param  callbackGasLimit  Gas stipend for this callback. Capped to the Host callback gas stipend.
+     *                           Use CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT to request the full stipend.
      * @return newCtx            The current context of the transaction.
      */
     function callAppAfterCallback(
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external
         // onlyAgreement
@@ -485,7 +493,11 @@ interface ISuperfluid {
       * @dev Call agreement function
       * @param agreementClass The agreement address you are calling
       * @param callData The contextual call data with placeholder ctx
-      * @param userData Extra user data being sent to the super app callbacks
+      * @param userData Extra user data being sent to the super app callbacks.
+      *        This data becomes part of each callback's context. Before invoking a before-
+      *        or after-hook, the Host requires ctx.length <= CALLBACK_CONTEXT_CAP
+      *        (32 KiB, or 32,768 bytes). Exceeding the bound reverts HOST_CALLBACK_CONTEXT_TOO_LARGE,
+      *        rolling back the operation without jailing the app.
       */
      function callAgreement(
          ISuperAgreement agreementClass,
@@ -579,6 +591,15 @@ interface ISuperfluid {
         ISuperfluidToken appCreditToken;
     }
 
+    /**
+     * @dev Call agreement function with context from a Super App callback.
+     * @param agreementClass The agreement address you are calling
+     * @param callData The contextual call data with placeholder ctx
+     * @param userData Extra user data being sent to nested super app callbacks.
+     *        Replaces userData in the context passed to the agreement. Each invoked before-
+     *        or after-hook is subject to the context-size bound described in {callAgreement}.
+     * @param ctx The current context of the transaction.
+     */
     function callAgreementWithContext(
         ISuperAgreement agreementClass,
         bytes calldata callData,

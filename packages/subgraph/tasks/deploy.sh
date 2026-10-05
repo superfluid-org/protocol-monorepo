@@ -85,6 +85,7 @@ deploy_to_graph() {
         ["celo-mainnet"]="superfluid-v1-celo"
         ["base-mainnet"]="superfluid-v1-base"
         ["base-sepolia"]="superfluid-v1-base-sepolia"
+        ["arc-mainnet"]="superfluid-v1-arc"
     )
 
     local subgraphName="${SUBGRAPH_NAME:-${networkToSubgraphNames[$network]}}"
@@ -104,7 +105,6 @@ deploy_to_alchemy() {
     local -A legacyNetworkNames=(
         ["xdai-mainnet"]="xdai"
         ["polygon-mainnet"]="matic"
-        ["degenchain"]="degen-mainnet"
     )
 
     local alchemyNetwork="${legacyNetworkNames[$network]:-$network}"

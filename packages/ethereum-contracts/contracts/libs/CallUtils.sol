@@ -82,7 +82,9 @@ library CallUtils {
     }
 
     /**
-     * @dev Pad length to 32 bytes word boundary
+     * @dev Pad length to 32 bytes word boundary.
+     *      Safe domain is `[0, type(uint256).max - 32]`; this cannot be expressed in the type
+     *      system. Larger `len` overflows the round-up multiply and panics.
      */
     function padLength32(uint256 len) internal pure returns (uint256 paddedLen) {
         return ((len / 32) +  (((len & 31) > 0) /* rounding? */ ? 1 : 0)) * 32;
@@ -98,13 +100,31 @@ library CallUtils {
     function isValidAbiEncodedBytes(bytes memory data) internal pure returns (bool) {
         if (data.length < 64) return false;
         uint bytesOffset;
-        uint bytesLen;
+        uint untrustedBytesLen;
         // bytes offset is always expected to be 32
         assembly { bytesOffset := mload(add(data, 32)) }
         if (bytesOffset != 32) return false;
-        assembly { bytesLen := mload(add(data, 64)) }
-        // the data length should be bytesData.length + 64 + padded bytes length
-        return data.length == 64 + padLength32(bytesLen);
+        assembly { untrustedBytesLen := mload(add(data, 64)) }
+        // Reject a claimed inner length that cannot fit. Do this before padLength32: a lying
+        // untrustedBytesLen near uint256.max overflows the pad multiply and would panic the Host
+        // before terminate can jail.
+        uint256 payloadLength = data.length - 64;
+        if (untrustedBytesLen > payloadLength) return false;
+        return payloadLength == padLength32(untrustedBytesLen);
+    }
+
+    /// @dev Zero-copy alias of the inner `bytes` in an `abi.encode(bytes)` blob.
+    ///      `data` MUST have passed `isValidAbiEncodedBytes` first. Layout at that point:
+    ///      `data+0x00` Solidity length, `data+0x20` ABI offset (32), `data+0x40` inner length.
+    function unwrapAbiEncodedBytes(bytes memory data)
+        internal
+        pure
+        returns (bytes memory inner)
+    {
+        // solhint-disable-next-line no-inline-assembly
+        assembly ("memory-safe") {
+            inner := add(data, 0x40)
+        }
     }
 
 }

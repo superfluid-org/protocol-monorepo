@@ -7,6 +7,22 @@ import { ISuperToken } from "./ISuperToken.sol";
  * @title SuperApp interface
  * @author Superfluid
  * @dev Be aware of the app being jailed, when the word permitted is used.
+ *
+ * Each invoked before- or after-hook receives at most
+ * `CallbackUtils.CALLBACK_CONTEXT_CAP` bytes of context (32 KiB, or 32,768 bytes).
+ * The Host checks this bound before calling the app. Exceeding it reverts
+ * `HOST_CALLBACK_CONTEXT_TOO_LARGE`, rolling back the operation without jailing the app.
+ *
+ * Callback return values (`cbdata` from before-hooks, `newCtx` from after-hooks) are ABI-encoded
+ * `bytes`. The Host copies at most `CallbackUtils.CALLBACK_RETURNDATA_CAP` (128 KiB) of returndata,
+ * including ABI headers and padding to a 32-byte boundary. A successful callback returning more
+ * than the cap or malformed ABI bytes triggers `APP_RULE_CTX_IS_MALFORMATED`: termination jails
+ * the app and continues; creation and update revert. An after-hook must return a context
+ * authenticated by the Host; invalid authentication triggers `APP_RULE_CTX_IS_READONLY`
+ * with the same jail/revert behavior.
+ *
+ * Callback reverts jail the app on termination and propagate on creation/update. If the caller
+ * supplied insufficient callback gas, the Host reverts `HOST_NEED_MORE_GAS` without jailing.
  */
 interface ISuperApp {
 
@@ -23,6 +39,7 @@ interface ISuperApp {
      * @custom:note 
      * - It will be invoked with `staticcall`, no state changes are permitted.
      * - Only revert with a "reason" is permitted.
+     * - ABI-encoded returndata must not exceed `CallbackUtils.CALLBACK_RETURNDATA_CAP`.
      */
     function beforeAgreementCreated(
         ISuperToken superToken,
@@ -48,6 +65,7 @@ interface ISuperApp {
      * @custom:note 
      * - State changes is permitted.
      * - Only revert with a "reason" is permitted.
+     * - ABI-encoded returndata must not exceed `CallbackUtils.CALLBACK_RETURNDATA_CAP`.
      */
     function afterAgreementCreated(
         ISuperToken superToken,
@@ -73,6 +91,7 @@ interface ISuperApp {
      * @custom:note 
      * - It will be invoked with `staticcall`, no state changes are permitted.
      * - Only revert with a "reason" is permitted.
+     * - ABI-encoded returndata must not exceed `CallbackUtils.CALLBACK_RETURNDATA_CAP`.
      */
     function beforeAgreementUpdated(
         ISuperToken superToken,
@@ -99,6 +118,7 @@ interface ISuperApp {
     * @custom:note 
     * - State changes is permitted.
     * - Only revert with a "reason" is permitted.
+    * - ABI-encoded returndata must not exceed `CallbackUtils.CALLBACK_RETURNDATA_CAP`.
     */
     function afterAgreementUpdated(
         ISuperToken superToken,
@@ -124,6 +144,7 @@ interface ISuperApp {
     * @custom:note 
     * - It will be invoked with `staticcall`, no state changes are permitted.
     * - Revert is not permitted.
+    * - ABI-encoded returndata must not exceed `CallbackUtils.CALLBACK_RETURNDATA_CAP`.
     */
     function beforeAgreementTerminated(
         ISuperToken superToken,
@@ -149,6 +170,7 @@ interface ISuperApp {
     * @custom:note 
     * - State changes is permitted.
     * - Revert is not permitted.
+    * - ABI-encoded returndata must not exceed `CallbackUtils.CALLBACK_RETURNDATA_CAP`.
     */
     function afterAgreementTerminated(
         ISuperToken superToken,

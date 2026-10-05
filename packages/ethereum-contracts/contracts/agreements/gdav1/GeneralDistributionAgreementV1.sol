@@ -509,7 +509,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         int256 availableBalance;
         address sender;
         bytes32 distributionFlowHash;
-        int256 signedTotalGDADeposit;
+        int256 signedTotalDeposit;
         address liquidator;
     }
 
@@ -570,7 +570,8 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                     revert GDA_DISTRIBUTE_FOR_OTHERS_NOT_ALLOWED();
                 } else {
                     // liquidation case, requestedFlowRate == 0
-                    (int256 availableBalance,,) = token.realtimeBalanceOf(from, flowVars.currentContext.timestamp);
+                    (int256 availableBalance, uint256 totalDeposit,) =
+                        token.realtimeBalanceOf(from, flowVars.currentContext.timestamp);
                     // StackVarsLiquidation used to handle good ol' stack too deep
                     _StackVars_Liquidation memory liquidationData;
                     {
@@ -578,12 +579,16 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
                         liquidationData.sender = from;
                         liquidationData.liquidator = flowVars.currentContext.msgSender;
                         liquidationData.distributionFlowHash = flowVars.distributionFlowHash;
-                        // TODO: GeneralDistributionAgreementV1Storage may offer an function that reads only 1 word.
-                        liquidationData.signedTotalGDADeposit = token.getAccountData(this, from).totalBuffer.toInt256();
+                        // Account-level totalDeposit from realtimeBalanceOf (across agreements).
+                        liquidationData.signedTotalDeposit = totalDeposit.toInt256();
                         liquidationData.availableBalance = availableBalance;
                     }
                     // closing stream on behalf of someone else: liquidation case
                     if (availableBalance < 0) {
+                        // only liquidate if a GDA flow actually exists
+                        if (FlowRate.unwrap(flowVars.oldFlowRate) <= 0) {
+                            revert GDA_FLOW_DOES_NOT_EXIST();
+                        }
                         _makeLiquidationPayouts(liquidationData);
                     } else {
                         revert GDA_NON_CRITICAL_SENDER();
@@ -698,7 +703,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
         override
         returns (bool)
     {
-        (int256 availableBalance,,) = token.realtimeBalanceOf(account, timestamp);
+        (int256 availableBalance, uint256 totalDeposit,) = token.realtimeBalanceOf(account, timestamp);
         if (availableBalance >= 0) {
             return true;
         }
@@ -708,7 +713,7 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
 
         return SolvencyHelperLibrary.isPatricianPeriod(
             availableBalance,
-            token.getAccountData(this, account).totalBuffer.toInt256(),
+            totalDeposit.toInt256(),
             liquidationPeriod,
             patricianPeriod
         );
@@ -725,15 +730,15 @@ contract GeneralDistributionAgreementV1 is AgreementBase, TokenMonad, IGeneralDi
             (uint256 liquidationPeriod, uint256 patricianPeriod) =
                 SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), data.token);
             isCurrentlyPatricianPeriod = SolvencyHelperLibrary.isPatricianPeriod(
-                data.availableBalance, data.signedTotalGDADeposit, liquidationPeriod, patricianPeriod
+                data.availableBalance, data.signedTotalDeposit, liquidationPeriod, patricianPeriod
             );
         }
 
-        int256 totalRewardLeft = data.availableBalance + data.signedTotalGDADeposit;
+        int256 totalRewardLeft = data.availableBalance + data.signedTotalDeposit;
 
         // critical case
         if (totalRewardLeft >= 0) {
-            int256 rewardAmount = (signedSingleDeposit * totalRewardLeft) / data.signedTotalGDADeposit;
+            int256 rewardAmount = (signedSingleDeposit * totalRewardLeft) / data.signedTotalDeposit;
             data.token.makeLiquidationPayoutsV2(
                 data.distributionFlowHash,
                 abi.encode(2, isCurrentlyPatricianPeriod ? 0 : 1),

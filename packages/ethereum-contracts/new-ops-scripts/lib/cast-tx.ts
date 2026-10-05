@@ -6,7 +6,7 @@ import { spawnSync } from "child_process";
 
 import type { Address, Hash, Hex } from "viem";
 
-import { keystoreSpawnEnv } from "./ops-env";
+import { getKeystorePasswordFile, keystoreSpawnEnv } from "./ops-env";
 
 export type CastPublishResult = {
   hash: Hash;
@@ -52,7 +52,14 @@ function parsePublishResult(output: string): CastPublishResult {
 }
 
 function runCast(args: string[], useKeystore = false): string {
-  const r = spawnSync("cast", args, { encoding: "utf-8", env: keystoreSpawnEnv(useKeystore) });
+  // No password file: cast prompts on the terminal. spawnSync's default stdin is a
+  // closed pipe, so that prompt reads an empty password and fails immediately.
+  const interactive = useKeystore && !getKeystorePasswordFile();
+  const r = spawnSync("cast", args, {
+    encoding: "utf-8",
+    env: keystoreSpawnEnv(useKeystore),
+    stdio: interactive ? ["inherit", "pipe", "inherit"] : ["pipe", "pipe", "pipe"],
+  });
   const combined = `${r.stdout ?? ""}${r.stderr ?? ""}`.trim();
   if (r.status !== 0) {
     throw new Error(combined || `cast failed (exit ${r.status ?? 1})`);
@@ -70,7 +77,7 @@ export function castFund(
   to: Address,
   wei: bigint
 ): Hash {
-  console.log(`cast send (fund) → ${to}, value ${wei}`);
+  console.log(`cast send (fund) from ${walletName} → ${to}, value ${wei}`);
   return parseTxHash(
     runCast([
       "send",

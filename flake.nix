@@ -179,10 +179,12 @@
           buildInputs = [ mk-cache-key-pkg ];
         };
 
+        # Node/Yarn only — no foundry/solc. Always-on feature-branch check job.
         devShells.ci-minimum = mkShell {
           buildInputs =
             with pkgs;
             ciInputs
+            ++ defaultNodeDevInputs
             ++ [
               actionlint
               shellcheck

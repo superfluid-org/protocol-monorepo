@@ -27,9 +27,7 @@ PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
 
 # shellcheck source=/dev/null
-[ -f "$PKG_ROOT/.env" ] && . "$PKG_ROOT/.env"
-# shellcheck source=/dev/null
-[ -f "$PKG_ROOT/../.env" ] && . "$PKG_ROOT/../.env"
+_env=$(set -o posix; export -p); [[ -f "$PKG_ROOT/.env" ]] && source "$PKG_ROOT/.env"; [[ -f "$PKG_ROOT/../.env" ]] && source "$PKG_ROOT/../.env"; eval "$_env"
 export SAFE_PROPOSER_PK="${SAFE_PROPOSER_PK:-}"
 export SAFE_API_KEY="${SAFE_API_KEY:-}"
 export SAFE_TX_SERVICE_URL="${SAFE_TX_SERVICE_URL:-}"

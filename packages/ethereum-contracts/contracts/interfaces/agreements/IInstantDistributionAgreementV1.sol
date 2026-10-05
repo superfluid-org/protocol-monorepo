@@ -47,6 +47,9 @@ abstract contract IInstantDistributionAgreementV1 is ISuperAgreement {
     error IDA_SUBSCRIPTION_IS_NOT_APPROVED();  // 0x37412573
     error IDA_INSUFFICIENT_BALANCE();          // 0x16e759bb
     error IDA_ZERO_ADDRESS_SUBSCRIBER();       // 0xc90a4674
+    error IDA_NEW_ACTIVITY_FROZEN();           // 0xace0382a
+    error IDA_TOO_MANY_SUBSCRIPTIONS();        // 0x6db410ea
+    error IDA_INVALID_MAX_NUM_SUBSCRIPTIONS(); // 0xd88c9dfa
 
     /// @dev ISuperAgreement.agreementType implementation
     function agreementType() external override pure returns (bytes32) {

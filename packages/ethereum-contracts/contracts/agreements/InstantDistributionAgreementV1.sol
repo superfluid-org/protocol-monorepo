@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import { SafeCast } from "@openzeppelin-v5/contracts/utils/math/SafeCast.sol";
 
 import {
@@ -19,6 +20,8 @@ import { AgreementLibrary } from "./AgreementLibrary.sol";
  * @author Superfluid
  * @dev Please read IInstantDistributionAgreementV1 for implementation notes.
  * @dev For more technical notes, please visit protocol-monorepo wiki area.
+ * @dev New activity can be frozen per logic deployment via constructor immutables
+ *      (`NEW_ACTIVITY_FROZEN`, `MAX_NUM_SUBSCRIPTIONS`). Unwind ops stay available.
  *
  * Storage Layout Notes
  * Agreement State
@@ -69,8 +72,14 @@ contract InstantDistributionAgreementV1 is
 
     address public constant SLOTS_BITMAP_LIBRARY_ADDRESS = address(SlotsBitmapLibrary);
 
-    /// @dev Maximum number of subscriptions a subscriber can have
-    uint32 public constant MAX_NUM_SUBSCRIPTIONS = SlotsBitmapLibrary._MAX_NUM_SLOTS;
+    /// @notice When true, new activity and approval of subscriptions revert.
+    ///         Unwind ops (claim, revoke, delete) remain available.
+    bool public immutable NEW_ACTIVITY_FROZEN;
+
+    /// @notice Cap on newly approved subscriptions per subscriber.
+    /// @dev Listing still iterates the 256-bit slots bitmap, so subscriptions that already
+    ///      exist above this cap remain visible in realtimeBalanceOf after an upgrade.
+    uint32 public immutable MAX_NUM_SUBSCRIPTIONS;
 
     /// @dev Subscriber state slot id for storing subs bitmap
     uint256 private constant _SUBSCRIBER_SUBS_BITMAP_STATE_SLOT_ID = 0;
@@ -82,8 +91,23 @@ contract InstantDistributionAgreementV1 is
     /// @dev A special id that indicating the subscription is not approved yet
     uint32 private constant _UNALLOCATED_SUB_ID = type(uint32).max;
 
-    // solhint-disable-next-line no-empty-blocks
-    constructor(ISuperfluid host) AgreementBase(address(host)) {}
+    constructor(
+        ISuperfluid host,
+        bool newActivityFrozen,
+        uint32 maxNumSubscriptions
+    )
+        AgreementBase(address(host))
+    {
+        if (maxNumSubscriptions == 0 || maxNumSubscriptions > SlotsBitmapLibrary._MAX_NUM_SLOTS) {
+            revert IDA_INVALID_MAX_NUM_SUBSCRIPTIONS();
+        }
+        NEW_ACTIVITY_FROZEN = newActivityFrozen;
+        MAX_NUM_SUBSCRIPTIONS = maxNumSubscriptions;
+    }
+
+    function _requireNewActivityEnabled() private view {
+        if (NEW_ACTIVITY_FROZEN) revert IDA_NEW_ACTIVITY_FROZEN();
+    }
 
     /// @dev Agreement data for the index
     struct IndexData {
@@ -170,6 +194,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         ISuperfluid.Context memory context = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address publisher = context.msgSender;
         bytes32 iId = _getPublisherId(publisher, indexId);
@@ -240,6 +265,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         ISuperfluid.Context memory context = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address publisher = context.msgSender;
         (bytes32 iId, IndexData memory idata) = _loadIndexData(token, publisher, indexId);
@@ -261,6 +287,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         ISuperfluid.Context memory context = AgreementLibrary.authorizeTokenAccess(token, ctx);
         address publisher = context.msgSender;
         (bytes32 iId, IndexData memory idata) = _loadIndexData(token, publisher, indexId);
@@ -346,6 +373,7 @@ contract InstantDistributionAgreementV1 is
          IndexData idata;
          SubscriptionData sdata;
          bytes cbdata;
+         uint256 remainingCallbackGas;
      }
 
     /// @dev IInstantDistributionAgreementV1.approveSubscription implementation
@@ -358,6 +386,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         _SubscriptionOperationVars memory vars;
         AgreementLibrary.CallbackInputs memory cbStates;
         address subscriber;
@@ -392,7 +421,8 @@ contract InstantDistributionAgreementV1 is
 
         if (!vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
-            vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
 
             vars.sdata = SubscriptionData({
                 publisher: publisher,
@@ -406,10 +436,12 @@ contract InstantDistributionAgreementV1 is
             token.createAgreement(vars.sId, _encodeSubscriptionData(vars.sdata));
 
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
         } else {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
-            vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
             // NOTE casting these values to int256 is okay because the original values
             // are uint128
             int balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -429,7 +461,8 @@ contract InstantDistributionAgreementV1 is
             token.updateAgreementData(vars.sId, _encodeSubscriptionData(vars.sdata));
 
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
         }
 
         // can index up to three words, hence splitting into two events from publisher or subscriber's view.
@@ -478,7 +511,8 @@ contract InstantDistributionAgreementV1 is
         newCtx = ctx;
 
         cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
-        vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+        (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+            cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         // NOTE downcasting these values to int256 is okay because the original values
         // are uint128
         int256 balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -500,7 +534,8 @@ contract InstantDistributionAgreementV1 is
         token.settleBalance(subscriber, balanceDelta);
 
         cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
-        (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+        (, newCtx) = AgreementLibrary.callAppAfterCallback(
+            cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
 
         emit IndexUnsubscribed(token, publisher, indexId, subscriber, userData);
         emit SubscriptionRevoked(token, subscriber, publisher, indexId, userData);
@@ -517,6 +552,7 @@ contract InstantDistributionAgreementV1 is
         external override
         returns(bytes memory newCtx)
     {
+        _requireNewActivityEnabled();
         if (subscriber == address(0)) {
             revert IDA_ZERO_ADDRESS_SUBSCRIBER();
         }
@@ -548,10 +584,12 @@ contract InstantDistributionAgreementV1 is
         // before-hook callback
         if (vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
-            vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         } else {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_CREATED_NOOP;
-            vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         }
 
         // update publisher data
@@ -615,10 +653,12 @@ contract InstantDistributionAgreementV1 is
         // after-hook callback
         if (vars.subscriptionExists) {
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
         } else {
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_CREATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
         }
 
         emit IndexUnitsUpdated(token, publisher, indexId, subscriber, units, userData);
@@ -771,7 +811,8 @@ contract InstantDistributionAgreementV1 is
         newCtx = ctx;
 
         cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
-        vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+        (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+            cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
         // NOTE casting these values to int256 is okay because the original values
         // are uint128
         int256 balanceDelta = int256(uint256(vars.idata.indexValue - vars.sdata.indexValue))
@@ -803,7 +844,8 @@ contract InstantDistributionAgreementV1 is
         token.settleBalance(subscriber, balanceDelta);
 
         cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
-        (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+        (, newCtx) = AgreementLibrary.callAppAfterCallback(
+            cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
 
         emit IndexUnsubscribed(token, publisher, indexId, subscriber, userData);
         emit SubscriptionRevoked(token, subscriber, publisher, indexId, userData);
@@ -854,7 +896,8 @@ contract InstantDistributionAgreementV1 is
 
         if (pendingDistribution > 0) {
             cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_UPDATED_NOOP;
-            vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, newCtx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, newCtx);
             int256 signedPendingDistribution = pendingDistribution.toInt256();
 
             // adjust publisher's deposits
@@ -870,7 +913,8 @@ contract InstantDistributionAgreementV1 is
             emit SubscriptionDistributionClaimed(token, subscriber, publisher, indexId, pendingDistribution);
 
             cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_UPDATED_NOOP;
-            (, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+            (, newCtx) = AgreementLibrary.callAppAfterCallback(
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
         } else {
             // nothing to be recorded in this case
             newCtx = ctx;
@@ -1109,6 +1153,13 @@ contract InstantDistributionAgreementV1 is
         private
         returns (uint32 subId)
     {
+        uint256 nUsed = SlotsBitmapLibrary.countUsedSlots(
+            token,
+            subscriber,
+            _SUBSCRIBER_SUBS_BITMAP_STATE_SLOT_ID);
+        if (nUsed >= MAX_NUM_SUBSCRIPTIONS) {
+            revert IDA_TOO_MANY_SUBSCRIPTIONS();
+        }
         return SlotsBitmapLibrary.findEmptySlotAndFill(
             token,
             subscriber,

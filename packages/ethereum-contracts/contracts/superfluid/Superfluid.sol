@@ -55,6 +55,7 @@ contract Superfluid is
     // solhint-disable-next-line var-name-mixedcase
     bool immutable public APP_WHITE_LISTING_ENABLED;
 
+    /// @dev Gas budget shared by each SuperApp's matching before and after callback pair.
     uint64 immutable public CALLBACK_GAS_LIMIT;
 
     // simple forwarder contract used to relay arbitrary calls for batch operations
@@ -510,17 +511,24 @@ contract Superfluid is
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external override
         onlyAgreement
         assertValidCtx(ctx)
-        returns(bytes memory cbdata)
+        returns(bytes memory cbdata, uint256 remainingCallbackGas)
     {
-        (bool success, bytes memory returnedData) = _callCallback(app, true, isTermination, callData, ctx);
+        bool success;
+        bytes memory returnedData;
+        if (callbackGasLimit == CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT) {
+            callbackGasLimit = CALLBACK_GAS_LIMIT;
+        }
+        (success, returnedData, remainingCallbackGas) = _callCallback(
+            app, true, isTermination, callData, ctx, callbackGasLimit);
         if (success) {
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
-                cbdata = abi.decode(returnedData, (bytes));
+                cbdata = CallUtils.unwrapAbiEncodedBytes(returnedData);
             } else {
                 if (!isTermination) {
                     revert APP_RULE(SuperAppDefinitions.APP_RULE_CTX_IS_MALFORMATED);
@@ -535,18 +543,23 @@ contract Superfluid is
         ISuperApp app,
         bytes calldata callData,
         bool isTermination,
-        bytes calldata ctx
+        bytes calldata ctx,
+        uint256 callbackGasLimit
     )
         external override
         onlyAgreement
         assertValidCtx(ctx)
         returns(bytes memory newCtx)
     {
-        (bool success, bytes memory returnedData) = _callCallback(app, false, isTermination, callData, ctx);
+        if (callbackGasLimit > CALLBACK_GAS_LIMIT) {
+            callbackGasLimit = CALLBACK_GAS_LIMIT;
+        }
+        (bool success, bytes memory returnedData,) = _callCallback(
+            app, false, isTermination, callData, ctx, callbackGasLimit);
         if (success) {
             // the non static callback should not return empty ctx
             if (CallUtils.isValidAbiEncodedBytes(returnedData)) {
-                newCtx = abi.decode(returnedData, (bytes));
+                newCtx = CallUtils.unwrapAbiEncodedBytes(returnedData);
                 if (!_isCtxValid(newCtx)) {
                     if (!isTermination) {
                         revert APP_RULE(SuperAppDefinitions.APP_RULE_CTX_IS_READONLY);
@@ -1099,23 +1112,31 @@ contract Superfluid is
 
     function _callCallback(
         ISuperApp app,
-        bool isStaticall,
+        bool isStaticCall,
         bool isTermination,
         bytes memory callData,
-        bytes memory ctx
+        bytes memory ctx,
+        uint256 callbackGasLimit
     )
         private
-        returns(bool success, bytes memory returnedData)
+        returns(bool success, bytes memory returnedData, uint256 remainingCallbackGas)
     {
         assert(address(app) != address(0));
 
+        // Bound the context supplied to every callback before invoking the app.
+        if (ctx.length > CallbackUtils.CALLBACK_CONTEXT_CAP) {
+            revert HOST_CALLBACK_CONTEXT_TOO_LARGE();
+        }
         callData = _replacePlaceholderCtx(callData, ctx);
 
-        uint256 callbackGasLimit = CALLBACK_GAS_LIMIT;
+        uint256 gasLeftBefore = gasleft();
         bool insufficientCallbackGasProvided;
-        (success, insufficientCallbackGasProvided, returnedData) = isStaticall ?
+        (success, insufficientCallbackGasProvided, returnedData) = isStaticCall ?
             CallbackUtils.staticCall(address(app), callData, callbackGasLimit) :
             CallbackUtils.externalCall(address(app), callData, callbackGasLimit);
+
+        uint256 gasPaid = gasLeftBefore - gasleft();
+        remainingCallbackGas = gasPaid >= callbackGasLimit ? 0 : callbackGasLimit - gasPaid;
 
         if (!success) {
             if (!insufficientCallbackGasProvided) {

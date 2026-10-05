@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
 
+import { CallbackUtils } from "../libs/CallbackUtils.sol";
 import {
     ISuperfluid,
     ISuperfluidGovernance,
@@ -203,19 +204,18 @@ contract ConstantFlowAgreementV1 is
         public view override
         returns (bool)
     {
-        (int256 availableBalance, ,) = token.realtimeBalanceOf(account, timestamp);
+        (int256 availableBalance, uint256 totalDeposit,) = token.realtimeBalanceOf(account, timestamp);
         if (availableBalance >= 0) {
             return true;
         }
 
         (uint256 liquidationPeriod, uint256 patricianPeriod) =
             SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), token);
-        (,FlowData memory senderAccountState) = _getAccountFlowState(token, account);
-        int256 signedTotalCFADeposit = senderAccountState.deposit.toInt256();
 
+        // Account-level totalDeposit from realtimeBalanceOf (across agreements).
         return SolvencyHelperLibrary.isPatricianPeriod(
             availableBalance,
-            signedTotalCFADeposit,
+            totalDeposit.toInt256(),
             liquidationPeriod,
             patricianPeriod
         );
@@ -510,7 +510,8 @@ contract ConstantFlowAgreementV1 is
         (bool exist, FlowData memory oldFlowData) = _getAgreementData(flowVars.token, flowParams.flowId);
         if (!exist) revert CFA_FLOW_DOES_NOT_EXIST();
 
-        (int256 availableBalance,,) = flowVars.token.realtimeBalanceOf(flowVars.sender, currentContext.timestamp);
+        (int256 availableBalance, uint256 totalDeposit,) =
+            flowVars.token.realtimeBalanceOf(flowVars.sender, currentContext.timestamp);
 
         // delete should only be called by sender, receiver or flowOperator
         // unless it is a liquidation (availale balance < 0)
@@ -528,6 +529,7 @@ contract ConstantFlowAgreementV1 is
             _makeLiquidationPayouts(
                 flowVars.token,
                 availableBalance,
+                totalDeposit.toInt256(),
                 flowParams,
                 oldFlowData,
                 currentContext.msgSender);
@@ -1047,6 +1049,7 @@ contract ConstantFlowAgreementV1 is
     // solhint-disable-next-line contract-name-camelcase
     struct _StackVars_changeFlowToApp {
         bytes cbdata;
+        uint256 remainingCallbackGas;
         FlowData newFlowData;
         ISuperfluid.Context appContext;
     }
@@ -1083,7 +1086,8 @@ contract ConstantFlowAgreementV1 is
             } else /* if (optype == FlowChangeType.DELETE_FLOW) */ {
                 cbStates.noopBit = SuperAppDefinitions.BEFORE_AGREEMENT_TERMINATED_NOOP;
             }
-            vars.cbdata = AgreementLibrary.callAppBeforeCallback(cbStates, ctx);
+            (vars.cbdata, vars.remainingCallbackGas) = AgreementLibrary.callAppBeforeCallback(
+                cbStates, CallbackUtils.SENTINEL_CALLBACK_GAS_LIMIT, ctx);
 
             ISuperfluidGovernance gov = ISuperfluidGovernance(ISuperfluid(msg.sender).getGovernance());
 
@@ -1121,7 +1125,8 @@ contract ConstantFlowAgreementV1 is
             } else /* if (optype == FlowChangeType.DELETE_FLOW) */ {
                 cbStates.noopBit = SuperAppDefinitions.AFTER_AGREEMENT_TERMINATED_NOOP;
             }
-            (vars.appContext, newCtx) = AgreementLibrary.callAppAfterCallback(cbStates, vars.cbdata, newCtx);
+            (vars.appContext, newCtx) = AgreementLibrary.callAppAfterCallback(
+                cbStates, vars.cbdata, vars.remainingCallbackGas, newCtx);
 
             // NB: the callback might update the same flow!!
             // reload the flow data
@@ -1360,27 +1365,25 @@ contract ConstantFlowAgreementV1 is
     function _makeLiquidationPayouts(
         ISuperfluidToken token,
         int256 availableBalance,
+        int256 signedTotalDeposit,
         FlowParams memory flowParams,
         FlowData memory flowData,
         address liquidator
     )
         private
     {
-        (,FlowData memory senderAccountState) = _getAccountFlowState(token, flowParams.sender);
-
         int256 signedSingleDeposit = flowData.deposit.toInt256();
 
-        int256 signedTotalCFADeposit = senderAccountState.deposit.toInt256();
         bytes memory liquidationTypeData;
         bool isCurrentlyPatricianPeriod;
 
         // Liquidation rules:
         //    - let Available Balance = AB (is negative)
         //    -     Agreement Single Deposit = SD
-        //    -     Agreement Total Deposit = TD
+        //    -     Account Total Deposit = TD (sum of deposits across all agreements)
         //    -     Total Reward Left = RL = AB + TD
         // #1 Can the total account deposit still cover the available balance deficit?
-        int256 totalRewardLeft = availableBalance + signedTotalCFADeposit;
+        int256 totalRewardLeft = availableBalance + signedTotalDeposit;
 
         // To retrieve patrician period
         // Note: curly brackets are to handle stack too deep overflow issue
@@ -1389,7 +1392,7 @@ contract ConstantFlowAgreementV1 is
                 SolvencyHelperLibrary.decode3PsData(ISuperfluid(_host), token);
             isCurrentlyPatricianPeriod = SolvencyHelperLibrary.isPatricianPeriod(
                 availableBalance,
-                signedTotalCFADeposit,
+                signedTotalDeposit,
                 liquidationPeriod,
                 patricianPeriod
             );
@@ -1400,7 +1403,7 @@ contract ConstantFlowAgreementV1 is
             // the liquidator is always whoever triggers the liquidation, but the
             // account which receives the reward will depend on the period (Patrician or Pleb)
             // #1.a.1 yes: then reward = (SD / TD) * RL
-            int256 rewardAmount = signedSingleDeposit * totalRewardLeft / signedTotalCFADeposit;
+            int256 rewardAmount = signedSingleDeposit * totalRewardLeft / signedTotalDeposit;
             liquidationTypeData = abi.encode(1, isCurrentlyPatricianPeriod ? 0 : 1);
             token.makeLiquidationPayoutsV2(
                 flowParams.flowId, // id

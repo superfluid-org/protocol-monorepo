@@ -146,41 +146,6 @@
         "trustedForwarders": []
     },
     {
-        "name": "scroll-sepolia",
-        "isTestnet": true,
-        "networkId": 534351,
-        "chainId": 534351,
-        "sfId": 110,
-        "shortName": "scrsepolia",
-        "uppercaseName": "SCROLL_SEPOLIA",
-        "humanReadableName": "Scroll Sepolia",
-        "nativeTokenSymbol": "ETH",
-        "nativeTokenWrapper": "0x58f0A7c6c143074f5D824c2f27a85f6dA311A6FB",
-        "contractsV1": {
-            "resolver": "0xB62446a3006d86f6e9eAa36da773c311E7B8AF91",
-            "host": "0x42b05a6016B9eED232E13fd56a8F0725693DBF8e",
-            "cfaV1": "0xbc46B4Aa41c055578306820013d4B65fff42711E",
-            "cfaV1Forwarder": "0xcfA132E353cB4E398080B9700609bb008eceB125",
-            "idaV1": "0x296556422F44F19E5d216CBf98348A03BDc445E7",
-            "gdaV1": "0x93fA9B627eE016990Fe5e654F923aaE8a480a75b",
-            "gdaV1Forwarder": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
-            "superfluidLoader": "0xe25603df330027d91A0BAcc3e80a7f9e84930FC6",
-            "batchLiquidator": "0x70bbB7a057A13070dF11d533e8f299357D778637",
-            "superTokenFactory": "0x87560833d59Be057aFc63cFFa3fc531589Ba428F",
-            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
-            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
-        },
-        "startBlockV1": 2823800,
-        "logsQueryRange": 50000,
-        "explorer": "https://sepolia.scrollscan.com/",
-        "subgraphV1": {
-            "cliName": "scroll-sepolia",
-            "name": "protocol-v1-scroll-sepolia",
-            "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/scroll-sepolia/protocol-v1"
-        },
-        "publicRPCs": ["https://sepolia-rpc.scroll.io"]
-    },
-    {
         "name": "base-sepolia",
         "isTestnet": true,
         "networkId": 84532,
@@ -214,6 +179,44 @@
         },
         "publicRPCs": [
             "https://sepolia.base.org"
+        ]
+    },
+    {
+        "name": "arc-testnet",
+        "isTestnet": true,
+        "networkId": 5042002,
+        "chainId": 5042002,
+        "sfId": 112,
+        "shortName": "arctest",
+        "uppercaseName": "ARC_TESTNET",
+        "humanReadableName": "Arc Testnet",
+        "nativeTokenSymbol": "USDC",
+        "nativeTokenWrapper": "0x233a5Bfd65Da07AeB08F2082d2B5B270bc4eA804",
+        "contractsV1": {
+            "resolver": "0x777Be25F9fdcA87e8a0E06Ad4be93d65429FCb9f",
+            "host": "0xd0DE1486F69495D49c02D8f541B7dADf9Cf5CD91",
+            "cfaV1": "0xa38Eb8Cd48178EbeaEe98aB2d2019969d3eC6CBF",
+            "cfaV1Forwarder": "0xcfA132E353cB4E398080B9700609bb008eceB125",
+            "idaV1": "0x73a4A5B5CBa803D90f9cEE00F60523d48ddd53e2",
+            "gdaV1": "0xC5428C0377A17d2Ec35f55B87632e5bb49dBA51A",
+            "gdaV1Forwarder": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
+            "superTokenFactory": "0x8d1a3F66275F33209F3E823dE31537E4DdeE44Ce",
+            "superfluidLoader": "0x554c06487bEc8c890A0345eb05a5292C1b1017Bd",
+            "batchLiquidator": "0x992805ED822C786BCdBA4Cb1F07b5CadA3bC3CBa",
+            "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
+            "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
+        },
+        "startBlockV1": 57597000,
+        "logsQueryRange": 10000,
+        "explorer": "https://testnet.arcscan.app",
+        "subgraphV1": {
+            "cliName": "arc-testnet",
+            "name": "protocol-v1-arc-testnet",
+            "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/arc-testnet/protocol-v1"
+        },
+        "publicRPCs": [
+            "https://rpc.testnet.arc.io",
+            "https://rpc.drpc.testnet.arc.io"
         ]
     },
     {
@@ -791,40 +794,42 @@
         "coinGeckoId": "scroll"
     },
     {
-        "name": "degenchain",
+        "name": "arc-mainnet",
         "isTestnet": false,
-        "networkId": 666666666,
-        "chainId": 666666666,
+        "networkId": 5042,
+        "chainId": 5042,
         "sfId": 10,
-        "shortName": "degen",
-        "uppercaseName": "DEGENCHAIN",
-        "humanReadableName": "Degen Chain",
-        "nativeTokenSymbol": "DEGEN",
-        "nativeTokenWrapper": "0xda58FA9bfc3D3960df33ddD8D4d762Cf8Fa6F7ad",
+        "shortName": "arc",
+        "uppercaseName": "ARC_MAINNET",
+        "humanReadableName": "Arc",
+        "nativeTokenSymbol": "USDC",
         "contractsV1": {
-            "resolver": "0x649FB24ed0B983f88500F3C37682714aB96D73c2",
-            "host": "0xc1314EdcD7e478C831a7a24169F7dEADB2646eD2",
-            "governance": "0x4D420e94328bF1AEA1b525FDE9e498ADBe60f9B1",
-            "cfaV1": "0x82cc052d1b17aC554a22A88D5876B56c6b51e95c",
+            "resolver": "0xFD4b701C75a52E9744E5a0f2905AC9765a8b678D",
+            "host": "0x43Cd22BA2aDEd92BAa390506b8F1f15BF4651A7f",
+            "governance": "0xC2C9a709A6744816b3712D520BD314fe610AEa33",
+            "cfaV1": "0xFb60b139CD14262eC4FEe466B388Bb7f5A06Bf75",
             "cfaV1Forwarder": "0xcfA132E353cB4E398080B9700609bb008eceB125",
-            "idaV1": "0xb19CE3e7DA9FbAf9De2526BD662A82f26421A53E",
-            "gdaV1": "0x210a01ad187003603B2287F78579ec103Eb70D9B",
+            "idaV1": "0xBDa1B20e5deef07AA19C2Af5c8a3430642b2C366",
+            "gdaV1": "0xE32790AC5e6aAA8416364551b5E1E6736c64e50D",
             "gdaV1Forwarder": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08",
-            "superfluidLoader": "0x5fb676d66eAb8E0c22Ae24C5c10eD7E4A6397c1C",
-            "toga": "0x38ed5512Ac11926bB697F4CF4eE0DD04358E2E7e",
-            "batchLiquidator": "0x7BCE8e8401dc98E3Da26F1D701c3C2168b8e466c",
-            "superTokenFactory": "0x184D999ea60e9b16fE4cCC1f756422114E9B663f",
+            "superfluidLoader": "0xFe5F089374B51B84b8E24FB493AD5217d5953f21",
+            "toga": "0x1bF9D75d50fD828a93f69ECB06f2B85767792CEB",
+            "batchLiquidator": "0x3024A39099D4FAE7c9eA8329FAfe05576AEd2c00",
+            "superTokenFactory": "0x583C78b9c93538FEfc56E49371A0dcc844027325",
             "macroForwarder": "0xFD0268E33111565dE546af2675351A4b1587F89F",
             "clearMacroForwarderV1WithPermit2": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e"
         },
-        "startBlockV1": 6500000,
-        "logsQueryRange": 50000,
-        "explorer": "https://explorer.degen.tips/",
+        "startBlockV1": 22338303,
+        "logsQueryRange": 10000,
+        "explorer": "https://explorer.arc.io",
         "subgraphV1": {
-            "cliName": "degen",
-            "name": "protocol-v1-degenchain",
-            "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/degenchain/protocol-v1"
-	    },
-        "publicRPCs": ["https://rpc.degen.tips"]
+            "cliName": "arc",
+            "name": "protocol-v1-arc-mainnet",
+            "hostedEndpoint": "https://subgraph-endpoints.superfluid.dev/arc-mainnet/protocol-v1"
+        },
+        "publicRPCs": [
+            "https://rpc.mainnet.arc.io",
+            "https://rpc.drpc.mainnet.arc.io"
+        ]
     }
 ]

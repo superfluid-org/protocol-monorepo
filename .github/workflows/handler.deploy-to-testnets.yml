@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-          network: [eth-sepolia, optimism-sepolia, avalanche-fuji, scroll-sepolia]
+          network: [eth-sepolia, optimism-sepolia, avalanche-fuji]
 
     steps:
       - uses: actions/checkout@v4

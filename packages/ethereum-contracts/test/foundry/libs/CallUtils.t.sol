@@ -57,8 +57,82 @@ contract CallUtilsAnvil is Test {
         assertTrue(CallUtils.padLength32(len) % 32 == 0);
     }
 
-    function testIsValidAbiEncodedBytes(bytes memory data) public pure {
-        assertTrue(CallUtils.isValidAbiEncodedBytes(abi.encode(data)));
+    /// No filtering: malformed offsets, truncated heads, and arbitrary lengths must not panic.
+    function testIsValidAbiEncodedBytes_arbitraryInputDoesNotPanic(bytes memory data) public pure {
+        _assertAbiEncodedBytesValidation(data);
+    }
+
+    /// Random bytes almost never contain offset 32. Force it to exercise the untrusted length path.
+    function testIsValidAbiEncodedBytes_untrustedLengthDoesNotPanic(bytes memory payload, uint256 claimedLength)
+        public pure
+    {
+        bytes memory data = abi.encode(payload);
+        assembly ("memory-safe") {
+            mstore(add(data, 64), claimedLength)
+        }
+        _assertAbiEncodedBytesValidation(data);
+    }
+
+    function _assertAbiEncodedBytesValidation(bytes memory data) internal pure {
+        bool expected;
+        if (data.length >= 64) {
+            uint256 offset;
+            uint256 claimedLength;
+            assembly ("memory-safe") {
+                offset := mload(add(data, 32))
+                claimedLength := mload(add(data, 64))
+            }
+            uint256 available = data.length - 64;
+            // Independent layout oracle: whole words, a payload that fits, and less than one word of padding.
+            // Do not use padLength32 here: its safety on hostile lengths is what we are testing.
+            expected = offset == 32 && claimedLength <= available
+                && available % 32 == 0 && available - claimedLength < 32;
+        }
+        bool valid = CallUtils.isValidAbiEncodedBytes(data);
+        assertEq(valid, expected, "validator must return the expected boolean without reverting");
+        if (valid) {
+            assertEq(CallUtils.unwrapAbiEncodedBytes(data), abi.decode(data, (bytes)));
+        }
+    }
+
+    /// Hostile `returns (bytes)`: 64-byte ABI head with offset 32 and inner length `uint256.max`.
+    /// Must return false, not panic in `padLength32`, so Host terminate can jail-and-continue.
+    function testIsValidAbiEncodedBytes_maxInnerLengthDoesNotPanic() public pure {
+        bytes memory data = new bytes(64);
+        assembly {
+            mstore(add(data, 32), 32)
+            mstore(add(data, 64), not(0))
+        }
+        assertFalse(CallUtils.isValidAbiEncodedBytes(data));
+    }
+
+    function testUnwrapAbiEncodedBytes_matchesDecode(bytes memory inner) public pure {
+        bytes memory encoded = abi.encode(inner);
+        assertTrue(CallUtils.isValidAbiEncodedBytes(encoded));
+        bytes memory unwrapped = CallUtils.unwrapAbiEncodedBytes(encoded);
+        assertEq(unwrapped, inner);
+        assertEq(unwrapped, abi.decode(encoded, (bytes)));
+        uint256 encodedPtr;
+        uint256 unwrappedPtr;
+        assembly {
+            encodedPtr := encoded
+            unwrappedPtr := unwrapped
+        }
+        assertEq(unwrappedPtr, encodedPtr + 0x40, "unwrap must alias inner length word");
+    }
+
+    /// isValid does not require padding zeros. Dirty pad bytes must not change unwrap vs decode.
+    function testUnwrapAbiEncodedBytes_dirtyPaddingStillMatchesDecode(bytes memory inner, uint8 dirt) public pure {
+        vm.assume(inner.length % 32 != 0);
+        bytes memory encoded = abi.encode(inner);
+        uint256 innerLen = inner.length;
+        assembly {
+            // encoded+96 is start of inner data; pad begins at +innerLen
+            mstore8(add(encoded, add(96, innerLen)), dirt)
+        }
+        assertTrue(CallUtils.isValidAbiEncodedBytes(encoded));
+        assertEq(CallUtils.unwrapAbiEncodedBytes(encoded), abi.decode(encoded, (bytes)));
+        assertEq(CallUtils.unwrapAbiEncodedBytes(encoded), inner);
     }
 
     function testDelegateCallChecked_Success() public {
@@ -106,11 +180,4 @@ contract CallUtilsAnvil is Test {
         vm.expectRevert("CallUtils: target panicked: 0x01");
         checker.delegateCallPanic(address(target));
     }
-
-    // TODO this is a hard fuzzing case, because we need to know if there is a case that:
-    // 1. CallUtils.isValidAbiEncodedBytes returns true
-    // 2. and abi.decode reverts
-    /* function testNegativeIsValidAbiEncodedBytes(bytes memory data) public {
-        vm.assume(CallUtils.isValidAbiEncodedBytes(data) == true);
-    } */
 }
