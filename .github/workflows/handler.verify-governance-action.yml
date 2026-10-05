@@ -98,7 +98,7 @@ jobs:
           fi
 
       - name: Fetch addresses from chain
-        if: env.DO_SKIP != 1 && env.ADDRESSES_FILE == ''
+        if: env.DO_SKIP != 1 && env.ADDRESSES_FILE == '' && github.event.inputs.verify_safe_pending != 'true'
         run: |
           cd packages/ethereum-contracts
           npx truffle exec --network ${{ matrix.network }} ops-scripts/info-print-contract-addresses.js : addresses.vars
@@ -111,6 +111,10 @@ jobs:
           cd packages/ethereum-contracts
 
           echo "Fetching pending Safe governance transaction..."
+
+          # Canonical Superfluid gov owner Safe (same on all networks). The fetch
+          # script requires SAFE_ADDRESS or RESOLVER_ADDRESS; this matches the local script.
+          export SAFE_ADDRESS="${SAFE_ADDRESS:-0x06a858185b3B2ABB246128Bb9415D57e5C09aEB6}"
 
           OUTPUT_FILE=safe-pending-tx.json \
             npx hardhat run scripts/fetch-safe-pending-tx.ts > safe-output.log 2>&1 || {
@@ -125,14 +129,18 @@ jobs:
             echo "Safe pending transaction:"
             cat safe-pending-tx.json
 
-            # Extract addresses from Safe tx and append to addresses file
+            # Verify only the contracts the governance action will upgrade to.
             EXTRACTED=$(jq -r '.extractedAddresses | to_entries | .[] | "\(.key)=\(.value)"' safe-pending-tx.json 2>/dev/null || true)
 
             if [ -n "$EXTRACTED" ]; then
-              echo "" >> "${{ env.ADDRESSES_FILE }}"
-              echo "# Addresses from pending Safe transaction" >> "${{ env.ADDRESSES_FILE }}"
-              echo "$EXTRACTED" >> "${{ env.ADDRESSES_FILE }}"
-              echo "Appended extracted addresses to ${{ env.ADDRESSES_FILE }}"
+              SAFE_ADDRESSES_FILE="$(pwd)/safe-addresses.vars"
+              {
+                echo "# New contract addresses from pending Safe governance transaction"
+                echo "$EXTRACTED"
+              } > "$SAFE_ADDRESSES_FILE"
+              echo "ADDRESSES_FILE=$SAFE_ADDRESSES_FILE" >> "$GITHUB_ENV"
+              echo "Verifying addresses from the pending Safe transaction:"
+              cat "$SAFE_ADDRESSES_FILE"
             fi
           else
             echo "SAFE_TX_FOUND=false" >> "$GITHUB_ENV"
