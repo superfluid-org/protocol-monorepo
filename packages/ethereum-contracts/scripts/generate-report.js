@@ -190,6 +190,30 @@ function renderDiffContext(diffContext) {
     </div>`;
 }
 
+function renderSolcSummary(contract) {
+    const metadata = contract.bytecodeComparison && contract.bytecodeComparison.metadata;
+    if (!metadata) return "N/A";
+    if (metadata.solcMatch) {
+        return `Solc <code>${esc(metadata.deployedSolcVersion)}</code> verified`;
+    }
+    if (contract.status === "verified") {
+        return `Solc <code>${esc(metadata.deployedSolcVersion)}</code> reused (source compiles with <code>${esc(metadata.expectedSolcVersion)}</code>; codegen unchanged)`;
+    }
+    return `<span style="color:var(--red)">Solc mismatch: deployed=${esc(metadata.deployedSolcVersion)} expected=${esc(metadata.expectedSolcVersion)}</span>`;
+}
+
+function renderSolcBadge(contract) {
+    const metadata = contract.bytecodeComparison && contract.bytecodeComparison.metadata;
+    if (!metadata) return "N/A";
+    if (metadata.solcMatch) {
+        return '<span class="badge" style="background:#22c55e">Match</span>';
+    }
+    if (contract.status === "verified") {
+        return '<span class="badge" style="background:#f59e0b">Reused</span>';
+    }
+    return '<span class="badge" style="background:#ef4444">MISMATCH</span>';
+}
+
 function renderBytecodePanel(contract) {
     const bc = contract.bytecodeComparison;
     if (!bc) return '<div class="bc-panel-empty">No bytecode comparison data available</div>';
@@ -203,7 +227,7 @@ function renderBytecodePanel(contract) {
             <tr><td>Deployed SHA-256</td><td><code class="hash">${esc(bc.deployedHash)}</code></td></tr>
             <tr><td>Expected SHA-256</td><td><code class="hash">${esc(bc.expectedHash)}</code></td></tr>
             <tr><td>Immutables</td><td>${(bc.immutables && bc.immutables.length) || 0} variables extracted</td></tr>
-            <tr><td>Metadata</td><td>${bc.metadata ? (bc.metadata.solcMatch ? 'Solc <code>' + esc(bc.metadata.deployedSolcVersion) + '</code> verified' : '<span style="color:var(--red)">Solc mismatch: deployed=' + esc(bc.metadata.deployedSolcVersion) + ' expected=' + esc(bc.metadata.expectedSolcVersion) + '</span>') : 'N/A'}</td></tr>
+            <tr><td>Metadata</td><td>${renderSolcSummary(contract)}</td></tr>
             <tr><td>First Diff Offset</td><td>${bc.firstDiffOffset !== null ? bc.firstDiffOffset + " bytes" : "N/A (identical)"}</td></tr>
         </table>
         ${bc.immutables && bc.immutables.length > 0 ? `<div class="bc-section">
@@ -216,7 +240,7 @@ function renderBytecodePanel(contract) {
             </table>
         </div>` : ""}
         ${bc.metadata ? `<div class="bc-section">
-            <strong>Compiler Metadata</strong> <span class="hint">(IPFS hash differs between compilations — expected; solc version must match)</span>
+            <strong>Compiler Metadata</strong> <span class="hint">(IPFS hash differs between compilations — expected. A different solc version is accepted when the runtime bytecode still matches.)</span>
             <table class="imm-table">
                 <thead><tr><th></th><th>Deployed</th><th>Expected</th><th>Status</th></tr></thead>
                 <tbody>
@@ -224,7 +248,7 @@ function renderBytecodePanel(contract) {
                         <td>Solc Version</td>
                         <td><code>${esc(bc.metadata.deployedSolcVersion)}</code></td>
                         <td><code>${esc(bc.metadata.expectedSolcVersion)}</code></td>
-                        <td>${bc.metadata.solcMatch ? '<span class="badge" style="background:#22c55e">Match</span>' : '<span class="badge" style="background:#ef4444">MISMATCH</span>'}</td>
+                        <td>${renderSolcBadge(contract)}</td>
                     </tr>
                     <tr>
                         <td>IPFS Hash</td>

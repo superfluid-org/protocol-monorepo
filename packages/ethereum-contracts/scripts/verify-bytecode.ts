@@ -416,12 +416,14 @@ function parseMetadataBlob(blob: string): { solcVersion: string; ipfsHash: strin
 }
 
 /**
- * Extract CBOR metadata from both bytecodes, verify solc versions match,
- * and substitute deployed metadata blobs into expected bytecode.
+ * Extract CBOR metadata from both bytecodes and substitute deployed metadata
+ * blobs into expected bytecode.
  *
  * The IPFS hash changes between compilations (different file paths, build env)
  * — this is expected and not a security concern.
- * The solc version MUST match — a mismatch indicates different compiler versions.
+ * A different solc version is accepted when the runtime still matches after
+ * this substitution: a reused library whose codegen did not change. If the
+ * runtime still differs, that solc mismatch is reported with the bytecode mismatch.
  *
  * By substituting (not masking), the final exact comparison covers the entire
  * bytecode including metadata regions, with no hidden differences.
@@ -578,7 +580,8 @@ function stripSolidityLibraryPreamble(deployedHex: string, address: string): str
  * Compare bytecode with full verification:
  *   1. Extract immutable values from deployed code and substitute into expected
  *   2. Mask unlinked library placeholders (substitute deployed addresses)
- *   3. Mask CBOR metadata hashes (compiler-specific, not security-relevant)
+ *   3. Substitute CBOR metadata (IPFS hash is compiler-specific; solc version
+ *      may differ when a reused library's codegen is unchanged)
  *   4. Require 100% exact match — no fuzzy similarity fallbacks
  *
  * The extracted immutable values are included in the report for manual verification.
@@ -627,33 +630,11 @@ async function compareBytecode(
         extractedImmutables = result.extractedValues;
     }
 
-    // Substitute CBOR metadata: extract from both, verify solc version, substitute deployed into expected
+    // Substitute CBOR metadata, then compare the full runtime. A solc version
+    // difference is a failure only when the bytecode still differs afterwards.
     const metaResult = substituteMetadata(deployed, expected);
     expected = metaResult.patched;
     const metadataInfo = metaResult.metadata;
-
-    // Fail early if solc version doesn't match — this is a real problem
-    if (metadataInfo && !metadataInfo.solcMatch) {
-        const deployedHash = crypto.createHash("sha256").update(deployed).digest("hex");
-        const expectedHash = crypto.createHash("sha256").update(expected).digest("hex");
-        return {
-            matches: false,
-            message: `Solc version mismatch: deployed=${metadataInfo.deployedSolcVersion} expected=${metadataInfo.expectedSolcVersion}`,
-            comparison: {
-                deployedLength: deployed.length / 2,
-                expectedLength: expected.length / 2,
-                deployedHash,
-                expectedHash,
-                similarityPercent: parseFloat(computeSimilarity(deployed, expected).toFixed(2)),
-                firstDiffOffset: null,
-                diffContext: null,
-                segmentMap: buildSegmentMap(deployed, expected),
-                matchMethod: "none",
-                immutables: extractedImmutables,
-                metadata: metadataInfo,
-            },
-        };
-    }
 
     // Precompute comparison data (after ALL substitutions: immutables + metadata)
     const deployedHash = crypto.createHash("sha256").update(deployed).digest("hex");
@@ -688,15 +669,22 @@ async function compareBytecode(
         },
     });
 
-    // Single exact comparison (after immutable + metadata substitution)
+    // Single exact comparison (after immutable + metadata substitution).
+    // Matching runtime with a different solc stamp is a reused library.
     if (deployed === expected) {
+        const solcReused = Boolean(metadataInfo && !metadataInfo.solcMatch);
         const parts: string[] = [];
         if (extractedImmutables.length > 0) parts.push(`${extractedImmutables.length} immutables extracted`);
-        if (metadataInfo) parts.push(`solc ${metadataInfo.deployedSolcVersion} verified`);
+        if (metadataInfo && solcReused) {
+            parts.push(`deployed with solc ${metadataInfo.deployedSolcVersion}, reused; source compiles with ${metadataInfo.expectedSolcVersion}`);
+        } else if (metadataInfo) {
+            parts.push(`solc ${metadataInfo.deployedSolcVersion} verified`);
+        }
 
         const method = ["exact",
             extractedImmutables.length > 0 ? "immutables" : "",
             metadataInfo ? "metadata" : "",
+            solcReused ? "reused-solc" : "",
         ].filter(Boolean).join("+");
 
         const msg = parts.length > 0
@@ -714,7 +702,10 @@ async function compareBytecode(
         }
     }
 
-    return buildResult(false, "Bytecode mismatch", "none");
+    const message = metadataInfo && !metadataInfo.solcMatch
+        ? `Bytecode mismatch (solc deployed=${metadataInfo.deployedSolcVersion} expected=${metadataInfo.expectedSolcVersion})`
+        : "Bytecode mismatch";
+    return buildResult(false, message, "none");
 }
 
 async function main() {
