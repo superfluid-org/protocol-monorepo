@@ -1,8 +1,9 @@
+import {expect} from "chai";
 import {BigNumber} from "ethers";
-import {expect} from "hardhat";
 import _ from "lodash";
 
-import {toBN} from "../utils/helpers";
+import {loggedTx} from "../../lib/logged-tx";
+import {toBN, wad4human} from "../utils/helpers";
 
 import {
     IDABaseParams,
@@ -11,8 +12,26 @@ import {
     PartialIDAIndexData,
 } from "./Agreement.types";
 
-const {web3tx, wad4human} = require("@decentral.ee/web3-helpers");
-const {expectEvent} = require("@openzeppelin/test-helpers");
+const expectEvent = require("../../lib/expect-emit");
+
+async function normalizeLegacyTx(result: any) {
+    if (result?.tx) {
+        return result;
+    }
+    if (result && typeof result.wait === "function") {
+        const receipt = await result.wait();
+        return {tx: receipt.transactionHash, receipt};
+    }
+    if (result?.transactionHash) {
+        const receipt =
+            result.receipt ??
+            (await require("hardhat").ethers.provider.getTransactionReceipt(
+                result.transactionHash
+            ));
+        return {tx: result.transactionHash, receipt};
+    }
+    return result;
+}
 
 function _updateIndexData({
     testenv,
@@ -208,14 +227,13 @@ export async function shouldCreateIndex({
     console.log("======== shouldCreateIndex begins ========");
     const publisher = testenv.getAddress(publisherName);
 
-    const tx = await web3tx(
-        testenv.sf.ida.createIndex,
-        `${publisherName} create index ${indexId}`
-    )({
-        superToken: superToken.address,
-        publisher,
-        indexId,
-    });
+    const tx = await loggedTx(`${publisherName} create index ${indexId}`, () =>
+        testenv.sf.ida.createIndex({
+            superToken: superToken.address,
+            publisher,
+            indexId,
+        })
+    );
 
     // update index data
     _updateIndexData({
@@ -294,15 +312,16 @@ export async function shouldDistribute({
     let tx: any;
     if (totalUnitsZero) {
         indexValue = idataBefore.indexValue;
-        tx = await web3tx(
-            testenv.sf.ida.distribute,
-            `${publisherName} does not distribute tokens to index @${indexId} with amount ${amount} because units = 0`
-        )({
-            superToken: superToken.address,
-            publisher,
-            indexId,
-            amount,
-        });
+        tx = await loggedTx(
+            `${publisherName} does not distribute tokens to index @${indexId} with amount ${amount} because units = 0`,
+            () =>
+                testenv.sf.ida.distribute({
+                    superToken: superToken.address,
+                    publisher,
+                    indexId,
+                    amount,
+                })
+        );
     } else if (fn) {
         indexValue = (
             await testenv.contracts.ida.calculateDistribution(
@@ -312,17 +331,18 @@ export async function shouldDistribute({
                 toBN(amount)
             )
         ).newIndexValue;
-        tx = await fn();
+        tx = await normalizeLegacyTx(await fn());
     } else if (indexValue) {
-        tx = await web3tx(
-            testenv.sf.ida.updateIndex,
-            `${publisherName} distributes tokens to index @${indexId} with indexValue ${indexValue}`
-        )({
-            superToken: superToken.address,
-            publisher,
-            indexId,
-            indexValue,
-        });
+        tx = await loggedTx(
+            `${publisherName} distributes tokens to index @${indexId} with indexValue ${indexValue}`,
+            () =>
+                testenv.sf.ida.updateIndex({
+                    superToken: superToken.address,
+                    publisher,
+                    indexId,
+                    indexValue,
+                })
+        );
     } else if (amount) {
         indexValue = (
             await testenv.contracts.ida.calculateDistribution(
@@ -332,15 +352,16 @@ export async function shouldDistribute({
                 amount
             )
         ).newIndexValue;
-        tx = await web3tx(
-            testenv.sf.ida.distribute,
-            `${publisherName} distributes tokens to index @${indexId} with amount ${amount}`
-        )({
-            superToken: superToken.address,
-            publisher,
-            indexId,
-            amount,
-        });
+        tx = await loggedTx(
+            `${publisherName} distributes tokens to index @${indexId} with amount ${amount}`,
+            () =>
+                testenv.sf.ida.distribute({
+                    superToken: superToken.address,
+                    publisher,
+                    indexId,
+                    amount,
+                })
+        );
     }
 
     // update index data
@@ -573,16 +594,17 @@ export async function shouldApproveSubscription({
         subscriber,
     });
 
-    const tx = await web3tx(
-        testenv.sf.ida.approveSubscription,
-        `${subscriberName} approves subscription to index ${publisherName}@${indexId}`
-    )({
-        superToken: superToken.address,
-        publisher,
-        indexId,
-        subscriber,
-        userData,
-    });
+    const tx = await loggedTx(
+        `${subscriberName} approves subscription to index ${publisherName}@${indexId}`,
+        () =>
+            testenv.sf.ida.approveSubscription({
+                superToken: superToken.address,
+                publisher,
+                indexId,
+                subscriber,
+                userData,
+            })
+    );
 
     // update subscribers list
     _.merge(
@@ -697,18 +719,19 @@ export async function shouldUpdateSubscription({
     });
 
     const tx = !fn
-        ? await web3tx(
-              testenv.sf.ida.updateSubscription,
-              `${publisherName} updates subscription from ${subscriberName} of index @${indexId} with ${units} units`
-          )({
-              superToken: superToken.address,
-              publisher,
-              indexId,
-              subscriber,
-              units,
-              userData,
-          })
-        : await fn();
+        ? await loggedTx(
+              `${publisherName} updates subscription from ${subscriberName} of index @${indexId} with ${units} units`,
+              () =>
+                  testenv.sf.ida.updateSubscription({
+                      superToken: superToken.address,
+                      publisher,
+                      indexId,
+                      subscriber,
+                      units,
+                      userData,
+                  })
+          )
+        : await normalizeLegacyTx(await fn());
 
     // update subscribers list
     _.merge(
@@ -824,16 +847,17 @@ export async function shouldRevokeSubscription({
         subscriber,
     });
 
-    const tx = await web3tx(
-        testenv.sf.ida.revokeSubscription,
-        `${subscriberName} revoke subscription to index ${publisherName}@${indexId}`
-    )({
-        superToken: superToken.address,
-        publisher,
-        indexId,
-        subscriber,
-        userData,
-    });
+    const tx = await loggedTx(
+        `${subscriberName} revoke subscription to index ${publisherName}@${indexId}`,
+        () =>
+            testenv.sf.ida.revokeSubscription({
+                superToken: superToken.address,
+                publisher,
+                indexId,
+                subscriber,
+                userData,
+            })
+    );
 
     // update subscribers list
     delete getSubscribers({
@@ -939,17 +963,18 @@ export async function shouldDeleteSubscription({
         subscriber,
     });
 
-    const tx = await web3tx(
-        testenv.sf.ida.deleteSubscription,
-        `${senderName} deletes subscription from ${subscriberName} to index ${publisherName}@${indexId}`
-    )({
-        superToken: superToken.address,
-        publisher,
-        indexId,
-        subscriber,
-        sender,
-        userData,
-    });
+    const tx = await loggedTx(
+        `${senderName} deletes subscription from ${subscriberName} to index ${publisherName}@${indexId}`,
+        () =>
+            testenv.sf.ida.deleteSubscription({
+                superToken: superToken.address,
+                publisher,
+                indexId,
+                subscriber,
+                sender,
+                userData,
+            })
+    );
 
     // update subscribers list
     delete getSubscribers({
@@ -1082,17 +1107,18 @@ export async function shouldClaimPendingDistribution({
         subscriber,
     });
 
-    const tx = await web3tx(
-        testenv.sf.ida.claim,
-        `${subscriberName} claims pending distributions from ${publisherName}@${indexId}`
-    )({
-        superToken: superToken.address,
-        publisher,
-        indexId,
-        subscriber,
-        sender,
-        userData,
-    });
+    const tx = await loggedTx(
+        `${subscriberName} claims pending distributions from ${publisherName}@${indexId}`,
+        () =>
+            testenv.sf.ida.claim({
+                superToken: superToken.address,
+                publisher,
+                indexId,
+                subscriber,
+                sender,
+                userData,
+            })
+    );
 
     _updateSubscriptionData({
         testenv,

@@ -4,6 +4,7 @@ import "@nomiclabs/hardhat-web3";
 import "@nomiclabs/hardhat-truffle5";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomiclabs/hardhat-ethers";
+import "./test/lib/hardhat-expect-shim";
 import {
     TASK_COMPILE_SOLIDITY_GET_SOURCE_PATHS,
     TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD,

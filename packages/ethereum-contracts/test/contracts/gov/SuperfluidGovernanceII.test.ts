@@ -1,9 +1,11 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {assert, ethers, web3} from "hardhat";
+import {assert} from "chai";
+import {ethers} from "hardhat";
 
 import {SuperfluidGovernanceII, SuperfluidMock} from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
+import {sha3} from "../utils/helpers";
 
 describe("Superfluid Ownable Governance Contract", function () {
     this.timeout(300e3);
@@ -23,7 +25,6 @@ describe("Superfluid Ownable Governance Contract", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 2,
         });
 
@@ -115,7 +116,7 @@ describe("Superfluid Ownable Governance Contract", function () {
         it("#1.2 proxiable info", async () => {
             assert.equal(
                 await governance.proxiableUUID(),
-                web3.utils.sha3(
+                sha3(
                     "org.superfluid-finance.contracts.SuperfluidGovernanceII.implementation"
                 )
             );
@@ -686,10 +687,10 @@ describe("Superfluid Ownable Governance Contract", function () {
         });
 
         it("#2.7 external set/clear config", async () => {
-            const SUPERFLUID_REWARD_ADDRESS_CONFIG_KEY = web3.utils.sha3(
+            const SUPERFLUID_REWARD_ADDRESS_CONFIG_KEY = sha3(
                 "org.superfluid-finance.superfluid.rewardAddress"
             )!;
-            const SUPERTOKEN_MINIMUM_DEPOSIT_KEY = web3.utils.sha3(
+            const SUPERTOKEN_MINIMUM_DEPOSIT_KEY = sha3(
                 "org.superfluid-finance.superfluid.superTokenMinimumDeposit"
             )!;
 

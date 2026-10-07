@@ -1,15 +1,22 @@
 import {assert} from "chai";
-import {artifacts, ethers, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {ISETH, SuperToken__factory} from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError} from "../../utils/expectRevert";
+import {toWad} from "../utils/helpers";
 
-const {web3tx, toBN, toWad} = require("@decentral.ee/web3-helpers");
-const {expectEvent} = require("@openzeppelin/test-helpers");
+const artifacts = require("../../lib/artifacts");
+const {callAsAccount} = require("../../lib/as-account");
+const expectEvent = require("../../lib/expect-emit");
 const ISuperTokenFactory = artifacts.require("ISuperTokenFactory");
 const ISETH = artifacts.require("ISETH");
 const SETHProxy = artifacts.require("SETHProxy");
+
+function ethValue(amount: string | number) {
+    const raw = toWad(amount).toString();
+    return ethers.BigNumber.from(raw.startsWith("0x") ? raw : `0x${raw}`);
+}
 
 describe("Super ETH (SETH) Contract", function () {
     this.timeout(300e3);
@@ -20,7 +27,6 @@ describe("Super ETH (SETH) Contract", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 3,
         });
 
@@ -29,11 +35,16 @@ describe("Super ETH (SETH) Contract", function () {
         );
         const sethProxy = await SETHProxy.new();
         seth = await ISETH.at(sethProxy.address);
-        await web3tx(
-            superTokenFactory.initializeCustomSuperToken,
-            "initializeCustomSuperToken"
-        )(seth.address);
-        await web3tx(seth.initialize, "seth.initialize")(
+        await callAsAccount(
+            superTokenFactory,
+            t.aliases.admin,
+            "initializeCustomSuperToken",
+            seth.address
+        );
+        await callAsAccount(
+            seth,
+            t.aliases.admin,
+            "initialize",
             t.constants.ZERO_ADDRESS,
             18,
             "Super ETH",
@@ -59,126 +70,115 @@ describe("Super ETH (SETH) Contract", function () {
     });
 
     it("#1.1 upgradeByETH", async () => {
-        const tx = await web3tx(
-            seth.upgradeByETH,
-            "seth.upgradeByETH by alice"
-        )({
-            from: alice,
-            value: toWad(1),
-        });
+        const aliceSigner = await ethers.getSigner(alice);
+        const tx = await (
+            await seth.connect(aliceSigner)
+        ).upgradeByETH({value: ethValue(1)});
+        const receipt = await tx.wait();
         await expectEvent.inTransaction(
-            tx.tx,
-            t.sf.contracts.ISuperToken, // see if it's compatible with ISuperToken events
+            receipt.transactionHash,
+            t.sf.contracts.ISuperToken,
             "TokenUpgraded",
             {
                 account: alice,
-                amount: toWad(1).toString(),
+                amount: ethValue(1).toString(),
             }
         );
         assert.equal(
             (await seth.balanceOf(alice)).toString(),
-            toWad(1).toString()
+            ethValue(1).toString()
         );
         assert.equal(
-            (await web3.eth.getBalance(seth.address)).toString(),
-            toWad(1).toString()
+            (await ethers.provider.getBalance(seth.address)).toString(),
+            ethValue(1).toString()
         );
     });
 
     it("#1.2 upgradeByETHTo", async () => {
-        const tx = await web3tx(
-            seth.upgradeByETHTo,
-            "seth.upgradeByETHTo bob by alice"
-        )(alice, {
-            from: bob,
-            value: toWad(1),
-        });
+        const bobSigner = await ethers.getSigner(bob);
+        const tx = await (
+            await seth.connect(bobSigner)
+        ).upgradeByETHTo(alice, {value: ethValue(1)});
+        const receipt = await tx.wait();
         await expectEvent.inTransaction(
-            tx.tx,
-            t.sf.contracts.ISuperToken, // see if it's compatible with ISuperToken events
+            receipt.transactionHash,
+            t.sf.contracts.ISuperToken,
             "TokenUpgraded",
             {
                 account: alice,
-                amount: toWad(1).toString(),
+                amount: ethValue(1).toString(),
             }
         );
         assert.equal(
             (await seth.balanceOf(alice)).toString(),
-            toWad(1).toString()
+            ethValue(1).toString()
         );
         assert.equal(
-            (await web3.eth.getBalance(seth.address)).toString(),
-            toWad(1).toString()
+            (await ethers.provider.getBalance(seth.address)).toString(),
+            ethValue(1).toString()
         );
     });
 
     it("#1.4 downgradeToETH", async () => {
-        const ethersSETH = await ethers.getContractAt("ISETH", seth.address);
         const aliceSigner = await ethers.getSigner(alice);
-        await web3tx(
-            ethersSETH.connect(aliceSigner).upgradeByETH,
-            "seth.upgradeByETH by alice"
-        )({
-            value: toWad(1).toString(),
-        });
+        const ethersSETH = await seth.connect(aliceSigner);
+        await ethersSETH.upgradeByETH({value: ethValue(1)});
         const superTokenContract = new ethers.Contract(
             "SuperToken",
             SuperToken__factory.abi,
             aliceSigner
         );
         await expectCustomError(
-            ethersSETH
-                .connect(aliceSigner)
-                .downgradeToETH(toWad(1).addn(1).toString()),
+            ethersSETH.downgradeToETH(ethValue(1).add(1)),
             superTokenContract,
             "SF_TOKEN_BURN_INSUFFICIENT_BALANCE"
         );
 
-        const aliceBalance1 = await web3.eth.getBalance(alice);
-        const tx = await web3tx(
-            seth.downgradeToETH,
-            "seth.downgradeToETH by alice"
-        )(toWad(1).toString(), {from: alice});
-        const aliceBalance2 = await web3.eth.getBalance(alice);
+        const aliceBalance1 = await ethers.provider.getBalance(alice);
+        const tx = await callAsAccount(
+            seth,
+            alice,
+            "downgradeToETH",
+            ethValue(1)
+        );
+        const aliceBalance2 = await ethers.provider.getBalance(alice);
         await expectEvent.inTransaction(
             tx.tx,
-            t.sf.contracts.ISuperToken, // see if it's compatible with ISuperToken events
+            t.sf.contracts.ISuperToken,
             "TokenDowngraded",
             {
                 account: alice,
-                amount: toWad(1).toString(),
+                amount: ethValue(1).toString(),
             }
         );
         assert.equal(
-            toBN(aliceBalance2)
-                .sub(toBN(aliceBalance1))
+            ethers.BigNumber.from(aliceBalance2)
+                .sub(aliceBalance1)
                 .add(tx.txCost)
                 .toString(),
-            toWad(1).toString()
+            ethValue(1).toString()
         );
         assert.equal(
             (await seth.balanceOf(alice)).toString(),
-            toWad(0).toString()
+            ethValue(0).toString()
         );
         assert.equal(
-            (await web3.eth.getBalance(seth.address)).toString(),
-            toWad(0).toString()
+            (await ethers.provider.getBalance(seth.address)).toString(),
+            ethValue(0).toString()
         );
     });
 
     it("#1.5 - Direct send Ether", async () => {
-        await web3.eth.sendTransaction({
-            to: seth.address,
-            from: alice,
-            value: toWad(1),
-        });
+        await (
+            await ethers.getSigner(alice)
+        ).sendTransaction({to: seth.address, value: ethValue(1)});
         assert.equal(
             (await seth.balanceOf(alice)).toString(),
-            toWad(1).toString()
+            ethValue(1).toString()
         );
         assert.equal(
-            (await web3.eth.getBalance(seth.address)).toString(),
-            toWad(1).toString()
+            (await ethers.provider.getBalance(seth.address)).toString(),
+            ethValue(1).toString()
         );
     });
 });

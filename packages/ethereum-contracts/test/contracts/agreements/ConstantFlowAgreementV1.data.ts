@@ -1,5 +1,6 @@
+import {expect} from "chai";
+import {assert} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
-import {assert, expect} from "hardhat";
 import _ from "lodash";
 
 import {SuperToken} from "../../../typechain-types";

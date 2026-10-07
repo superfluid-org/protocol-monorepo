@@ -1,6 +1,8 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {expect} from "chai";
+import {assert} from "chai";
 import {BigNumber} from "ethers";
-import {assert, ethers, expect, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {
     InstantDistributionAgreementV1,
@@ -8,7 +10,7 @@ import {
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError} from "../../utils/expectRevert";
-import {toBN, toWad} from "../utils/helpers";
+import {encodeAbiParameters, toBN, toWad, wad4human} from "../utils/helpers";
 
 import {
     shouldApproveSubscription,
@@ -19,8 +21,6 @@ import {
     shouldRevokeSubscription,
     shouldUpdateSubscription,
 } from "./InstantDistributionAgreementV1.behaviour";
-
-const {wad4human} = require("@decentral.ee/web3-helpers");
 
 const ZERO_ADDRESS = ethers.constants.AddressZero;
 const DEFAULT_INDEX_ID = "42";
@@ -43,7 +43,6 @@ describe("IDAv1 | Non-Callback Tests", function () {
 
     before(async function () {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({alice, bob, carol} = t.aliases);
@@ -1498,7 +1497,6 @@ describe("IDAv1 | Non-Callback Tests", function () {
                     "TEST2",
                     {
                         doUpgrade: true,
-                        isTruffle: true,
                     }
                 );
 
@@ -1544,7 +1542,7 @@ describe("IDAv1 | Non-Callback Tests", function () {
                             [
                                 superToken.address,
                                 DEFAULT_INDEX_ID,
-                                web3.eth.abi.encodeParameters(
+                                encodeAbiParameters(
                                     ["bytes", "bytes"],
                                     ["0xdeadbeef", "0x"]
                                 ),

@@ -1,5 +1,5 @@
-import {assert} from "chai";
-import {ethers, expect, web3} from "hardhat";
+import {assert, expect} from "chai";
+import {ethers} from "hardhat";
 
 import {
     UUPSProxiableMock__factory,
@@ -7,6 +7,7 @@ import {
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectRevertedWith} from "../../utils/expectRevert";
+import {sha3} from "../utils/helpers";
 
 describe("Miscellaneous for test coverages", () => {
     const t = TestEnvironment.getSingleton();
@@ -15,7 +16,6 @@ describe("Miscellaneous for test coverages", () => {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
     });
@@ -43,7 +43,7 @@ describe("Miscellaneous for test coverages", () => {
                 "UUPSProxiableMock",
                 proxy.address
             );
-            const uuid1 = web3.utils.sha3("UUPSProxiableMock1")!;
+            const uuid1 = sha3("UUPSProxiableMock1")!;
             const mock = await UUPSProxiableMock.deploy(uuid1, 1);
             await expectRevertedWith(
                 proxy.initializeProxy(ZERO_ADDRESS),
@@ -63,8 +63,8 @@ describe("Miscellaneous for test coverages", () => {
                 "UUPSProxiableMock",
                 proxy.address
             );
-            const uuid1 = web3.utils.sha3("UUPSProxiableMock1")!;
-            const uuid2 = web3.utils.sha3("UUPSProxiableMock2")!;
+            const uuid1 = sha3("UUPSProxiableMock1")!;
+            const uuid2 = sha3("UUPSProxiableMock2")!;
             const UUPSProxiableMockFactory =
                 await ethers.getContractFactory("UUPSProxiableMock");
             const mock1a = await UUPSProxiableMockFactory.deploy(uuid1, 1);
@@ -98,10 +98,10 @@ describe("Miscellaneous for test coverages", () => {
         });
 
         it("Can't initialize castrated UUPSProxiable", async () => {
-            const uuid1 = web3.utils.sha3("UUPSProxiableMock1")!;
+            const uuid1 = sha3("UUPSProxiableMock1")!;
             const mock1 = await UUPSProxiableMock.deploy(uuid1, 1);
 
-            const uuid2 = web3.utils.sha3("UUPSProxiableMock2")!;
+            const uuid2 = sha3("UUPSProxiableMock2")!;
             const mock2 = await UUPSProxiableMock.deploy(uuid2, 1);
 
             // can initialize if not castrated
