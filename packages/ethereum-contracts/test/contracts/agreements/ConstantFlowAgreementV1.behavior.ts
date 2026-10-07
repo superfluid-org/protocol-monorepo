@@ -1,11 +1,14 @@
+import {expect} from "chai";
+import {assert} from "chai";
 import {BigNumber, BigNumberish} from "ethers";
-import {assert, ethers, expect, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {SuperToken, SuperTokenMock} from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
+import {loggedTx} from "../../lib/logged-tx";
 import {expectCustomError} from "../../utils/expectRevert";
 import MFASupport, {MFAParams} from "../utils/MFASupport";
-import {toBN} from "../utils/helpers";
+import {encodeAbiParameters, toBN} from "../utils/helpers";
 
 import {
     AccountFlowInfo,
@@ -17,8 +20,7 @@ import {
 } from "./Agreement.types";
 import CFADataModel from "./ConstantFlowAgreementV1.data";
 
-const {web3tx} = require("@decentral.ee/web3-helpers");
-const expectEvent = require("@openzeppelin/test-helpers/src/expectEvent");
+const expectEvent = require("../../lib/expect-emit");
 
 //
 // test functions
@@ -212,24 +214,22 @@ export async function _shouldChangeFlow({
     switch (fn) {
         case "createFlow":
         case "updateFlow":
-            tx = await web3tx(
-                testenv.sf.cfa[fn],
-                `${fn} from ${sender} to ${receiver}`
-            )({
-                ...cfaDataModel.flows.main.flowId,
-                flowRate: flowRate.toString(),
-                userData,
-            });
+            tx = await loggedTx(`${fn} from ${sender} to ${receiver}`, () =>
+                testenv.sf.cfa[fn]({
+                    ...cfaDataModel.flows.main.flowId,
+                    flowRate: flowRate.toString(),
+                    userData,
+                })
+            );
             break;
         case "deleteFlow":
-            tx = await web3tx(
-                testenv.sf.cfa[fn],
-                `${fn} from ${sender} to ${receiver}`
-            )({
-                ...cfaDataModel.flows.main.flowId,
-                by: cfaDataModel.roles.agent,
-                userData,
-            });
+            tx = await loggedTx(`${fn} from ${sender} to ${receiver}`, () =>
+                testenv.sf.cfa[fn]({
+                    ...cfaDataModel.flows.main.flowId,
+                    by: cfaDataModel.roles.agent,
+                    userData,
+                })
+            );
             break;
         case "createFlowByOperator":
         case "updateFlowByOperator":
@@ -356,7 +356,7 @@ export async function _shouldChangeFlow({
                         expectedRewardAmount
                     )
                 );
-                const liquidationTypeData = web3.eth.abi.encodeParameters(
+                const liquidationTypeData = encodeAbiParameters(
                     ["uint256", "uint8"],
                     [1, isPatricianPeriod ? 0 : 1]
                 );
@@ -432,7 +432,7 @@ export async function _shouldChangeFlow({
                         expectedBailoutAmount
                     )
                 );
-                const liquidationTypeData = web3.eth.abi.encodeParameters(
+                const liquidationTypeData = encodeAbiParameters(
                     ["uint256", "uint8"],
                     [1, 2]
                 );

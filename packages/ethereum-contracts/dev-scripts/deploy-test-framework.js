@@ -276,7 +276,21 @@ const _deployTestFramework = async (provider, signer) => {
     for (let i = 0; i < numSteps; i++) {
         await sfDeployer.executeStep(i);
     }
-    return {frameworkDeployer: sfDeployer};
+    const fw = await sfDeployer.getFramework();
+    return {
+        frameworkDeployer: sfDeployer,
+        host: fw.host,
+        governance: fw.governance,
+        cfa: fw.cfa,
+        ida: fw.ida,
+        gda: fw.gda,
+        resolver: fw.resolver,
+        superTokenFactory: fw.superTokenFactory,
+        superTokenLogic: fw.superTokenLogic,
+        superfluidLoader: fw.superfluidLoader,
+        cfaV1Forwarder: fw.cfaV1Forwarder,
+        gdaV1Forwarder: fw.gdaV1Forwarder,
+    };
 };
 
 const printProtocolFrameworkAddresses = (framework) => {
@@ -313,4 +327,5 @@ module.exports = {
     deployTestFrameworkWithEthersV5,
     deployTestFrameworkWithEthersV6,
     printProtocolFrameworkAddresses,
+    deployERC1820,
 };

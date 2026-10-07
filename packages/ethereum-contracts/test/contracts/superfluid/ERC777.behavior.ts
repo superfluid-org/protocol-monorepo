@@ -1,12 +1,18 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {expect} from "chai";
 import {Contract} from "ethers";
-import {artifacts, ethers, expect, web3} from "hardhat";
+import {BigNumber} from "ethers";
+import {ethers} from "hardhat";
 
 import {SuperTokenMock} from "../../../typechain-types";
 import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
 
 // NOTE: copied and modified from https://github.com/OpenZeppelin/openzeppelin-contracts/
-const {BN, expectEvent} = require("@openzeppelin/test-helpers");
+
+const artifacts = require("../../lib/artifacts");
+const {callAsAccount} = require("../../lib/as-account");
+const {toTruffleTxResponse} = require("../../lib/ethers-contract-loader");
+const expectEvent = require("../../lib/expect-emit");
 const ZERO_ADDRESS = ethers.constants.AddressZero;
 const ERC777SenderRecipientMock = artifacts.require(
     "ERC777SenderRecipientMock"
@@ -81,7 +87,7 @@ function _shouldBehaveLikeERC777DirectSend(
                     from: holder,
                     to: recipient,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data
             );
             _shouldDirectSendTokens(
@@ -89,7 +95,7 @@ function _shouldBehaveLikeERC777DirectSend(
                     from: holder,
                     to: recipient,
                 }),
-                new BN("1"),
+                BigNumber.from("1"),
                 data
             );
 
@@ -98,7 +104,13 @@ function _shouldBehaveLikeERC777DirectSend(
                 await expectCustomError(
                     tokenContract
                         .connect(holderSigner)
-                        .send(recipient, balance.addn(1).toString(), data),
+                        .send(
+                            recipient,
+                            BigNumber.from(balance.toString())
+                                .add(1)
+                                .toString(),
+                            data
+                        ),
                     tokenContract,
                     "SF_TOKEN_MOVE_INSUFFICIENT_BALANCE"
                 );
@@ -108,7 +120,11 @@ function _shouldBehaveLikeERC777DirectSend(
                 await expectCustomError(
                     tokenContract
                         .connect(holderSigner)
-                        .send(ZERO_ADDRESS, new BN("1").toString(), data),
+                        .send(
+                            ZERO_ADDRESS,
+                            BigNumber.from("1").toString(),
+                            data
+                        ),
                     tokenContract,
                     "SUPER_TOKEN_TRANSFER_TO_ZERO_ADDRESS"
                 );
@@ -125,7 +141,7 @@ function _shouldBehaveLikeERC777DirectSend(
                     from: holder,
                     to: recipient,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data
             );
 
@@ -133,7 +149,7 @@ function _shouldBehaveLikeERC777DirectSend(
                 await expectCustomError(
                     tokenContract
                         .connect(holderSigner)
-                        .send(recipient, new BN("1").toString(), data),
+                        .send(recipient, BigNumber.from("1").toString(), data),
                     tokenContract,
                     "SF_TOKEN_MOVE_INSUFFICIENT_BALANCE"
                 );
@@ -167,7 +183,7 @@ function _shouldBehaveLikeERC777OperatorSend(
                     operator: operator,
                     to: recipient,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data,
                 operatorData
             );
@@ -177,7 +193,7 @@ function _shouldBehaveLikeERC777OperatorSend(
                     operator: operator,
                     to: recipient,
                 }),
-                new BN("1"),
+                BigNumber.from("1"),
                 data,
                 operatorData
             );
@@ -191,7 +207,9 @@ function _shouldBehaveLikeERC777OperatorSend(
                         .operatorSend(
                             holder,
                             recipient,
-                            balance.addn(1).toString(),
+                            BigNumber.from(balance.toString())
+                                .add(1)
+                                .toString(),
                             data,
                             operatorData
                         ),
@@ -208,7 +226,7 @@ function _shouldBehaveLikeERC777OperatorSend(
                         .operatorSend(
                             holder,
                             ZERO_ADDRESS,
-                            new BN("1").toString(),
+                            BigNumber.from("1").toString(),
                             data,
                             operatorData
                         ),
@@ -229,7 +247,7 @@ function _shouldBehaveLikeERC777OperatorSend(
                     operator: operator,
                     to: recipient,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data,
                 operatorData
             );
@@ -242,7 +260,7 @@ function _shouldBehaveLikeERC777OperatorSend(
                         .operatorSend(
                             holder,
                             recipient,
-                            new BN("1").toString(),
+                            BigNumber.from("1").toString(),
                             data,
                             operatorData
                         ),
@@ -260,7 +278,7 @@ function _shouldBehaveLikeERC777OperatorSend(
                         .operatorSend(
                             ZERO_ADDRESS,
                             recipient,
-                            new BN("0").toString(),
+                            BigNumber.from("0").toString(),
                             data,
                             operatorData
                         ),
@@ -298,7 +316,7 @@ function _shouldBehaveLikeERC777UnauthorizedOperatorSend(
                     .operatorSend(
                         holder,
                         recipient,
-                        new BN("0").toString(),
+                        BigNumber.from("0").toString(),
                         data,
                         operatorData
                     ),
@@ -325,14 +343,14 @@ function _shouldBehaveLikeERC777DirectBurn(
                 () => ({
                     from: holder,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data
             );
             _shouldDirectBurnTokens(
                 () => ({
                     from: holder,
                 }),
-                new BN("1"),
+                BigNumber.from("1"),
                 data
             );
 
@@ -347,7 +365,12 @@ function _shouldBehaveLikeERC777DirectBurn(
                 await expectCustomError(
                     tokenContract
                         .connect(holderSigner)
-                        .burn(balance.addn(1).toString(), data),
+                        .burn(
+                            BigNumber.from(balance.toString())
+                                .add(1)
+                                .toString(),
+                            data
+                        ),
                     tokenContract,
                     "SF_TOKEN_BURN_INSUFFICIENT_BALANCE"
                 );
@@ -363,7 +386,7 @@ function _shouldBehaveLikeERC777DirectBurn(
                 () => ({
                     from: holder,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data
             );
 
@@ -376,7 +399,7 @@ function _shouldBehaveLikeERC777DirectBurn(
                 await expectCustomError(
                     tokenContract
                         .connect(holderSigner)
-                        .burn(new BN("1").toString(), data),
+                        .burn(BigNumber.from("1").toString(), data),
                     tokenContract,
                     "SF_TOKEN_BURN_INSUFFICIENT_BALANCE"
                 );
@@ -404,7 +427,7 @@ function _shouldBehaveLikeERC777OperatorBurn(
                     from: holder,
                     operator,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data,
                 operatorData
             );
@@ -413,7 +436,7 @@ function _shouldBehaveLikeERC777OperatorBurn(
                     from: holder,
                     operator,
                 }),
-                new BN("1"),
+                BigNumber.from("1"),
                 data,
                 operatorData
             );
@@ -430,7 +453,9 @@ function _shouldBehaveLikeERC777OperatorBurn(
                         .connect(operatorSigner)
                         .operatorBurn(
                             holder,
-                            balance.addn(1).toString(),
+                            BigNumber.from(balance.toString())
+                                .add(1)
+                                .toString(),
                             data,
                             operatorData
                         ),
@@ -450,7 +475,7 @@ function _shouldBehaveLikeERC777OperatorBurn(
                     from: holder,
                     operator,
                 }),
-                new BN("0"),
+                BigNumber.from("0"),
                 data,
                 operatorData
             );
@@ -466,7 +491,7 @@ function _shouldBehaveLikeERC777OperatorBurn(
                         .connect(operatorSigner)
                         .operatorBurn(
                             holder,
-                            new BN("1").toString(),
+                            BigNumber.from("1").toString(),
                             data,
                             operatorData
                         ),
@@ -487,7 +512,7 @@ function _shouldBehaveLikeERC777OperatorBurn(
                         .connect(operatorSigner)
                         .operatorBurn(
                             ZERO_ADDRESS,
-                            new BN("0").toString(),
+                            BigNumber.from("0").toString(),
                             data,
                             operatorData
                         ),
@@ -524,7 +549,7 @@ function _shouldBehaveLikeERC777UnauthorizedOperatorBurn(
                     .connect(operatorSigner)
                     .operatorBurn(
                         holder,
-                        new BN("0").toString(),
+                        BigNumber.from("0").toString(),
                         data,
                         operatorData
                     ),
@@ -605,7 +630,14 @@ function _shouldSendTokens(
 
         let logs;
         if (!operatorCall) {
-            ({logs} = await this.token.send(to, amount, data, {from}));
+            ({logs} = await callAsAccount(
+                this.token,
+                from,
+                "send",
+                to,
+                amount,
+                data
+            ));
             expectEvent.inLogs(logs, "Sent", {
                 operator: from,
                 from,
@@ -615,13 +647,15 @@ function _shouldSendTokens(
                 operatorData: null,
             });
         } else {
-            ({logs} = await this.token.operatorSend(
+            ({logs} = await callAsAccount(
+                this.token,
+                operator!,
+                "operatorSend",
                 from,
                 to,
                 amount,
                 data,
-                operatorData,
-                {from: operator}
+                operatorData
             ));
             expectEvent.inLogs(logs, "Sent", {
                 operator,
@@ -718,7 +752,13 @@ function _shouldBurnTokens(
 
         let logs;
         if (!operatorCall) {
-            ({logs} = await this.token.burn(amount, data, {from}));
+            ({logs} = await callAsAccount(
+                this.token,
+                from,
+                "burn",
+                amount,
+                data
+            ));
             expectEvent.inLogs(logs, "Burned", {
                 operator: from,
                 from,
@@ -727,12 +767,14 @@ function _shouldBurnTokens(
                 operatorData: null,
             });
         } else {
-            ({logs} = await this.token.operatorBurn(
+            ({logs} = await callAsAccount(
+                this.token,
+                operator!,
+                "operatorBurn",
                 from,
                 amount,
                 data,
-                operatorData,
-                {from: operator}
+                operatorData
             ));
             expectEvent.inLogs(logs, "Burned", {
                 operator,
@@ -865,13 +907,15 @@ export function shouldBehaveLikeERC777SendBurnMintInternalWithReceiveHook(
         });
 
         it("TokensRecipient receives operatorSend data and is called after state mutation", async function () {
-            const {tx} = await this.token.operatorSend(
+            const {tx} = await callAsAccount(
+                this.token,
+                operator,
+                "operatorSend",
                 sender,
                 recipient,
                 amount,
                 data,
-                operatorData,
-                {from: operator}
+                operatorData
             );
 
             const postSenderBalance = await this.token.balanceOf(sender);
@@ -892,12 +936,14 @@ export function shouldBehaveLikeERC777SendBurnMintInternalWithReceiveHook(
         });
 
         it("TokensRecipient receives mint (internal) data and is called after state mutation", async function () {
-            const {tx} = await this.token.mintInternal(
+            const {tx} = await callAsAccount(
+                this.token,
+                operator,
+                "mintInternal",
                 recipient,
                 amount,
                 data,
-                operatorData,
-                {from: operator}
+                operatorData
             );
 
             const postRecipientBalance = await this.token.balanceOf(recipient);
@@ -911,7 +957,7 @@ export function shouldBehaveLikeERC777SendBurnMintInternalWithReceiveHook(
                 amount,
                 data,
                 operatorData,
-                new BN("0"),
+                BigNumber.from("0"),
                 postRecipientBalance
             );
         });
@@ -951,8 +997,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
                     recipient,
                     amount.toString(),
                     data,
-                    tokenContract,
-                    true
+                    tokenContract
                 ),
                 "_shouldRevertSend"
             );
@@ -981,8 +1026,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
                     sender,
                     amount.toString(),
                     data,
-                    tokenContract,
-                    true
+                    tokenContract
                 ),
                 "_shouldRevertSend"
             );
@@ -1017,7 +1061,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
                 this.token,
                 sender,
                 recipient,
-                amount,
+                amount.toString(),
                 data
             );
 
@@ -1027,7 +1071,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
                 sender,
                 sender,
                 recipient,
-                amount,
+                amount.toString(),
                 data,
                 null,
                 preSenderBalance,
@@ -1039,13 +1083,15 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
             const preSenderBalance = await this.token.balanceOf(sender);
             const preRecipientBalance = await this.token.balanceOf(recipient);
 
-            const {tx} = await this.token.operatorSend(
+            const {tx} = await callAsAccount(
+                this.token,
+                operator,
+                "operatorSend",
                 sender,
                 recipient,
-                amount,
+                amount.toString(),
                 data,
-                operatorData,
-                {from: operator}
+                operatorData
             );
 
             await _assertTokensToSendCalled(
@@ -1054,7 +1100,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
                 operator,
                 sender,
                 recipient,
-                amount,
+                amount.toString(),
                 data,
                 operatorData,
                 preSenderBalance,
@@ -1068,7 +1114,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
             const {tx} = await _burnFromHolder(
                 this.token,
                 sender,
-                amount,
+                amount.toString(),
                 data
             );
 
@@ -1078,7 +1124,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
                 sender,
                 sender,
                 ZERO_ADDRESS,
-                amount,
+                amount.toString(),
                 data,
                 null,
                 preSenderBalance
@@ -1088,12 +1134,14 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
         it("TokensSender receives operatorBurn data and is called before state mutation", async function () {
             const preSenderBalance = await this.token.balanceOf(sender);
 
-            const {tx} = await this.token.operatorBurn(
+            const {tx} = await callAsAccount(
+                this.token,
+                operator,
+                "operatorBurn",
                 sender,
-                amount,
+                amount.toString(),
                 data,
-                operatorData,
-                {from: operator}
+                operatorData
             );
 
             await _assertTokensToSendCalled(
@@ -1102,7 +1150,7 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
                 operator,
                 sender,
                 ZERO_ADDRESS,
-                amount,
+                amount.toString(),
                 data,
                 operatorData,
                 preSenderBalance
@@ -1112,9 +1160,13 @@ export function shouldBehaveLikeERC777SendBurnWithSendHook(
 }
 
 async function _removeBalance(token: SuperTokenMock, holder: string) {
-    await token.burn(await token.balanceOf(holder), "0x", {
-        from: holder,
-    });
+    await callAsAccount(
+        token,
+        holder,
+        "burn",
+        await token.balanceOf(holder),
+        "0x"
+    );
     expect(await token.balanceOf(holder)).to.be.equal("0");
 }
 
@@ -1184,32 +1236,41 @@ async function _sendFromHolder(
     to: string,
     amount: string,
     data: string,
-    ethersToken?: Contract,
-    isEthersERC777?: boolean
+    ethersToken?: Contract
 ) {
-    if ((await web3.eth.getCode(holder)).length <= "0x".length) {
+    let result;
+    if ((await ethers.provider.getCode(holder)).length <= "0x".length) {
         if (ethersToken && ethersToken.from == null) {
-            return ethersToken
+            result = await ethersToken
                 .connect(await ethers.getSigner(holder))
                 .send(to, amount, data);
         } else {
-            return token.send(to, amount, data, {from: holder});
-        }
-    } else {
-        // assume holder is ERC777SenderRecipientMock contract
-        if (isEthersERC777) {
-            return (
-                await ethers.getContractAt("ERC777SenderRecipientMock", holder)
-            ).send(token.address, to, amount, data);
-        } else {
-            return (await ERC777SenderRecipientMock.at(holder)).send(
-                token.address,
+            result = await callAsAccount(
+                token,
+                holder,
+                "send",
                 to,
                 amount,
                 data
             );
         }
+    } else {
+        const mock = await ethers.getContractAt(
+            "ERC777SenderRecipientMock",
+            holder
+        );
+        const signer = (await ethers.getSigners())[0];
+        result = await mock
+            .connect(signer)
+            .send(token.address, to, amount, data);
     }
+    if (result?.tx) {
+        return result;
+    }
+    if (result && typeof result.wait === "function") {
+        return toTruffleTxResponse(result, token);
+    }
+    return result;
 }
 
 async function _burnFromHolder(
@@ -1217,29 +1278,30 @@ async function _burnFromHolder(
     holder: string,
     amount: string,
     data: string,
-    ethersToken?: Contract,
-    isEthersERC777?: boolean
+    ethersToken?: Contract
 ) {
-    if ((await web3.eth.getCode(holder)).length <= "0x".length) {
+    let result;
+    if ((await ethers.provider.getCode(holder)).length <= "0x".length) {
         if (ethersToken && ethersToken.from == null) {
-            return ethersToken
+            result = await ethersToken
                 .connect(await ethers.getSigner(holder))
                 .burn(amount, data);
         } else {
-            return token.burn(amount, data, {from: holder});
+            result = await callAsAccount(token, holder, "burn", amount, data);
         }
     } else {
-        // assume holder is ERC777SenderRecipientMock contract
-        if (isEthersERC777) {
-            return (
-                await ethers.getContractAt("ERC777SenderRecipientMock", holder)
-            ).burn(token.address, amount, data);
-        } else {
-            return (await ERC777SenderRecipientMock.at(holder)).burn(
-                token.address,
-                amount,
-                data
-            );
-        }
+        const mock = await ethers.getContractAt(
+            "ERC777SenderRecipientMock",
+            holder
+        );
+        const signer = (await ethers.getSigners())[0];
+        result = await mock.connect(signer).burn(token.address, amount, data);
     }
+    if (result?.tx) {
+        return result;
+    }
+    if (result && typeof result.wait === "function") {
+        return toTruffleTxResponse(result, token);
+    }
+    return result;
 }

@@ -1,5 +1,6 @@
+import {assert} from "chai";
 import {BigNumberish} from "ethers";
-import {assert, ethers, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {
     ConstantFlowAgreementV1,
@@ -10,7 +11,7 @@ import {
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError} from "../../utils/expectRevert";
 import MFASupport from "../utils/MFASupport";
-import {toBN, toWad} from "../utils/helpers";
+import {encodeAbiParameters, toBN, toWad} from "../utils/helpers";
 
 import {VerifyOptions} from "./Agreement.types";
 import AgreementHelper, {
@@ -39,7 +40,6 @@ describe("CFAv1 | Multi Flow Super App Tests", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({bob, dan} = t.aliases);
@@ -1014,7 +1014,7 @@ describe("CFAv1 | Multi Flow Super App Tests", function () {
             superToken: superToken.address,
             sender: t.getAddress(sender),
             receiver: app.address,
-            userData: web3.eth.abi.encodeParameters(
+            userData: encodeAbiParameters(
                 ["address", "uint256", "address[]", "uint256[]"],
                 [
                     t.getAddress(sender),
@@ -1498,7 +1498,7 @@ describe("CFAv1 | Multi Flow Super App Tests", function () {
             superToken: superToken.address,
             sender: t.getAddress(sender),
             receiver: app.address,
-            userData: web3.eth.abi.encodeParameters(
+            userData: encodeAbiParameters(
                 ["address", "uint256", "address[]", "uint256[]"],
                 [
                     t.getAddress(sender),
