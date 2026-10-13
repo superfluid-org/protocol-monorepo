@@ -1,7 +1,8 @@
 // NOTE: copied and modified from https://github.com/OpenZeppelin/openzeppelin-contracts/
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {expect} from "chai";
 import {BigNumber, BigNumberish, ContractTransaction} from "ethers";
-import {ethers, expect} from "hardhat";
+import {ethers} from "hardhat";
 
 import {expectCustomError} from "../../utils/expectRevert";
 import {toBN} from "../utils/helpers";

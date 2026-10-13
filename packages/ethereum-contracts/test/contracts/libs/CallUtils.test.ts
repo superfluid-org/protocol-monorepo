@@ -12,7 +12,6 @@ describe("CallUtils", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         const CallUtilsMockFactory =

@@ -1,5 +1,7 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {assert, ethers, expect, web3} from "hardhat";
+import {expect} from "chai";
+import {assert} from "chai";
+import {ethers} from "hardhat";
 
 import {
     // CFALibrarySuperAppMock,
@@ -10,7 +12,8 @@ import {
     SuperTokenMock,
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
-import {toBN} from "../utils/helpers";
+import {deployRawSuperTokenMock} from "../../lib/deploy-super-token-mock";
+import {encodeAbiParameter, toBN} from "../utils/helpers";
 
 const abiCoder = ethers.utils.defaultAbiCoder;
 const defaultUserData = abiCoder.encode(["uint256"], [690420]);
@@ -30,26 +33,6 @@ const callbackFunctionIndex = {
     UPDATE_FLOW_OPERATOR_PERMISSIONS: 6,
     AUTHORIZE_FLOW_OPERATOR_WITH_FULL_CONTROL: 7,
     REVOKE_FLOW_OPERATOR_WITH_FULL_CONTROL: 8,
-};
-
-// @note this function was added and is used to deploy a mock super token
-// and the associated cfa NFT contracts and attach them to the
-// super token. This was done because the tests which use this
-// are not using the super token from test environment and are not
-// reverting to snapshot and are therefore reliant on deploying a
-// new super token each time.
-export const deploySuperTokenAndNFTContractsAndInitialize = async (
-    t: TestEnvironment
-) => {
-    const {poolAdminNFTProxy} = await t.deployNFTContracts();
-    const superToken = await t.deployContract<SuperTokenMock>(
-        "SuperTokenMock",
-        t.contracts.superfluid.address,
-        "69",
-        poolAdminNFTProxy.address
-    );
-
-    return superToken;
 };
 
 // @note at this point, this file is mostly just for coverage
@@ -74,7 +57,6 @@ describe("SuperTokenV1 Library CFA testing", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 3,
         });
 
@@ -86,7 +68,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
     });
 
     beforeEach(async function () {
-        superToken = await deploySuperTokenAndNFTContractsAndInitialize(t);
+        superToken = await deployRawSuperTokenMock(t);
 
         await superToken.mintInternal(alice, mintAmount, "0x", "0x");
         await superToken.mintInternal(bob, mintAmount, "0x", "0x");
@@ -380,7 +362,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                             "0x",
                         ]
                     ),
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.CREATE_FLOW
                     )
@@ -406,7 +388,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.UPDATE_FLOW
                     )
@@ -432,7 +414,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.DELETE_FLOW
                     )
@@ -783,7 +765,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.CREATE_FLOW_BY_OPERATOR
                     )
@@ -829,7 +811,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.UPDATE_FLOW_BY_OPERATOR
                     )
@@ -875,7 +857,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.DELETE_FLOW_BY_OPERATOR
                     )
@@ -896,7 +878,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.UPDATE_FLOW_OPERATOR_PERMISSIONS
                     )
@@ -921,7 +903,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.AUTHORIZE_FLOW_OPERATOR_WITH_FULL_CONTROL
                     )
@@ -951,7 +933,7 @@ describe("SuperTokenV1 Library CFA testing", function () {
                 .callAgreement(
                     cfa.address,
                     createFlowCalldata,
-                    web3.eth.abi.encodeParameter(
+                    encodeAbiParameter(
                         "uint8",
                         callbackFunctionIndex.REVOKE_FLOW_OPERATOR_WITH_FULL_CONTROL
                     )

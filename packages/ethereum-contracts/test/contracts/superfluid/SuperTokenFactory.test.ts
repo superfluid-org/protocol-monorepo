@@ -1,4 +1,6 @@
-import {assert, ethers, expect, web3} from "hardhat";
+import {expect} from "chai";
+import {assert} from "chai";
+import {ethers} from "hardhat";
 
 import {
     SuperfluidMock,
@@ -13,8 +15,9 @@ import {
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
+import {sha3} from "../utils/helpers";
 
-const {expectEvent} = require("@openzeppelin/test-helpers");
+const expectEvent = require("../../lib/expect-emit");
 
 describe("SuperTokenFactory Contract", function () {
     this.timeout(300e3);
@@ -30,7 +33,6 @@ describe("SuperTokenFactory Contract", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
 
@@ -91,7 +93,7 @@ describe("SuperTokenFactory Contract", function () {
             );
             assert.equal(
                 await proxiable.proxiableUUID(),
-                web3.utils.sha3(
+                sha3(
                     "org.superfluid-finance.contracts.SuperTokenFactory.implementation"
                 )
             );
@@ -182,9 +184,14 @@ describe("SuperTokenFactory Contract", function () {
                 let superToken1 = await t.sf.createERC20Wrapper(token1, {
                     upgradability: 1,
                 });
-                await expectEvent(superToken1.tx.receipt, "SuperTokenCreated", {
-                    token: superToken1.address,
-                });
+                await expectEvent.fromReceipt(
+                    superToken1.tx.receipt,
+                    factory,
+                    "SuperTokenCreated",
+                    {
+                        token: superToken1.address,
+                    }
+                );
                 superToken1 = await ethers.getContractAt(
                     "SuperTokenMock",
                     superToken1.address
@@ -206,9 +213,14 @@ describe("SuperTokenFactory Contract", function () {
                     "FullUpgradableSuperTokenProxy",
                     superToken1.address
                 );
-                await expectEvent(superToken1.tx.receipt, "SuperTokenCreated", {
-                    token: superToken1.address,
-                });
+                await expectEvent.fromReceipt(
+                    superToken1.tx.receipt,
+                    factory,
+                    "SuperTokenCreated",
+                    {
+                        token: superToken1.address,
+                    }
+                );
                 superToken1 = await ethers.getContractAt(
                     "SuperTokenMock",
                     superToken1.address
@@ -250,9 +262,14 @@ describe("SuperTokenFactory Contract", function () {
                 let superToken1 = await t.sf.createERC20Wrapper(token1, {
                     upgradability: 1,
                 });
-                await expectEvent(superToken1.tx.receipt, "SuperTokenCreated", {
-                    token: superToken1.address,
-                });
+                await expectEvent.fromReceipt(
+                    superToken1.tx.receipt,
+                    factory,
+                    "SuperTokenCreated",
+                    {
+                        token: superToken1.address,
+                    }
+                );
                 superToken1 = await ethers.getContractAt(
                     "SuperTokenMock",
                     superToken1.address
@@ -319,9 +336,14 @@ describe("SuperTokenFactory Contract", function () {
                 const superToken1 = await t.sf.createERC20Wrapper(token1, {
                     upgradability: 1,
                 });
-                await expectEvent(superToken1.tx.receipt, "SuperTokenCreated", {
-                    token: superToken1.address,
-                });
+                await expectEvent.fromReceipt(
+                    superToken1.tx.receipt,
+                    factory,
+                    "SuperTokenCreated",
+                    {
+                        token: superToken1.address,
+                    }
+                );
                 assert.equal(
                     await superToken1.getUnderlyingToken(),
                     token1.address
@@ -330,9 +352,14 @@ describe("SuperTokenFactory Contract", function () {
                 const superToken2 = await t.sf.createERC20Wrapper(token1, {
                     upgradability: 2,
                 });
-                await expectEvent(superToken2.tx.receipt, "SuperTokenCreated", {
-                    token: superToken2.address,
-                });
+                await expectEvent.fromReceipt(
+                    superToken2.tx.receipt,
+                    factory,
+                    "SuperTokenCreated",
+                    {
+                        token: superToken2.address,
+                    }
+                );
                 assert.equal(
                     await superToken2.getUnderlyingToken(),
                     token1.address

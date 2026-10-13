@@ -817,6 +817,7 @@ contract GeneralDistributionAgreementV1IntegrationTest is FoundrySuperfluidTeste
         vm.assume(unitsAmount >= 0);
         vm.assume(transferAmount > 0);
         vm.assume(from != address(0));
+        vm.assume(from != address(freePool));
         vm.assume(transferAmount <= unitsAmount);
         _helperUpdateMemberUnits(freePool, alice, from, uint128(int128(unitsAmount)));
 

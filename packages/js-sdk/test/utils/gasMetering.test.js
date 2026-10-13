@@ -1,5 +1,7 @@
 const {expect} = require("chai");
-const {BN} = require("@openzeppelin/test-helpers");
+const Web3 = require("web3");
+const BN = Web3.utils.BN;
+require("chai").use(require("chai-bn")(BN));
 const GasMetering = require("../../src/utils/gasMetering/gasMetering");
 
 describe("GasMetering", function () {

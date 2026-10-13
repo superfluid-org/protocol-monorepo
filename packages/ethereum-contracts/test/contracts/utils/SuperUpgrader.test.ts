@@ -1,20 +1,19 @@
 import {assert} from "chai";
-import {ethers, web3} from "hardhat";
-import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
-import TestEnvironment from "../../TestEnvironment";
-import {toWad} from "./helpers";
-
-const {web3tx} = require("@decentral.ee/web3-helpers");
+import {ethers} from "hardhat";
 
 import {
     SuperToken,
     SuperUpgrader__factory,
     TestToken,
 } from "../../../typechain-types";
+import TestEnvironment from "../../TestEnvironment";
+import {loggedTx} from "../../lib/logged-tx";
+import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
+import {soliditySha3, toWad} from "./helpers";
 
 const DEFAULT_ADMIN_ROLE =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
-const BACKEND_ROLE = web3.utils.soliditySha3("BACKEND_ROLE")!;
+const BACKEND_ROLE = soliditySha3("BACKEND_ROLE")!;
 
 describe("Superfluid Super Upgrader Contract", function () {
     this.timeout(300e3);
@@ -36,7 +35,6 @@ describe("Superfluid Super Upgrader Contract", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 6,
         });
         SuperUpgraderFactory = await ethers.getContractFactory("SuperUpgrader");
@@ -149,11 +147,9 @@ describe("Superfluid Super Upgrader Contract", function () {
                 .approve(upgrader.address, toWad("3"));
 
             const signer = await ethers.getSigner(backend[1]);
-            await web3tx(upgrader.connect(signer).upgrade, "upgrader.upgrade")(
-                superToken.address,
+            await loggedTx("upgrader.upgrade", () => upgrader.connect(signer).upgrade(superToken.address,
                 alice,
-                1
-            );
+                1));
 
             const aliceSuperTokenBalance = await superToken.balanceOf(alice);
             assert.equal(
@@ -176,11 +172,9 @@ describe("Superfluid Super Upgrader Contract", function () {
                 .connect(aliceSigner)
                 .approve(upgrader.address, toWad("100000000000"));
             const signer = await ethers.getSigner(backend[2]);
-            await web3tx(upgrader.connect(signer).upgrade, "upgrader.upgrade")(
-                superToken.address,
+            await loggedTx("upgrader.upgrade", () => upgrader.connect(signer).upgrade(superToken.address,
                 alice,
-                toWad("100000000000")
-            );
+                toWad("100000000000")));
 
             const aliceSuperTokenBalance = await superToken.balanceOf(alice);
             assert.equal(
@@ -330,10 +324,7 @@ describe("Superfluid Super Upgrader Contract", function () {
         it("#3.2 Admin should add/remove admin accounts", async () => {
             const upgrader = await SuperUpgraderFactory.deploy(admin, backend);
             const adminSigner = await ethers.getSigner(admin);
-            await web3tx(
-                upgrader.connect(adminSigner).grantRole,
-                "admin add bob to admin"
-            )(DEFAULT_ADMIN_ROLE, bob);
+            await loggedTx("admin add bob to admin", () => upgrader.connect(adminSigner).grantRole(DEFAULT_ADMIN_ROLE, bob));
             assert.isOk(
                 await upgrader.hasRole(DEFAULT_ADMIN_ROLE, bob),
                 "bob should be in admin role"

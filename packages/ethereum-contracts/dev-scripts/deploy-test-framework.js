@@ -313,4 +313,5 @@ module.exports = {
     deployTestFrameworkWithEthersV5,
     deployTestFrameworkWithEthersV6,
     printProtocolFrameworkAddresses,
+    deployERC1820,
 };

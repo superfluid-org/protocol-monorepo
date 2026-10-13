@@ -2,7 +2,6 @@ import { HardhatUserConfig, subtask } from "hardhat/config";
 import "@typechain/hardhat";
 import "@nomiclabs/hardhat-ethers";
 import "@nomicfoundation/hardhat-chai-matchers";
-import "@nomiclabs/hardhat-web3";
 import {
     TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD,
 } from "hardhat/builtin-tasks/task-names";

@@ -13,7 +13,6 @@ describe("Resolver", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({admin, alice} = t.aliases);

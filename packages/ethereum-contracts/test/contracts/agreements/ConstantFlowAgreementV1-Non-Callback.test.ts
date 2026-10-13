@@ -1,6 +1,8 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {expect} from "chai";
+import {assert} from "chai";
 import {BigNumberish} from "ethers";
-import {assert, ethers, expect, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {
     ConstantFlowAgreementV1,
@@ -11,7 +13,7 @@ import {
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError} from "../../utils/expectRevert";
-import {max, toBN, toWad} from "../utils/helpers";
+import {encodeAbiParameters, max, toBN, toWad} from "../utils/helpers";
 
 import {
     CreateBailoutTestParams,
@@ -38,7 +40,7 @@ import {
 } from "./ConstantFlowAgreementV1.behavior";
 import CFADataModel from "./ConstantFlowAgreementV1.data";
 
-const {expectEvent} = require("@openzeppelin/test-helpers");
+const expectEvent = require("../../lib/expect-emit");
 
 describe("CFAv1 | Non-Callback Tests", function () {
     this.timeout(300e3);
@@ -57,7 +59,6 @@ describe("CFAv1 | Non-Callback Tests", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({admin, alice, bob, dan} = t.aliases);
@@ -2293,7 +2294,7 @@ describe("CFAv1 | Non-Callback Tests", function () {
                             superToken.address,
                             alice,
                             FLOW_RATE1.toString(),
-                            web3.eth.abi.encodeParameters(
+                            encodeAbiParameters(
                                 ["bytes", "bytes"],
                                 ["0xdeadbeef", "0x"]
                             ),
@@ -3602,7 +3603,7 @@ describe("CFAv1 | Non-Callback Tests", function () {
         // redundant, but a sanity check nonetheless to ensure that we are calling
         // authorizeTokenAccess in our new agreement functions
         it("#1.12.28 Should revert when trying to pass in dirty context", async () => {
-            const dirtyBytes = web3.eth.abi.encodeParameters(
+            const dirtyBytes = encodeAbiParameters(
                 ["bytes", "bytes"],
                 ["0xdeadbeef", "0x"]
             );

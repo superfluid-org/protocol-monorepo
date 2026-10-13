@@ -1,9 +1,10 @@
 import {BigNumber} from "ethers";
-import {assert, web3} from "hardhat";
+import {assert} from "chai";
 import {SuperToken} from "../../../typechain-types";
 import {toBN} from "./helpers";
 import CFADataModel from "../agreements/ConstantFlowAgreementV1.data";
 import TestEnvironment from "../../TestEnvironment";
+import {encodeAbiParameter, encodeAbiParameters} from "../utils/helpers";
 
 export interface MFAParams {
     ratioPct: number;
@@ -46,7 +47,7 @@ export default class MFASupport {
             (i) => mfa.receivers[i].proportion > 0
         );
         return {
-            userData: web3.eth.abi.encodeParameters(
+            userData: encodeAbiParameters(
                 ["address", "uint256", "address[]", "uint256[]"],
                 [
                     testenv.getAddress(mfa.sender),

@@ -1,4 +1,4 @@
-const {expectRevert} = require("@openzeppelin/test-helpers");
+const {expect} = require("chai");
 
 const Web3 = require("web3");
 
@@ -319,10 +319,14 @@ describe("Framework class", function () {
                     isTruffle: true,
                     version: "test",
                 });
-                await expectRevert(
-                    sf.initialize(),
-                    "Super Token for fML cannot be found"
-                );
+                try {
+                    await sf.initialize();
+                    expect.fail("expected initialize to revert");
+                } catch (error) {
+                    expect(error.message).to.include(
+                        "Super Token for fML cannot be found"
+                    );
+                }
             });
 
             it("failed due to no super token wrapper", async () => {
@@ -339,10 +343,14 @@ describe("Framework class", function () {
                     tokens: ["SASHIMI"],
                     version: "test",
                 });
-                await expectRevert(
-                    sf.initialize(),
-                    "Super Token for SASHIMI cannot be found"
-                );
+                try {
+                    await sf.initialize();
+                    expect.fail("expected initialize to revert");
+                } catch (error) {
+                    expect(error.message).to.include(
+                        "Super Token for SASHIMI cannot be found"
+                    );
+                }
             });
         });
     });

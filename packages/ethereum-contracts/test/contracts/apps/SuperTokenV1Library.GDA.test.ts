@@ -1,6 +1,7 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {expect} from "chai";
 import {ContractReceipt} from "ethers";
-import {ethers, expect, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {
     ConstantFlowAgreementV1,
@@ -11,9 +12,8 @@ import {
     SuperTokenMock,
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
-import {toBN} from "../utils/helpers";
-
-import {deploySuperTokenAndNFTContractsAndInitialize} from "./SuperTokenV1Library.CFA.test";
+import {deploySuperTokenAndNFTContractsAndInitialize} from "../../lib/deploy-super-token-mock";
+import {encodeAbiParameters, toBN} from "../utils/helpers";
 
 const mintAmount = "1000000000000000000000000000"; // a small loan of a billion dollars
 const flowRate = "1000000000000";
@@ -36,7 +36,7 @@ const userData = (
     requestedAmount = 0,
     requestedFlowRate = 0
 ) =>
-    web3.eth.abi.encodeParameters(
+    encodeAbiParameters(
         [
             "uint8",
             "address",
@@ -84,7 +84,6 @@ describe("SuperTokenV1Library.GDA", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({alice, bob} = t.aliases);

@@ -1,5 +1,7 @@
+import {expect} from "chai";
+import {assert} from "chai";
 import {BigNumber} from "ethers";
-import {assert, ethers, expect} from "hardhat";
+import {ethers} from "hardhat";
 
 import {SuperToken} from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
@@ -18,9 +20,7 @@ import {
     shouldDistribute,
     shouldUpdateSubscription,
 } from "../agreements/InstantDistributionAgreementV1.behaviour";
-import {toBN, toWad} from "../utils/helpers";
-
-const {wad4human} = require("@decentral.ee/web3-helpers");
+import {toBN, toWad, wad4human} from "../utils/helpers";
 
 const DEFAULT_INDEX_ID = "42";
 
@@ -41,7 +41,6 @@ describe("Superfluid scenarios", function () {
 
     before(async function () {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({alice, bob, carol, dan} = t.aliases);
@@ -508,7 +507,7 @@ describe("Superfluid scenarios", function () {
             assert.equal(subs.indexIds.length, 1);
             assert.equal(subs.publishers[0], alice);
             assert.equal(subs.indexIds[0], Number(DEFAULT_INDEX_ID));
-            assert.equal(wad4human(subs.unitsList[0]), "0.00010");
+            assert.equal(wad4human(subs.unitsList[0]), "0.0001");
 
             // Alice distributes tokens (100 * 0.0001 = 0.01)
             await shouldDistribute({

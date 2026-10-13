@@ -80,6 +80,15 @@ const loadContracts = async ({
         }
     } else if (isTruffle) {
         try {
+            const artifactsRef = [
+                global.artifacts,
+                typeof artifacts !== "undefined" ? artifacts : undefined,
+            ].find((a) => a && typeof a.require === "function");
+            if (!artifactsRef) {
+                throw new Error(
+                    "Truffle-style artifacts.require is not available"
+                );
+            }
             console.debug(
                 `Using @superfluid-finance/js-sdk within a Truffle native environment.
                 Truffle artifacts must be present.`
@@ -88,7 +97,7 @@ const loadContracts = async ({
                 console.log("Set default from address to", from);
             }
             allContractNames.forEach((name) => {
-                const c = (contracts[name] = artifacts.require(name));
+                const c = (contracts[name] = artifactsRef.require(name));
                 setTruffleContractDefaults(c, {
                     networkId,
                     from,

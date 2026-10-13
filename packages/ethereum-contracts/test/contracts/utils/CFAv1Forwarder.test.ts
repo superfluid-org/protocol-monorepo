@@ -1,7 +1,8 @@
 import fs from "fs";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import {expect} from "chai";
-import {assert, ethers} from "hardhat";
+import {assert} from "chai";
+import {ethers} from "hardhat";
 
 import {
     CFAv1Forwarder,
@@ -11,8 +12,8 @@ import {
     TestGovernance,
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
+import {loggedTx} from "../../lib/logged-tx";
 import {expectCustomError} from "../../utils/expectRevert";
-import {deploySuperTokenAndNFTContractsAndInitialize} from "../apps/SuperTokenV1Library.CFA.test";
 import {toBN} from "./helpers";
 
 const mintAmount = "1000000000000000000000000000"; // a small loan of a billion dollars
@@ -39,7 +40,6 @@ describe("Agreement Forwarder", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 4,
         });
 
@@ -55,11 +55,16 @@ describe("Agreement Forwarder", function () {
             cfaV1ForwarderAddress
         );
 
-        await governance.enableTrustedForwarder(
-            host.address,
-            ZERO_ADDRESS,
-            cfaFwd.address
-        );
+        await loggedTx("enable CFAv1Forwarder", async () => {
+            const owner = await governance.owner();
+            return governance
+                .connect(await ethers.getSigner(owner))
+                .enableTrustedForwarder(
+                    host.address,
+                    ZERO_ADDRESS,
+                    cfaFwd.address
+                );
+        });
 
         ({alice, bob, carol} = t.aliases);
         aliceSigner = await ethers.getSigner(alice);
@@ -68,9 +73,11 @@ describe("Agreement Forwarder", function () {
     });
 
     beforeEach(async function () {
-        superToken = await deploySuperTokenAndNFTContractsAndInitialize(t);
-        await superToken.mintInternal(alice, mintAmount, "0x", "0x");
-        await superToken.mintInternal(bob, mintAmount, "0x", "0x");
+        await t.beforeEachTestCase();
+        superToken = t.tokens.SuperToken;
+        await t.upgradeBalance("alice", t.configs.INIT_BALANCE);
+        await t.upgradeBalance("bob", t.configs.INIT_BALANCE);
+        await t.upgradeBalance("carol", t.configs.INIT_BALANCE);
         t.beforeEachTestCaseBenchmark(this);
     });
 
