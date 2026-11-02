@@ -5,7 +5,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [v1.6.6]
 ### Changed
-- `toga` on xdai-mainnet, polygon-mainnet, optimism-mainnet, arbitrum-one, avalanche-c and bsc-mainnet: set to the TOGA contracts that governance made the default reward address on 2026-09-10
+- `toga` addresses for xdai-mainnet, polygon-mainnet, optimism-mainnet, arbitrum-one, avalanche-c and bsc-mainnet changed due to redeployment
 
 ## [v1.6.5]
 ### Added
