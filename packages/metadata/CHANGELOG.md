@@ -3,7 +3,7 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.6.6]
 ### Changed
 - `toga` on xdai-mainnet, polygon-mainnet, optimism-mainnet, arbitrum-one, avalanche-c and bsc-mainnet: set to the TOGA contracts that governance made the default reward address on 2026-09-10
 
