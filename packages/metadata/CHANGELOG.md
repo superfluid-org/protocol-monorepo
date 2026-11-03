@@ -3,6 +3,10 @@ All notable changes to the metadata will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.6]
+### Changed
+- `toga` addresses for xdai-mainnet, polygon-mainnet, optimism-mainnet, arbitrum-one, avalanche-c and bsc-mainnet changed due to redeployment
+
 ## [v1.6.5]
 ### Added
 - new network: Arc mainnet
