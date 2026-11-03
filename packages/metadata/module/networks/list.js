@@ -832,6 +832,7 @@ export default
         "publicRPCs": [
             "https://rpc.mainnet.arc.io",
             "https://rpc.drpc.mainnet.arc.io"
-        ]
+        ],
+        "coinGeckoId": "arc"
     }
 ]
