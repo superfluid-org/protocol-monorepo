@@ -29,7 +29,7 @@ describe("Superfluid Ownable Governance Contract", function () {
         });
 
         ({alice} = t.aliases);
-        ({superfluid, governance} = t.contracts);
+        ({superfluid} = t.contracts);
         aliceSigner = await ethers.getSigner(alice);
 
         const newGovProxyFactory = await ethers.getContractFactory(
@@ -45,7 +45,7 @@ describe("Superfluid Ownable Governance Contract", function () {
         await newGovProxy.initializeProxy(newGovLogic.address);
 
         console.log("governance.replaceGovernance");
-        await governance.replaceGovernance(
+        await t.contracts.governance.replaceGovernance(
             superfluid.address,
             newGovProxy.address
         );

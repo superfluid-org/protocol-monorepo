@@ -330,7 +330,7 @@ describe("SuperTokenV1Library.GDA", function () {
                         )
                     );
                 expect(
-                    await t.contracts.gda["isMemberConnected(address,address)"](
+                    await t.contracts.gda.isMemberConnected(
                         appCreatedPool.address,
                         superTokenLibGDASuperAppMock.address
                     )
