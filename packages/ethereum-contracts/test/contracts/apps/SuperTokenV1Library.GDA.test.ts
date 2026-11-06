@@ -1,6 +1,7 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {expect} from "chai";
 import {ContractReceipt} from "ethers";
-import {ethers, expect, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {
     ConstantFlowAgreementV1,
@@ -12,8 +13,6 @@ import {
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {toBN} from "../utils/helpers";
-
-import {deploySuperTokenAndNFTContractsAndInitialize} from "./SuperTokenV1Library.CFA.test";
 
 const mintAmount = "1000000000000000000000000000"; // a small loan of a billion dollars
 const flowRate = "1000000000000";
@@ -36,7 +35,7 @@ const userData = (
     requestedAmount = 0,
     requestedFlowRate = 0
 ) =>
-    web3.eth.abi.encodeParameters(
+    ethers.utils.defaultAbiCoder.encode(
         [
             "uint8",
             "address",
@@ -84,7 +83,6 @@ describe("SuperTokenV1Library.GDA", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({alice, bob} = t.aliases);
@@ -263,8 +261,7 @@ describe("SuperTokenV1Library.GDA", function () {
             let appSuperToken: SuperTokenMock;
 
             beforeEach(async () => {
-                appSuperToken =
-                    await deploySuperTokenAndNFTContractsAndInitialize(t);
+                appSuperToken = await t.deploySuperTokenMock();
 
                 await appSuperToken.mintInternal(alice, mintAmount, "0x", "0x");
 
@@ -333,7 +330,7 @@ describe("SuperTokenV1Library.GDA", function () {
                         )
                     );
                 expect(
-                    await t.contracts.gda["isMemberConnected(address,address)"](
+                    await t.contracts.gda.isMemberConnected(
                         appCreatedPool.address,
                         superTokenLibGDASuperAppMock.address
                     )

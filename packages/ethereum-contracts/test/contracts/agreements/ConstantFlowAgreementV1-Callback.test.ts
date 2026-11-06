@@ -1,5 +1,6 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {assert, ethers, expect} from "hardhat";
+import {assert, expect} from "chai";
+import {ethers} from "hardhat";
 
 import {
     ConstantFlowAgreementV1,
@@ -39,7 +40,6 @@ describe("CFAv1 | Callback Tests", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({alice, bob} = t.aliases);
@@ -330,7 +330,6 @@ describe("CFAv1 | Callback Tests", function () {
 
         const {superToken: superToken2} = await t.deployNewToken("TEST2", {
             doUpgrade: true,
-            isTruffle: true,
         });
         const FlowExchangeTestAppFactory = await ethers.getContractFactory(
             "FlowExchangeTestApp"

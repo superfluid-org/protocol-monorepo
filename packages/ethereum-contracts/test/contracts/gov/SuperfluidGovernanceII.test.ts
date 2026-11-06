@@ -1,9 +1,11 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {assert, ethers, web3} from "hardhat";
+import {assert} from "chai";
+import {ethers} from "hardhat";
 
 import {SuperfluidGovernanceII, SuperfluidMock} from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
+import {keccak256} from "../utils/helpers";
 
 describe("Superfluid Ownable Governance Contract", function () {
     this.timeout(300e3);
@@ -23,12 +25,11 @@ describe("Superfluid Ownable Governance Contract", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 2,
         });
 
         ({alice} = t.aliases);
-        ({superfluid, governance} = t.contracts);
+        ({superfluid} = t.contracts);
         aliceSigner = await ethers.getSigner(alice);
 
         const newGovProxyFactory = await ethers.getContractFactory(
@@ -44,7 +45,7 @@ describe("Superfluid Ownable Governance Contract", function () {
         await newGovProxy.initializeProxy(newGovLogic.address);
 
         console.log("governance.replaceGovernance");
-        await governance.replaceGovernance(
+        await t.contracts.governance.replaceGovernance(
             superfluid.address,
             newGovProxy.address
         );
@@ -115,7 +116,7 @@ describe("Superfluid Ownable Governance Contract", function () {
         it("#1.2 proxiable info", async () => {
             assert.equal(
                 await governance.proxiableUUID(),
-                web3.utils.sha3(
+                keccak256(
                     "org.superfluid-finance.contracts.SuperfluidGovernanceII.implementation"
                 )
             );
@@ -686,12 +687,12 @@ describe("Superfluid Ownable Governance Contract", function () {
         });
 
         it("#2.7 external set/clear config", async () => {
-            const SUPERFLUID_REWARD_ADDRESS_CONFIG_KEY = web3.utils.sha3(
+            const SUPERFLUID_REWARD_ADDRESS_CONFIG_KEY = keccak256(
                 "org.superfluid-finance.superfluid.rewardAddress"
-            )!;
-            const SUPERTOKEN_MINIMUM_DEPOSIT_KEY = web3.utils.sha3(
+            );
+            const SUPERTOKEN_MINIMUM_DEPOSIT_KEY = keccak256(
                 "org.superfluid-finance.superfluid.superTokenMinimumDeposit"
-            )!;
+            );
 
             // only owner can set config
             await expectCustomError(

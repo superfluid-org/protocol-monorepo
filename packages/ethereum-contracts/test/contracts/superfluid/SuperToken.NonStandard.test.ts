@@ -1,6 +1,7 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {assert, expect} from "chai";
 import {BigNumberish} from "ethers";
-import {artifacts, assert, ethers, expect, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {
     CustomSuperTokenMock,
@@ -13,12 +14,9 @@ import {
     TestToken,
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
+import {loggedTx} from "../../lib/logged-tx";
 import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
-import {toBN, toWad} from "../utils/helpers";
-
-const {web3tx, toDecimals} = require("@decentral.ee/web3-helpers");
-
-const TestToken = artifacts.require("TestToken");
+import {keccak256, toBN, toDecimals, toWad} from "../utils/helpers";
 
 describe("SuperToken's Non Standard Functions", function () {
     this.timeout(300e3);
@@ -36,7 +34,6 @@ describe("SuperToken's Non Standard Functions", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 4,
         });
 
@@ -80,7 +77,7 @@ describe("SuperToken's Non Standard Functions", function () {
         it("#1.2 proxiable info", async () => {
             assert.equal(
                 await superToken.proxiableUUID(),
-                web3.utils.sha3(
+                keccak256(
                     "org.superfluid-finance.contracts.SuperToken.implementation"
                 )
             );
@@ -300,40 +297,31 @@ describe("SuperToken's Non Standard Functions", function () {
         });
 
         it("#2.6 - should convert from smaller underlying decimals", async () => {
-            const token6D = await web3tx(TestToken.new, "TestToken.new")(
-                "Test Token 6 Decimals",
-                "TEST6D",
-                6,
-                ethers.utils.parseUnits((1e12).toString()),
-                {
-                    from: bob,
-                }
-            );
-            await web3tx(token6D.mint, "Mint testToken for bob")(
-                bob,
-                toDecimals("100", 6),
-                {
-                    from: bob,
-                }
-            );
+            const token6DFactory = await ethers.getContractFactory("TestToken");
+            const token6D = await token6DFactory
+                .connect(bobSigner)
+                .deploy(
+                    "Test Token 6 Decimals",
+                    "TEST6D",
+                    6,
+                    ethers.utils.parseUnits((1e12).toString())
+                );
+            await token6D.deployed();
+            await token6D.connect(bobSigner).mint(bob, toDecimals("100", 6));
             assert.equal(
                 (await token6D.balanceOf(bob)).toString(),
                 toDecimals("100", 6)
             );
 
-            const superToken6D = await t.sf.createERC20Wrapper(token6D);
+            const {superToken: superToken6D} =
+                await t.createERC20Wrapper(token6D);
             assert.equal((await superToken6D.balanceOf(bob)).toString(), "0");
 
-            await web3tx(
-                token6D.approve,
-                "TestToken.approve - from bob to SuperToken"
-            )(superToken6D.address, MAX_UINT256, {
-                from: bob,
-            });
+            await token6D
+                .connect(bobSigner)
+                .approve(superToken6D.address, MAX_UINT256);
 
-            await web3tx(superToken6D.upgrade, "upgrade 1 from bob")(toWad(1), {
-                from: bob,
-            });
+            await superToken6D.connect(bobSigner).upgrade(toWad(1));
             assert.equal(
                 (await superToken6D.balanceOf(bob)).toString(),
                 toWad(1).toString()
@@ -343,12 +331,7 @@ describe("SuperToken's Non Standard Functions", function () {
                 toDecimals("99", 6)
             );
 
-            await web3tx(superToken6D.upgrade, "upgrade 0.1234567 from bob")(
-                toWad("0.1234567"),
-                {
-                    from: bob,
-                }
-            );
+            await superToken6D.connect(bobSigner).upgrade(toWad("0.1234567"));
             assert.equal(
                 (await token6D.balanceOf(bob)).toString(),
                 toDecimals("98.876544", 6)
@@ -358,12 +341,7 @@ describe("SuperToken's Non Standard Functions", function () {
                 toWad("1.123456").toString()
             );
 
-            await web3tx(superToken6D.downgrade, "downgrade from bob")(
-                toWad(1),
-                {
-                    from: bob,
-                }
-            );
+            await superToken6D.connect(bobSigner).downgrade(toWad(1));
             assert.equal(
                 (await token6D.balanceOf(bob)).toString(),
                 toDecimals("99.876544", 6)
@@ -374,12 +352,9 @@ describe("SuperToken's Non Standard Functions", function () {
             );
 
             // extra decimals should be discarded due to precision issue
-            await web3tx(
-                superToken6D.downgrade,
-                "downgrade extra decimals from bob"
-            )(toWad("0.10000012345"), {
-                from: bob,
-            });
+            await superToken6D
+                .connect(bobSigner)
+                .downgrade(toWad("0.10000012345"));
             assert.equal(
                 (await token6D.balanceOf(bob)).toString(),
                 toDecimals("99.976544", 6)
@@ -390,12 +365,7 @@ describe("SuperToken's Non Standard Functions", function () {
             );
 
             // downgrade the rest
-            await web3tx(superToken6D.downgrade, "downgrade the rest from bob")(
-                toWad("0.023456"),
-                {
-                    from: bob,
-                }
-            );
+            await superToken6D.connect(bobSigner).downgrade(toWad("0.023456"));
             assert.equal(
                 (await token6D.balanceOf(bob)).toString(),
                 toDecimals("100", 6)
@@ -407,42 +377,34 @@ describe("SuperToken's Non Standard Functions", function () {
         });
 
         it("#2.7 - should convert from larger underlying decimals", async () => {
-            const token20D = await web3tx(TestToken.new, "TestToken.new")(
-                "Test Token 20 Decimals",
-                "TEST20D",
-                20,
-                ethers.utils.parseUnits((1e12).toString()),
-                {
-                    from: bob,
-                }
-            );
-            await web3tx(token20D.mint, "Mint testToken for bob")(
-                bob,
-                toDecimals("100", 20),
-                {
-                    from: bob,
-                }
-            );
+            const token20DFactory =
+                await ethers.getContractFactory("TestToken");
+            const token20D = await token20DFactory
+                .connect(bobSigner)
+                .deploy(
+                    "Test Token 20 Decimals",
+                    "TEST20D",
+                    20,
+                    ethers.utils.parseUnits((1e12).toString())
+                );
+            await token20D.deployed();
+            await token20D.connect(bobSigner).mint(bob, toDecimals("100", 20));
             assert.equal(
                 (await token20D.balanceOf(bob)).toString(),
                 toDecimals("100", 20)
             );
 
-            const superToken6D = await t.sf.createERC20Wrapper(token20D);
-            assert.equal((await superToken6D.balanceOf(bob)).toString(), "0");
+            const {superToken: superToken20D} =
+                await t.createERC20Wrapper(token20D);
+            assert.equal((await superToken20D.balanceOf(bob)).toString(), "0");
 
-            await web3tx(
-                token20D.approve,
-                "TestToken.approve - from bob to SuperToken"
-            )(superToken6D.address, MAX_UINT256, {
-                from: bob,
-            });
+            await token20D
+                .connect(bobSigner)
+                .approve(superToken20D.address, MAX_UINT256);
 
-            await web3tx(superToken6D.upgrade, "upgrade 1 from bob")(toWad(1), {
-                from: bob,
-            });
+            await superToken20D.connect(bobSigner).upgrade(toWad(1));
             assert.equal(
-                (await superToken6D.balanceOf(bob)).toString(),
+                (await superToken20D.balanceOf(bob)).toString(),
                 toWad(1).toString()
             );
             assert.equal(
@@ -450,18 +412,13 @@ describe("SuperToken's Non Standard Functions", function () {
                 toDecimals("99", 20)
             );
 
-            await web3tx(superToken6D.downgrade, "downgrade 1 from bob")(
-                toWad(1),
-                {
-                    from: bob,
-                }
-            );
+            await superToken20D.connect(bobSigner).downgrade(toWad(1));
             assert.equal(
                 (await token20D.balanceOf(bob)).toString(),
                 toDecimals("100", 20)
             );
             assert.equal(
-                (await superToken6D.balanceOf(bob)).toString(),
+                (await superToken20D.balanceOf(bob)).toString(),
                 toWad("0").toString()
             );
         });
@@ -744,17 +701,19 @@ describe("SuperToken's Non Standard Functions", function () {
                 customToken,
                 reason
             );
-            await web3tx(customToken.initialize, "customToken.initialize")(
-                ZERO_ADDRESS,
-                0,
-                "Custom SuperTestToken",
-                "CSTT"
+            await loggedTx(
+                "customToken.initialize",
+                customToken.initialize(
+                    ZERO_ADDRESS,
+                    0,
+                    "Custom SuperTestToken",
+                    "CSTT"
+                )
             );
 
-            await web3tx(customToken.selfMint, "customToken.selfMint")(
-                alice,
-                100,
-                "0x"
+            await loggedTx(
+                "customToken.selfMint",
+                customToken.selfMint(alice, 100, "0x")
             );
             assert.equal(
                 (await customToken.balanceOf(alice)).toString(),
@@ -768,10 +727,9 @@ describe("SuperToken's Non Standard Functions", function () {
                 "SF_TOKEN_BURN_INSUFFICIENT_BALANCE"
             );
 
-            await web3tx(customToken.callSelfBurn, "customToken.callSelfBurn")(
-                alice,
-                100,
-                "0x"
+            await loggedTx(
+                "customToken.callSelfBurn",
+                customToken.callSelfBurn(alice, 100, "0x")
             );
             assert.equal((await customToken.balanceOf(alice)).toString(), "0");
             assert.equal((await customToken.totalSupply()).toString(), "0");
@@ -858,17 +816,19 @@ describe("SuperToken's Non Standard Functions", function () {
         });
 
         it("#3.5 Custom token can use selfApproveFor", async () => {
-            await web3tx(customToken.initialize, "customToken.initialize")(
-                ZERO_ADDRESS,
-                0,
-                "Custom SuperTestToken",
-                "CSTT"
+            await loggedTx(
+                "customToken.initialize",
+                customToken.initialize(
+                    ZERO_ADDRESS,
+                    0,
+                    "Custom SuperTestToken",
+                    "CSTT"
+                )
             );
 
-            await web3tx(customToken.selfMint, "customToken.selfMint")(
-                alice,
-                100,
-                "0x"
+            await loggedTx(
+                "customToken.selfMint",
+                customToken.selfMint(alice, 100, "0x")
             );
             assert.equal(
                 (await customToken.balanceOf(alice)).toString(),
