@@ -90,7 +90,7 @@
         "test:deployment:local": "node --test test/new-ops-scripts/framework-local.test.js",
         "test:deployment:forks": "node --test test/new-ops-scripts/framework-forks.test.js",
         "test-coverage": "yarn run -T run-s \"test-coverage:*\"",
-        "test-coverage:hardhat": "yarn run-hardhat coverage --testfiles testsuites/all-contracts.js --solcoverjs ./.solcover.js",
+        "test-coverage:hardhat": "yarn run-hardhat coverage --testfiles testsuites/all-contracts.ts --solcoverjs ./.solcover.js",
         "test-coverage:foundry": "yarn run-foundry coverage --gas-limit 999999999999 --report lcov",
         "test-slither": "tasks/test-slither.sh",
         "lint": "yarn run -T run-s \"lint:*\"",

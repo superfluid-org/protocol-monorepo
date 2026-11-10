@@ -5497,6 +5497,7 @@ __metadata:
     lodash: "npm:4.18.1"
     mocha: "npm:^10.8.2"
     tsify: "npm:5.0.4"
+    web3: "npm:1.10.4"
   peerDependencies:
     ethers: ^5.7.2
     graphql: ^16.0.0
@@ -25700,7 +25701,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"web3@npm:^1.0.0-beta.34, web3@npm:^1.10.4, web3@npm:^1.2.5, web3@npm:^1.8.1":
+"web3@npm:1.10.4, web3@npm:^1.0.0-beta.34, web3@npm:^1.10.4, web3@npm:^1.2.5, web3@npm:^1.8.1":
   version: 1.10.4
   resolution: "web3@npm:1.10.4"
   dependencies:
