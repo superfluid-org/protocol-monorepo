@@ -8,6 +8,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 ### Changed
+- Remove the Hardhat Web3 plugin dependency from maintained tests; construct Web3
+  providers explicitly and retain public Web3-provider compatibility.
+- Document sdk-core as the replacement for the retired repository js-sdk; see the
+  [migration guide](../js-sdk/README.md). This does not deprecate published js-sdk
+  releases or provide a drop-in compatibility API.
 ### Fixed
 
 ## [0.9.0] - 2024-12-13
