@@ -2,14 +2,42 @@
 set -eu
 set -o pipefail
 
-# Step 3 — Register forwarder address in the resolver.
-#
-# Usage:
-#   new-ops-scripts/register-forwarder.sh <network> <resolverKey> <forwarderAddress>
-#
-# Env: WALLET_NAME, ALLOW_UPDATE=1, SIMULATE=1, SAFE_* (see resolver-set-key.sh)
-#
-# Mainnet: run after activate-forwarder governance tx is executed (or use SKIP_REGISTER on rollout).
-
+# Register only after governance activation has actually executed onchain.
+# Usage: register-forwarder.sh <network> <resolverKey> <forwarderAddress>
+# Env: WALLET_NAME, ALLOW_UPDATE=1 (explicit overwrite), SIMULATE=1, SAFE_*.
+# A successful Safe proposal submission is not proof of activation.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec "$SCRIPT_DIR/resolver-set-key.sh" "$@"
+PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
+# shellcheck source=/dev/null
+_env=$(set -o posix; export -p); [[ -f "$PKG_ROOT/.env" ]] && source "$PKG_ROOT/.env"; [[ -f "$PKG_ROOT/../.env" ]] && source "$PKG_ROOT/../.env"; eval "$_env"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/lib/network-config.sh"
+network="${1:?Usage: $0 <network> <resolverKey> <forwarderAddress>}"
+resolver_key="${2:?Usage: $0 <network> <resolverKey> <forwarderAddress>}"
+forwarder="${3:?Usage: $0 <network> <resolverKey> <forwarderAddress>}"
+[[ $# -eq 3 && "$forwarder" =~ ^0x[a-fA-F0-9]{40}$ ]] || { echo "Invalid forwarder arguments" >&2; exit 1; }
+rpc=$(get_rpc_url "$network")
+host=$(get_host "$network")
+[[ "$host" =~ ^0x[a-fA-F0-9]{40}$ ]] || { echo "No host for $network" >&2; exit 1; }
+for address in "$host" "$forwarder"; do
+    code=$(cast code "$address" --rpc-url "$rpc")
+    if [[ -z "$code" || "$code" == 0x ]]; then
+        echo "Registration blocked: no deployed code at $address" >&2
+        exit 1
+    fi
+done
+trusted=$(cast call "$host" "isTrustedForwarder(address)(bool)" "$forwarder" --rpc-url "$rpc")
+if [[ "$trusted" != true ]]; then
+    echo "Registration blocked: $forwarder is not trusted by host $host onchain." >&2
+    echo "Execute the activation governance transaction first, then rerun register. A Safe proposal is not execution." >&2
+    exit 1
+fi
+resolver=$(jq -r --arg network "$network" '.[] | select(.name == $network) | .contractsV1.resolver' "$METADATA_JSON")
+[[ "$resolver" =~ ^0x[a-fA-F0-9]{40}$ ]] || { echo "No resolver for $network" >&2; exit 1; }
+resolved=$(cast call "$resolver" "get(string)(address)" "$resolver_key" --rpc-url "$rpc")
+if [[ "${resolved,,}" == "${forwarder,,}" ]]; then
+    echo "Already registered: $resolver_key → $forwarder"
+    exit 0
+fi
+exec "$SCRIPT_DIR/resolver-set-key.sh" "$network" "$resolver_key" "$forwarder"
