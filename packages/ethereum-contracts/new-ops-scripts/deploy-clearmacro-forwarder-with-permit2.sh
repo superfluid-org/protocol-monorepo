@@ -2,7 +2,7 @@
 set -eu
 set -o pipefail
 
-# Full ClearMacroForwarderV1WithPermit2 rollout: deploy → verify → register → activate → grant provider role.
+# Full rollout: deploy → verify → activate → confirm execution → register → grant provider role.
 #
 # Usage:
 #   new-ops-scripts/deploy-clearmacro-forwarder-with-permit2.sh <network>
@@ -18,6 +18,9 @@ set -o pipefail
 #   MACRO_PROVIDER_ADMIN_WALLET — optional override for grant step only
 #   ETHERSCAN_API_V2_KEY, SCROLLSCAN_API_KEY (Scroll verify), SIMULATE=1
 #   SKIP_DEPLOY, SKIP_VERIFY, SKIP_REGISTER, SKIP_ACTIVATE, SKIP_GRANT_PROVIDER
+#   FORWARDER_PHASE=all|deploy|verify|activate|register (default all)
+#   ALLOW_UPDATE=1 explicitly permits replacing a different resolver value.
+# After a Safe activation proposal executes, rerun with FORWARDER_PHASE=register.
 #
 # Example:
 #   cd packages/ethereum-contracts
@@ -32,10 +35,6 @@ network="${1:?Usage: $0 <network>}"
 deployer_pk="${PERMIT2CLEARMACROFWD_DEPLOYER_PK:-}"
 expected="${EXPECTED_ADDRESS:-0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e}"
 
-if [[ -z "$deployer_pk" && "${SKIP_DEPLOY:-0}" -ne 1 ]]; then
-    echo "PERMIT2CLEARMACROFWD_DEPLOYER_PK is required (unless SKIP_DEPLOY=1)" >&2
-    exit 1
-fi
 
 rollout_forwarder \
     "$network" \

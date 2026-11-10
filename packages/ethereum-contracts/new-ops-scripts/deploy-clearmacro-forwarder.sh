@@ -2,7 +2,7 @@
 set -eu
 set -o pipefail
 
-# Full ClearMacro forwarder rollout: deploy → verify → register → activate → grant provider role.
+# Full ClearMacro rollout: deploy → verify → activate → confirm execution → register → grant provider role.
 #
 # Usage:
 #   new-ops-scripts/deploy-clearmacro-forwarder.sh <network>
@@ -10,8 +10,8 @@ set -o pipefail
 # Steps (each skippable):
 #   1 deploy-deterministic-forwarder     SKIP_DEPLOY=1
 #   2 verify-forwarder                   SKIP_VERIFY=1
-#   3 register-forwarder                 SKIP_REGISTER=1
-#   4 activate-forwarder                 SKIP_ACTIVATE=1
+#   3 activate-forwarder                 SKIP_ACTIVATE=1
+#   4 register-forwarder (after execution) SKIP_REGISTER=1
 #   5 grant-macro-provider-role          SKIP_GRANT_PROVIDER=1 (or omit CLEARMACRO_PROVIDER_GRANTEE)
 #
 # Env (loaded from packages/ethereum-contracts/.env and packages/.env):
@@ -25,10 +25,12 @@ set -o pipefail
 #   MACRO_PROVIDER_ADMIN_WALLET — optional override for grant step only
 #   ETHERSCAN_API_V2_KEY, SIMULATE=1
 #
-# Mainnet example (resolver after gov executes):
+# Mainnet recovery (a Safe proposal is not execution):
 #   SKIP_REGISTER=1 ./deploy-clearmacro-forwarder.sh eth-mainnet
-#   # … Safe signs activate …
-#   ./register-forwarder.sh eth-mainnet ClearMacroForwarderV1 0x712Fc586…
+#   # … Safe signs AND executes activate …
+#   ALLOW_UPDATE=1 FORWARDER_PHASE=register ./deploy-clearmacro-forwarder.sh eth-mainnet
+# ALLOW_UPDATE=1 deliberately permits replacing an occupied resolver entry.
+# FORWARDER_PHASE also accepts deploy, verify, activate, or all (default).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
@@ -38,10 +40,6 @@ network="${1:?Usage: $0 <network>}"
 deployer_pk="${CLEARMACROFWD_DEPLOYER_PK:-}"
 expected="${EXPECTED_ADDRESS:-0x712Fc5863F53AFBa980207006cfd74F6c25fE055}"
 
-if [[ -z "$deployer_pk" && "${SKIP_DEPLOY:-0}" -ne 1 ]]; then
-    echo "CLEARMACROFWD_DEPLOYER_PK is required (unless SKIP_DEPLOY=1)" >&2
-    exit 1
-fi
 
 rollout_forwarder \
     "$network" \

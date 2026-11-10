@@ -1,59 +1,17 @@
 #!/usr/bin/env bash
 set -eu
+set -o pipefail
 
-# Usage:
-# tasks/deploy-cfa-forwarder.sh <network>
-#
-# The invoking account needs to be (co-)owner of the resolver and governance
-#
-# important ENV vars:
-# RELEASE_VERSION, CFAFWD_DEPLOYER_PK
-# VERIFIERS: optional truffle-plugin-verify list (e.g. sourcify). Unset keeps the plugin default.
-# SKIP_VERIFY: set to skip verification (e.g. SKIP_VERIFY=1)
-#
-# You can use the npm package vanity-eth to get a deployer account for a given contract address:
-# Example use: npx vanityeth -i cfa1 --contract
-#
-# For optimism the gas estimation doesn't work, requires setting EST_TX_COST
-# (the value auto-detected for arbitrum should work).
-#
-# On some networks you may need to use override ENV vars for the deployment to succeed
-
+# Usage: tasks/deploy-cfa-forwarder.sh <network> [all|deploy|verify|activate|register]
+# CFAFWD_DEPLOYER_PK: vanity deployer; WALLET_NAME: funder/admin keystore.
+# SIMULATE=1 never funds, broadcasts, or proposes. SKIP_VERIFY skips explorer verification.
+# Activation may only propose a Safe transaction. Execute it before rerunning register.
+# ALLOW_UPDATE=1 is required to deliberately replace a different resolver value.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
-source .env
-
-set -x
-
-network=$1
-expectedContractAddr="0xcfA132E353cB4E398080B9700609bb008eceB125"
-deployerPk=$CFAFWD_DEPLOYER_PK
-
-tmpfile="/tmp/deploy-cfa-forwarder.sh"
-# deploy
-DETERMINISTIC_DEPLOYER_PK=$deployerPk npx truffle exec --network "$network" ops-scripts/deploy-deterministically.js : CFAv1Forwarder | tee $tmpfile
-contractAddr=$(cat $tmpfile | tail -n 1)
-rm $tmpfile
-
-echo "deployed to $contractAddr"
-if [[ $contractAddr != "$expectedContractAddr" ]]; then
-    echo "oh no!"
-    exit
-fi
-
-# set resolver
-ALLOW_UPDATE=1 npx truffle exec --network "$network" ops-scripts/resolver-set-key-value.js : CFAv1Forwarder "$contractAddr"
-
-# create gov action
-npx truffle exec --network "$network" ops-scripts/gov-set-trusted-forwarder.js : 0x0000000000000000000000000000000000000000 "$contractAddr" 1
-
-# TODO: on mainnets, the resolver entry should be set only after the gov action was signed & executed
-
-# verify last: a verifier failure must not skip resolver or governance
-if [[ -n "${SKIP_VERIFY:-}" ]]; then
-    echo "skipping verification (SKIP_VERIFY)"
-else
-    sleep 5
-    set +e
-    npx truffle run --network "$network" ${VERIFIERS:+--verifiers=$VERIFIERS} verify CFAv1Forwarder@"$contractAddr"
-    set -e
-fi
+source "$SCRIPT_DIR/../new-ops-scripts/lib/rollout-forwarder.sh"
+network="${1:?Usage: $0 <network> [all|deploy|verify|activate|register]}"
+[[ $# -le 2 ]] || { echo "Too many arguments" >&2; exit 1; }
+SKIP_GRANT_PROVIDER=1
+rollout_forwarder "$network" CFAv1Forwarder CFAv1Forwarder \
+    0xcfA132E353cB4E398080B9700609bb008eceB125 "${CFAFWD_DEPLOYER_PK:-}" "${2:-all}"

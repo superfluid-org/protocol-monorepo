@@ -40,11 +40,6 @@ elif [[ "$network" == "scroll-mainnet" ]]; then
         --verifier blockscout
         --verifier-url "https://scrollscan.com/api"
     )
-elif [[ "$network" == "degenchain" ]]; then
-    VERIFIER_ARGS=(
-        --verifier blockscout
-        --verifier-url "https://explorer.degen.tips/api"
-    )
 else
     if [[ -z "${ETHERSCAN_API_V2_KEY:-}" ]]; then
         echo "ETHERSCAN_API_V2_KEY is required" >&2

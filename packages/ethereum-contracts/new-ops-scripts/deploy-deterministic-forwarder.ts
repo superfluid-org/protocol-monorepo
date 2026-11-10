@@ -19,8 +19,8 @@
  *     (manual override if auto-estimate unsupported)
  *   SIMULATE=1                — checks only, no fund/deploy
  *
- * Follow-up: verify-forwarder.sh, register-forwarder.sh, activate-forwarder.sh
- *            (or deploy-clearmacro-forwarder.sh for the full rollout).
+ * Follow-up: verify-forwarder.sh, activate-forwarder.sh, then register-forwarder.sh
+ *            after activation execution (or a forwarder task for the full rollout).
  */
 import type { Address, Hex } from "viem";
 import {
@@ -127,7 +127,7 @@ async function main(): Promise<void> {
   }
 
   const nonce = process.env.NONCE ? parseInt(process.env.NONCE, 10) : 0;
-  const simulate = process.env.SIMULATE === "1";
+  const simulate = Boolean(process.env.SIMULATE);
   const funder = process.env.WALLET_NAME ?? "sf-ops";
   const expected =
     (process.env.EXPECTED_ADDRESS?.trim() as Address | undefined) ??
