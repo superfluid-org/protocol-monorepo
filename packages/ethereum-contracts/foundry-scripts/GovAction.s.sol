@@ -79,11 +79,26 @@ contract GovAction is Script {
         if (hash == keccak256(bytes("batchChangeSuperTokenAdmin"))) return _executeBatchChangeSuperTokenAdmin;
         if (hash == keccak256(bytes("registerAgreementClass"))) return _executeRegisterAgreementClass;
         if (hash == keccak256(bytes("replaceGovernance"))) return _executeReplaceGovernance;
+        if (hash == keccak256(bytes("setAppRegistrationKey"))) return _executeSetAppRegistrationKey;
 
         revert("Unknown action type");
     }
 
     // ============ Action Handlers ============
+
+    // Still a live fallback in Superfluid._enforceAppRegistrationPermissioning.
+    function _executeSetAppRegistrationKey(BaseConfig memory baseConfig) internal {
+        bytes memory actionData = abi.encodeWithSelector(
+            SuperfluidGovernanceBase.setAppRegistrationKey.selector,
+            ISuperfluid(baseConfig.host),
+            vm.envAddress("APP_DEPLOYER"),
+            vm.envString("REGISTRATION_KEY"),
+            vm.envUint("EXPIRATION_TS")
+        );
+        DeployUtils.executeGovernanceAction(
+            address(baseConfig.governance), actionData, baseConfig.governanceAdmin
+        );
+    }
 
     function _executeSetTokenMinimumDeposit(BaseConfig memory baseConfig) internal {
         string memory tokenAddrStr = vm.envOr("TOKEN_ADDRESS", string(""));

@@ -43,6 +43,7 @@ if [ -z "$NETWORK" ]; then
     echo "  batchChangeSuperTokenAdmin <TOKEN_ADDRESSES_JSON> <NEW_ADMINS_JSON>"
     echo "  registerAgreementClass <AGREEMENT_CLASS>"
     echo "  replaceGovernance <NEW_GOVERNANCE>"
+    echo "  setAppRegistrationKey <DEPLOYER> [EXPIRATION_TS] [REGISTRATION_KEY]"
     exit 1
 fi
 
@@ -62,7 +63,7 @@ echo "Using RPC: $PROVIDER_URL"
 
 echo "Using WALLET: $WALLET_NAME"
 
-HOST_ADDRESS=$(get_host "$NETWORK")
+HOST_ADDRESS=${HOST_ADDRESS:-$(get_host "$NETWORK")}
 if [[ -z "$HOST_ADDRESS" || "$HOST_ADDRESS" == "null" || ! "$HOST_ADDRESS" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
     echo "HOST_ADDRESS is not a valid Ethereum address" >&2
     exit 1
@@ -73,6 +74,11 @@ echo "Using ACTION_TYPE: $ACTION_TYPE"
 
 # Parse action-specific arguments based on action type
 case "$ACTION_TYPE" in
+    setAppRegistrationKey)
+        export APP_DEPLOYER="${3:?DEPLOYER required}"
+        export EXPIRATION_TS="${4:-18446744073709551615}"
+        export REGISTRATION_KEY="${5:-k1}"
+        ;;
     setTokenMinimumDeposit)
         if [ $# -lt 4 ]; then
             echo "Error: setTokenMinimumDeposit requires TOKEN_ADDRESS and MINIMUM_DEPOSIT"
@@ -212,15 +218,12 @@ cd "$PKG_ROOT"
 # Build forge command with conditional flags
 forge_args=(script foundry-scripts/GovAction.s.sol:GovAction --rpc-url "$PROVIDER_URL")
 if [[ -n "${SIMULATE:-}" ]]; then
-    forge_args+=(--private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)
+    source "$SCRIPT_DIR/lib/simulation-sender.sh"
+    governance=$(cast call "$HOST_ADDRESS" 'getGovernance()(address)' --rpc-url "$PROVIDER_URL")
+    admin=$(cast call "$governance" 'owner()(address)' --rpc-url "$PROVIDER_URL")
+    forge_args+=(--sender "$(get_simulation_sender "$admin" "$PROVIDER_URL")")
 else
-    forge_args+=(--account "$WALLET_NAME" --broadcast --verify)
-    if [[ -n "${ETHERSCAN_API_KEY:-}" ]]; then
-        echo "ETHERSCAN_API_KEY is set"
-        forge_args+=(--etherscan-api-key "$ETHERSCAN_API_KEY")
-    else
-        echo "ETHERSCAN_API_KEY is not set"
-    fi
+    forge_args+=(--account "$WALLET_NAME" --broadcast)
 fi
 
 SAFE_PAYLOADS_DIR="$PKG_ROOT/.tmp/safe-payloads"
