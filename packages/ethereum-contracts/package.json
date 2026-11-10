@@ -81,6 +81,7 @@
         "testenv:stop": "test/testenv-ctl.sh stop",
         "testenv:deploy": "yarn run-truffle exec ops-scripts/deploy-test-environment.js : TEST",
         "test": "yarn run -T run-s \"test:*:*\"",
+        "test:build:abis": "node --test tasks/test/abi-generation.test.js",
         "test:contracts:hardhat": "yarn run-hardhat test testsuites/all-contracts.ts",
         "test:contracts:foundry": "yarn run-foundry test --hardhat --no-match-contract Fork",
         "test:contracts:solc-compatibility": "test/test-solc-compatibility.sh",

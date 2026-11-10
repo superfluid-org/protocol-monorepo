@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 
+const readHardhatAbis = require("../../ethereum-contracts/tasks/read-hardhat-abis");
+
 const contracts = [
     "ERC20",
     "IConstantFlowAgreementV1",
@@ -16,24 +18,12 @@ const contracts = [
     "TOGA",
 ];
 
-const directoryPath = path.join(__dirname, "../../ethereum-contracts/build/truffle");
-
-fs.mkdir("abis/", (err) => {
-    if (err) return; //console.error(err);
-    console.log("abis/ directory created");
-});
-
-fs.readdir(directoryPath, (err, files) => {
-    if (err) return console.log(err);
-    console.log("Fetched ABIs for the following contracts:");
-    files.forEach((fileName) => {
-        const contractName = fileName.split(".")[0];
-        if (!contracts.includes(contractName)) return;
-        const data = require(path.join(directoryPath, fileName));
-        const abi = data.abi;
-        fs.writeFile(`abis/${fileName}`, JSON.stringify(abi), (err) => {
-            if (err) throw err;
-            console.log(`- ${contractName}`);
-        });
-    });
-});
+// Fail before writing if any required contract is missing or ambiguous.
+const abis = readHardhatAbis(contracts);
+const outputDir = path.resolve(__dirname, "../abis");
+fs.mkdirSync(outputDir, { recursive: true });
+console.log("Fetched ABIs for the following contracts:");
+for (const [name, abi] of Object.entries(abis)) {
+    fs.writeFileSync(path.join(outputDir, `${name}.json`), JSON.stringify(abi));
+    console.log(`- ${name}`);
+}
