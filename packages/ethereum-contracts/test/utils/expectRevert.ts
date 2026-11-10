@@ -1,5 +1,5 @@
 import {Contract} from "ethers";
-import {expect} from "hardhat";
+import {expect} from "chai";
 
 export const expectRevertedWith = async (
     func: Promise<any>,

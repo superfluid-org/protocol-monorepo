@@ -1,5 +1,6 @@
+import {assert, expect} from "chai";
 import {BigNumber} from "ethers";
-import {assert, ethers, expect} from "hardhat";
+import {ethers} from "hardhat";
 
 import {SuperToken} from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
@@ -18,9 +19,7 @@ import {
     shouldDistribute,
     shouldUpdateSubscription,
 } from "../agreements/InstantDistributionAgreementV1.behaviour";
-import {toBN, toWad} from "../utils/helpers";
-
-const {wad4human} = require("@decentral.ee/web3-helpers");
+import {toBN, toWad, wad4human} from "../utils/helpers";
 
 const DEFAULT_INDEX_ID = "42";
 
@@ -41,7 +40,6 @@ describe("Superfluid scenarios", function () {
 
     before(async function () {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({alice, bob, carol, dan} = t.aliases);

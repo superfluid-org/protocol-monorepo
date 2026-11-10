@@ -1,4 +1,5 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {BaseContract} from "ethers";
 import {FunctionFragment, Interface} from "ethers/lib/utils";
 import {ethers} from "hardhat";
 
@@ -45,6 +46,22 @@ export default class AgreementHelper {
                 params.callData,
                 params.userData || "0x"
             );
+    }
+
+    /** Calls `fn` of `agreement` through the host, signed by `sender`. */
+    async callAgreementAs(
+        sender: string,
+        agreement: BaseContract,
+        fn: string,
+        args: readonly unknown[],
+        userData = "0x"
+    ) {
+        return this.callAgreement({
+            agreementAddress: agreement.address,
+            callData: agreement.interface.encodeFunctionData(fn, args),
+            userData,
+            signer: await ethers.getSigner(sender),
+        });
     }
 
     async callAppAction(params: CallAppActionParams) {

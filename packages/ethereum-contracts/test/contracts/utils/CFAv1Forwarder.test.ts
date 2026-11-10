@@ -1,7 +1,7 @@
 import fs from "fs";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
-import {expect} from "chai";
-import {assert, ethers} from "hardhat";
+import {assert, expect} from "chai";
+import {ethers} from "hardhat";
 
 import {
     CFAv1Forwarder,
@@ -12,7 +12,6 @@ import {
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
 import {expectCustomError} from "../../utils/expectRevert";
-import {deploySuperTokenAndNFTContractsAndInitialize} from "../apps/SuperTokenV1Library.CFA.test";
 import {toBN} from "./helpers";
 
 const mintAmount = "1000000000000000000000000000"; // a small loan of a billion dollars
@@ -39,7 +38,6 @@ describe("Agreement Forwarder", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 4,
         });
 
@@ -68,7 +66,7 @@ describe("Agreement Forwarder", function () {
     });
 
     beforeEach(async function () {
-        superToken = await deploySuperTokenAndNFTContractsAndInitialize(t);
+        superToken = await t.deploySuperTokenMock();
         await superToken.mintInternal(alice, mintAmount, "0x", "0x");
         await superToken.mintInternal(bob, mintAmount, "0x", "0x");
         t.beforeEachTestCaseBenchmark(this);

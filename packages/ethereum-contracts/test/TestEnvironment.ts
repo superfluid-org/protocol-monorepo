@@ -1,13 +1,12 @@
 import fs from "fs";
 
+import {assert, expect} from "chai";
 import {createObjectCsvWriter as createCsvWriter} from "csv-writer";
 import {BigNumber} from "ethers";
-import {artifacts, assert, ethers, expect, network, web3} from "hardhat";
+import {ethers, network} from "hardhat";
 import _ from "lodash";
-import Web3 from "web3";
 
 import {
-    ISuperToken,
     ISuperToken__factory,
     PoolAdminNFT__factory,
     SuperTokenMock,
@@ -17,7 +16,13 @@ import {
 import {VerifyOptions} from "./contracts/agreements/Agreement.types";
 import AgreementHelper from "./contracts/agreements/AgreementHelper";
 import CFADataModel from "./contracts/agreements/ConstantFlowAgreementV1.data";
-import {max, min, toBN, toWad} from "./contracts/utils/helpers";
+import {max, min, toBN, toWad, wad4human} from "./contracts/utils/helpers";
+import {
+    deployFramework,
+    DeployFrameworkOptions,
+    RELEASE_VERSION,
+} from "./lib/deploy-framework";
+import {loggedTx} from "./lib/logged-tx";
 import {
     BenchmarkingData,
     CUSTOM_ERROR_CODES,
@@ -29,16 +34,6 @@ import {
     TestEnvironmentData,
     TestEnvironmentPlotData,
 } from "./types";
-
-const {web3tx, wad4human} = require("@decentral.ee/web3-helpers");
-const SuperfluidSDK = require("@superfluid-finance/js-sdk");
-
-const deployFramework = require("../ops-scripts/deploy-framework");
-const deploySuperToken = require("../ops-scripts/deploy-super-token");
-const deployTestToken = require("../ops-scripts/deploy-test-token");
-
-const SuperTokenMock = artifacts.require("SuperTokenMock");
-const TestToken = artifacts.require("TestToken");
 
 let _singleton: TestEnvironment;
 const TOKEN_SYMBOL = "TEST";
@@ -57,7 +52,8 @@ export default class TestEnvironment {
     benchmarkingData: BenchmarkingData[];
     data: TestEnvironmentData;
     plotData: TestEnvironmentPlotData;
-    _evmSnapshots: {id: string; resolverAddress?: string}[];
+    _evmSnapshots: {id: string; resolverAddress: string}[];
+    _resolverAddress: string;
     customErrorCode: CustomErrorCodeType;
     configs: TestEnvironmentConfigs;
     constants: TestEnvironmentConstants;
@@ -66,7 +62,6 @@ export default class TestEnvironment {
     aliases: {[alias: string]: string};
     accounts: string[];
     tokens: {TestToken: TestToken; SuperToken: SuperTokenMock};
-    sf: any;
 
     constructor() {
         this.benchmarkingTemp = {
@@ -86,6 +81,7 @@ export default class TestEnvironment {
         this.aliases = {};
         this.accounts = [];
         this._evmSnapshots = [];
+        this._resolverAddress = "";
         this.tokens = {} as any;
 
         this.agreementHelper = new AgreementHelper(this);
@@ -116,12 +112,6 @@ export default class TestEnvironment {
         this.gasReportType = process.env.ENABLE_GAS_REPORT_TYPE;
     }
 
-    createErrorHandler() {
-        return (err: any) => {
-            if (err) throw err;
-        };
-    }
-
     static getSingleton() {
         if (!_singleton) {
             _singleton = new TestEnvironment();
@@ -146,7 +136,7 @@ export default class TestEnvironment {
         const evmSnapshotId = await this._takeEvmSnapshot();
         this._evmSnapshots.push({
             id: evmSnapshotId,
-            resolverAddress: process.env.RESOLVER_ADDRESS,
+            resolverAddress: this._resolverAddress,
         });
         console.debug(
             "pushEvmSnapshot",
@@ -180,16 +170,14 @@ export default class TestEnvironment {
         let oldEvmSnapshotId = "";
         const popped = this._evmSnapshots.pop();
         if (popped) {
-            ({
-                id: oldEvmSnapshotId,
-                resolverAddress: process.env.RESOLVER_ADDRESS,
-            } = popped);
+            ({id: oldEvmSnapshotId, resolverAddress: this._resolverAddress} =
+                popped);
         }
         await this._revertToEvmSnapShot(oldEvmSnapshotId);
         const newEvmSnapshotId = await this._takeEvmSnapshot();
         this._evmSnapshots.push({
             id: newEvmSnapshotId,
-            resolverAddress: process.env.RESOLVER_ADDRESS,
+            resolverAddress: this._resolverAddress,
         });
         console.debug(
             "useLastEvmSnapshot",
@@ -214,63 +202,28 @@ export default class TestEnvironment {
 
     /**
      * @dev Run before the test suite
-     * @param isTruffle Is test environment initialized in a truffle environment
-     * @param nAccounts Number of test accounts to be loaded from web3
-     * @param tokens Tokens to be loaded
+     * @param nAccounts Number of test accounts to be loaded
      */
-    async beforeTestSuite({
-        isTruffle,
-        nAccounts,
-        tokens,
-        web3,
-    }: {
-        isTruffle: boolean;
-        nAccounts: number;
-        tokens?: string[];
-        web3?: Web3;
-    }) {
+    async beforeTestSuite({nAccounts}: {nAccounts: number}) {
         const MAX_TEST_ACCOUNTS = 10;
         nAccounts = nAccounts || 0;
         assert(nAccounts <= MAX_TEST_ACCOUNTS);
-        tokens = typeof tokens === "undefined" ? ["TEST"] : tokens;
-        const allAccounts = await (
-            web3 || (global as any).web3
-        ).eth.getAccounts();
+        const allAccounts = (await ethers.getSigners()).map((s) => s.address);
         const testAccounts = allAccounts.slice(0, nAccounts);
         this.setupDefaultAliases(testAccounts);
 
         // deploy default test environment if needed
         if (this._evmSnapshots.length === 0) {
-            // Can we load from externally saved snapshots?
-            if (!process.env.TESTENV_SNAPSHOT_VARS) {
-                console.log("Creating a new evm snapshot");
-                await this.deployFramework({isTruffle, web3, useMocks: true});
-                this.contracts.resolver = await ethers.getContractAt(
-                    "Resolver",
-                    process.env.RESOLVER_ADDRESS || ""
-                );
-                await this.deployNewToken("TEST", {
-                    isTruffle,
-                    web3,
-                    accounts: allAccounts.slice(0, MAX_TEST_ACCOUNTS),
-                });
-                await this.pushEvmSnapshot();
-            } else {
-                console.log("Loading from externally saved snapshot");
-                require("dotenv").config({
-                    path: process.env.TESTENV_SNAPSHOT_VARS,
-                });
-                this._evmSnapshots.push({
-                    id: process.env.TESTENV_EVM_SNAPSHOT_ID || "",
-                    resolverAddress: process.env.RESOLVER_ADDRESS,
-                });
-                await this.useLastEvmSnapshot();
-                await this.mintTestTokensAndApprove(
-                    "TEST",
-                    allAccounts.slice(0, nAccounts)
-                );
-                await this.pushEvmSnapshot();
-            }
+            console.log("Creating a new evm snapshot");
+            await this.deployFramework();
+            this.contracts.resolver = await ethers.getContractAt(
+                "Resolver",
+                this._resolverAddress
+            );
+            await this.deployNewToken(TOKEN_SYMBOL, {
+                accounts: allAccounts.slice(0, MAX_TEST_ACCOUNTS),
+            });
+            await this.pushEvmSnapshot();
         } else {
             console.debug(
                 "Current evm snapshots",
@@ -279,65 +232,53 @@ export default class TestEnvironment {
             await this.useLastEvmSnapshot();
         }
 
-        // load the SDK
-        this.sf = new SuperfluidSDK.Framework({
-            gasReportType: this.gasReportType,
-            isTruffle: isTruffle,
-            web3,
-            version: process.env.RELEASE_VERSION || "test",
-            tokens,
-        });
-        await this.sf.initialize();
+        await this.loadContracts();
+    }
 
+    async loadContracts() {
+        const resolver = await ethers.getContractAt(
+            "Resolver",
+            this._resolverAddress
+        );
+        const loader = await ethers.getContractAt(
+            "SuperfluidLoader",
+            await resolver.get("SuperfluidLoader-v1")
+        );
+        const framework = await loader.loadFramework(RELEASE_VERSION);
+        const superfluid = await ethers.getContractAt(
+            "SuperfluidMock",
+            framework.superfluid
+        );
         const signer = await ethers.getSigner(this.accounts[0]);
 
-        // load contracts with testing/mocking interfaces
-        await Promise.all([
-            // load singletons
-            (this.contracts.erc1820 = await ethers.getContractAt(
+        this.contracts = {
+            erc1820: await ethers.getContractAt(
                 "IERC1820Registry",
                 "0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24"
-            )),
-            // load host contract
-            (this.contracts.superfluid = await ethers.getContractAt(
-                "SuperfluidMock",
-                this.sf.host.address
-            )),
-            // load agreement contracts
-            (this.contracts.cfa = await ethers.getContractAt(
+            ),
+            superfluid,
+            cfa: await ethers.getContractAt(
                 "ConstantFlowAgreementV1",
-                this.sf.agreements.cfa.address
-            )),
-            (this.contracts.ida = await ethers.getContractAt(
+                framework.agreementCFAv1
+            ),
+            ida: await ethers.getContractAt(
                 "InstantDistributionAgreementV1",
-                this.sf.agreements.ida.address
-            )),
-            (this.contracts.gda = await ethers.getContractAt(
+                framework.agreementIDAv1
+            ),
+            gda: await ethers.getContractAt(
                 "GeneralDistributionAgreementV1",
-                await this.contracts.superfluid.getAgreementClass(
-                    ethers.utils.solidityKeccak256(
-                        ["string"],
-                        [
-                            "org.superfluid-finance.agreements.GeneralDistributionAgreement.v1",
-                        ]
-                    )
-                )
-            )),
-            // load governance contract
-            (this.contracts.governance = await ethers.getContractAt(
+                framework.agreementGDAv1
+            ),
+            governance: await ethers.getContractAt(
                 "TestGovernance",
-                await this.sf.host.getGovernance()
-            )),
-            (this.contracts.ISuperToken = new ethers.Contract(
-                "ISuperToken",
-                ISuperToken__factory.abi,
+                await superfluid.getGovernance()
+            ),
+            ISuperToken: ISuperToken__factory.connect(
+                ethers.constants.AddressZero,
                 signer
-            ) as ISuperToken),
-            (this.contracts.resolver = await ethers.getContractAt(
-                "Resolver",
-                this.sf.resolver.address
-            )),
-        ]);
+            ),
+            resolver,
+        };
         this.agreementHelper = new AgreementHelper(this);
     }
 
@@ -362,33 +303,32 @@ export default class TestEnvironment {
         };
 
         // reset governance parameters
-        await Promise.all([
-            await web3tx(
-                this.contracts.governance.setPPPConfig,
-                "reset 3Ps config"
-            )(
-                this.contracts.superfluid.address,
+        const {governance, superfluid} = this.contracts;
+        await loggedTx(
+            "reset 3Ps config",
+            governance.setPPPConfig(
+                superfluid.address,
                 this.constants.ZERO_ADDRESS,
                 this.configs.LIQUIDATION_PERIOD,
                 this.configs.PATRICIAN_PERIOD
-            ),
-            await web3tx(
-                this.contracts.governance.setRewardAddress,
-                "reset reward address to admin"
-            )(
-                this.contracts.superfluid.address,
+            )
+        );
+        await loggedTx(
+            "reset reward address to admin",
+            governance.setRewardAddress(
+                superfluid.address,
                 this.constants.ZERO_ADDRESS,
                 this.aliases.admin
-            ),
-            await web3tx(
-                this.contracts.governance.setSuperTokenMinimumDeposit,
-                `set superToken minimum deposit@${this.configs.MINIMUM_DEPOSIT.toString()}`
-            )(
-                this.contracts.superfluid.address,
+            )
+        );
+        await loggedTx(
+            `set superToken minimum deposit@${this.configs.MINIMUM_DEPOSIT.toString()}`,
+            governance.setSuperTokenMinimumDeposit(
+                superfluid.address,
                 this.constants.ZERO_ADDRESS,
-                this.configs.MINIMUM_DEPOSIT.toString()
-            ),
-        ]);
+                this.configs.MINIMUM_DEPOSIT
+            )
+        );
     }
     beforeEachTestCaseBenchmark(mocha: Mocha.Context) {
         this.benchmarkingTemp.testName =
@@ -406,16 +346,9 @@ export default class TestEnvironment {
         this.benchmarkingData = [...this.benchmarkingData, benchmarkingData];
     }
 
-    /// deploy framework
-    async deployFramework(deployOpts: any) {
-        // deploy framework
-        await deployFramework(this.createErrorHandler(), {
-            newTestResolver: true,
-            isTruffle: deployOpts.isTruffle,
-            web3: deployOpts.web3,
-            useMocks: deployOpts.useMocks,
-            ...deployOpts,
-        });
+    /// deploy a fresh framework, used by the next beforeTestSuite
+    async deployFramework(deployOpts: DeployFrameworkOptions = {}) {
+        this._resolverAddress = (await deployFramework(deployOpts)).address;
     }
 
     getAndSetTestTokenAndSuperTokenMock = async (tokenSymbol: string) => {
@@ -426,7 +359,7 @@ export default class TestEnvironment {
             "TestToken",
             testTokenAddress
         );
-        const superTokenKey = "supertokens.test." + tokenSymbol + "x";
+        const superTokenKey = `supertokens.${RELEASE_VERSION}.${tokenSymbol}x`;
         const superTokenAddress =
             await this.contracts.resolver.get(superTokenKey);
 
@@ -450,37 +383,89 @@ export default class TestEnvironment {
     async deployNewToken(
         tokenSymbol: string,
         {
-            isTruffle,
-            web3,
             accounts,
             doUpgrade,
         }: {
-            isTruffle: boolean;
-            web3?: Web3;
             accounts?: string[];
             doUpgrade?: boolean;
-        }
+        } = {}
     ) {
         accounts = accounts || this.accounts;
+        const resolver = await ethers.getContractAt(
+            "Resolver",
+            this._resolverAddress
+        );
 
-        await deployTestToken(this.createErrorHandler(), [":", tokenSymbol], {
-            isTruffle: isTruffle,
-            web3,
-        });
-        await deploySuperToken(this.createErrorHandler(), [":", tokenSymbol], {
-            isTruffle: isTruffle,
-            web3,
-        });
+        const testTokenFactory = await ethers.getContractFactory("TestToken");
+        const testToken = await testTokenFactory.deploy(
+            `${tokenSymbol} Fake Token`,
+            tokenSymbol,
+            18,
+            toBN(2).pow(100) /* mint limit */
+        );
+        await loggedTx(
+            `resolver.set tokens.${tokenSymbol}`,
+            resolver.set(`tokens.${tokenSymbol}`, testToken.address)
+        );
 
-        const {testToken, superToken} =
-            await this.getAndSetTestTokenAndSuperTokenMock(tokenSymbol);
+        const superfluid = await ethers.getContractAt(
+            "Superfluid",
+            await resolver.get(`Superfluid.${RELEASE_VERSION}`)
+        );
+        const {superToken} = await this.createERC20Wrapper(
+            testToken,
+            1 /* SEMI_UPGRADABLE */,
+            superfluid.address
+        );
+        await loggedTx(
+            `resolver.set supertokens.${RELEASE_VERSION}.${tokenSymbol}x`,
+            resolver.set(
+                `supertokens.${RELEASE_VERSION}.${tokenSymbol}x`,
+                superToken.address
+            )
+        );
 
         await this.mintTestTokensAndApprove(tokenSymbol, accounts, doUpgrade);
 
-        return {
-            testToken,
-            superToken,
-        };
+        return {testToken, superToken};
+    }
+
+    /**
+     * @dev Create a wrapper super token through the super token factory
+     * @param upgradability 0 = non-upgradable, 1 = semi-upgradable, 2 = full-upgradable
+     */
+    async createERC20Wrapper(
+        token: TestToken,
+        upgradability = 1,
+        superfluidAddress = this.contracts.superfluid.address
+    ) {
+        const superfluid = await ethers.getContractAt(
+            "Superfluid",
+            superfluidAddress
+        );
+        const factory = await ethers.getContractAt(
+            "ISuperTokenFactory",
+            await superfluid.getSuperTokenFactory()
+        );
+        const tokenSymbol = await token.symbol();
+        const receipt = await loggedTx(
+            `create super token ${tokenSymbol}x`,
+            factory["createERC20Wrapper(address,uint8,string,string)"](
+                token.address,
+                upgradability,
+                `Super ${await token.name()}`,
+                `${tokenSymbol}x`
+            )
+        );
+        const event = receipt.events?.find(
+            (e) => e.event === "SuperTokenCreated"
+        );
+        assert.isDefined(event, "SuperTokenCreated not emitted");
+        const superToken = await ethers.getContractAt(
+            "SuperTokenMock",
+            event!.args!.token
+        );
+        return {superToken, receipt};
     }
 
     async mintTestTokensAndApprove(
@@ -578,8 +563,8 @@ export default class TestEnvironment {
      *************************************************************************/
 
     getFlowOperatorId(sender: string, flowOperator: string) {
-        return web3.utils.keccak256(
-            web3.eth.abi.encodeParameters(
+        return ethers.utils.keccak256(
+            ethers.utils.defaultAbiCoder.encode(
                 ["string", "address", "address"],
                 ["flowOperator", sender, flowOperator]
             )
@@ -619,6 +604,20 @@ export default class TestEnvironment {
         const contract = await contractFactory.deploy(...args);
 
         return contract as T;
+    };
+
+    /**
+     * @note Deploy a fresh SuperTokenMock with pool admin NFT wiring for tests
+     * that do not use the env token and need mintInternal.
+     */
+    deploySuperTokenMock = async () => {
+        const {poolAdminNFTProxy} = await this.deployNFTContracts();
+        return this.deployContract<SuperTokenMock>(
+            "SuperTokenMock",
+            this.contracts.superfluid.address,
+            "69",
+            poolAdminNFTProxy.address
+        );
     };
 
     /**************************************************************************

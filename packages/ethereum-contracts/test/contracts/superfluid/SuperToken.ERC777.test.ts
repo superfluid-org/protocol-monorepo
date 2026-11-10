@@ -1,8 +1,11 @@
-import {artifacts, assert, ethers, expect, web3} from "hardhat";
+import {assert, expect} from "chai";
+import {ethers} from "hardhat";
 
 import {IERC1820Registry, SuperTokenMock} from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
+import {expectEvent} from "../../utils/expectEvent";
 import {expectCustomError, expectRevertedWith} from "../../utils/expectRevert";
+import {keccak256, toWad} from "../utils/helpers";
 
 import {
     shouldBehaveLikeERC777DirectSendBurn,
@@ -12,22 +15,14 @@ import {
     shouldBehaveLikeERC777UnauthorizedOperatorSendBurn,
 } from "./ERC777.behavior";
 
-const {web3tx, toWad} = require("@decentral.ee/web3-helpers");
-const {expectEvent} = require("@openzeppelin/test-helpers");
-
-const ERC777SenderRecipientMock = artifacts.require(
-    "ERC777SenderRecipientMock"
-);
-const SuperTokenMock = artifacts.require("SuperTokenMock");
-
 describe("SuperToken's ERC777 implementation", function () {
     this.timeout(300e3);
     const t = TestEnvironment.getSingleton();
 
     const {ZERO_ADDRESS} = t.constants;
     const initialSupply = toWad(50);
-    const testData = web3.utils.sha3("OZ777TestData")!;
-    const operatorData = web3.utils.sha3("OZ777TestOperatorData")!;
+    const testData = keccak256("OZ777TestData");
+    const operatorData = keccak256("OZ777TestOperatorData");
 
     let holder: string,
         defaultOperatorA: string,
@@ -37,9 +32,17 @@ describe("SuperToken's ERC777 implementation", function () {
     let erc1820: IERC1820Registry;
     let tokenContract: SuperTokenMock;
 
+    async function newERC777SenderRecipientMock() {
+        const factory = await ethers.getContractFactory(
+            "ERC777SenderRecipientMock"
+        );
+        const mock = await factory.deploy();
+        await mock.deployed();
+        return mock;
+    }
+
     before(async function () {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 6,
         });
 
@@ -50,16 +53,12 @@ describe("SuperToken's ERC777 implementation", function () {
             dan: newOperator,
             eve: anyone,
         } = t.aliases);
-        this.token = await SuperTokenMock.at(t.tokens.SuperToken.address);
+        this.token = t.tokens.SuperToken;
         tokenContract = t.tokens.SuperToken;
         ({erc1820} = t.contracts);
 
-        await web3tx(
-            this.token.upgrade,
-            "Upgrade initialSupply amount of token for holder"
-        )(initialSupply, {
-            from: holder,
-        });
+        const holderSigner = await ethers.getSigner(holder);
+        await this.token.connect(holderSigner).upgrade(initialSupply);
         await t.pushEvmSnapshot();
         this.testenv = t;
     });
@@ -100,7 +99,7 @@ describe("SuperToken's ERC777 implementation", function () {
             });
 
             it("returns decimals (non-ERC777 standard)", async function () {
-                assert.equal(await this.token.decimals.call(), 18);
+                assert.equal(await this.token.decimals(), 18);
             });
 
             it("returns a granularity of 1", async function () {
@@ -122,18 +121,18 @@ describe("SuperToken's ERC777 implementation", function () {
             });
 
             it("returns the total supply", async function () {
-                expect(await this.token.totalSupply(), toWad(100));
+                expect(await this.token.totalSupply()).to.equal(initialSupply);
             });
 
             it("returns 18 when decimals is called", async function () {
-                expect((await this.token.decimals()).toString(), "18");
+                expect((await this.token.decimals()).toString()).to.equal("18");
             });
 
             it("the ERC777Token interface is registered in the registry", async function () {
                 expect(
                     await erc1820.getInterfaceImplementer(
                         this.token.address,
-                        web3.utils.soliditySha3("ERC777Token")!
+                        keccak256("ERC777Token")
                     )
                 ).to.equal(this.token.address);
             });
@@ -142,7 +141,7 @@ describe("SuperToken's ERC777 implementation", function () {
                 expect(
                     await erc1820.getInterfaceImplementer(
                         this.token.address,
-                        web3.utils.soliditySha3("ERC20Token")!
+                        keccak256("ERC20Token")
                     )
                 ).to.equal(this.token.address);
             });
@@ -218,9 +217,9 @@ describe("SuperToken's ERC777 implementation", function () {
 
                     context("with new authorized operator", function () {
                         beforeEach(async function () {
-                            await this.token.authorizeOperator(newOperator, {
-                                from: holder,
-                            });
+                            await tokenContract
+                                .connect(await ethers.getSigner(holder))
+                                .authorizeOperator(newOperator);
                         });
 
                         shouldBehaveLikeERC777OperatorSendBurn(
@@ -235,9 +234,9 @@ describe("SuperToken's ERC777 implementation", function () {
 
                         context("with revoked operator", function () {
                             beforeEach(async function () {
-                                await this.token.revokeOperator(newOperator, {
-                                    from: holder,
-                                });
+                                await tokenContract
+                                    .connect(await ethers.getSigner(holder))
+                                    .revokeOperator(newOperator);
                             });
 
                             shouldBehaveLikeERC777UnauthorizedOperatorSendBurn(
@@ -285,10 +284,10 @@ describe("SuperToken's ERC777 implementation", function () {
                     await this.token.isOperatorFor(newOperator, holder)
                 ).to.equal(false);
 
-                const {logs} = await this.token.revokeOperator(newOperator, {
-                    from: holder,
-                });
-                expectEvent.inLogs(logs, "RevokedOperator", {
+                const tx = await tokenContract
+                    .connect(await ethers.getSigner(holder))
+                    .revokeOperator(newOperator);
+                await expectEvent(tx, tokenContract, "RevokedOperator", {
                     operator: newOperator,
                     tokenHolder: holder,
                 });
@@ -303,10 +302,10 @@ describe("SuperToken's ERC777 implementation", function () {
                     await this.token.isOperatorFor(newOperator, holder)
                 ).to.equal(false);
 
-                const {logs} = await this.token.authorizeOperator(newOperator, {
-                    from: holder,
-                });
-                expectEvent.inLogs(logs, "AuthorizedOperator", {
+                const tx = await tokenContract
+                    .connect(await ethers.getSigner(holder))
+                    .authorizeOperator(newOperator);
+                await expectEvent(tx, tokenContract, "AuthorizedOperator", {
                     operator: newOperator,
                     tokenHolder: holder,
                 });
@@ -318,9 +317,9 @@ describe("SuperToken's ERC777 implementation", function () {
 
             describe("new operators", function () {
                 beforeEach(async function () {
-                    await this.token.authorizeOperator(newOperator, {
-                        from: holder,
-                    });
+                    await tokenContract
+                        .connect(await ethers.getSigner(holder))
+                        .authorizeOperator(newOperator);
                 });
 
                 it("are not added to the default operators list", async function () {
@@ -330,13 +329,10 @@ describe("SuperToken's ERC777 implementation", function () {
                 });
 
                 it("can be re-authorized", async function () {
-                    const {logs} = await this.token.authorizeOperator(
-                        newOperator,
-                        {
-                            from: holder,
-                        }
-                    );
-                    expectEvent.inLogs(logs, "AuthorizedOperator", {
+                    const tx = await tokenContract
+                        .connect(await ethers.getSigner(holder))
+                        .authorizeOperator(newOperator);
+                    await expectEvent(tx, tokenContract, "AuthorizedOperator", {
                         operator: newOperator,
                         tokenHolder: holder,
                     });
@@ -347,13 +343,10 @@ describe("SuperToken's ERC777 implementation", function () {
                 });
 
                 it("can be revoked", async function () {
-                    const {logs} = await this.token.revokeOperator(
-                        newOperator,
-                        {
-                            from: holder,
-                        }
-                    );
-                    expectEvent.inLogs(logs, "RevokedOperator", {
+                    const tx = await tokenContract
+                        .connect(await ethers.getSigner(holder))
+                        .revokeOperator(newOperator);
+                    await expectEvent(tx, tokenContract, "RevokedOperator", {
                         operator: newOperator,
                         tokenHolder: holder,
                     });
@@ -366,13 +359,10 @@ describe("SuperToken's ERC777 implementation", function () {
 
             describe("default operators", function () {
                 it("can be re-authorized", async function () {
-                    const {logs} = await this.token.authorizeOperator(
-                        defaultOperatorA,
-                        {
-                            from: holder,
-                        }
-                    );
-                    expectEvent.inLogs(logs, "AuthorizedOperator", {
+                    const tx = await tokenContract
+                        .connect(await ethers.getSigner(holder))
+                        .authorizeOperator(defaultOperatorA);
+                    await expectEvent(tx, tokenContract, "AuthorizedOperator", {
                         operator: defaultOperatorA,
                         tokenHolder: holder,
                     });
@@ -383,13 +373,10 @@ describe("SuperToken's ERC777 implementation", function () {
                 });
 
                 it("can be revoked", async function () {
-                    const {logs} = await this.token.revokeOperator(
-                        defaultOperatorA,
-                        {
-                            from: holder,
-                        }
-                    );
-                    expectEvent.inLogs(logs, "RevokedOperator", {
+                    const tx = await tokenContract
+                        .connect(await ethers.getSigner(holder))
+                        .revokeOperator(defaultOperatorA);
+                    await expectEvent(tx, tokenContract, "RevokedOperator", {
                         operator: defaultOperatorA,
                         tokenHolder: holder,
                     });
@@ -410,9 +397,9 @@ describe("SuperToken's ERC777 implementation", function () {
 
                 context("with revoked default operator", function () {
                     beforeEach(async function () {
-                        await this.token.revokeOperator(defaultOperatorA, {
-                            from: holder,
-                        });
+                        await tokenContract
+                            .connect(await ethers.getSigner(holder))
+                            .revokeOperator(defaultOperatorA);
                     });
 
                     it("default operator is not revoked for other holders", async function () {
@@ -440,14 +427,18 @@ describe("SuperToken's ERC777 implementation", function () {
                     });
 
                     it("revoked default operator can be re-authorized", async function () {
-                        const {logs} = await this.token.authorizeOperator(
-                            defaultOperatorA,
-                            {from: holder}
+                        const tx = await tokenContract
+                            .connect(await ethers.getSigner(holder))
+                            .authorizeOperator(defaultOperatorA);
+                        await expectEvent(
+                            tx,
+                            tokenContract,
+                            "AuthorizedOperator",
+                            {
+                                operator: defaultOperatorA,
+                                tokenHolder: holder,
+                            }
                         );
-                        expectEvent.inLogs(logs, "AuthorizedOperator", {
-                            operator: defaultOperatorA,
-                            tokenHolder: holder,
-                        });
 
                         expect(
                             await this.token.isOperatorFor(
@@ -461,7 +452,7 @@ describe("SuperToken's ERC777 implementation", function () {
         });
 
         describe("send and receive hooks", function () {
-            const amount = toWad(1);
+            const amount = toWad(1).toString();
             let sender: string, operator: string;
 
             before(function () {
@@ -476,7 +467,7 @@ describe("SuperToken's ERC777 implementation", function () {
 
                         beforeEach(async function () {
                             this.tokensRecipientImplementer =
-                                await ERC777SenderRecipientMock.new();
+                                await newERC777SenderRecipientMock();
                             recipient = this.tokensRecipientImplementer.address;
                         });
 
@@ -548,34 +539,25 @@ describe("SuperToken's ERC777 implementation", function () {
                         });
 
                         it("(ERC20) transfer succeeds", async function () {
-                            await web3tx(
-                                this.token.upgrade,
-                                "SuperToken.upgrade 2 from holder"
-                            )(toWad(2), {
-                                from: holder,
-                            });
-                            await this.token.transfer(recipient, amount, {
-                                from: holder,
-                            });
+                            await tokenContract
+                                .connect(await ethers.getSigner(holder))
+                                .upgrade(toWad(2));
+                            await tokenContract
+                                .connect(await ethers.getSigner(holder))
+                                .transfer(recipient, amount);
                         });
 
                         it("(ERC20) transferFrom succeeds", async function () {
-                            await web3tx(
-                                this.token.upgrade,
-                                "SuperToken.upgrade 2 from holder"
-                            )(toWad(2), {
-                                from: holder,
-                            });
+                            await tokenContract
+                                .connect(await ethers.getSigner(holder))
+                                .upgrade(toWad(2));
                             const approved = anyone;
-                            await this.token.approve(approved, amount, {
-                                from: sender,
-                            });
-                            await this.token.transferFrom(
-                                sender,
-                                recipient,
-                                amount,
-                                {from: approved}
-                            );
+                            await tokenContract
+                                .connect(await ethers.getSigner(sender))
+                                .approve(approved, amount);
+                            await tokenContract
+                                .connect(await ethers.getSigner(approved))
+                                .transferFrom(sender, recipient, amount);
                         });
                     });
                 });
@@ -588,7 +570,7 @@ describe("SuperToken's ERC777 implementation", function () {
                             recipient = anyone;
 
                             this.tokensRecipientImplementer =
-                                await ERC777SenderRecipientMock.new();
+                                await newERC777SenderRecipientMock();
 
                             await this.tokensRecipientImplementer.recipientFor(
                                 recipient
@@ -600,9 +582,7 @@ describe("SuperToken's ERC777 implementation", function () {
                                 .connect(signer)
                                 .setInterfaceImplementer(
                                     recipient,
-                                    web3.utils.soliditySha3(
-                                        "ERC777TokensRecipient"
-                                    )!,
+                                    keccak256("ERC777TokensRecipient"),
                                     this.tokensRecipientImplementer.address
                                 );
                         });
@@ -620,11 +600,11 @@ describe("SuperToken's ERC777 implementation", function () {
 
                         beforeEach(async function () {
                             this.recipientContract =
-                                await ERC777SenderRecipientMock.new();
+                                await newERC777SenderRecipientMock();
                             recipient = this.recipientContract.address;
 
                             this.tokensRecipientImplementer =
-                                await ERC777SenderRecipientMock.new();
+                                await newERC777SenderRecipientMock();
                             await this.tokensRecipientImplementer.recipientFor(
                                 recipient
                             );
@@ -646,7 +626,7 @@ describe("SuperToken's ERC777 implementation", function () {
 
                         beforeEach(async function () {
                             this.tokensRecipientImplementer =
-                                await ERC777SenderRecipientMock.new();
+                                await newERC777SenderRecipientMock();
                             recipient = this.tokensRecipientImplementer.address;
 
                             await this.tokensRecipientImplementer.recipientFor(
@@ -674,7 +654,7 @@ describe("SuperToken's ERC777 implementation", function () {
                 describe("with a contract as implementer for an externally owned account", function () {
                     beforeEach(async function () {
                         this.tokensSenderImplementer =
-                            await ERC777SenderRecipientMock.new();
+                            await newERC777SenderRecipientMock();
 
                         await this.tokensSenderImplementer.senderFor(sender);
 
@@ -683,7 +663,7 @@ describe("SuperToken's ERC777 implementation", function () {
                             .connect(signer)
                             .setInterfaceImplementer(
                                 sender,
-                                web3.utils.soliditySha3("ERC777TokensSender")!,
+                                keccak256("ERC777TokensSender"),
                                 this.tokensSenderImplementer.address
                             );
                     });
@@ -699,19 +679,19 @@ describe("SuperToken's ERC777 implementation", function () {
                 describe("with contract as implementer for another contract", function () {
                     beforeEach(async function () {
                         this.senderContract =
-                            await ERC777SenderRecipientMock.new();
+                            await newERC777SenderRecipientMock();
                         sender = this.senderContract.address;
 
                         this.tokensSenderImplementer =
-                            await ERC777SenderRecipientMock.new();
+                            await newERC777SenderRecipientMock();
                         await this.tokensSenderImplementer.senderFor(sender);
                         await this.senderContract.registerSender(
                             this.tokensSenderImplementer.address
                         );
                         await this.senderContract.recipientFor(sender);
-                        await this.token.send(sender, amount, testData, {
-                            from: holder,
-                        });
+                        await tokenContract
+                            .connect(await ethers.getSigner(holder))
+                            .send(sender, amount, testData);
                     });
 
                     shouldBehaveLikeERC777SendBurnWithSendHook(
@@ -725,14 +705,14 @@ describe("SuperToken's ERC777 implementation", function () {
                 describe("with a contract as implementer for itself", function () {
                     beforeEach(async function () {
                         this.tokensSenderImplementer =
-                            await ERC777SenderRecipientMock.new();
+                            await newERC777SenderRecipientMock();
                         sender = this.tokensSenderImplementer.address;
 
                         await this.tokensSenderImplementer.senderFor(sender);
                         await this.tokensSenderImplementer.recipientFor(sender);
-                        await this.token.send(sender, amount, testData, {
-                            from: holder,
-                        });
+                        await tokenContract
+                            .connect(await ethers.getSigner(holder))
+                            .send(sender, amount, testData);
                     });
 
                     shouldBehaveLikeERC777SendBurnWithSendHook(

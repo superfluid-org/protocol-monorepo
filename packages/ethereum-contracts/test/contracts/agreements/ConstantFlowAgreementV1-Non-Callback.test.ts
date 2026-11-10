@@ -1,6 +1,7 @@
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
+import {assert, expect} from "chai";
 import {BigNumberish} from "ethers";
-import {assert, ethers, expect, web3} from "hardhat";
+import {ethers} from "hardhat";
 
 import {
     ConstantFlowAgreementV1,
@@ -10,6 +11,7 @@ import {
     TestToken,
 } from "../../../typechain-types";
 import TestEnvironment from "../../TestEnvironment";
+import {expectEvent} from "../../utils/expectEvent";
 import {expectCustomError} from "../../utils/expectRevert";
 import {max, toBN, toWad} from "../utils/helpers";
 
@@ -38,8 +40,6 @@ import {
 } from "./ConstantFlowAgreementV1.behavior";
 import CFADataModel from "./ConstantFlowAgreementV1.data";
 
-const {expectEvent} = require("@openzeppelin/test-helpers");
-
 describe("CFAv1 | Non-Callback Tests", function () {
     this.timeout(300e3);
     const t = TestEnvironment.getSingleton();
@@ -57,7 +57,6 @@ describe("CFAv1 | Non-Callback Tests", function () {
 
     before(async () => {
         await t.beforeTestSuite({
-            isTruffle: true,
             nAccounts: 5,
         });
         ({admin, alice, bob, dan} = t.aliases);
@@ -1002,20 +1001,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             );
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // rewards should go to the rewardAddress
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: admin}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: admin,
+            });
 
             // reward account (here: admin) should have received the deposit
             const adminPostBal = (await superToken.realtimeBalanceOfNow(admin))
@@ -1052,20 +1053,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             });
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // rewards should go to the rewardAddress
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: admin}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: admin,
+            });
 
             // reward account (here: admin) should have received the deposit
             const adminPostBal = (await superToken.realtimeBalanceOfNow(admin))
@@ -1111,20 +1114,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             });
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // rewards should go to the rewardAddress
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: admin}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: admin,
+            });
 
             // reward account (here: admin) should have received the deposit
             const adminPostBal = (await superToken.realtimeBalanceOfNow(admin))
@@ -1160,20 +1165,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             );
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // rewards should go to the agent (plebs rule)
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: t.aliases[agent]}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: t.aliases[agent],
+            });
 
             // reward account (here: agent) should have received the deposit
             const adminPostBal = (await superToken.realtimeBalanceOfNow(admin))
@@ -1217,20 +1224,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             });
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // rewards should go to the agent (plebs rule)
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: t.aliases[agent]}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: t.aliases[agent],
+            });
 
             // reward account (here: agent) should have received the deposit
             const adminPostBal = (await superToken.realtimeBalanceOfNow(admin))
@@ -1274,20 +1283,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             );
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // rewards should go to the agent (plebs rule)
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: t.aliases[agent]}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: t.aliases[agent],
+            });
 
             // reward account (here: agent) should have received the deposit
             const adminPostBal = (await superToken.realtimeBalanceOfNow(admin))
@@ -1316,20 +1327,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             );
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // the agent should get the reward
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: t.aliases[agent]}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: t.aliases[agent],
+            });
 
             // reward account (here: agent) should have received the deposit
             const adminPostBal = (await superToken.realtimeBalanceOfNow(admin))
@@ -1365,20 +1378,22 @@ describe("CFAv1 | Non-Callback Tests", function () {
             });
 
             // agent liquidates
-            const r = await t.sf.cfa.deleteFlow({
-                superToken: superToken.address,
-                sender: t.aliases[sender],
-                receiver: t.aliases[receiver],
-                by: t.aliases[agent],
-            });
+            const r = await t.agreementHelper.callAgreementAs(
+                t.aliases[agent],
+                t.contracts.cfa,
+                "deleteFlow",
+                [
+                    superToken.address,
+                    t.aliases[sender],
+                    t.aliases[receiver],
+                    "0x",
+                ]
+            );
 
             // the agent should get the reward
-            await expectEvent.inTransaction(
-                r.tx,
-                t.sf.contracts.ISuperToken,
-                "AgreementLiquidatedV2",
-                {rewardAmountReceiver: t.aliases[agent]}
-            );
+            await expectEvent(r, superToken, "AgreementLiquidatedV2", {
+                rewardAmountReceiver: t.aliases[agent],
+            });
         });
 
         it("#1.4.17 Patrician period updates when user is not solvent", async () => {
@@ -2293,7 +2308,7 @@ describe("CFAv1 | Non-Callback Tests", function () {
                             superToken.address,
                             alice,
                             FLOW_RATE1.toString(),
-                            web3.eth.abi.encodeParameters(
+                            ethers.utils.defaultAbiCoder.encode(
                                 ["bytes", "bytes"],
                                 ["0xdeadbeef", "0x"]
                             ),
@@ -3602,7 +3617,7 @@ describe("CFAv1 | Non-Callback Tests", function () {
         // redundant, but a sanity check nonetheless to ensure that we are calling
         // authorizeTokenAccess in our new agreement functions
         it("#1.12.28 Should revert when trying to pass in dirty context", async () => {
-            const dirtyBytes = web3.eth.abi.encodeParameters(
+            const dirtyBytes = ethers.utils.defaultAbiCoder.encode(
                 ["bytes", "bytes"],
                 ["0xdeadbeef", "0x"]
             );
