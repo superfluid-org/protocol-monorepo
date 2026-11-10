@@ -57,6 +57,7 @@ contract FrameworkDeploymentTest is Test {
         batch[0] = wrapped;
         script.upgradeTokens(batch);
         assertEq(UUPSProxiable(wrapped).getCodeAddress(), address(factory.getSuperTokenLogic()));
+        _assertTokenAdminGuard(host, batch);
         assertGt(resolver.get("ClearMacroForwarderV1WithPermit2").code.length, 0);
         assertFalse(host.isTrustedForwarder(resolver.get("ClearMacroForwarderV1WithPermit2")));
         _assertProxySafety(host, tokenLogic);
@@ -95,6 +96,16 @@ contract FrameworkDeploymentTest is Test {
         vm.expectRevert("UUPSProxiable: proxy loop");
         gov.updateContracts(host, address(host), new address[](0), address(0), address(0));
     }
+    function _assertTokenAdminGuard(Superfluid host, address[] memory batch) internal {
+        SuperfluidGovernanceII gov = SuperfluidGovernanceII(address(host.getGovernance()));
+        vm.prank(deployer);
+        gov.changeSuperTokenAdmin(host, SuperToken(batch[0]), address(0x9999));
+        uint64 nonce = vm.getNonce(deployer);
+        vm.expectRevert("Token admin is not governed by this host");
+        script.upgradeTokens(batch);
+        assertEq(vm.getNonce(deployer), nonce, "Non-governed token must fail before action execution");
+    }
+
 
 
     function testMissingRegistryRejectsBeforeCreation() public {

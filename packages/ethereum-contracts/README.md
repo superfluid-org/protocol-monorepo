@@ -435,7 +435,9 @@ ACL, pool beacon, PPP, reward address and resolver entries. `CALLBACK_GAS_LIMIT`
 callback decreases, whitelisting flips and IDA unfreeze require
 `REVIEWED_IMMUTABLE_OVERRIDE=true`. IDA getter failures fail closed.
 After governance execution, use `upgrade-tokens '["0x..."]'` for a reviewed explicit
-token batch; `ALL` discovery is not implemented and fails before side effects.
+token batch (upgradeable proxies belonging to this host, with admin zero or the
+host itself). Non-governed tokens fail preflight instead of poisoning a Safe batch.
+`ALL` discovery is not implemented and fails before side effects.
 `upgrade-governance` upgrades GovernanceII proxies (not direct TestGovernance).
 
 The existing governance contract locks new host/agreement implementations during

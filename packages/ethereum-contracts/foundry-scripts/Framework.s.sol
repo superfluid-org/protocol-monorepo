@@ -228,13 +228,15 @@ contract FrameworkScript is Script {
     function upgradeTokens(address[] calldata tokens) external {
         require(tokens.length > 0, "Explicit token list required; ALL discovery is not implemented");
         Superfluid h = _host(vm.envAddress("HOST_ADDRESS"));
-        ISuperToken[] memory batch = new ISuperToken[](tokens.length);
         address canonical = address(h.getSuperTokenFactory().getSuperTokenLogic());
+        bytes32 uuid = UUPSProxiable(canonical).proxiableUUID();
         for (uint256 i; i < tokens.length; ++i) {
-            batch[i] = ISuperToken(tokens[i]);
-            require(address(batch[i].getHost()) == address(h), "Token belongs to another host");
-            require(UUPSProxiable(tokens[i]).proxiableUUID() == UUPSProxiable(canonical).proxiableUUID(),
-                "Token implementation UUID mismatch");
+            ISuperToken token = ISuperToken(tokens[i]);
+            require(address(token.getHost()) == address(h), "Token belongs to another host");
+            address admin = token.getAdmin();
+            require(admin == address(0) || admin == address(h), "Token admin is not governed by this host");
+            require(UUPSProxiable(tokens[i]).getCodeAddress() != address(0), "Token is not an upgradeable proxy");
+            require(UUPSProxiable(tokens[i]).proxiableUUID() == uuid, "Token implementation UUID mismatch");
         }
         address gov = address(h.getGovernance());
         vm.startBroadcast(_sender());
