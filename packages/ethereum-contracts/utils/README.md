@@ -40,7 +40,7 @@ This is a single-file dApp for testing the MultiFlowTesterApp contract.
 There are a few steps to complete to get everything up and running:
 1. Open a terminal window and start a hardhat node instance: `npx hardhat node` in `packages/ethereum-contracts`
 2. Open another terminal window and deploy contracts and token: `npx hardhat run dev-scripts/deployContractsAndToken.js` in `packages/ethereum-contracts`
-3. Deploy MFA contract: `npx hardhat run ops-scripts/deploy-mfa.ts` in `packages/ethereum-contracts`
+3. Deploy MFA contract: `npx hardhat run dev-scripts/deploy-mfa.ts` in `packages/ethereum-contracts`
 4. Build SDK-Core: `yarn build` in `packages/sdk-core` and copy `packages/sdk-core/dist/index.umd.js` into `packages/ethereum-contracts/utils/dist`.
 
 > NOTE: There are hardcoded addresses for the resolver and MFA in mfa-tester.html, make sure that these addresses are in sync with what is deployed otherwise it won't work.
