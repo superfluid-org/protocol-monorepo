@@ -3,6 +3,26 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased — v1.16.0]
+
+### Breaking
+
+- Stop generating and publishing flat `build/truffle/*.json` artifacts. Import
+  `build/hardhat/contracts/<source>.sol/<Contract>.json` instead and read `.abi`,
+  or use the unchanged `build/bundled-abi.js` / `build/bundled-abi.json` exports.
+  For example, `build/truffle/ISuperToken.json` becomes
+  `build/hardhat/contracts/interfaces/superfluid/ISuperToken.sol/ISuperToken.json`.
+  Hardhat artifacts do not contain Truffle `networks`/address metadata or restore
+  Truffle contract abstractions. Use deployment metadata/resolver reads for
+  addresses and ethers, viem or Foundry for deployment and library linking.
+- Retire `@superfluid-finance/js-sdk` from this repository's workspaces,
+  builds, tests and publication. Migrate to `@superfluid-finance/sdk-core`;
+  see [the migration guide](../js-sdk/README.md). Historical npm releases are
+  not deprecated or unpublished by this change, and are not compatible with
+  the removed Truffle tooling/artifact paths in contracts 1.16.0.
+- Build and contract tests use Hardhat/ethers and Foundry, without the
+  Hardhat Truffle/web3 runtime plugins.
+
 ## [v1.15.3]
 
 ### Fixed

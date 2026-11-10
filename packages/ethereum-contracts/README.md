@@ -32,6 +32,26 @@ If you're building a dapp using existing protocol or Super Token contracts, then
 
 If you're building a smart contract that uses Superfluid protocol, or even your own [SuperApp](https://docs.superfluid.finance/), then great! This is definitely the place to be.
 
+### Artifacts in 1.16.0 (breaking change)
+
+The package no longer generates or publishes `build/truffle/*.json`.
+Use fully qualified Hardhat artifact paths, for example:
+
+```js
+const {abi} = require("@superfluid-finance/ethereum-contracts/build/hardhat/contracts/interfaces/superfluid/ISuperToken.sol/ISuperToken.json");
+```
+
+The `build/bundled-abi.js` and `build/bundled-abi.json` filenames and exports
+remain supported. ABI-only consumers (including Web3 applications) can read
+`.abi` from Hardhat artifacts. Hardhat's artifact schema does not provide
+Truffle `networks`/deployment addresses, `deployed()`/`at()`, or linking and
+receipt abstractions. Use metadata/resolver/onchain reads for addresses and
+ethers, viem or Foundry for contract deployment and library linking. There are
+no flat-path compatibility aliases. Local deployment helpers in `dev-scripts`
+continue to use Hardhat artifacts.
+
+The legacy js-sdk is also retired; see its [sdk-core migration guide](../js-sdk/README.md).
+
 ### Installation
 
 Prerequisites:
@@ -325,11 +345,10 @@ Now cd to the contracts directory:
 cd packages/ethereum-contracts/
 ```
 
-Then prepare an `.env` file (see `.env.template`).
-The most important config items are RPC endpoint (`<X>_PROVIDER_URL`) and a sender account (`<X>_MNEMONIC`), _<X>_ being a network specific prefix - e.g. `OPTIMISM_MAINNET_PROVIDER_URL`.
-If you provide an actual mnemonic, the key derived at `m/44'/60'/0'/0/0` will be used. You can instead also set private keys (hex format) for `<X>_MNEMONIC`.
-
-In order to get an overview of available config items, look for instances of `process.env` in [truffle-config.js](truffle-config.js) and in files in the [scripts](scripts) folder.
+Hardhat tests and local fixtures do not need a mnemonic or Truffle globals.
+For optional Hardhat network connections, see the provider environment variables
+and `PRIVATE_KEY` in [hardhat.config.ts](hardhat.config.ts). Foundry compiler and
+test settings live in [foundry.toml](foundry.toml).
 
 
 ### Testing
@@ -347,12 +366,12 @@ yarn test
 
 Run a specific test using the [exclusive tests](https://mochajs.org/#exclusive-tests) feature of MochaJS:
 ```sh
-yarn run-hardhat test test/contracts/agreements/ConstantFlowAgreementV1.test.js
+yarn run-hardhat test test/contracts/agreements/ConstantFlowAgreementV1-Non-Callback.test.ts
 ```
 
 Run the test suite for core contracts:
 ```sh
-yarn run-hardhat test testsuites/superfluid-core.js
+yarn run-hardhat test testsuites/superfluid-core.ts
 ```
 
 Hardhat and Foundry tests manage their own networks.
@@ -369,12 +388,12 @@ With the testing scope defined, run:
 ```
 yarn dev-hardhat
 ```
-This has [testsuites/all-contracts.js](testsuites/all-contracts.js) as its entrypoint, but if there's an `only` keyword at any nesting level in any of the tests traversed, only that selected subset of tests will be executed.
+This has [testsuites/all-contracts.ts](testsuites/all-contracts.ts) as its entrypoint, but if there's an `only` keyword at any nesting level in any of the tests traversed, only that selected subset of tests will be executed.
 The selected test(s) will run once when starting the session and re-run everytime you save changes in a relevant file.
 
 You may also focus on a specific testsuite with yarn dev-hardhat:
 ```
-yarn dev-hardhat test/contracts/libs/CallUtils.test.js
+yarn dev-hardhat test/contracts/libs/CallUtils.test.ts
 ```
 
 After finishing the session, you can stop the hardhat instance you started in the first step (Ctrl-C).
@@ -397,7 +416,6 @@ On the other hand, you can run the development session with foundry with the com
 
 ```
 yarn run-hardhat # run hardhat
-yarn run-truffle # run truffle
 yarn run-foundry # run foundry forge
 yarn run-nodemon forge test # use nodemon to run foundry test
 ```

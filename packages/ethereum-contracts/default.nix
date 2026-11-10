@@ -17,7 +17,6 @@
       ./testsuites
       # configurations
       ./package.json
-      ./truffle-config.js
       ./hardhat.config.ts
       ./foundry.toml
       ./tsconfig.json
