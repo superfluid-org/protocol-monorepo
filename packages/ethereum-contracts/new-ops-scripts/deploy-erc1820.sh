@@ -7,7 +7,6 @@ METADATA_JSON=${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/lib/network-config.sh"
 NETWORK=${1:?Usage: deploy-erc1820.sh NETWORK [--broadcast]}
-[[ "$NETWORK" != degenchain ]] || { echo 'degenchain is deprecated' >&2; exit 1; }
 MODE=${2:-}
 [[ -z "$MODE" || "$MODE" == --broadcast ]] || { echo 'Only --broadcast is supported' >&2; exit 1; }
 RPC_URL=$(get_rpc_url "$NETWORK")
@@ -37,7 +36,7 @@ NEEDED=$(node -e 'console.log((100000000000000000n-BigInt(process.argv[1])).toSt
 AUTH=(--account "${WALLET_NAME:-sf-ops}")
 if [[ -n "${PRIVATE_KEY:-}" ]]; then AUTH=(--private-key "$PRIVATE_KEY"); fi
 if [[ "$NEEDED" != -* && "$NEEDED" != 0 ]]; then
-    cast send "$SIGNER" --value "$NEEDED" --rpc-url "$RPC_URL" "${AUTH[@]}"
+    with_keystore_password cast send "$SIGNER" --value "$NEEDED" --rpc-url "$RPC_URL" "${AUTH[@]}"
 fi
 cast publish "$RAW" --rpc-url "$RPC_URL"
 [[ $(cast code "$REGISTRY" --rpc-url "$RPC_URL") != 0x ]] || { echo 'ERC1820 deployment failed' >&2; exit 1; }

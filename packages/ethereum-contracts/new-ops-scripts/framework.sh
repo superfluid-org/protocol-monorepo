@@ -12,7 +12,6 @@ source "$SCRIPT_DIR/lib/network-config.sh"
 NETWORK=${1:?Usage: framework.sh NETWORK fresh|upgrade|upgrade-governance|upgrade-tokens|handover-governance|grant-resolver-admin|revoke-resolver-admin [ARGS] [--broadcast|--resume]}
 ACTION=${2:?Operation required}
 shift 2
-[[ "$NETWORK" != degenchain ]] || { echo 'degenchain is deprecated' >&2; exit 1; }
 for retired in NON_UPGRADABLE USE_MOCKS RESET_SUPERFLUID_FRAMEWORK CREATE_NEW_RESOLVER \
     NEW_SUPERFLUID_LOADER WITHOUT_ERC1820 NO_NEW_GOVERNANCE DISABLE_TEST_GOVERNANCE \
     ENABLE_APP_WHITELISTING APP_CALLBACK_GAS_LIMIT ALLOW_DECREASE_APP_CALLBACK_GAS_LIMIT \
@@ -69,7 +68,7 @@ if (( BROADCAST )); then
         export DEPLOYER=${DEPLOYER:-$(cast wallet address --private-key "$PRIVATE_KEY")}
     else
         AUTH=(--account "${WALLET_NAME:-sf-ops}")
-        export DEPLOYER=${DEPLOYER:-$(cast wallet address --account "${WALLET_NAME:-sf-ops}")}
+        export DEPLOYER=${DEPLOYER:-$(cast_wallet_address_account "${WALLET_NAME:-sf-ops}")}
     fi
     AUTH+=(--broadcast --slow)
     (( ! RESUME )) || AUTH+=(--resume)
@@ -82,7 +81,7 @@ else
     export DEPLOYER=${DEPLOYER:-0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266}
     AUTH=(--sender "$DEPLOYER")
 fi
-forge script "$SCRIPT" --rpc-url "$RPC_URL" \
+with_keystore_password forge script "$SCRIPT" --rpc-url "$RPC_URL" \
     --sig "$SIGNATURE" "${ARGS[@]}" "${AUTH[@]}"
 echo "Safe payloads (not submitted): $SAFE_PAYLOADS_FILE"
 if [[ -s "$SAFE_PAYLOADS_FILE" ]]; then cat "$SAFE_PAYLOADS_FILE"; fi

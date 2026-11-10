@@ -22,7 +22,7 @@ A clear and concise description of what the bug is. What feature are you experie
   - Chain: [e.g. Polygon, Kovan, Avalanche]
   - If running in node:
     - Node version: [e.g. v17.3.0]
-    - Framework: [e.g. Hardhat, Truffle]
+    - Framework: [e.g. Hardhat, Foundry]
   - else, running in browser:
     - Browser [e.g. chrome, safari]
     - Front-end Framework: [e.g. React, Vue, Angular, HTML]
