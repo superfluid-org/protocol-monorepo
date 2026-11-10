@@ -122,7 +122,7 @@ library DeployUtils {
                 console.log("  Safe payload JSON:");
                 console.log("%s", safeTxJson);
             }
-            console.log("*** Safe transaction will be proposed by the TypeScript layer ***");
+            console.log("*** Payload only: review and explicitly submit with safe-ops.ts ***");
 
         } else {
             revert("Unknown admin type");
@@ -163,16 +163,15 @@ library DeployUtils {
      * @return adminAddress The admin address
      */
     function getResolverAdmin(Resolver resolver) internal view returns (address adminAddress) {
-        bytes32 adminRole = 0x0000000000000000000000000000000000000000000000000000000000000000;
-        uint256 adminCount = resolver.getRoleMemberCount(adminRole);
-
-        if (adminCount > 0) {
-            // Get the last admin (following the legacy pattern)
-            adminAddress = resolver.getRoleMember(adminRole, adminCount - 1);
-        } else {
-            console.log("!!! resolver.getRoleMemberCount() returned 0. Using deployer as resolver admin.");
-            adminAddress = msg.sender;
+        bytes32 adminRole = bytes32(0);
+        address selected = VM.envOr("RESOLVER_ADMIN", address(0));
+        if (selected != address(0)) {
+            require(resolver.hasRole(adminRole, selected), "RESOLVER_ADMIN does not hold DEFAULT_ADMIN_ROLE");
+            return selected;
         }
+        uint256 adminCount = resolver.getRoleMemberCount(adminRole);
+        require(adminCount == 1, "Expected one resolver admin; select authorized RESOLVER_ADMIN explicitly");
+        return resolver.getRoleMember(adminRole, 0);
     }
 
     /**

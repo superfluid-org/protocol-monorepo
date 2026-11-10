@@ -1,9 +1,6 @@
 module.exports = {
     globals: {
-        web3: true,
-        artifacts: true,
         describe: true,
-        contract: true,
         context: true,
         before: true,
         after: true,
