@@ -31,7 +31,7 @@ if [[ ! "$VALUE" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
 fi
 
 PROVIDER_URL=$(get_rpc_url "$NETWORK") || exit 1
-RESOLVER_ADDRESS=$(jq -r '.[] | select(.name == "'"$NETWORK"'") | .contractsV1.resolver' "$METADATA_JSON")
+RESOLVER_ADDRESS=${RESOLVER_ADDRESS:-$(jq -r '.[] | select(.name == "'"$NETWORK"'") | .contractsV1.resolver' "$METADATA_JSON")}
 if [[ -z "$RESOLVER_ADDRESS" || "$RESOLVER_ADDRESS" == "null" ]]; then
     echo "No resolver in metadata for $NETWORK" >&2
     exit 1
@@ -46,7 +46,16 @@ cd "$PKG_ROOT"
 
 forge_args=(script foundry-scripts/ResolverSetKey.s.sol:ResolverSetKey --rpc-url "$PROVIDER_URL")
 if [[ -n "${SIMULATE:-}" ]]; then
-    forge_args+=(--private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)
+    source "$SCRIPT_DIR/lib/simulation-sender.sh"
+    if [[ -n "${RESOLVER_ADMIN:-}" ]]; then
+        admin=$RESOLVER_ADMIN
+    else
+        role=0x0000000000000000000000000000000000000000000000000000000000000000
+        count=$(cast call "$RESOLVER_ADDRESS" 'getRoleMemberCount(bytes32)(uint256)' "$role" --rpc-url "$PROVIDER_URL" --json | jq -er '.[0] | tonumber')
+        [[ "$count" -eq 1 ]] || { echo 'Set RESOLVER_ADMIN explicitly when resolver does not have exactly one admin' >&2; exit 1; }
+        admin=$(cast call "$RESOLVER_ADDRESS" 'getRoleMember(bytes32,uint256)(address)' "$role" 0 --rpc-url "$PROVIDER_URL")
+    fi
+    forge_args+=(--sender "$(get_simulation_sender "$admin" "$PROVIDER_URL")")
 else
     forge_args+=(--account "$WALLET_NAME" --broadcast)
 fi

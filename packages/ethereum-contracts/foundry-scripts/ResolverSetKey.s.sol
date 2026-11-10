@@ -29,7 +29,7 @@ contract ResolverSetKey is Script {
 
         if (prev != address(0)) {
             console.log("Previous value: %s", prev);
-            require(bytes(vm.envOr("ALLOW_UPDATE", string(""))).length > 0, "ALLOW_UPDATE not set");
+            require(keccak256(bytes(vm.envOr("ALLOW_UPDATE", string("")))) == keccak256("1"), "ALLOW_UPDATE=1 required");
         }
 
         vm.startBroadcast();
