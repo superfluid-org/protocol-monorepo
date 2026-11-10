@@ -210,6 +210,7 @@ jobs:
         run: |
           yarn --cwd packages/sdk-core set-default-subgraph-release-tag
           yarn build
+          test ! -d packages/ethereum-contracts/build/truffle
         env:
           SUBGRAPH_RELEASE_TAG: dev
 
@@ -344,6 +345,7 @@ jobs:
         if: env.PUBLISH_ETHEREUM_CONTRACTS == 1
         run: |
           yarn --cwd packages/ethereum-contracts build
+          test ! -d packages/ethereum-contracts/build/truffle
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -12,7 +12,7 @@ ignored_warnings_from = [
     "contracts/utils/SuperfluidFrameworkDeploymentSteps.t.sol",
 ]
 #deny_warnings = true
-# keep in sync with truffle-config.js
+# Keep compiler settings aligned with hardhat.config.ts.
 evm_version = 'cancun'
 optimizer = true
 optimizer_runs = 200

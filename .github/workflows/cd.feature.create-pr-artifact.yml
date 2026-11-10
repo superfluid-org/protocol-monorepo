@@ -48,7 +48,9 @@ jobs:
 
       - name: Build
         if: env.PUBLISH_PR_ARTIFACT == 1
-        run: yarn build
+        run: |
+          yarn build
+          test ! -d packages/ethereum-contracts/build/truffle
 
       - name: Setup PR package versions locally
         if: env.PUBLISH_PR_ARTIFACT == 1

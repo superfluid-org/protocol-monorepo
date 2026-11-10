@@ -82,11 +82,18 @@ jobs:
           npx tsc --version
           npx hardhat --version
 
-      - name: Lint and build
+      - name: Lint and build Hardhat/Foundry artifacts
         if: steps.base.outputs.cache-hit != 'true'
         run: |
           yarn lint
           yarn build
+
+      - name: Check ABI generation without Truffle artifacts
+        if: steps.base.outputs.cache-hit != 'true'
+        run: |
+          test ! -d build/truffle
+          yarn test:build:abis
+        working-directory: ./packages/ethereum-contracts
 
       - name: Run test suite
         if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == false
