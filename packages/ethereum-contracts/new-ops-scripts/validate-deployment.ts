@@ -1,4 +1,5 @@
-import { assert, ethers } from "hardhat";
+import { ethers } from "hardhat";
+import { assert } from "chai";
 import metadata from "@superfluid-finance/metadata";
 
 const cfaAgreementType = ethers.utils.solidityKeccak256(["string"], ["org.superfluid-finance.agreements.ConstantFlowAgreement.v1"]);
@@ -19,15 +20,11 @@ async function main() {
     const networkId = (await ethers.provider.getNetwork()).chainId;
     const networkMetadata = metadata.getNetworkByChainId(networkId);
 
-    if (networkMetadata === undefined) {
-        throw new Error("Network not supported");
-    }
-
-    const RESOLVER_ADDRESS = networkMetadata.contractsV1.resolver;
-
-    const resolver = await ethers.getContractAt("Resolver", RESOLVER_ADDRESS || "");
-
-    const hostAddress = await resolver.get("Superfluid.v1");
+    const resolverAddress = process.env.RESOLVER_ADDRESS || networkMetadata?.contractsV1.resolver;
+    if (!resolverAddress) throw new Error("Set RESOLVER_ADDRESS for a new network");
+    const resolver = await ethers.getContractAt("Resolver", resolverAddress);
+    const release = process.env.RELEASE_VERSION || "v1";
+    const hostAddress = await resolver.get(`Superfluid.${release}`);
     const hostContract = await ethers.getContractAt("Superfluid", hostAddress);
 
     const superTokenFactoryAddress = await hostContract.getSuperTokenFactory();
@@ -36,7 +33,8 @@ async function main() {
     const superTokenFactoryLiveUUID = await superTokenFactoryContract.proxiableUUID();
     assertLog(superTokenFactoryUuid === superTokenFactoryLiveUUID, "SuperTokenFactory Deployed UUID matches live UUID");
 
-    const isCFAv1ForwarderATrustedForwarder = await hostContract.isTrustedForwarder(networkMetadata.contractsV1.cfaV1Forwarder);
+    const cfaForwarder = process.env.CFA_FORWARDER_ADDRESS || await resolver.get("CFAv1Forwarder");
+    const isCFAv1ForwarderATrustedForwarder = await hostContract.isTrustedForwarder(cfaForwarder);
     assertLog(isCFAv1ForwarderATrustedForwarder, "CFAv1 Forwarder is set as trusted forwarder");
 
     const superTokenFactoryLogicAddress = await hostContract.getSuperTokenFactoryLogic();
@@ -66,16 +64,14 @@ async function main() {
 
     const poolMemberNFProxy = await superTokenLogicContract.POOL_MEMBER_NFT();
     console.log("PoolMemberNFT:", poolMemberNFProxy);
-    const pmNFTContract = await ethers.getContractAt("PoolMemberNFT", poolMemberNFProxy);
-    assertLog(await pmNFTContract.baseURI() === "https://nft.superfluid.finance/pool/v2/getmeta", "PoolMemberNFT baseURI is equal to https://nft.superfluid.finance/pool/v2/getmeta");
-
-    const poolMemberProxyLogic = await pmNFTContract.getCodeAddress();
-    console.log("ConstantInflow NFT Logic (on Proxy):", poolMemberProxyLogic);
-
-    assertLog(await paNFTContract.proxiableUUID() !== await pmNFTContract.proxiableUUID(), "NFT proxies have different implementation.");
-
     assertLog(poolAdminProxyLogic === poolAdminNFTCanonicalLogic, "Pool admin proxy logic is equal to canonical pool admin logic");
-    assertLog(poolMemberProxyLogic === poolMemberNFTCanonicalLogic, "Pool member proxy logic is equal to canonical pool member logic");
+    // PoolMemberNFT is retired in current logic; historical deployments can still expose it.
+    if (poolMemberNFProxy !== ethers.constants.AddressZero) {
+        const pmNFTContract = await ethers.getContractAt("PoolMemberNFT", poolMemberNFProxy);
+        assertLog(await pmNFTContract.baseURI() === "https://nft.superfluid.finance/pool/v2/getmeta", "PoolMemberNFT baseURI");
+        assertLog(await pmNFTContract.getCodeAddress() === poolMemberNFTCanonicalLogic, "Pool member proxy logic matches factory");
+        assertLog(await paNFTContract.proxiableUUID() !== await pmNFTContract.proxiableUUID(), "NFT proxies have different UUIDs");
+    }
 
     const cfaAddress = await hostContract.getAgreementClass(cfaAgreementType);
     const idaAddress = await hostContract.getAgreementClass(idaAgreementType);
@@ -107,4 +103,4 @@ async function main() {
     assertLog(sfPoolLiveUUID === superfluidPoolUUID, "SFPool Deployed UUID is equal to expected SFPool UUID");
 }
 
-main();
+main().catch((error) => { console.error(error); process.exitCode = 1; });

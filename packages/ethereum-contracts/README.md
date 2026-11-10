@@ -402,12 +402,88 @@ yarn run-foundry # run foundry forge
 yarn run-nodemon forge test # use nodemon to run foundry test
 ```
 
+### Persistent framework deployment and upgrades
+
+Use `new-ops-scripts/framework.sh NETWORK fresh` for a new upgradeable deployment,
+or `new-ops-scripts/framework.sh NETWORK upgrade` for existing frameworks.
+Both commands **simulate by default**. Set `RPC_URL` (or use the metadata network
+RPC), then add `--broadcast` explicitly with `WALLET_NAME` (Foundry keystore,
+default `sf-ops`) or `PRIVATE_KEY`. Safe actions only write
+`.tmp/framework-safe-payloads.jsonl`; review and submit them separately.
+The manual deployment workflows now produce simulation plans without deployment
+secrets; broadcasting remains an operator-machine operation.
+
+Fresh deployments create a new resolver, governance initially owned by the
+deployer, current agreements/factory/NFT/pool logic, forwarders, TOGA and
+BatchLiquidator. `ChainPolicy.sol` is the canonical fresh-network policy;
+unsupported chain IDs fail before deployment. The new framework uses the same
+proxy types as existing deployments. **Proxy deployment and initialization remain
+separate transactions, with the same initialization window as legacy tooling.**
+Use a private transaction channel for production bootstrap and review ownership
+post-checks. This migration does not claim atomic proxy initialization.
+
+Resume an interrupted broadcast with the **same command and `--resume`**, preserving
+Foundry's `broadcast/` and `cache/` artifacts. Do not run a new fresh deployment to
+recover; an existing fresh broadcast artifact makes that command fail. A deliberately
+new deployment requires explicitly archiving those artifacts first.
+
+An upgrade always deploys new host/CFA/IDA/GDA/factory/SuperToken/PoolAdminNFT/pool
+implementations and routes one governance `updateContracts` action. It reads
+existing callback/whitelisting/IDA settings and retains the existing forwarders,
+ACL, pool beacon, PPP, reward address and resolver entries. `CALLBACK_GAS_LIMIT`,
+`APP_WHITELISTING`, `IDA_FROZEN`, and `IDA_SLOTS` are explicit reviewed overrides;
+callback decreases, whitelisting flips and IDA unfreeze require
+`REVIEWED_IMMUTABLE_OVERRIDE=true`. IDA getter failures fail closed.
+After governance execution, use `upgrade-tokens '["0x..."]'` for a reviewed explicit
+token batch; `ALL` discovery is not implemented and fails before side effects.
+`upgrade-governance` upgrades GovernanceII proxies (not direct TestGovernance).
+
+The existing governance contract locks new host/agreement implementations during
+`updateContracts` execution. Pre-locking those implementations makes the action
+revert; a third party initializing them before execution can also grief it.
+Pre-review predicted payloads in simulation and coordinate implementation deployment
+and approved governance execution through a private transaction channel, rather
+than leaving publicly deployed implementations awaiting approval. This inherited
+initialization window is not fixed by this tooling migration.
+
+Handover uses `handover-governance NEW_OWNER`, followed independently by
+`grant-resolver-admin NEW_ADMIN`; **wait for the grant to execute**, then
+`revoke-resolver-admin OLD_ADMIN NEW_ADMIN`. Resolver and governance authorities
+are independent; never assume a governance Safe is the resolver admin. Set
+`DEPLOYER` explicitly when simulating resolver administration. If the resolver has
+multiple admins, set `RESOLVER_ADMIN` to an address that actually holds
+`DEFAULT_ADMIN_ROLE`; automatic selection requires exactly one admin. The
+grant-before-revoke check prevents dropping the intended admin before acceptance.
+After deployment/governance execution, verify with
+`new-ops-scripts/verify-framework.sh NETWORK` before the post-action validator.
+
+Post-deployment/upgrade validation:
+`RPC_URL=... RESOLVER_ADDRESS=... RELEASE_VERSION=v1 yarn hardhat run new-ops-scripts/validate-deployment.ts --network ops`.
+The validator supports explicit new-network resolvers and release keys.
+Local fixtures stay separate (`yarn testenv:deploy`); persistent testnet faucet
+provisioning is opt-in:
+`framework.sh NETWORK provision-test-token NAME SYMBOL DECIMALS MINT_LIMIT`.
+This creates a public-mint test token plus wrapper and refuses occupied resolver keys.
+
+Deployment regression commands: `forge test --match-contract FrameworkDeploymentTest`,
+`node --test test/new-ops-scripts/framework-local.test.js`, and
+`node --test test/new-ops-scripts/framework-forks.test.js` (four representative
+read-only RPC fork sources, transactions only on local anvil).
+
+
 ### Troubleshooting
 
-Superfluid requires the [ERC-1820](https://eips.ethereum.org/EIPS/eip-1820) Registry contract to be deployed. That's because [ERC-777](https://eips.ethereum.org/EIPS/eip-777) - the basis for Super Tokens - depends on it.
-If you use the deployment scripts as described above, that will be done automatically. If not, you may want to manually deploy ERC-1820 yourself. You can use `ops-scripts/deploy-erc1820.js` to do so.
+ERC-1820 is required by SuperToken's ERC-777 sender/recipient hook lookups.
+Current SuperToken initialization and TOGA deployment can skip registry registration
+when it is absent (TOGA's ERC20 `bond()` remains usable, as on Arc), but ERC-777
+operations then fail closed. For full fresh-deployment functionality the framework
+command checks for the canonical registry before side effects. Run
+`new-ops-scripts/deploy-erc1820.sh NETWORK` to print the prerequisite funding/raw-
+transaction plan; add `--broadcast` explicitly to fund the canonical signer and
+publish the canonical presigned transaction. The command never signs that raw
+registry transaction. Existing framework upgrades do not require ERC-1820.
 
-In the [scripts folder](/scripts) you can find several scripts for deploying/configuring/querying protocol contracts.
+Maintained operator entry points are in [`new-ops-scripts`](./new-ops-scripts).
 
 ## Show your support
 
