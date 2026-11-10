@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Remove Hardhat's Web3 runtime plugin from local tooling. ABI generation continues
+  to consume Hardhat artifacts and does not require removed Truffle outputs;
+  contracts 1.16.0 retains bundled ABI filenames/exports.
+
 ## [2.3.0]
 
 - Stop indexing new `AccountTokenSnapshotLog` entries (schema retained; existing rows remain queryable)
