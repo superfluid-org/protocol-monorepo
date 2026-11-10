@@ -1,7 +1,5 @@
 import {HardhatUserConfig, subtask} from "hardhat/config";
 import "@typechain/hardhat";
-import "@nomiclabs/hardhat-web3";
-import "@nomiclabs/hardhat-truffle5";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomiclabs/hardhat-ethers";
 import {
@@ -161,6 +159,10 @@ const config: HardhatUserConfig = {
         "scroll-mainnet": {
             ...createNetworkConfig("scroll-mainnet"),
             url: process.env.SCROLL_MAINNET_PROVIDER_URL || "",
+        },
+        ops: {
+            url: process.env.RPC_URL || "http://127.0.0.1:8545",
+            accounts: "remote",
         },
         hardhat: {
             // We defer the contract size limit test to foundry.
