@@ -61,8 +61,8 @@ ordinary second `upgrade` prepares another implementation set; native resume is
 for the original interrupted transaction plan, not a new upgrade request.
 
 Upgrade-only overrides are `CALLBACK_GAS_LIMIT`, `APP_WHITELISTING`, `IDA_FROZEN`
-and `IDA_SLOTS` (1–256). Callback decreases, whitelist flips and frozen→active IDA
-require `REVIEWED_IMMUTABLE_OVERRIDE=true`. Review a fork simulation and protocol
+and `IDA_SLOTS` (1–256). Every difference from the deployed value
+requires `REVIEWED_IMMUTABLE_OVERRIDE=true`. Review a fork simulation and protocol
 impact first; that acknowledgment is not evidence that a change is safe. PPP,
 reward, ACL state and resolver entries are never re-derived from fresh defaults.
 
@@ -375,8 +375,11 @@ RELEASE_VERSION=v1 yarn hardhat run new-ops-scripts/validate-deployment.ts --net
 
 For a fresh/custom resolver, export `RESOLVER_ADDRESS` and `HOST_ADDRESS` for
 wrappers/discovery, and `RPC_URL` for Hardhat `ops`; verifier also accepts
-`--resolver`, `--host`, `--release`. Address report/plan `--block NUMBER` pins all
-reads. Forwarder tasks accept `all|deploy|verify|activate|register`; GDA/macro
+`--resolver`, `--host`, `--release`. Address report/plan `--block NUMBER` pins all reads.
+Explicit host/resolver overrides take precedence over metadata throughout forwarder
+trust checks, idempotence checks, activation and registration. Discovery `--host`
+takes precedence over `HOST_ADDRESS`.
+Forwarder tasks accept `all|deploy|verify|activate|register`; GDA/macro
 use their corresponding task paths. A missing forwarder requires its distinct
 `CFAFWD_DEPLOYER_PK`, `GDAFWD_DEPLOYER_PK` or `MACROFWD_DEPLOYER_PK`, even for a
 deployment simulation. Simulation then stops before activation/registration if
@@ -409,9 +412,9 @@ submission; a verification aggregate failure can occur after explorer requests.
 | Fresh registry absent | `ERC1820 missing: run deploy-erc1820.sh before deploying framework` | Explicit registry prerequisite; upgrades do not impose it. |
 | Fresh with existing resolver override | `Fresh creates a new resolver; use resolver-set-key for an existing resolver` | Remove override only for a genuinely new resolver; mutate existing keys through authorized resolver operations. |
 | Repeated fresh broadcast | `Fresh broadcast artifacts already exist. Use --resume to finish them; archive the broadcast/cache artifacts explicitly before an intentional new framework deployment.` | Resume original plan, not fresh reset. |
-| Governance code upgrade | GovernanceII guard: `Governance logic upgrade requires GovernanceII proxy`; `Governance is not a proxy` | Direct TestGovernance can fail its missing getter before those custom messages. Use separately reviewed governance replacement, not code upgrade of a non-proxy. |
+| Governance code upgrade | `Governance logic upgrade requires GovernanceII proxy` | Direct TestGovernance is rejected with this message. Use separately reviewed governance replacement, not code upgrade of a non-proxy. |
 | Token preflight | `Token belongs to another host`; `Token admin is not governed by this host`; `Token is not an upgradeable proxy`; `Token implementation UUID mismatch` | Remove incompatible token from the reviewed batch; do not bypass authority/UUID guards. |
-| Policy changes | `Callback gas decrease requires REVIEWED_IMMUTABLE_OVERRIDE=true`; `Whitelisting change requires REVIEWED_IMMUTABLE_OVERRIDE=true`; `IDA unfreeze requires REVIEWED_IMMUTABLE_OVERRIDE=true` | Preserve onchain values unless explicitly reviewed; bad/missing IDA getters propagate failure, never default to legacy policy. |
+| Policy changes | `Callback gas change requires REVIEWED_IMMUTABLE_OVERRIDE=true`; `Whitelisting change requires REVIEWED_IMMUTABLE_OVERRIDE=true`; `IDA freeze change requires REVIEWED_IMMUTABLE_OVERRIDE=true`; `IDA slots change requires REVIEWED_IMMUTABLE_OVERRIDE=true` | Preserve every onchain value unless explicitly reviewed; bad/missing IDA getters propagate failure, never default to legacy policy. |
 | Resolver authority | `Expected one resolver admin; select authorized RESOLVER_ADMIN explicitly`; shell simulation: `Set RESOLVER_ADMIN explicitly when resolver does not have exactly one admin`; `RESOLVER_ADMIN does not hold DEFAULT_ADMIN_ROLE` | Select actual role holder, not governance owner or last enumerable member. |
 | Overwrite / release | `ALLOW_UPDATE=1 required`; `Set RELEASE_VERSION explicitly (e.g. v1)` | Deliberate overwrite and release selection; no default `test` listing. |
 | Grant-before-revoke | `Grant must execute before revocation` | Observe successful role grant before revoking old admin. |

@@ -18,7 +18,8 @@ resolver_key="${2:?Usage: $0 <network> <resolverKey> <forwarderAddress>}"
 forwarder="${3:?Usage: $0 <network> <resolverKey> <forwarderAddress>}"
 [[ $# -eq 3 && "$forwarder" =~ ^0x[a-fA-F0-9]{40}$ ]] || { echo "Invalid forwarder arguments" >&2; exit 1; }
 rpc=$(get_rpc_url "$network")
-host=$(get_host "$network")
+host=${HOST_ADDRESS:-$(get_host "$network")}
+export HOST_ADDRESS=$host
 [[ "$host" =~ ^0x[a-fA-F0-9]{40}$ ]] || { echo "No host for $network" >&2; exit 1; }
 for address in "$host" "$forwarder"; do
     code=$(cast code "$address" --rpc-url "$rpc")
@@ -33,7 +34,8 @@ if [[ "$trusted" != true ]]; then
     echo "Execute the activation governance transaction first, then rerun register. A Safe proposal is not execution." >&2
     exit 1
 fi
-resolver=$(jq -r --arg network "$network" '.[] | select(.name == $network) | .contractsV1.resolver' "$METADATA_JSON")
+resolver=${RESOLVER_ADDRESS:-$(jq -r --arg network "$network" '.[] | select(.name == $network) | .contractsV1.resolver' "$METADATA_JSON")}
+export RESOLVER_ADDRESS=$resolver
 [[ "$resolver" =~ ^0x[a-fA-F0-9]{40}$ ]] || { echo "No resolver for $network" >&2; exit 1; }
 resolved=$(cast call "$resolver" "get(string)(address)" "$resolver_key" --rpc-url "$rpc")
 if [[ "${resolved,,}" == "${forwarder,,}" ]]; then

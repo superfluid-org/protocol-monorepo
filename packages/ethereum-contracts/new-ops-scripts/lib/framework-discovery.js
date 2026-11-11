@@ -127,7 +127,7 @@ async function discoverFramework(options) {
         add("resolver", value, "contracts/utils/Resolver.sol:Resolver");
         return value;
     });
-    const host = await attempt("host", async () => address("SUPERFLUID_HOST_PROXY", options.host ||
+    const host = await attempt("host", async () => address("SUPERFLUID_HOST_PROXY", options.host || process.env.HOST_ADDRESS ||
         (resolver ? read(resolver, "get(string) view returns (address)", [`Superfluid.${options.release}`]) : Promise.reject(new Error("Resolver unavailable; pass --host")))));
     if (!host) return result;
     const hostLogic = await attempt("host proxy", () => proxy("SUPERFLUID_HOST", host));
