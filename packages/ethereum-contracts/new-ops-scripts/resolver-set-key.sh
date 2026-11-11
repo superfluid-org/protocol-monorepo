@@ -46,6 +46,7 @@ cd "$PKG_ROOT"
 
 forge_args=(script foundry-scripts/ResolverSetKey.s.sol:ResolverSetKey --rpc-url "$PROVIDER_URL")
 if [[ -n "${SIMULATE:-}" ]]; then
+    export SAFE_PAYLOAD_SIMULATED=true
     source "$SCRIPT_DIR/lib/simulation-sender.sh"
     if [[ -n "${RESOLVER_ADMIN:-}" ]]; then
         admin=$RESOLVER_ADMIN
@@ -57,6 +58,7 @@ if [[ -n "${SIMULATE:-}" ]]; then
     fi
     forge_args+=(--sender "$(get_simulation_sender "$admin" "$PROVIDER_URL")")
 else
+    export SAFE_PAYLOAD_SIMULATED=false
     forge_args+=(--account "$WALLET_NAME" --broadcast)
 fi
 

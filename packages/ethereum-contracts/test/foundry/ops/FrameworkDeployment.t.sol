@@ -11,6 +11,7 @@ import {ISuperTokenFactory} from "../../../contracts/interfaces/superfluid/ISupe
 import {SimpleACL} from "../../../contracts/utils/SimpleACL.sol";
 import {SuperfluidPool} from "../../../contracts/agreements/gdav1/SuperfluidPool.sol";
 import {PoolAdminNFT} from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
+import {TestGovernance} from "../../../contracts/utils/TestGovernance.sol";
 
 contract FrameworkDeploymentTest is Test {
     FrameworkScript internal script;
@@ -71,6 +72,7 @@ contract FrameworkDeploymentTest is Test {
         _assertProxySafety(host, tokenLogic);
         vm.expectRevert();
         host.initialize(SuperfluidGovernanceII(address(0)));
+        _assertTestGovernanceRejected(host);
         script.upgradeGovernance();
         assertEq(SuperfluidGovernanceII(address(host.getGovernance())).owner(), deployer);
         vm.setEnv("RESOLVER_ADDRESS", vm.toString(address(resolver)));
@@ -128,6 +130,17 @@ contract FrameworkDeploymentTest is Test {
         vm.expectRevert("ERC1820 missing: run deploy-erc1820.sh before deploying framework");
         script.fresh();
         assertEq(vm.getNonce(deployer), nonce);
+    }
+
+    function _assertTestGovernanceRejected(Superfluid host) internal {
+        address gov = address(host.getGovernance());
+        bytes memory original = gov.code;
+        vm.etch(gov, address(new TestGovernance()).code);
+        uint64 nonce = vm.getNonce(deployer);
+        vm.expectRevert("Governance logic upgrade requires GovernanceII proxy");
+        script.upgradeGovernance();
+        assertEq(vm.getNonce(deployer), nonce);
+        vm.etch(gov, original);
     }
 
     function _implementations(Superfluid host) internal view returns (address[4] memory values) {

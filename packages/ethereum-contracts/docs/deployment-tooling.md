@@ -304,6 +304,12 @@ host requires `ALLOW_EXISTING_FRAMEWORK=1`. A second non-resume broadcast upgrad
 requires `NEW_UPGRADE=1`; normally use `--resume` for interrupted broadcasts.
 Payload defaults are `.tmp/framework-<chainId>-<action>[-dry-run].jsonl`.
 Simulated payloads cannot be proposed, and proposal RPC chain IDs must match.
+`SAFE_PAYLOAD_SIMULATED` defaults to true in the shared Solidity emitter.
+Wrappers set it false only in their broadcast/proposal path; do not manually
+relabel a simulation. `safe-ops --dry-run` may display simulated payloads but
+still checks the RPC chain binding. Proposal paths reject simulated payloads.
+On native upgrade resume, implementation code is checked after remaining
+deployment transactions complete and before the saved payload is displayed.
 
 Use reviewed bounded arrays for larger batches. Do not reuse a pre-execution
 simulation that still referenced the old canonical logic.

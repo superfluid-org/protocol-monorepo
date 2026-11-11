@@ -164,7 +164,14 @@ while IFS= read -r NETWORK; do
     }
 
     PAYLOAD_FILE=$(mktemp "$SAFE_PAYLOADS_DIR/gov-safe-add-owner.XXXXXX.jsonl")
-    printf '%s\n' "{\"safeAddress\":\"$GOV_SAFE_CHECKSUM\",\"to\":\"$GOV_SAFE_CHECKSUM\",\"value\":\"0\",\"data\":\"$CALLDATA\",\"operation\":\"0\",\"actionType\":\"gov-safe-add-owner\"}" >"$PAYLOAD_FILE"
+    CHAIN_ID=$(cast chain-id --rpc-url "$PROVIDER_URL")
+    SAFE_PAYLOAD_SIMULATED=true
+    [[ -n "${SIMULATE:-}" ]] || SAFE_PAYLOAD_SIMULATED=false
+    jq -nc --arg safe "$GOV_SAFE_CHECKSUM" --arg chainId "$CHAIN_ID" \
+        --arg deployer "${DEPLOYER:-0x0000000000000000000000000000000000000000}" \
+        --arg data "$CALLDATA" --argjson simulated "$SAFE_PAYLOAD_SIMULATED" \
+        '{safeAddress:$safe,to:$safe,value:"0",data:$data,operation:"0",actionType:"gov-safe-add-owner",
+          chainId:$chainId,deployer:$deployer,simulated:$simulated}' >"$PAYLOAD_FILE"
 
     echo "  RPC: $PROVIDER_URL"
     echo "  Governance: $GOV_ADDR"

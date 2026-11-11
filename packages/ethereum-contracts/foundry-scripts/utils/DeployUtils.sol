@@ -105,11 +105,12 @@ library DeployUtils {
             console.log("  Safe transaction data:");
             console.logBytes(actionData);
 
+            (, address sender,) = VM.readCallers();
             string memory safeTxJson = string(abi.encodePacked(
                 "{\"safeAddress\":\"", Strings.toChecksumHexString(adminAddress), "\",",
                 "\"chainId\":\"", Strings.toString(block.chainid), "\",",
-                "\"deployer\":\"", Strings.toChecksumHexString(VM.envOr("DEPLOYER", msg.sender)), "\",",
-                "\"simulated\":", VM.envOr("FRAMEWORK_SIMULATED", true) ? "true" : "false", ",",
+                "\"deployer\":\"", Strings.toChecksumHexString(VM.envOr("DEPLOYER", sender)), "\",",
+                "\"simulated\":", VM.envOr("SAFE_PAYLOAD_SIMULATED", true) ? "true" : "false", ",",
                 ""));
             safeTxJson = string(abi.encodePacked(safeTxJson,
                 "\"to\":\"", Strings.toChecksumHexString(targetContract), "\",",

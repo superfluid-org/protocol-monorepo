@@ -109,7 +109,7 @@ contract OpsPayloadTest is Test {
     function testResolverAndGovSafePayloads() public {
         string memory file = ".tmp/resolver-safe-test.jsonl";
         vm.setEnv("DEPLOYER", vm.toString(VALUE));
-        vm.setEnv("FRAMEWORK_SIMULATED", "true");
+        vm.setEnv("SAFE_PAYLOAD_SIMULATED", "true");
         vm.setEnv("SAFE_PAYLOADS_FILE", file);
         vm.writeFile(file, "");
         PayloadSafe safe = new PayloadSafe();
@@ -125,7 +125,7 @@ contract OpsPayloadTest is Test {
         assertEq(vm.parseJsonBytes(json, ".data"), abi.encodeWithSelector(Resolver.set.selector, KEY, VALUE));
         assertEq(r.get(KEY), address(0));
         vm.writeFile(file, "");
-        vm.setEnv("FRAMEWORK_SIMULATED", "false");
+        vm.setEnv("SAFE_PAYLOAD_SIMULATED", "false");
         GovernanceTarget gov = new GovernanceTarget(address(safe));
         govHarness.execute(HOST, address(gov), address(safe));
         json = vm.readFile(file);

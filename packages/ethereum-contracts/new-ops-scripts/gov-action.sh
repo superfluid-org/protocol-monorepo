@@ -218,11 +218,13 @@ cd "$PKG_ROOT"
 # Build forge command with conditional flags
 forge_args=(script foundry-scripts/GovAction.s.sol:GovAction --rpc-url "$PROVIDER_URL")
 if [[ -n "${SIMULATE:-}" ]]; then
+    export SAFE_PAYLOAD_SIMULATED=true
     source "$SCRIPT_DIR/lib/simulation-sender.sh"
     governance=$(cast call "$HOST_ADDRESS" 'getGovernance()(address)' --rpc-url "$PROVIDER_URL")
     admin=$(cast call "$governance" 'owner()(address)' --rpc-url "$PROVIDER_URL")
     forge_args+=(--sender "$(get_simulation_sender "$admin" "$PROVIDER_URL")")
 else
+    export SAFE_PAYLOAD_SIMULATED=false
     forge_args+=(--account "$WALLET_NAME" --broadcast)
 fi
 
