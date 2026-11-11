@@ -54,6 +54,11 @@ if [[ "$CHAIN_ID" != "$EXPECTED_CHAIN_ID" && "${ALLOW_LOCAL_CHAIN_ID_MISMATCH:-0
     echo "RPC chain $CHAIN_ID differs from NETWORK chain $EXPECTED_CHAIN_ID; local anvil only: ALLOW_LOCAL_CHAIN_ID_MISMATCH=1" >&2
     exit 1
 fi
+if [[ "$CHAIN_ID" != "$EXPECTED_CHAIN_ID" ]]; then
+    cast rpc web3_clientVersion --rpc-url "$RPC_URL" | jq -e 'test("anvil"; "i")' >/dev/null || {
+        echo 'Chain ID mismatch opt-out is restricted to Anvil.' >&2; exit 1;
+    }
+fi
 if [[ "$ACTION" == fresh && "${ALLOW_EXISTING_FRAMEWORK:-0}" != 1 ]] &&
     jq -e --argjson id "$CHAIN_ID" '.[] | select(.chainId == $id) | .contractsV1.host | select(. != null and . != "" and . != "0x0000000000000000000000000000000000000000")' "$METADATA_JSON" >/dev/null; then
     echo 'Metadata already contains a host; intentional replacement requires ALLOW_EXISTING_FRAMEWORK=1' >&2
@@ -65,8 +70,7 @@ mkdir -p "$PKG_ROOT/.tmp"
 SUFFIX=
 (( BROADCAST )) || SUFFIX=-dry-run
 export SAFE_PAYLOADS_FILE=${SAFE_PAYLOADS_FILE:-.tmp/framework-$CHAIN_ID-$ACTION$SUFFIX.jsonl}
-export FRAMEWORK_SIMULATED=$([[ "$BROADCAST" == 0 ]] && echo true || echo false)
-export FRAMEWORK_RESUME=$([[ "$RESUME" == 1 ]] && echo true || echo false)
+export SAFE_PAYLOAD_SIMULATED=$([[ "$BROADCAST" == 0 ]] && echo true || echo false)
 # Preserve payloads on resume; a new invocation starts a new payload collection.
 cd "$PKG_ROOT"
 if [[ "$ACTION" == fresh ]] && (( BROADCAST && ! RESUME )); then
@@ -80,16 +84,6 @@ if [[ "$ACTION" == upgrade && "${NEW_UPGRADE:-0}" != 1 ]] && (( BROADCAST && ! R
     [[ -f "${FOUNDRY_BROADCAST:-broadcast}/Framework.s.sol/$CHAIN_ID/upgrade-latest.json" ]]; then
     echo 'Upgrade broadcast exists; use --resume or NEW_UPGRADE=1 for an intentional new upgrade.' >&2
     exit 1
-fi
-if [[ "$ACTION" == upgrade ]] && (( RESUME )); then
-    ARTIFACT="${FOUNDRY_BROADCAST:-broadcast}/Framework.s.sol/$CHAIN_ID/upgrade-latest.json"
-    [[ -f "$ARTIFACT" ]] || { echo 'Missing upgrade broadcast artifact' >&2; exit 1; }
-    while read -r address; do
-        [[ "$(cast code "$address" --rpc-url "$RPC_URL")" != 0x ]] || {
-            echo "Resume payload refused: implementation has no code at $address; finish deployment first." >&2
-            exit 1
-        }
-    done < <(jq -r '.transactions[] | select(.transactionType == "CREATE" or .transactionType == "CREATE2") | .contractAddress' "$ARTIFACT")
 fi
 if (( ! RESUME )); then : > "$SAFE_PAYLOADS_FILE"; fi
 AUTH=()
@@ -114,5 +108,15 @@ else
 fi
 with_keystore_password forge script "$SCRIPT" --rpc-url "$RPC_URL" \
     --sig "$SIGNATURE" "${ARGS[@]}" "${AUTH[@]}"
+if [[ "$ACTION" == upgrade ]] && (( RESUME )); then
+    ARTIFACT="${FOUNDRY_BROADCAST:-broadcast}/Framework.s.sol/$CHAIN_ID/upgrade-latest.json"
+    [[ -f "$ARTIFACT" ]] || { echo 'Missing upgrade broadcast artifact' >&2; exit 1; }
+    while read -r address; do
+        [[ "$(cast code "$address" --rpc-url "$RPC_URL")" != 0x ]] || {
+            echo "Resume payload refused: implementation has no code at $address; finish deployment first." >&2
+            exit 1
+        }
+    done < <(jq -r '.transactions[] | select(.transactionType == "CREATE" or .transactionType == "CREATE2") | .contractAddress' "$ARTIFACT")
+fi
 echo "Safe payloads (not submitted): $SAFE_PAYLOADS_FILE"
 if [[ -s "$SAFE_PAYLOADS_FILE" ]]; then cat "$SAFE_PAYLOADS_FILE"; fi

@@ -208,43 +208,83 @@ for (const [index, name] of selected.entries()) {
                 FOUNDRY_BROADCAST: artifacts,
             };
             const nonce = await provider.getTransactionCount(sender);
-            run(
-                `${bin}/forge`,
-                [
-                    "script",
-                    "foundry-scripts/Framework.s.sol:FrameworkScript",
-                    "--sig",
-                    "upgrade()",
-                    "--rpc-url",
-                    provider.connection.url,
-                    "--sender",
-                    sender,
-                ],
-                env
-            );
+            if (safe) {
+                run("new-ops-scripts/framework.sh", [name, "upgrade"], {
+                    ...env,
+                    RPC_URL: provider.connection.url,
+                });
+            } else {
+                run(
+                    `${bin}/forge`,
+                    [
+                        "script",
+                        "foundry-scripts/Framework.s.sol:FrameworkScript",
+                        "--sig",
+                        "upgrade()",
+                        "--rpc-url",
+                        provider.connection.url,
+                        "--sender",
+                        sender,
+                    ],
+                    env
+                );
+            }
             assert.equal(
                 await provider.getTransactionCount(sender),
                 nonce,
                 "simulation broadcast a transaction"
             );
+            const proposeArgs = [
+                "-r",
+                "ts-node/register",
+                "new-ops-scripts/safe-ops.ts",
+                "propose-file",
+                "--rpc-url",
+                provider.connection.url,
+                "--payload-file",
+                payloadFile,
+                "--mode",
+                "single",
+            ];
+            const proposeEnv = {...process.env, SAFE_PROPOSER_PK: ""};
+            if (safe) {
+                const simulated = spawnSync("node", proposeArgs, {
+                    cwd: root,
+                    env: proposeEnv,
+                    encoding: "utf8",
+                });
+                assert.notEqual(simulated.status, 0);
+                assert.match(
+                    simulated.stderr,
+                    /Simulated or unbound Safe payload/
+                );
+            }
             fs.writeFileSync(path.join(root, payloadFile), "");
-            run(
-                `${bin}/forge`,
-                [
-                    "script",
-                    "foundry-scripts/Framework.s.sol:FrameworkScript",
-                    "--sig",
-                    "upgrade()",
-                    "--rpc-url",
-                    provider.connection.url,
-                    "--sender",
-                    sender,
-                    "--unlocked",
-                    "--broadcast",
-                    "--slow",
-                ],
-                env
-            );
+            if (safe) {
+                run(
+                    "new-ops-scripts/framework.sh",
+                    [name, "upgrade", "--broadcast"],
+                    {...env, RPC_URL: provider.connection.url, PRIVATE_KEY: key}
+                );
+            } else {
+                run(
+                    `${bin}/forge`,
+                    [
+                        "script",
+                        "foundry-scripts/Framework.s.sol:FrameworkScript",
+                        "--sig",
+                        "upgrade()",
+                        "--rpc-url",
+                        provider.connection.url,
+                        "--sender",
+                        sender,
+                        "--unlocked",
+                        "--broadcast",
+                        "--slow",
+                    ],
+                    env
+                );
+            }
             if (safe) {
                 const payloads = fs
                     .readFileSync(path.join(root, payloadFile), "utf8")
@@ -252,6 +292,18 @@ for (const [index, name] of selected.entries()) {
                     .split("\n")
                     .map(JSON.parse);
                 assert.equal(payloads.length, 1);
+                assert.equal(payloads[0].simulated, false);
+                const accepted = spawnSync("node", proposeArgs, {
+                    cwd: root,
+                    env: proposeEnv,
+                    encoding: "utf8",
+                });
+                assert.notEqual(accepted.status, 0);
+                assert.match(accepted.stderr, /SAFE_PROPOSER_PK/);
+                assert.doesNotMatch(
+                    accepted.stderr,
+                    /Simulated or unbound|chainId does not match/
+                );
                 const payload = payloads[0];
                 assert.equal(
                     payload.safeAddress.toLowerCase(),
@@ -338,6 +390,44 @@ for (const [index, name] of selected.entries()) {
             assert.deepEqual(after, before);
             assert.notEqual(await h.getCodeAddress(), oldLogic);
             await validate(provider, nw);
+            if (safe) {
+                const artifact = JSON.parse(
+                    fs.readFileSync(
+                        path.join(
+                            artifacts,
+                            `Framework.s.sol/${nw.chainId}/upgrade-latest.json`
+                        ),
+                        "utf8"
+                    )
+                );
+                const implementation = artifact.transactions.find(
+                    (tx) => tx.transactionType === "CREATE"
+                ).contractAddress;
+                const code = await provider.getCode(implementation);
+                await provider.send("anvil_setCode", [implementation, "0x"]);
+                const resumed = spawnSync(
+                    "new-ops-scripts/framework.sh",
+                    [name, "upgrade", "--resume"],
+                    {
+                        cwd: root,
+                        env: {
+                            ...process.env,
+                            ...env,
+                            RPC_URL: provider.connection.url,
+                            PATH: `${bin}:${process.env.PATH}`,
+                            PRIVATE_KEY: key,
+                        },
+                        encoding: "utf8",
+                        timeout: 240000,
+                    }
+                );
+                assert.notEqual(resumed.status, 0);
+                assert.match(
+                    resumed.stderr,
+                    /Resume payload refused: implementation has no code/
+                );
+                await provider.send("anvil_setCode", [implementation, code]);
+            }
             run(
                 "node",
                 [

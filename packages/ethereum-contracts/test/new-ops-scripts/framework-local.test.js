@@ -72,6 +72,39 @@ test(
                     await pause(250);
                 }
             }
+            const mismatch = spawnSync(
+                "new-ops-scripts/framework.sh",
+                ["eth-sepolia", "fresh"],
+                {
+                    cwd: root,
+                    env: {...env, ALLOW_LOCAL_CHAIN_ID_MISMATCH: "0"},
+                    encoding: "utf8",
+                }
+            );
+            assert.notEqual(mismatch.status, 0);
+            assert.match(mismatch.stderr, /differs from NETWORK chain/);
+            const metadataFile = path.join(artifacts, "networks.json");
+            fs.writeFileSync(
+                metadataFile,
+                JSON.stringify([
+                    {
+                        name: "eth-sepolia",
+                        chainId: 31337,
+                        contractsV1: {host: owner},
+                    },
+                ])
+            );
+            const occupied = spawnSync(
+                "new-ops-scripts/framework.sh",
+                ["eth-sepolia", "fresh"],
+                {
+                    cwd: root,
+                    env: {...env, METADATA_JSON: metadataFile},
+                    encoding: "utf8",
+                }
+            );
+            assert.notEqual(occupied.status, 0);
+            assert.match(occupied.stderr, /Metadata already contains a host/);
             run("new-ops-scripts/deploy-erc1820.sh", [
                 "eth-sepolia",
                 "--broadcast",
@@ -224,6 +257,33 @@ test(
                 ["eth-sepolia", "upgrade-tokens", `[${token}]`],
                 {...localEnv, HOST_ADDRESS: host, DEPLOYER: owner}
             );
+            const upgradeArtifact = path.join(
+                artifacts,
+                "Framework.s.sol/31337/upgrade-latest.json"
+            );
+            fs.writeFileSync(
+                upgradeArtifact,
+                JSON.stringify({
+                    transactions: [
+                        {transactionType: "CREATE", contractAddress: owner},
+                    ],
+                })
+            );
+            for (const [flag, message] of [
+                ["--broadcast", /Upgrade broadcast exists/],
+            ]) {
+                const refusedUpgrade = spawnSync(
+                    "new-ops-scripts/framework.sh",
+                    ["eth-sepolia", "upgrade", flag],
+                    {
+                        cwd: root,
+                        env: {...env, ...localEnv, HOST_ADDRESS: host},
+                        encoding: "utf8",
+                    }
+                );
+                assert.notEqual(refusedUpgrade.status, 0);
+                assert.match(refusedUpgrade.stderr, message);
+            }
             const payloadFile = path.join(artifacts, "simulated.jsonl");
             const payload = {
                 safeAddress: owner,

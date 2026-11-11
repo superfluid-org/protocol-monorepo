@@ -103,8 +103,10 @@ cd "$PKG_ROOT"
 
 forge_args=(script foundry-scripts/SuperTokenAdminAction.s.sol:SuperTokenAdminAction --sig run --rpc-url "$PROVIDER_URL")
 if [[ -n "${SIMULATE:-}" ]]; then
+    export SAFE_PAYLOAD_SIMULATED=true
     forge_args+=(--private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80)
 else
+    export SAFE_PAYLOAD_SIMULATED=false
     forge_args+=(--account "${WALLET_NAME:-sf-ops}" --broadcast)
 fi
 
