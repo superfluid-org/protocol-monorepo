@@ -39,7 +39,10 @@ rollout_forwarder() {
     # Normalize the existing nonempty SIMULATE convention for every child component.
     if [[ -n "${SIMULATE:-}" ]]; then export SIMULATE=1; fi
     rpc=$(get_rpc_url "$network") || return 1
-    host=$(get_host "$network") || return 1
+    host=${HOST_ADDRESS:-$(get_host "$network")} || return 1
+    export HOST_ADDRESS=$host
+    export RESOLVER_ADDRESS=${RESOLVER_ADDRESS:-$(jq -r --arg network "$network" \
+        '.[] | select(.name == $network) | .contractsV1.resolver' "$METADATA_JSON")}
     if [[ ! "$host" =~ ^0x[a-fA-F0-9]{40}$ ]] || ! has_deployed_code "$rpc" "$host"; then
         echo "No deployed host for $network" >&2
         return 1

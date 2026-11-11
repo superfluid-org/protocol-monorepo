@@ -32,6 +32,23 @@ cast decode-calldata 'set(string,address)' "$EXPECTED_SET"
 cast rpc anvil_impersonateAccount "$OWNER" --rpc-url "$MAINNET_FORK_RPC"
 cast rpc anvil_setBalance "$OWNER" 0x56BC75E2D63100000 --rpc-url "$MAINNET_FORK_RPC"
 cast send "$MULTI" --data "$INPUT" --from "$OWNER" --unlocked --rpc-url "$MAINNET_FORK_RPC" --json
+# Canonical resolver already publishes CFAv1Forwarder; an override must not falsely
+# report that its distinct, empty resolver has the same entry.
+OVERRIDE_RESOLVER=$(forge create contracts/utils/Resolver.sol:Resolver --rpc-url "$MAINNET_FORK_RPC" \
+    --from "$OWNER" --unlocked --broadcast --json | jq -er .deployedTo)
+FORWARDER=$(cast call "$RESOLVER" 'get(string)(address)' CFAv1Forwarder --rpc-url "$MAINNET_FORK_RPC")
+RPC_URL=$MAINNET_FORK_RPC RESOLVER_ADDRESS=$OVERRIDE_RESOLVER SIMULATE=1 \
+    bash new-ops-scripts/register-forwarder.sh eth-mainnet CFAv1Forwarder "$FORWARDER"
+OVERRIDE_INPUT=$(jq -er '.transactions[0].transaction.to' broadcast/ResolverSetKey.s.sol/1/dry-run/run-latest.json)
+[[ "${OVERRIDE_INPUT,,}" == "${OVERRIDE_RESOLVER,,}" ]]
+[[ $(cast call "$OVERRIDE_RESOLVER" 'get(string)(address)' CFAv1Forwarder --rpc-url "$MAINNET_FORK_RPC") == "$ZERO" ]]
+# A distinct overridden host returning false must govern trust checks, not metadata.
+OVERRIDE_HOST=0x0000000000000000000000000000000000001234
+cast rpc anvil_setCode "$OVERRIDE_HOST" 0x600060005260206000f3 --rpc-url "$MAINNET_FORK_RPC"
+if RPC_URL=$MAINNET_FORK_RPC HOST_ADDRESS=$OVERRIDE_HOST RESOLVER_ADDRESS=$OVERRIDE_RESOLVER SIMULATE=1 \
+    bash new-ops-scripts/register-forwarder.sh eth-mainnet CFAv1Forwarder "$FORWARDER"; then
+    echo 'ERROR: metadata host bypassed overridden host trust check' >&2; exit 1
+fi
 [[ $(cast call "$RESOLVER" 'get(string)(address)' "$KEY" --rpc-url "$MAINNET_FORK_RPC") == "$TOKEN" ]]
 if RPC_URL=$MAINNET_FORK_RPC SIMULATE=1 RELEASE_VERSION=v1 bash new-ops-scripts/resolver-token.sh eth-mainnet list "$TOKEN" "$SYMBOL"; then
     echo 'ERROR: occupied resolver key was not rejected' >&2; exit 1
