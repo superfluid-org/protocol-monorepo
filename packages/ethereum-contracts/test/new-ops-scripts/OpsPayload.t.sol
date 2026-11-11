@@ -108,6 +108,8 @@ contract OpsPayloadTest is Test {
     // vm.setEnv is process-global; keep both file-producing routes in one test.
     function testResolverAndGovSafePayloads() public {
         string memory file = ".tmp/resolver-safe-test.jsonl";
+        vm.setEnv("DEPLOYER", vm.toString(VALUE));
+        vm.setEnv("FRAMEWORK_SIMULATED", "true");
         vm.setEnv("SAFE_PAYLOADS_FILE", file);
         vm.writeFile(file, "");
         PayloadSafe safe = new PayloadSafe();
@@ -115,15 +117,20 @@ contract OpsPayloadTest is Test {
         resolverHarness.execute(r, KEY, VALUE);
         string memory json = vm.readFile(file);
         assertEq(vm.parseJsonAddress(json, ".safeAddress"), address(safe));
+        assertEq(vm.parseJsonString(json, ".chainId"), vm.toString(block.chainid));
+        assertEq(vm.parseJsonAddress(json, ".deployer"), VALUE);
+        assertTrue(vm.parseJsonBool(json, ".simulated"));
         assertEq(vm.parseJsonAddress(json, ".to"), address(r));
         assertEq(vm.parseJsonString(json, ".value"), "0");
         assertEq(vm.parseJsonBytes(json, ".data"), abi.encodeWithSelector(Resolver.set.selector, KEY, VALUE));
         assertEq(r.get(KEY), address(0));
         vm.writeFile(file, "");
+        vm.setEnv("FRAMEWORK_SIMULATED", "false");
         GovernanceTarget gov = new GovernanceTarget(address(safe));
         govHarness.execute(HOST, address(gov), address(safe));
         json = vm.readFile(file);
         assertEq(vm.parseJsonAddress(json, ".safeAddress"), address(safe));
+        assertFalse(vm.parseJsonBool(json, ".simulated"));
         assertEq(vm.parseJsonAddress(json, ".to"), address(gov));
         assertEq(vm.parseJsonString(json, ".value"), "0");
         assertEq(vm.parseJsonBytes(json, ".data"), govData());

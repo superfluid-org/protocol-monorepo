@@ -8,6 +8,9 @@ import {ERC1820RegistryCompiled} from "../../../contracts/libs/ERC1820RegistryCo
 import {TestToken} from "../../../contracts/utils/TestToken.sol";
 import {IERC20Metadata} from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ISuperTokenFactory} from "../../../contracts/interfaces/superfluid/ISuperTokenFactory.sol";
+import {SimpleACL} from "../../../contracts/utils/SimpleACL.sol";
+import {SuperfluidPool} from "../../../contracts/agreements/gdav1/SuperfluidPool.sol";
+import {PoolAdminNFT} from "../../../contracts/agreements/gdav1/PoolAdminNFT.sol";
 
 contract FrameworkDeploymentTest is Test {
     FrameworkScript internal script;
@@ -37,6 +40,7 @@ contract FrameworkDeploymentTest is Test {
         assertTrue(host.isTrustedForwarder(resolver.get("CFAv1Forwarder")));
         assertTrue(host.isTrustedForwarder(resolver.get("GDAv1Forwarder")));
         assertTrue(host.isTrustedForwarder(resolver.get("BlindMacroForwarder")));
+        _assertUpgradeEntryPointGuards(host);
         ChainPolicy.Policy memory beforePolicy = script.policyOf(host);
         address oldHostLogic = host.getCodeAddress();
         address oldTokenLogic = address(host.getSuperTokenFactory().getSuperTokenLogic());
@@ -45,7 +49,11 @@ contract FrameworkDeploymentTest is Test {
             ISuperTokenFactory.Upgradability.SEMI_UPGRADABLE, "Super Test", "TESTx", address(0)));
         vm.setEnv("HOST_ADDRESS", vm.toString(address(host)));
         _assertMalformedIDARejected(host);
+        address[4] memory oldImplementations = _implementations(host);
         script.upgrade();
+        address[4] memory nextImplementations = _implementations(host);
+        for (uint256 i; i < 4; ++i) assertTrue(oldImplementations[i] != nextImplementations[i], "Implementation unchanged");
+        _assertLinkage(host);
         assertTrue(host.getCodeAddress() != oldHostLogic);
         assertTrue(address(host.getSuperTokenFactory().getSuperTokenLogic()) != oldTokenLogic);
         assertEq(abi.encode(script.policyOf(host)), abi.encode(beforePolicy));
@@ -74,6 +82,12 @@ contract FrameworkDeploymentTest is Test {
         assertTrue(resolver.hasRole(bytes32(0), target));
         assertFalse(resolver.hasRole(bytes32(0), deployer));
         script.handoverGovernance(target);
+        SimpleACL acl = SimpleACL(address(host.getSimpleACL()));
+        assertEq(acl.getRoleAdmin(keccak256("ACL_SUPERAPP_REGISTRATION_ROLE")),
+            keccak256("ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN"));
+        script.handoverACL(target);
+        assertFalse(acl.hasRole(bytes32(0), deployer));
+        assertTrue(acl.hasRole(bytes32(0), target));
         assertEq(SuperfluidGovernanceII(address(host.getGovernance())).owner(), target);
         vm.setEnv("RESOLVER_ADDRESS", "0x0000000000000000000000000000000000000000");
     }
@@ -116,6 +130,57 @@ contract FrameworkDeploymentTest is Test {
         assertEq(vm.getNonce(deployer), nonce);
     }
 
+    function _implementations(Superfluid host) internal view returns (address[4] memory values) {
+        string[3] memory names = [string("ConstantFlowAgreement"), "InstantDistributionAgreement", "GeneralDistributionAgreement"];
+        for (uint256 i; i < 3; ++i) {
+            values[i] = UUPSProxiable(address(host.getAgreementClass(
+                keccak256(abi.encodePacked("org.superfluid-finance.agreements.", names[i], ".v1"))))).getCodeAddress();
+        }
+        GeneralDistributionAgreementV1 gda = GeneralDistributionAgreementV1(address(host.getAgreementClass(
+            keccak256("org.superfluid-finance.agreements.GeneralDistributionAgreement.v1"))));
+        values[3] = gda.superfluidPoolBeacon().implementation();
+    }
+
+    function _assertLinkage(Superfluid host) internal view {
+        GeneralDistributionAgreementV1 gda = GeneralDistributionAgreementV1(address(host.getAgreementClass(
+            keccak256("org.superfluid-finance.agreements.GeneralDistributionAgreement.v1"))));
+        assertEq(address(SuperfluidPool(gda.superfluidPoolBeacon().implementation()).GDA()), address(gda));
+        SuperToken token = SuperToken(address(host.getSuperTokenFactory().getSuperTokenLogic()));
+        PoolAdminNFT nft = PoolAdminNFT(address(token.POOL_ADMIN_NFT()));
+        assertEq(address(nft.HOST()), address(host));
+        assertEq(address(nft.GENERAL_DISTRIBUTION_AGREEMENT_V1()), address(gda));
+    }
+
+    function _assertUpgradeEntryPointGuards(Superfluid host) internal {
+        vm.setEnv("HOST_ADDRESS", vm.toString(address(host)));
+        _rejectOverride("CALLBACK_GAS_LIMIT", "11999999", "12000000");
+        _rejectOverride("CALLBACK_GAS_LIMIT", "12000001", "12000000");
+        _rejectOverride("APP_WHITELISTING", "true", "false");
+        _rejectOverride("IDA_FROZEN", "false", "true");
+        _rejectOverride("IDA_SLOTS", "32", "256");
+        vm.setEnv("CALLBACK_GAS_LIMIT", "7777777");
+        vm.setEnv("APP_WHITELISTING", "true");
+        vm.setEnv("IDA_FROZEN", "false");
+        vm.setEnv("IDA_SLOTS", "32");
+        vm.setEnv("REVIEWED_IMMUTABLE_OVERRIDE", "true");
+        script.upgrade();
+        assertEq(host.CALLBACK_GAS_LIMIT(), 7777777);
+        assertTrue(host.APP_WHITE_LISTING_ENABLED());
+        ChainPolicy.Policy memory policy = script.policyOf(host);
+        assertFalse(policy.idaFrozen);
+        assertEq(policy.idaSlots, 32);
+        vm.setEnv("REVIEWED_IMMUTABLE_OVERRIDE", "false");
+    }
+
+    function _rejectOverride(string memory key, string memory value, string memory original) internal {
+        vm.setEnv(key, value);
+        uint64 nonce = vm.getNonce(deployer);
+        vm.expectRevert();
+        script.upgrade();
+        assertEq(vm.getNonce(deployer), nonce, "Policy rejection must precede deployment");
+        vm.setEnv(key, original);
+    }
+
     function checkPolicy(ChainPolicy.Policy memory previous, ChainPolicy.Policy memory next, bool reviewed) external pure {
         ChainPolicy.guard(previous, next, reviewed);
     }
@@ -124,7 +189,7 @@ contract FrameworkDeploymentTest is Test {
         ChainPolicy.Policy memory previous = ChainPolicy.get(1);
         ChainPolicy.Policy memory next = ChainPolicy.get(1);
         next.callbackGasLimit = 1;
-        vm.expectRevert("Callback gas decrease requires REVIEWED_IMMUTABLE_OVERRIDE=true");
+        vm.expectRevert("Callback gas change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
         this.checkPolicy(previous, next, false);
         next.callbackGasLimit = previous.callbackGasLimit;
         next.whitelisting = false;
@@ -132,7 +197,7 @@ contract FrameworkDeploymentTest is Test {
         this.checkPolicy(previous, next, false);
         next.whitelisting = true;
         next.idaFrozen = false;
-        vm.expectRevert("IDA unfreeze requires REVIEWED_IMMUTABLE_OVERRIDE=true");
+        vm.expectRevert("IDA freeze change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
         this.checkPolicy(previous, next, false);
         this.checkPolicy(previous, next, true);
     }

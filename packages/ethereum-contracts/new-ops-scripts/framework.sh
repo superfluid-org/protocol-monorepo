@@ -29,6 +29,7 @@ case "$ACTION" in
     upgrade-tokens) SIGNATURE='upgradeTokens(address[])'; COUNT=1
         [[ "${1:-}" != ALL ]] || { echo 'ALL token discovery is not implemented. Supply a reviewed explicit address array after framework upgrade execution.' >&2; exit 1; } ;;
     handover-governance) SIGNATURE='handoverGovernance(address)'; COUNT=1 ;;
+    handover-acl) SIGNATURE='handoverACL(address)'; COUNT=1 ;;
     grant-resolver-admin) SIGNATURE='grantResolverAdmin(address)'; COUNT=1 ;;
     revoke-resolver-admin) SIGNATURE='revokeResolverAdmin(address,address)'; COUNT=2 ;;
     provision-test-token) SCRIPT=foundry-scripts/ProvisionTestToken.s.sol:ProvisionTestToken
@@ -47,10 +48,25 @@ for flag in "$@"; do
     esac
 done
 RPC_URL=$(get_rpc_url "$NETWORK")
+CHAIN_ID=$(cast chain-id --rpc-url "$RPC_URL")
+EXPECTED_CHAIN_ID=$(get_chain_id "$NETWORK")
+if [[ "$CHAIN_ID" != "$EXPECTED_CHAIN_ID" && "${ALLOW_LOCAL_CHAIN_ID_MISMATCH:-0}" != 1 ]]; then
+    echo "RPC chain $CHAIN_ID differs from NETWORK chain $EXPECTED_CHAIN_ID; local anvil only: ALLOW_LOCAL_CHAIN_ID_MISMATCH=1" >&2
+    exit 1
+fi
+if [[ "$ACTION" == fresh && "${ALLOW_EXISTING_FRAMEWORK:-0}" != 1 ]] &&
+    jq -e --argjson id "$CHAIN_ID" '.[] | select(.chainId == $id) | .contractsV1.host | select(. != null and . != "" and . != "0x0000000000000000000000000000000000000000")' "$METADATA_JSON" >/dev/null; then
+    echo 'Metadata already contains a host; intentional replacement requires ALLOW_EXISTING_FRAMEWORK=1' >&2
+    exit 1
+fi
 export HOST_ADDRESS=${HOST_ADDRESS:-$(get_host "$NETWORK")}
 export RELEASE_VERSION=${RELEASE_VERSION:-v1}
 mkdir -p "$PKG_ROOT/.tmp"
-export SAFE_PAYLOADS_FILE=${SAFE_PAYLOADS_FILE:-.tmp/framework-safe-payloads.jsonl}
+SUFFIX=
+(( BROADCAST )) || SUFFIX=-dry-run
+export SAFE_PAYLOADS_FILE=${SAFE_PAYLOADS_FILE:-.tmp/framework-$CHAIN_ID-$ACTION$SUFFIX.jsonl}
+export FRAMEWORK_SIMULATED=$([[ "$BROADCAST" == 0 ]] && echo true || echo false)
+export FRAMEWORK_RESUME=$([[ "$RESUME" == 1 ]] && echo true || echo false)
 # Preserve payloads on resume; a new invocation starts a new payload collection.
 cd "$PKG_ROOT"
 if [[ "$ACTION" == fresh ]] && (( BROADCAST && ! RESUME )); then
@@ -59,6 +75,21 @@ if [[ "$ACTION" == fresh ]] && (( BROADCAST && ! RESUME )); then
         echo 'Fresh broadcast artifacts already exist. Use --resume to finish them; archive the broadcast/cache artifacts explicitly before an intentional new framework deployment.' >&2
         exit 1
     fi
+fi
+if [[ "$ACTION" == upgrade && "${NEW_UPGRADE:-0}" != 1 ]] && (( BROADCAST && ! RESUME )) &&
+    [[ -f "${FOUNDRY_BROADCAST:-broadcast}/Framework.s.sol/$CHAIN_ID/upgrade-latest.json" ]]; then
+    echo 'Upgrade broadcast exists; use --resume or NEW_UPGRADE=1 for an intentional new upgrade.' >&2
+    exit 1
+fi
+if [[ "$ACTION" == upgrade ]] && (( RESUME )); then
+    ARTIFACT="${FOUNDRY_BROADCAST:-broadcast}/Framework.s.sol/$CHAIN_ID/upgrade-latest.json"
+    [[ -f "$ARTIFACT" ]] || { echo 'Missing upgrade broadcast artifact' >&2; exit 1; }
+    while read -r address; do
+        [[ "$(cast code "$address" --rpc-url "$RPC_URL")" != 0x ]] || {
+            echo "Resume payload refused: implementation has no code at $address; finish deployment first." >&2
+            exit 1
+        }
+    done < <(jq -r '.transactions[] | select(.transactionType == "CREATE" or .transactionType == "CREATE2") | .contractAddress' "$ARTIFACT")
 fi
 if (( ! RESUME )); then : > "$SAFE_PAYLOADS_FILE"; fi
 AUTH=()

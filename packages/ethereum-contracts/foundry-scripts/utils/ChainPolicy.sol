@@ -34,11 +34,13 @@ library ChainPolicy {
     }
 
     function guard(Policy memory previous, Policy memory next, bool reviewedOverride) internal pure {
-        require(reviewedOverride || next.callbackGasLimit >= previous.callbackGasLimit,
-            "Callback gas decrease requires REVIEWED_IMMUTABLE_OVERRIDE=true");
+        require(reviewedOverride || next.callbackGasLimit == previous.callbackGasLimit,
+            "Callback gas change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
         require(reviewedOverride || next.whitelisting == previous.whitelisting,
             "Whitelisting change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
-        require(reviewedOverride || !previous.idaFrozen || next.idaFrozen,
-            "IDA unfreeze requires REVIEWED_IMMUTABLE_OVERRIDE=true");
+        require(reviewedOverride || next.idaFrozen == previous.idaFrozen,
+            "IDA freeze change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
+        require(reviewedOverride || next.idaSlots == previous.idaSlots,
+            "IDA slots change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
     }
 }

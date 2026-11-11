@@ -7,7 +7,8 @@ const {ethers} = require("ethers");
 const root = path.resolve(__dirname, "../..");
 const bin =
     process.env.FOUNDRY_BIN || path.join(process.env.HOME, ".foundry/bin");
-const rpc = "http://127.0.0.1:19645";
+const port = process.env.FRAMEWORK_LOCAL_PORT || "19300";
+const rpc = `http://127.0.0.1:${port}`;
 const key =
     "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const owner = new ethers.Wallet(key).address;
@@ -15,6 +16,7 @@ const env = {
     ...process.env,
     PATH: `${bin}:${process.env.PATH}`,
     RPC_URL: rpc,
+    ALLOW_LOCAL_CHAIN_ID_MISMATCH: "1",
     PRIVATE_KEY: key,
     RESOLVER_ADDRESS: "0x0000000000000000000000000000000000000000",
 };
@@ -49,7 +51,7 @@ test(
             `${bin}/anvil`,
             [
                 "--port",
-                "19645",
+                port,
                 "--gas-limit",
                 "100000000",
                 "--block-time",
@@ -216,6 +218,51 @@ test(
                 await r.get("supertokens.v1.fUSDCx"),
                 ethers.constants.AddressZero
             );
+            const token = await r.get("supertokens.v1.fUSDCx");
+            run(
+                "new-ops-scripts/framework.sh",
+                ["eth-sepolia", "upgrade-tokens", `[${token}]`],
+                {...localEnv, HOST_ADDRESS: host, DEPLOYER: owner}
+            );
+            const payloadFile = path.join(artifacts, "simulated.jsonl");
+            const payload = {
+                safeAddress: owner,
+                to: host,
+                data: "0x",
+                chainId: "31337",
+                deployer: owner,
+                simulated: true,
+            };
+            fs.writeFileSync(payloadFile, JSON.stringify(payload));
+            const safeArgs = [
+                "-r",
+                "ts-node/register",
+                "new-ops-scripts/safe-ops.ts",
+                "propose-file",
+                "--rpc-url",
+                rpc,
+                "--payload-file",
+                payloadFile,
+                "--mode",
+                "single",
+            ];
+            run("node", [...safeArgs, "--dry-run"]);
+            const rejected = spawnSync("node", safeArgs, {
+                cwd: root,
+                env,
+                encoding: "utf8",
+            });
+            assert.notEqual(rejected.status, 0);
+            assert.match(rejected.stderr, /Simulated or unbound Safe payload/);
+            payload.chainId = "1";
+            fs.writeFileSync(payloadFile, JSON.stringify(payload));
+            const wrongChain = spawnSync("node", [...safeArgs, "--dry-run"], {
+                cwd: root,
+                env,
+                encoding: "utf8",
+            });
+            assert.notEqual(wrongChain.status, 0);
+            assert.match(wrongChain.stderr, /chainId does not match RPC/);
             console.log(
                 JSON.stringify({
                     host,
