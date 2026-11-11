@@ -14,6 +14,9 @@ live configuration. The [frozen kickoff handoff](plans/2026-11-truffle-migration
 preserves the original scope, not current instructions; the approved implementation
 and this guide supersede its old proposed interfaces and Nix-only instruction.
 
+Deployment acceptance tests resolve Foundry executables from `PATH`, including
+Nix CI shells. Set `FOUNDRY_BIN` only to override their executable directory.
+
 ## Supported capabilities and evidence
 
 All 16 networks in [metadata](../../metadata/networks.json) are supported; deprecated
@@ -392,6 +395,8 @@ deployment simulation. Simulation then stops before activation/registration if
 bytecode does not yet exist. An existing trusted forwarder needs no deployment key.
 Registration is blocked while activation is pending. Rerun only `register` after
 execution; verification failures are separately resumable and keep a failing exit.
+The CFA, GDA and BlindMacro tasks export `SKIP_GRANT_PROVIDER=1` for the shared
+rollout library: ClearMacro provider-role grants never apply to these forwarders.
 
 Verifier `--plan` prints JSON `mode: "plan"`, compiler-source targets, encoded
 constructors, linked libraries, `errors` and `unsupported`. Actual verification

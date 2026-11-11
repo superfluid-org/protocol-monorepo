@@ -7,8 +7,7 @@ const path = require("node:path");
 const {ethers} = require("ethers");
 const networks = require("../../../metadata/networks.json");
 const root = path.resolve(__dirname, "../..");
-const bin =
-    process.env.FOUNDRY_BIN || path.join(process.env.HOME, ".foundry/bin");
+const bin = process.env.FOUNDRY_BIN;
 const key =
     "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const account = new ethers.Wallet(key).address;
@@ -44,7 +43,11 @@ const typeHash = (name) =>
 function run(command, args, env = {}) {
     const r = spawnSync(command, args, {
         cwd: root,
-        env: {...process.env, PATH: `${bin}:${process.env.PATH}`, ...env},
+        env: {
+            ...process.env,
+            PATH: bin ? `${bin}:${process.env.PATH}` : process.env.PATH,
+            ...env,
+        },
         encoding: "utf8",
         timeout: 240000,
         maxBuffer: 32 * 1024 * 1024,
@@ -58,7 +61,7 @@ function run(command, args, env = {}) {
 }
 async function startFork(network, port) {
     const child = spawn(
-        `${bin}/anvil`,
+        bin ? path.join(bin, "anvil") : "anvil",
         [
             "--port",
             String(port),
@@ -215,7 +218,7 @@ for (const [index, name] of selected.entries()) {
                 });
             } else {
                 run(
-                    `${bin}/forge`,
+                    bin ? path.join(bin, "forge") : "forge",
                     [
                         "script",
                         "foundry-scripts/Framework.s.sol:FrameworkScript",
@@ -268,7 +271,7 @@ for (const [index, name] of selected.entries()) {
                 );
             } else {
                 run(
-                    `${bin}/forge`,
+                    bin ? path.join(bin, "forge") : "forge",
                     [
                         "script",
                         "foundry-scripts/Framework.s.sol:FrameworkScript",
@@ -414,7 +417,9 @@ for (const [index, name] of selected.entries()) {
                             ...process.env,
                             ...env,
                             RPC_URL: provider.connection.url,
-                            PATH: `${bin}:${process.env.PATH}`,
+                            PATH: bin
+                                ? `${bin}:${process.env.PATH}`
+                                : process.env.PATH,
                             PRIVATE_KEY: key,
                         },
                         encoding: "utf8",
