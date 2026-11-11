@@ -13,6 +13,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../new-ops-scripts/lib/rollout-forwarder.sh"
 network="${1:?Usage: $0 <network> [all|deploy|verify|activate|register]}"
 [[ $# -le 2 ]] || { echo "Too many arguments" >&2; exit 1; }
-SKIP_GRANT_PROVIDER=1
+export SKIP_GRANT_PROVIDER=1
 rollout_forwarder "$network" BlindMacroForwarder BlindMacroForwarder \
     0xFD0268E33111565dE546af2675351A4b1587F89F "${MACROFWD_DEPLOYER_PK:-}" "${2:-all}"
