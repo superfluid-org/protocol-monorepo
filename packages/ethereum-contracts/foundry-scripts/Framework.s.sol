@@ -85,6 +85,8 @@ contract FrameworkScript is Script {
         SimpleForwarder simple = new SimpleForwarder();
         ERC2771Forwarder erc2771 = new ERC2771Forwarder();
         SimpleACL acl = new SimpleACL();
+        acl.setRoleAdmin(keccak256("ACL_SUPERAPP_REGISTRATION_ROLE"),
+            keccak256("ACL_SUPERAPP_REGISTRATION_ROLE_ADMIN"));
         Superfluid hostLogic = new Superfluid(false, p.whitelisting, p.callbackGasLimit,
             address(simple), address(erc2771), address(acl));
         UUPSProxy hostProxy = new UUPSProxy();
@@ -213,10 +215,12 @@ contract FrameworkScript is Script {
         Superfluid h = _host(vm.envAddress("HOST_ADDRESS"));
         address gov = address(h.getGovernance());
         // TestGovernance is deliberately not replaceable by this code-upgrade operation.
+        (bool ok, bytes memory result) = gov.staticcall(abi.encodeWithSignature("getCodeAddress()"));
+        require(ok && result.length == 32 && abi.decode(result, (address)) != address(0),
+            "Governance logic upgrade requires GovernanceII proxy");
         require(UUPSProxiable(gov).proxiableUUID() == keccak256(
             "org.superfluid-finance.contracts.SuperfluidGovernanceII.implementation"),
             "Governance logic upgrade requires GovernanceII proxy");
-        require(UUPSProxiable(gov).getCodeAddress() != address(0), "Governance is not a proxy");
         vm.startBroadcast(_sender());
         SuperfluidGovernanceII logic = new SuperfluidGovernanceII();
         logic.castrate();
@@ -242,6 +246,15 @@ contract FrameworkScript is Script {
         vm.startBroadcast(_sender());
         DeployUtils.executeGovernanceAction(gov, abi.encodeWithSignature("batchUpdateSuperTokenLogic(address,address[])",
             address(h), tokens), _govOwner(gov));
+        vm.stopBroadcast();
+    }
+
+    function handoverACL(address targetAdmin) external {
+        require(targetAdmin != address(0) && targetAdmin != _sender(), "Invalid ACL successor");
+        SimpleACL acl = SimpleACL(address(_host(vm.envAddress("HOST_ADDRESS")).getSimpleACL()));
+        vm.startBroadcast(_sender());
+        acl.grantRole(bytes32(0), targetAdmin);
+        acl.renounceRole(bytes32(0), _sender());
         vm.stopBroadcast();
     }
 

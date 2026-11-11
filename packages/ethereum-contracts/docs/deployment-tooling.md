@@ -228,6 +228,7 @@ addresses, then export them. For handover, set real intended addresses first:
 : "${OLD_RESOLVER_ADMIN:?Set the current resolver admin}"
 export HOST_ADDRESS RESOLVER_ADDRESS DEPLOYER
 bash new-ops-scripts/framework.sh "$NETWORK" handover-governance "$NEW_GOV_OWNER"
+bash new-ops-scripts/framework.sh "$NETWORK" handover-acl "$NEW_GOV_OWNER"
 bash new-ops-scripts/framework.sh "$NETWORK" grant-resolver-admin "$NEW_RESOLVER_ADMIN"
 # Execute the reviewed grant onchain before simulating or broadcasting revocation.
 bash new-ops-scripts/framework.sh "$NETWORK" revoke-resolver-admin \
@@ -288,10 +289,22 @@ and `Nonce`. Check actual onchain execution before preparing the token batch:
 
 ```bash
 : "${TOKEN:?Set one reviewed host-governed SuperToken proxy}"
-bash new-ops-scripts/framework.sh "$NETWORK" upgrade-tokens "[\"$TOKEN\"]"
+bash new-ops-scripts/framework.sh "$NETWORK" upgrade-tokens "[$TOKEN]"
 ```
 
 This simulates a separate routed batch against the **currently canonical** logic.
+Use Foundry address-array syntax (`'[0xA,0xB]'`), not quoted JSON strings.
+Safe-admin tokens (including ETHx/USDCx on eth-mainnet) instead use
+`super-token-admin-action.sh`; they are not host-governed token batches.
+
+Every policy difference requires `REVIEWED_IMMUTABLE_OVERRIDE=true`.
+The wrapper checks RPC chain ID against NETWORK; only local Anvil tests may use
+`ALLOW_LOCAL_CHAIN_ID_MISMATCH=1`. Fresh deployment on a chain with a metadata
+host requires `ALLOW_EXISTING_FRAMEWORK=1`. A second non-resume broadcast upgrade
+requires `NEW_UPGRADE=1`; normally use `--resume` for interrupted broadcasts.
+Payload defaults are `.tmp/framework-<chainId>-<action>[-dry-run].jsonl`.
+Simulated payloads cannot be proposed, and proposal RPC chain IDs must match.
+
 Use reviewed bounded arrays for larger batches. Do not reuse a pre-execution
 simulation that still referenced the old canonical logic.
 
@@ -442,7 +455,7 @@ Here `framework` = `bash new-ops-scripts/framework.sh NETWORK`, `resolver-token`
 | `gov-set-trusted-forwarder.js` | `gov-action enableTrustedForwarder TOKEN FORWARDER` / `disableTrustedForwarder` — supported | No truthy 1/0 ambiguity; preserve default/token scope and execution gate. |
 | `gov-transfer-framework-ownership.js` | `framework handover-governance OWNER`, `grant-resolver-admin ADMIN`, `revoke-resolver-admin OLD NEW` — simplified | Separate authorities, grant must execute before revoke. |
 | `gov-upgrade-governance.js` | `framework upgrade-governance` — supported | GovernanceII implementation only, not direct TestGovernance. |
-| `gov-upgrade-super-token-logic.js` | `framework upgrade-tokens '["ADDRESS",...]'` — simplified; `ALL` not implemented | Separate action after framework execution; canonical host-governed proxies only. |
+| `gov-upgrade-super-token-logic.js` | `framework upgrade-tokens '[0xA,0xB]'` — simplified; `ALL` not implemented | Separate action after framework execution; canonical host-governed proxies only. |
 | `info-inspect-account.js` | `cast call`, sdk-core, explorer — retired | No maintained report CLI; removed runner/path is the deliberate failure. |
 | `info-list-apps.js` | Query `AppRegistered` logs/subgraph — retired | No duplicate report layer. |
 | `info-print-contract-addresses.js` | `node new-ops-scripts/info-print-contract-addresses.js NETWORK` — simplified | JSON snapshot, not sourced shell assignments. |

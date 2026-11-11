@@ -95,6 +95,12 @@ jobs:
           yarn test:build:abis
         working-directory: ./packages/ethereum-contracts
 
+      - name: Exercise local framework deployment and recovery
+        run: yarn test:deployment:local
+        working-directory: ./packages/ethereum-contracts
+        env:
+          FRAMEWORK_LOCAL_PORT: 19300
+
       - name: Run test suite
         if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == false
         run: |

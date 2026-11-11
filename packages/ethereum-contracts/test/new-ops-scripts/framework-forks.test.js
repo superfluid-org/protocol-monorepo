@@ -179,7 +179,10 @@ for (const [index, name] of selected.entries()) {
         const artifacts = fs.mkdtempSync(
             path.join(root, ".tmp/framework-fork-")
         );
-        const {child, provider} = await startFork(name, 19545 + index);
+        const {child, provider} = await startFork(
+            name,
+            Number(process.env.FRAMEWORK_FORK_PORT || 19310) + index
+        );
         const payloadFile = `.tmp/framework-${name}-safe.jsonl`;
         try {
             const before = await snapshot(provider, nw);
@@ -268,17 +271,67 @@ for (const [index, name] of selected.entries()) {
                         )
                         .slice(0, 10)
                 );
-                await provider.send("anvil_impersonateAccount", [owner]);
-                await provider.send("anvil_setBalance", [
+                const wallet = new ethers.Contract(
                     owner,
-                    "0x3635c9adc5dea00000",
-                ]);
+                    [
+                        "function getOwners() view returns(address[])",
+                        "function getThreshold() view returns(uint256)",
+                        "function nonce() view returns(uint256)",
+                        "function getTransactionHash(address,uint256,bytes,uint8,uint256,uint256,uint256," +
+                            "address,address,uint256) view returns(bytes32)",
+                        "function approveHash(bytes32)",
+                        "function execTransaction(address,uint256,bytes,uint8,uint256,uint256,uint256," +
+                            "address,address,bytes) returns(bool)",
+                    ],
+                    provider
+                );
+                const owners = [...(await wallet.getOwners())].sort((a, b) =>
+                    a.toLowerCase().localeCompare(b.toLowerCase())
+                );
+                const signers = owners.slice(
+                    0,
+                    Number(await wallet.getThreshold())
+                );
+                const txArgs = [
+                    payload.to,
+                    0,
+                    payload.data,
+                    0,
+                    0,
+                    0,
+                    0,
+                    zero,
+                    zero,
+                ];
+                const hash = await wallet.getTransactionHash(
+                    ...txArgs,
+                    await wallet.nonce()
+                );
+                for (const signer of signers) {
+                    await provider.send("anvil_impersonateAccount", [signer]);
+                    await provider.send("anvil_setBalance", [
+                        signer,
+                        "0x3635c9adc5dea00000",
+                    ]);
+                    await (
+                        await wallet
+                            .connect(provider.getSigner(signer))
+                            .approveHash(hash)
+                    ).wait();
+                }
+                const signatures = ethers.utils.hexConcat(
+                    signers.map((signer) =>
+                        ethers.utils.hexConcat([
+                            ethers.utils.hexZeroPad(signer, 32),
+                            ethers.constants.HashZero,
+                            "0x01",
+                        ])
+                    )
+                );
                 await (
-                    await provider.getSigner(owner).sendTransaction({
-                        to: payload.to,
-                        data: payload.data,
-                        gasLimit: 20000000,
-                    })
+                    await wallet
+                        .connect(provider.getSigner(signers[0]))
+                        .execTransaction(...txArgs, signatures)
                 ).wait();
             }
             const after = await snapshot(provider, nw);

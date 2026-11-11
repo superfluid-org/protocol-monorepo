@@ -8,6 +8,9 @@ import { Wallet, providers } from "ethers";
 type Log = Pick<Console, "info" | "warn" | "error">;
 
 type SafePayload = {
+  chainId: string;
+  deployer: string;
+  simulated: boolean;
   safeAddress: string;
   to: string;
   data: string;
@@ -491,6 +494,15 @@ async function proposeBatches(payloads: SafePayload[], options: CliOptions): Pro
 async function main() {
   const options = parseCliArgs(process.argv);
   const payloads = readSafePayloads(options.payloadFile);
+  const chainId = await detectChainId(options.rpcUrl);
+  for (const payload of payloads) {
+    if (!options.dryRun && payload.simulated !== false) {
+      throw new Error("Simulated or unbound Safe payload cannot be proposed");
+    }
+    if (!payload.chainId || BigInt(payload.chainId) !== chainId) {
+      throw new Error(`Safe payload chainId does not match RPC chain ${chainId}`);
+    }
+  }
 
   if (payloads.length === 0) {
     console.log("No Safe transaction payloads found in payload file.");

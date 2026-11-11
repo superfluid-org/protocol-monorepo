@@ -107,6 +107,11 @@ library DeployUtils {
 
             string memory safeTxJson = string(abi.encodePacked(
                 "{\"safeAddress\":\"", Strings.toChecksumHexString(adminAddress), "\",",
+                "\"chainId\":\"", Strings.toString(block.chainid), "\",",
+                "\"deployer\":\"", Strings.toChecksumHexString(VM.envOr("DEPLOYER", msg.sender)), "\",",
+                "\"simulated\":", VM.envOr("FRAMEWORK_SIMULATED", true) ? "true" : "false", ",",
+                ""));
+            safeTxJson = string(abi.encodePacked(safeTxJson,
                 "\"to\":\"", Strings.toChecksumHexString(targetContract), "\",",
                 "\"value\":\"0\",",
                 "\"data\":\"0x", _bytesToHex(actionData), "\",",
