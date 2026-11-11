@@ -12,6 +12,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../new-ops-scripts/lib/rollout-forwarder.sh"
 network="${1:?Usage: $0 <network> [all|deploy|verify|activate|register]}"
 [[ $# -le 2 ]] || { echo "Too many arguments" >&2; exit 1; }
-SKIP_GRANT_PROVIDER=1
+export SKIP_GRANT_PROVIDER=1
 rollout_forwarder "$network" GDAv1Forwarder GDAv1Forwarder \
     0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08 "${GDAFWD_DEPLOYER_PK:-}" "${2:-all}"
