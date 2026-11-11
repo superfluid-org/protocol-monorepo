@@ -5,8 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {ethers} = require("ethers");
 const root = path.resolve(__dirname, "../..");
-const bin =
-    process.env.FOUNDRY_BIN || path.join(process.env.HOME, ".foundry/bin");
+const bin = process.env.FOUNDRY_BIN;
 const port = process.env.FRAMEWORK_LOCAL_PORT || "19300";
 const rpc = `http://127.0.0.1:${port}`;
 const key =
@@ -14,7 +13,7 @@ const key =
 const owner = new ethers.Wallet(key).address;
 const env = {
     ...process.env,
-    PATH: `${bin}:${process.env.PATH}`,
+    PATH: bin ? `${bin}:${process.env.PATH}` : process.env.PATH,
     RPC_URL: rpc,
     ALLOW_LOCAL_CHAIN_ID_MISMATCH: "1",
     PRIVATE_KEY: key,
@@ -48,7 +47,7 @@ test(
         );
         const localEnv = {FOUNDRY_BROADCAST: artifacts};
         const anvil = spawn(
-            `${bin}/anvil`,
+            bin ? path.join(bin, "anvil") : "anvil",
             [
                 "--port",
                 port,
