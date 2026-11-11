@@ -82,7 +82,7 @@ export default class SdkReduxConfig
     setRpcApiSlice(slice: RpcApiSliceEmpty): void {
         if (this.rpcApiSlice) {
             console.log(
-                "Warning! RpcApiSlice was already set and will be overriden. This shouldn't be happening in production."
+                "Warning! RpcApiSlice was already set and will be overridden. This shouldn't be happening in production."
             );
         }
         this.rpcApiSlice = slice;
@@ -91,7 +91,7 @@ export default class SdkReduxConfig
     setSubgraphApiSlice(slice: SubgraphApiSliceEmpty): void {
         if (this.subgraphApiSlice) {
             console.log(
-                "Warning! SubgraphApiSlice was already set and will be overriden. This shouldn't be happening in production."
+                "Warning! SubgraphApiSlice was already set and will be overridden. This shouldn't be happening in production."
             );
         }
         this.subgraphApiSlice = slice;
