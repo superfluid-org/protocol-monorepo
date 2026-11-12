@@ -169,18 +169,7 @@ contract FrameworkScript is Script {
 
     function upgrade() external {
         Superfluid h = _host(vm.envAddress("HOST_ADDRESS"));
-        ChainPolicy.Policy memory old = policyOf(h);
-        ChainPolicy.Policy memory next;
-        uint256 callbackGas = vm.envOr("CALLBACK_GAS_LIMIT", uint256(old.callbackGasLimit));
-        require(callbackGas <= type(uint64).max, "Callback gas exceeds uint64");
-        next.callbackGasLimit = uint64(callbackGas);
-        next.whitelisting = vm.envOr("APP_WHITELISTING", old.whitelisting);
-        next.idaFrozen = vm.envOr("IDA_FROZEN", old.idaFrozen);
-        uint256 slots = vm.envOr("IDA_SLOTS", uint256(old.idaSlots));
-        require(slots > 0 && slots <= 256, "IDA slots must be 1..256");
-        next.idaSlots = uint32(slots);
-        ChainPolicy.guard(old, next, vm.envOr("REVIEWED_IMMUTABLE_OVERRIDE", false));
-        _upgrade(h, next);
+        _upgrade(h, policyOf(h));
     }
 
     function _upgrade(Superfluid h, ChainPolicy.Policy memory next) internal {

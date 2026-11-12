@@ -22,11 +22,6 @@ contract FrameworkDeploymentTest is Test {
         vm.setEnv("DEPLOYER", vm.toString(deployer));
         vm.setEnv("RESOLVER_ADDRESS", "0x0000000000000000000000000000000000000000");
         vm.setEnv("RELEASE_VERSION", "regression");
-        vm.setEnv("CALLBACK_GAS_LIMIT", "12000000");
-        vm.setEnv("APP_WHITELISTING", "false");
-        vm.setEnv("IDA_FROZEN", "true");
-        vm.setEnv("IDA_SLOTS", "256");
-        vm.setEnv("REVIEWED_IMMUTABLE_OVERRIDE", "false");
         vm.etch(ERC1820RegistryCompiled.ADDRESS, ERC1820RegistryCompiled.BYTECODE);
         script = new FrameworkScript();
     }
@@ -41,7 +36,6 @@ contract FrameworkDeploymentTest is Test {
         assertTrue(host.isTrustedForwarder(resolver.get("CFAv1Forwarder")));
         assertTrue(host.isTrustedForwarder(resolver.get("GDAv1Forwarder")));
         assertTrue(host.isTrustedForwarder(resolver.get("BlindMacroForwarder")));
-        _assertUpgradeEntryPointGuards(host);
         ChainPolicy.Policy memory beforePolicy = script.policyOf(host);
         address oldHostLogic = host.getCodeAddress();
         address oldTokenLogic = address(host.getSuperTokenFactory().getSuperTokenLogic());
@@ -73,8 +67,7 @@ contract FrameworkDeploymentTest is Test {
         vm.expectRevert();
         host.initialize(SuperfluidGovernanceII(address(0)));
         _assertTestGovernanceRejected(host);
-        script.upgradeGovernance();
-        assertEq(SuperfluidGovernanceII(address(host.getGovernance())).owner(), deployer);
+        _assertGovernanceUpgrade(host);
         vm.setEnv("RESOLVER_ADDRESS", vm.toString(address(resolver)));
         address target = address(0x4567);
         vm.expectRevert("Grant must execute before revocation");
@@ -92,6 +85,19 @@ contract FrameworkDeploymentTest is Test {
         assertTrue(acl.hasRole(bytes32(0), target));
         assertEq(SuperfluidGovernanceII(address(host.getGovernance())).owner(), target);
         vm.setEnv("RESOLVER_ADDRESS", "0x0000000000000000000000000000000000000000");
+    }
+
+    function _assertGovernanceUpgrade(Superfluid host) internal {
+        SuperfluidGovernanceII governance = SuperfluidGovernanceII(address(host.getGovernance()));
+        address previousLogic = governance.getCodeAddress();
+        ChainPolicy.Policy memory previousPolicy = script.policyOf(host);
+        address previousReward = governance.getRewardAddress(host, SuperToken(address(0)));
+        script.upgradeGovernance();
+        assertEq(address(host.getGovernance()), address(governance), "Governance proxy changed");
+        assertTrue(governance.getCodeAddress() != previousLogic, "Governance implementation unchanged");
+        assertEq(governance.owner(), deployer);
+        assertEq(abi.encode(script.policyOf(host)), abi.encode(previousPolicy), "Governance configuration changed");
+        assertEq(governance.getRewardAddress(host, SuperToken(address(0))), previousReward);
     }
     function _assertMalformedIDARejected(Superfluid host) internal {
         address ida = address(host.getAgreementClass(
@@ -132,6 +138,14 @@ contract FrameworkDeploymentTest is Test {
         assertEq(vm.getNonce(deployer), nonce);
     }
 
+    function testUnknownFreshChainRejectsBeforeCreation() public {
+        vm.chainId(123456789);
+        uint64 nonce = vm.getNonce(deployer);
+        vm.expectRevert("Unsupported chain: add a reviewed ChainPolicy entry first");
+        script.fresh();
+        assertEq(vm.getNonce(deployer), nonce, "Unsupported chain deployed contracts");
+    }
+
     function _assertTestGovernanceRejected(Superfluid host) internal {
         address gov = address(host.getGovernance());
         bytes memory original = gov.code;
@@ -164,56 +178,6 @@ contract FrameworkDeploymentTest is Test {
         assertEq(address(nft.GENERAL_DISTRIBUTION_AGREEMENT_V1()), address(gda));
     }
 
-    function _assertUpgradeEntryPointGuards(Superfluid host) internal {
-        vm.setEnv("HOST_ADDRESS", vm.toString(address(host)));
-        _rejectOverride("CALLBACK_GAS_LIMIT", "11999999", "12000000");
-        _rejectOverride("CALLBACK_GAS_LIMIT", "12000001", "12000000");
-        _rejectOverride("APP_WHITELISTING", "true", "false");
-        _rejectOverride("IDA_FROZEN", "false", "true");
-        _rejectOverride("IDA_SLOTS", "32", "256");
-        vm.setEnv("CALLBACK_GAS_LIMIT", "7777777");
-        vm.setEnv("APP_WHITELISTING", "true");
-        vm.setEnv("IDA_FROZEN", "false");
-        vm.setEnv("IDA_SLOTS", "32");
-        vm.setEnv("REVIEWED_IMMUTABLE_OVERRIDE", "true");
-        script.upgrade();
-        assertEq(host.CALLBACK_GAS_LIMIT(), 7777777);
-        assertTrue(host.APP_WHITE_LISTING_ENABLED());
-        ChainPolicy.Policy memory policy = script.policyOf(host);
-        assertFalse(policy.idaFrozen);
-        assertEq(policy.idaSlots, 32);
-        vm.setEnv("REVIEWED_IMMUTABLE_OVERRIDE", "false");
-    }
-
-    function _rejectOverride(string memory key, string memory value, string memory original) internal {
-        vm.setEnv(key, value);
-        uint64 nonce = vm.getNonce(deployer);
-        vm.expectRevert();
-        script.upgrade();
-        assertEq(vm.getNonce(deployer), nonce, "Policy rejection must precede deployment");
-        vm.setEnv(key, original);
-    }
-
-    function checkPolicy(ChainPolicy.Policy memory previous, ChainPolicy.Policy memory next, bool reviewed) external pure {
-        ChainPolicy.guard(previous, next, reviewed);
-    }
-
-    function testImmutableGuards() public {
-        ChainPolicy.Policy memory previous = ChainPolicy.get(1);
-        ChainPolicy.Policy memory next = ChainPolicy.get(1);
-        next.callbackGasLimit = 1;
-        vm.expectRevert("Callback gas change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
-        this.checkPolicy(previous, next, false);
-        next.callbackGasLimit = previous.callbackGasLimit;
-        next.whitelisting = false;
-        vm.expectRevert("Whitelisting change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
-        this.checkPolicy(previous, next, false);
-        next.whitelisting = true;
-        next.idaFrozen = false;
-        vm.expectRevert("IDA freeze change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
-        this.checkPolicy(previous, next, false);
-        this.checkPolicy(previous, next, true);
-    }
 
     function testFreshChainPolicies() public pure {
         uint256[16] memory chains = [uint256(43113), 11155111, 11155420, 84532, 5042002,
