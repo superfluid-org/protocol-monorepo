@@ -1,0 +1,7 @@
+{
+    "ClearMacroForwarderV1": {"address": "0x712Fc5863F53AFBa980207006cfd74F6c25fE055", "deployerEnv": "CLEARMACROFWD_DEPLOYER_PK", "provider": true},
+    "ClearMacroForwarderV1WithPermit2": {"address": "0xC1EaB73855155D4e021f7EB4f866996Bac2fe25e", "deployerEnv": "PERMIT2CLEARMACROFWD_DEPLOYER_PK", "provider": true},
+    "BlindMacroForwarder": {"address": "0xFD0268E33111565dE546af2675351A4b1587F89F", "deployerEnv": "MACROFWD_DEPLOYER_PK", "provider": false},
+    "CFAv1Forwarder": {"address": "0xcfA132E353cB4E398080B9700609bb008eceB125", "deployerEnv": "CFAFWD_DEPLOYER_PK", "provider": false},
+    "GDAv1Forwarder": {"address": "0x6DA13Bde224A05a288748d857b9e7DDEffd1dE08", "deployerEnv": "GDAFWD_DEPLOYER_PK", "provider": false}
+}

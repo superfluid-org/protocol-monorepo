@@ -1,46 +1,45 @@
-# Network config helpers for ops scripts.
-# Source this file, then use get_rpc_url, get_host, get_chain_id.
-# Prerequisites: METADATA_JSON must be set (path to networks.json).
-#
-# RPC priority: RPC_URL | PROVIDER_URL_OVERRIDE | PROVIDER_URL_TEMPLATE | metadata publicRPCs[0]
+# Shared, chain-bound metadata and RPC lookup for all operator commands.
+# Prerequisite: METADATA_JSON points to networks.json.
+get_chain_id() {
+    local id
+    id=$(jq -er --arg network "$1" '.[] | select(.name == $network) | .chainId' "${METADATA_JSON:?METADATA_JSON not set}") || {
+        echo "Unknown network $1: add its name, chainId and publicRPCs to METADATA_JSON first (and a reviewed ChainPolicy entry for fresh deployments)." >&2
+        return 1
+    }
+    printf '%s\n' "$id"
+}
 
 get_rpc_url() {
-    local network=$1
+    local network=$1 expected rpc actual
+    expected=$(get_chain_id "$network") || return 1
     if [[ -n "${RPC_URL:-}" ]]; then
-        echo "$RPC_URL"
-        return
+        rpc=$RPC_URL
+    elif [[ -n "${PROVIDER_URL_OVERRIDE:-}" ]]; then
+        rpc=$PROVIDER_URL_OVERRIDE
+    elif [[ -n "${PROVIDER_URL_TEMPLATE:-}" ]]; then
+        [[ "$PROVIDER_URL_TEMPLATE" == *'{{NETWORK}}'* ]] || {
+            echo 'PROVIDER_URL_TEMPLATE must contain {{NETWORK}}' >&2; return 1;
+        }
+        rpc=${PROVIDER_URL_TEMPLATE//\{\{NETWORK\}\}/$network}
+    else
+        rpc=$(jq -er --arg network "$network" '.[] | select(.name == $network) | .publicRPCs[0] // empty' "$METADATA_JSON") || {
+            echo "No RPC URL found for network $network" >&2; return 1;
+        }
     fi
-    if [[ -n "${PROVIDER_URL_OVERRIDE:-}" ]]; then
-        echo "$PROVIDER_URL_OVERRIDE"
-        return
-    fi
-    if [[ -n "${PROVIDER_URL_TEMPLATE:-}" ]]; then
-        if [[ "$PROVIDER_URL_TEMPLATE" != *"{{NETWORK}}"* ]]; then
-            echo "Error: PROVIDER_URL_TEMPLATE must contain {{NETWORK}}" >&2
-            return 1
-        fi
-        echo "$PROVIDER_URL_TEMPLATE" | sed "s/{{NETWORK}}/$network/"
-        return
-    fi
-    # Fallback: metadata publicRPCs[0]
-    local rpc
-    rpc=$(jq -r '.[] | select(.name == "'"$network"'") | .publicRPCs[0]' "${METADATA_JSON:?METADATA_JSON not set}")
-    if [[ -z "$rpc" || "$rpc" == "null" ]]; then
-        echo "No RPC URL found for network $network" >&2
-        return 1
-    fi
-    echo "$rpc"
+    actual=$(cast chain-id --rpc-url "$rpc") || return 1
+    [[ "$actual" == "$expected" ]] || {
+        echo "RPC chain $actual differs from NETWORK $network chain $expected" >&2; return 1;
+    }
+    printf '%s\n' "$rpc"
 }
 
 get_host() {
-    local network=$1
-    jq -r '.[] | select(.name == "'"$network"'") | .contractsV1.host' "${METADATA_JSON:?METADATA_JSON not set}"
+    jq -r --arg network "$1" '.[] | select(.name == $network) | .contractsV1.host // empty' "${METADATA_JSON:?METADATA_JSON not set}"
 }
 
-get_chain_id() {
-    local network=$1
-    jq -r '.[] | select(.name == "'"$network"'") | .chainId' "${METADATA_JSON:?METADATA_JSON not set}"
+get_resolver() {
+    jq -r --arg network "$1" '.[] | select(.name == $network) | .contractsV1.resolver // empty' "${METADATA_JSON:?METADATA_JSON not set}"
 }
 
 # shellcheck source=/dev/null
-[[ -f "$(dirname "${BASH_SOURCE[0]}")/keystore-env.sh" ]] && source "$(dirname "${BASH_SOURCE[0]}")/keystore-env.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/keystore-env.sh"

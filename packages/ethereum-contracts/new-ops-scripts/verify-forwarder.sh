@@ -10,13 +10,9 @@ set -o pipefail
 # Env: ETHERSCAN_API_V2_KEY (most networks), RPC_URL / PROVIDER_URL_* (see network-config.sh)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
-
 # shellcheck source=/dev/null
-_env=$(set -o posix; export -p); [[ -f "$PKG_ROOT/.env" ]] && source "$PKG_ROOT/.env"; eval "$_env"
-# shellcheck source=/dev/null
-[[ -f "$SCRIPT_DIR/lib/network-config.sh" ]] && source "$SCRIPT_DIR/lib/network-config.sh"
+source "$SCRIPT_DIR/lib/ops.sh"
+[[ $# == 3 ]] || { echo 'Usage: verify-forwarder.sh NETWORK CONTRACT ADDRESS' >&2; exit 1; }
 
 network="${1:?Usage: $0 <network> <contractName> <address>}"
 contract="${2:?Usage: $0 <network> <contractName> <address>}"

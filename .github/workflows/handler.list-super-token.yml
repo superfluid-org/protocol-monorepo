@@ -39,7 +39,6 @@ jobs:
           SYMBOL: ${{ inputs.symbol_override }}
           RELEASE_VERSION: ${{ inputs.release_version }}
           ALLOW_UPDATE: ${{ inputs.allow_update && '1' || '' }}
-          SIMULATE: '1'
         run: |
           export RPC_URL="https://${NETWORK}.rpc.x.superfluid.dev"
           args=("$NETWORK" list "$TOKEN")
