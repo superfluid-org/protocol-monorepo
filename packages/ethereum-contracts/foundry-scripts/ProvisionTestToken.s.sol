@@ -7,13 +7,12 @@ import {ISuperTokenFactory} from "../contracts/interfaces/superfluid/ISuperToken
 import {IERC20Metadata} from "@openzeppelin-v5/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Resolver} from "../contracts/utils/Resolver.sol";
 import {DeployUtils} from "./utils/DeployUtils.sol";
+import {ChainPolicy} from "./utils/ChainPolicy.sol";
 
 /// @notice Explicit opt-in public mintable test token and wrapper, never part of framework upgrades.
 contract ProvisionTestToken is Script {
     function run(string memory name, string memory symbol, uint8 decimals, uint256 mintLimit) external {
-        require(block.chainid == 43113 || block.chainid == 11155111 || block.chainid == 11155420
-            || block.chainid == 84532 || block.chainid == 5042002 || block.chainid == 31337,
-            "Faucet provisioning is testnet/local only");
+        require(ChainPolicy.isTestnet(block.chainid), "Faucet provisioning is testnet/local only");
         require(decimals <= 18 && mintLimit > 0 && bytes(symbol).length > 0, "Invalid faucet parameters");
         Resolver resolver = Resolver(vm.envAddress("RESOLVER_ADDRESS"));
         string memory release = vm.envOr("RELEASE_VERSION", string("v1"));

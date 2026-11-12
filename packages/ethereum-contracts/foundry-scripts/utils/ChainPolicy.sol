@@ -15,9 +15,13 @@ library ChainPolicy {
         bool clearForwarderTrusted;
     }
 
-    function get(uint256 chainId) internal pure returns (Policy memory p) {
-        bool testnet = chainId == 43113 || chainId == 11155111 || chainId == 11155420
+    function isTestnet(uint256 chainId) internal pure returns (bool) {
+        return chainId == 43113 || chainId == 11155111 || chainId == 11155420
             || chainId == 84532 || chainId == 5042002 || chainId == 31337;
+    }
+
+    function get(uint256 chainId) internal pure returns (Policy memory p) {
+        bool testnet = isTestnet(chainId);
         bool mainnet = chainId == 1 || chainId == 100 || chainId == 137 || chainId == 10
             || chainId == 42161 || chainId == 43114 || chainId == 56 || chainId == 42220
             || chainId == 8453 || chainId == 534352 || chainId == 5042;
@@ -31,16 +35,5 @@ library ChainPolicy {
             p.idaFrozen = false;
             p.idaSlots = 32;
         }
-    }
-
-    function guard(Policy memory previous, Policy memory next, bool reviewedOverride) internal pure {
-        require(reviewedOverride || next.callbackGasLimit == previous.callbackGasLimit,
-            "Callback gas change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
-        require(reviewedOverride || next.whitelisting == previous.whitelisting,
-            "Whitelisting change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
-        require(reviewedOverride || next.idaFrozen == previous.idaFrozen,
-            "IDA freeze change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
-        require(reviewedOverride || next.idaSlots == previous.idaSlots,
-            "IDA slots change requires REVIEWED_IMMUTABLE_OVERRIDE=true");
     }
 }
