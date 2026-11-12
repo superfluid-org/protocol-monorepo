@@ -425,18 +425,17 @@ yarn run-nodemon forge test # use nodemon to run foundry test
 For fresh persistent deployments, upgrades, resolver/token/governance operations,
 forwarder rollout and verification, use the maintained
 **[deployment tooling and migration guide](docs/deployment-tooling.md)**.
-It includes the capability/evidence matrix, all old-command/option dispositions,
-authentication, copyable recipes, execution ordering, recovery and explicit gaps.
+It includes capabilities/evidence, authentication, copyable recipes, execution
+ordering, recovery, explicit gaps and a link to the frozen migration dispositions.
 The dated [deployment inventory](docs/deployment-inventory.md) records observations,
 not live configuration; the [frozen handoff](docs/plans/2026-11-truffle-migration-handoff.md)
 is historical context rather than current operator instructions.
 
-`new-ops-scripts/framework.sh NETWORK fresh` and `upgrade` **simulate by default**;
-only explicit `--broadcast` / `--resume` sends transactions. Safe framework actions
-produce payloads, never automatic proposals. Other governance/resolver/token/
-forwarder wrappers require **`SIMULATE=1`** for no broadcast/proposal; do not assume
-they share the framework's default. Actual broadcasts remain operator-machine
-operations; manual CI workflows generate credential-free simulation artifacts.
+All production wrappers **simulate by default**. Only explicit `--broadcast`
+enables transactions **and Safe proposal submission**. Native recovery requires
+`--broadcast --resume`; unknown arguments fail. Actual broadcasts remain
+operator-machine operations; manual CI workflows generate credential-free
+simulation artifacts.
 
 Production deployment is upgradeable-only. Fresh bootstrap creates a new resolver,
 deployer-owned GovernanceII and current framework/periphery. Upgrades preserve
@@ -454,9 +453,9 @@ functionality requires the canonical ERC1820 registry; the explicit prerequisite
 command is `new-ops-scripts/deploy-erc1820.sh NETWORK` (plan-only by default).
 
 Local fixtures stay separate (`yarn testenv:deploy`). Post-action validation uses
-`RPC_URL=... RESOLVER_ADDRESS=... RELEASE_VERSION=v1 yarn hardhat run new-ops-scripts/validate-deployment.ts --network ops`
+`bash new-ops-scripts/info-print-contract-addresses.sh NETWORK --validate`
 after governance/resolver execution and source verification. See the guide for
-real authentication and expected output rather than copying placeholder addresses.
+authentication and the shared [RPC/sender policy](new-ops-scripts/lib/ops.sh).
 
 ## Show your support
 
