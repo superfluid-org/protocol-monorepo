@@ -1,4 +1,4 @@
-name: Reusable Workflow | Deploy Framework and Update Tokens on a Forked Network
+name: Reusable Workflow | Simulate Framework Upgrade
 
 on:
   workflow_call:
@@ -11,43 +11,26 @@ on:
         type: string
 
 jobs:
-  deploy-to-forked-network:
-    name: Deploy Framework and Update Tokens on a Forked Network
+  simulate:
     runs-on: ubuntu-22.04
-    env:
-      ethereum-contracts-working-directory: ./packages/ethereum-contracts
-
+    defaults:
+      run:
+        working-directory: packages/ethereum-contracts
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install and Build
-        run: |
-          yarn install --immutable
-          yarn build-for-contracts-dev
-
-      - name: Start hardhat node
-        run: |
-          cd ${{ env.ethereum-contracts-working-directory }}
-          npx hardhat node --port 47545 --fork ${{ github.event.inputs.provider-url }} &
-          sleep 5
-
-      - name: Deploy framework
-        run: |
-          echo "${{ github.event.inputs.environments }}" | sed 's/;/\n/' > .env
-          npx truffle exec --network ${{ github.event.inputs.network }} ops-scripts/deploy-test-environment.js
-        working-directory: ${{ env.ethereum-contracts-working-directory }}
-
-      - name: Validate deployment before token upgrade
-        run: |
-          npx hardhat run ops-scripts/validate-deployment.ts --network ${{ github.event.inputs.network }}
-        working-directory: ${{ env.ethereum-contracts-working-directory }}
-
-      - name: Update Super Token Logic for all tokens
-        run: |
-          npx truffle exec --network ${{ github.event.inputs.network }} ops-scripts/gov-upgrade-super-token-logic.js : ALL
-        working-directory: ${{ env.ethereum-contracts-working-directory }}
-
-      - name: Validate deployment post token upgrade
-        run: |
-          npx hardhat run ops-scripts/validate-deployment.ts --network ${{ github.event.inputs.network }}
-        working-directory: ${{ env.ethereum-contracts-working-directory }}
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.3
+      - name: Simulate only (no key, broadcast or proposal)
+        env:
+          RPC_URL: ${{ inputs.provider-url }}
+          NETWORK: ${{ inputs.network }}
+        run: new-ops-scripts/framework.sh "$NETWORK" upgrade
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framework-simulation-${{ inputs.network }}
+          path: |
+            packages/ethereum-contracts/.tmp/*-framework-*-dry-run.jsonl
+            packages/ethereum-contracts/broadcast/**/dry-run/*.json

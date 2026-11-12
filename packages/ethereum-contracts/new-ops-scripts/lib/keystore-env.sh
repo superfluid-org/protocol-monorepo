@@ -75,4 +75,3 @@ cast_wallet_address_account() {
     with_keystore_password cast wallet address --account "$account" "$@"
 }
 
-apply_keystore_password_env || exit 1

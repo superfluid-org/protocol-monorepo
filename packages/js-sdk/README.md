@@ -1,253 +1,83 @@
-<h1 align="center">Welcome to @superfluid-finance/js-sdk 👋
-</h1>
-<div align="center">
-<img  width="300" padding="0 0 10px" alt="Superfluid logo" src="https://github.com/superfluid-org/protocol-monorepo/raw/dev/sf-logo.png" />
-<p>
-  <a href="https://www.npmjs.com/package/@superfluid-finance/js-sdk" target="_blank">
-    <img alt="Version" src="https://img.shields.io/npm/v/@superfluid-finance/js-sdk.svg">
-  </a>
-  <a href="https://codecov.io/gh/superfluid-org/protocol-monorepo/tree/dev/packages/js-sdk">
-    <img src="https://codecov.io/gh/superfluid-org/protocol-monorepo/branch/dev/graph/badge.svg?token=LJW5NDGEJ9&flag=js-sdk"/>
-  </a>
-  <a href="#" target="_blank">
-    <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
-  </a>
-  <a href="https://twitter.com/Superfluid_HQ/status/" target="blank">
-    <img alt="Twitter: Superfluid_HQ" src="https://img.shields.io/twitter/follow/Superfluid_HQ.svg?style=social" />
-  </a>
-</p>
-</div>
+# Migrate from js-sdk to sdk-core
 
-Javascript SDK for building with Superfluid Protocol.
+`@superfluid-finance/js-sdk` is retired from the monorepo's active workspaces,
+builds, tests and package publication. Its implementation and tests are removed;
+Git history retains them. Only this migration note and the original MIT license
+remain here, not an archived runnable package.
 
-### :warning: This repo is deprecated :warning:
-**Superfluid SDK project has been modularized, for similar functionality use [`@superfluid-finance/sdk-core`](https://github.com/superfluid-org/protocol-monorepo/tree/dev/packages/sdk-core) instead.**
+This repository change does **not** deprecate or unpublish any npm release.
+Previously published js-sdk versions depend on Truffle tooling and artifacts;
+do not combine them with `@superfluid-finance/ethereum-contracts` 1.16.0, which
+removes `build/truffle` and the Truffle configuration/runtime.
 
+## Initialize sdk-core
 
-### 🏠 [Homepage](https://superfluid.finance)
-
-### ✨ [Superfluid App](https://app.superfluid.finance/)
-
-### 📖 [Docs](https://docs.superfluid.finance)
-
-# Important Notice
-
-We will be deprecating the JS-SDK and stop providing support/fixes in the near future, so please use either:
--  [sdk-core](https://www.npmjs.com/package/@superfluid-finance/sdk-core) which can be used for both front-end and back-end dApp development, this can be thought of more as a thin wrapper of the protocol contracts and is unconcerned with state.
-
-or
-
-- [sdk-redux](https://www.npmjs.com/package/@superfluid-finance/sdk-redux) for building production-grade front-ends for dApps with state management, caching logic, transaction tracking, react hooks and much more.
-
-# Usage
-
-Here is a quick look at using the SDK.
+Replace `new SuperfluidSDK.Framework({web3, isTruffle, version, ...})` followed
+by `initialize()` with `Framework.create`. Install `@superfluid-finance/sdk-core`
+and its peer dependencies (`ethers` v5 and `graphql`); remove js-sdk and any
+application-owned Truffle dependencies once their remaining uses are migrated.
 
 ```js
-const SuperfluidSDK = require("@superfluid-finance/js-sdk");
-const Web3 = require("web3");
+const {Framework} = require("@superfluid-finance/sdk-core");
+const {ethers} = require("ethers");
 
-const sf = new SuperfluidSDK.Framework({
-    web3: new Web3(window.ethereum),
-    tokens: ["fDAI"],
+const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+const {chainId} = await provider.getNetwork();
+const sf = await Framework.create({
+    chainId,
+    provider,
+    protocolReleaseVersion: "v1",
+    // resolverAddress: "0x...", // required for custom/unsupported networks
 });
-await sf.initialize();
-
-const bob = sf.user({ address: "0xabc...", token: sf.tokens.fDAIx.address });
-
-// Constant Flow Agreement
-await bob.flow({
-    recipient: "0x123...",
-    flowRate: "38580246913580", // 100 tokens / mo
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const token = await sf.loadSuperToken("fDAIx"); // or a SuperToken address
+const operation = sf.cfaV1.createFlow({
+    superToken: token.address,
+    receiver: "0x...", // your receiver's address
+    flowRate: "3858024691358", // token base units per second
 });
-
-// Instant Distribution Agreement
-// - More utilities coming soon. See the docs for now
+const transaction = await operation.exec(signer);
+const receipt = await transaction.wait();
 ```
 
-## What's In the Bag
+Use a token that exists on the selected network; `fDAIx` is a testnet example.
+The provider is for reads; pass an authorized signer explicitly to writes.
+sdk-core still accepts Web3 providers and Web3 instances: existing Web3
+applications need not rewrite their whole connection layer. Do not rely on
+Hardhat injecting `global.web3`, `artifacts`, or Truffle accounts.
 
--   `sf.user`: A helpful abstraction that should handle most of your needs. See below for more details.
--   `sf.host` : The [truffle contract instance](https://www.trufflesuite.com/docs/truffle/getting-started/interacting-with-your-contracts)
-    to interact with the host contract (Superfluid.sol).
--   `sf.contracts` : The [truffle contract](https://www.trufflesuite.com/docs/truffle/reference/contract-abstractions) objects loaded by the SDK:
-    -   `IERC20` : The ERC20 Interface.
-    -   `TestToken` : A ERC20 Test token.
-    -   `IResolver` : A simple resolver interface to locate different versions of the contracts.
-    -   `ISuperfluid` : The Superfluid host contract interface.
-    -   `ISuperToken` : The Super token contract interface.
-    -   `IConstantFlowAgreementV1` : The constant flow agreement (v1) contract interface.
-    -   `IInstantDistributionAgreementV1` : The instant distribution agreement (v1) contract interface.
--   Token factory helper functions:
-    -   `sf.createERC20Wrapper`
--   `sf.resolver`: The resolver used by the SDK.
-    -   In test nets, there are some test tokens can be located with the resolver:
-        -   `fDAI` : The fake DAI. `sf.resolver.get("tokens.fDAI")`.
-        -   `fUSDC` : The fake USDC. `sf.resolver.get("tokens.fUSDC")`.
-        -   `fTUSD` : The fake TUSD. `sf.resolver.get("tokens.fTUSD")`.
--   `sf.agreements`:
-    -   `sf.agreements.cfa` : Constant flow agreement truffle contract instance.
-    -   `sf.agreements.ida` : Instant distribution agreement truffle contract instance.
--   `sf.cfa`: The constant flow agreement helper class instance.
--   `sf.ida`: The instant distribution agreement helper class instance.
+## API and data-model changes
 
-## Initialization
+| js-sdk | sdk-core replacement / migration action |
+| --- | --- |
+| `tokens`, `superTokens`, `loadToken` | `await sf.loadSuperToken(symbolOrAddress)` returns a token helper. Keep references explicitly rather than expecting mutable SDK token registries. |
+| `createERC20Wrapper` | Call the deployed SuperTokenFactory's `createERC20Wrapper` with ethers/viem/Web3 using its Hardhat ABI, then load the created address with `sf.loadSuperToken`. sdk-core has no drop-in wrapper-deployment helper. |
+| `cfa`, `ida` | `sf.cfaV1`, `sf.idaV1`; sdk-core also exposes `sf.gdaV1`. Reads and Operation-building writes are separate. IDA remains subject to each network's freeze policy. |
+| `user(...)` convenience objects | Use explicit token/agreement helper methods with sender/receiver addresses and a signer; there is no drop-in User wrapper. |
+| `batchCall` | Build Operations and pass them to `sf.batchCall(operations)`, then `.exec(signer)`. Review operation support rather than passing old encoded js-sdk batch tuples. |
+| Truffle methods, `{from: ...}` | Use ethers contracts/token helpers; connect or pass a signer. An address alone cannot authorize a write. |
+| Truffle receipts and decoded `logs` | Operation `.exec` returns an ethers transaction response; `await tx.wait()` returns a receipt. Decode logs with the relevant ethers Interface. |
+| BN values / gas metering | Use sdk-core's documented string/ethers BigNumber values and convert explicitly; do not mix BN arithmetic with BigNumber. Legacy gas-report helpers have no supported equivalent. |
+| Legacy event/subgraph helpers | Use sdk-core Query/subgraph APIs or ethers filters and `queryFilter`; review pagination and event result shapes. |
+| Custom Truffle contract loader | No replacement compatibility layer. Instantiate ethers/viem/Web3 contracts from the supported Hardhat artifacts or bundled ABI. |
 
-During initialization, the resolver will be used to fetch the correct set of contracts based on the `version` you provide
+Handle sdk-core `SFError` categories and transaction errors explicitly; old
+Truffle error strings and automatically decoded events are not compatibility
+contracts. See [sdk-core documentation](../sdk-core/README.md) and its
+[Framework API](../sdk-core/src/Framework.ts) for complete method signatures.
 
-| Argument             | Type     | description                                            | default   |
-| :------------------- | :------- | ------------------------------------------------------ | --------- |
-| version              | String   | Release version of the deployed protocol               | v1        |
-| isTruffle            | Boolean  | Use the Framework under the native truffle environment | false     |
-| web3                 | Object   | Use the Framework with web3.js (1.3.x)                 | undefined |
-| additionalContracts  | String[] | additional contracts to be loaded                      | []        |
-| tokens               | String[] | List of token keys to load from the resolver           | []        |
-| loadSuperNativeToken | Boolean  | Load super native token (e.g. ETHx) if possible        | false     |
-| resolverAddress      | Address  | Force resolver address                                 | undefined |
+## Contracts 1.16.0 artifact paths
 
-You also need to choose what web3 framework you plan to use, currently we support three modes:
-
--   Truffle native environment (developing using `truffle test|exec|egc.`).
--   [Web3.js](https://web3js.readthedocs.io/en/v1.2.1/), currently the SDK has been tested with web3.js `1.3.x` versions.
-
-
-**Example with Web3.js**
+ABI-only consumers can change, for example:
 
 ```js
-const SuperfluidSDK = require("@superfluid-finance/js-sdk");
-const web3 = require("web3");
-
-const sf = new SuperfluidSDK.Framework({
-    web3: new Web3(window.ethereum),
-    tokens: ["fDAI"],
-});
-await sf.initialize();
-
-const bob = sf.user({ address: "0xabc...", token: sf.tokens.fDAIx.address });
+// Before: require("@superfluid-finance/ethereum-contracts/build/truffle/ISuperToken.json")
+const {abi} = require("@superfluid-finance/ethereum-contracts/build/hardhat/contracts/interfaces/superfluid/ISuperToken.sol/ISuperToken.json");
 ```
 
-The exposed contract objects are of [`truffle-contract`](https://github.com/trufflesuite/truffle/tree/develop/packages/contract/) type.
-
-**Example with truffle native**
-
-```js
-const SuperfluidSDK = require("@superfluid-finance/js-sdk");
-
-const sf = new SuperfluidSDK.Framework({
-    isTruffle: true,
-    tokens: ["fDAI"],
-});
-await sf.initialize();
-
-const bob = sf.user({ address: "0xabc...", token: sf.tokens.fDAIx.address });
-```
-
-The exposed contract objects are of [`truffle-contract`](https://github.com/trufflesuite/truffle/tree/develop/packages/contract/) type loaded using truffle `artifacts` object.
-
-## :bust_in_silhouette: User
-
-Create a new User object to quickly create and modify agreements.
-
-Example:
-
-```js
-const bob = sf.user({ address: "0xabc...", token: sf.tokens.fDAI });
-const carol = sf.user({ address: "0x123...", token: sf.tokens.fDAI });
-```
-
-### `user.details()`
-
-Returns details about an account.
-
-| Argument | Type | default |
-| :------- | :--- | ------- |
-| n/a      |      |         |
-
-Example:
-
-```js
-console.log(await bob.details());
-
-> {
-    cfa: {
-        flows: {
-            inFlows: [
-                {
-                    sender: "0xf17f52151EbEF6C7334FAD080c5704D77216b732",
-                    receiver: "0xC5fdf4076b8F3A5357c5E395ab970B5B54098Fef",
-                    flowRate: "38580246913580"
-                }
-            ],
-            outFlows: [
-                {
-                    sender: "0xC5fdf4076b8F3A5357c5E395ab970B5B54098Fef",
-                    receiver: "0x821aEa9a577a9b44299B9c15c88cf3087F3b5544",
-                    flowRate: "19290123456790"
-                }
-            ]
-        },
-        netFlow: "19290123456790"
-    },
-    ida: {} // Available soon
-}
-```
-
-### `user.flow({recipient, flowRate, [, onTransaction, ...]})`
-
-Create / update / delete a flow to the recipient. Enter "0" to delete a flow.
-
-| Argument      | Type                           | default  |
-| :------------ | :----------------------------- | -------- |
-| recipient     | Address or another User Object | required |
-| flowRate      | String                         | required |
-| onTransaction | Function                       | null     |
-
-Example:
-
-```js
-const tx = await alice.flow({
-    recipient: bob,
-    flowRate: "38580246913580", // 100 / mo
-    // OPTIONS: See ConstantFlowAgreementV1Helper for more
-    onTransaction: (hash) => {
-        txHash = hash;
-    },
-});
-```
-
-## Closer to the metal
-
-You may also use the helper classes and functions instead of the `User` abstraction.
-
-The helpers are usually considered thinner wrappers of the underlying contract calls. It is suitable if you want more control and customization of how to interact with the protocol.
-
-The available helpers currently are:
-
--   `sf.cfa` - Constant flow agreement helper.
--   `sf.ida` - Instant distribution agreement helper.
--   `sf.createERC20Wrapper` - Create a new ERC20 wrapper.
--   `sf.batchCall` - (TBD) batchCall helper.
--   `sf.callAppAction` - (TBD) callAppAction helper.
-
-For their documentations, please look into their code comments directly.
-
-# Contributing
-
-Contributions and suggestions welcome!
-
-## Module packaging
-
-Check the module size and dependencies:
-
-```bash
-yarn stats
-```
-
-## Testing
-
-Since testing can take a long time to execute, you may want to use the [execlusive tests](https://mochajs.org/#exclusive-tests) feature from MochaJS to isolate only the test you want. For example:
-
-```bash
-# Only run User.test.js
-nodemon -x npx truffle test ./test/User.test.js
-```
+The bundled `build/bundled-abi.js` and `build/bundled-abi.json` exports retain
+their names and shapes. Hardhat JSON provides ABI/bytecode, not Truffle
+`networks`, `deployed()`, `at()`, receipt or library-linking abstractions. Read
+addresses from deployment metadata, the resolver or onchain state and use
+ethers, viem or Foundry for deployment/linking. Web3 contracts can still be
+constructed from `.abi` without a Truffle dependency.

@@ -6,7 +6,7 @@ import { spawnSync } from "child_process";
 
 import type { Address, Hash, Hex } from "viem";
 
-import { getKeystorePasswordFile, keystoreSpawnEnv } from "./ops-env";
+import { keystoreSpawnEnv } from "./ops-env";
 
 export type CastPublishResult = {
   hash: Hash;
@@ -54,7 +54,7 @@ function parsePublishResult(output: string): CastPublishResult {
 function runCast(args: string[], useKeystore = false): string {
   // No password file: cast prompts on the terminal. spawnSync's default stdin is a
   // closed pipe, so that prompt reads an empty password and fails immediately.
-  const interactive = useKeystore && !getKeystorePasswordFile();
+  const interactive = useKeystore && !process.env.PRIVATE_KEY && !process.env.SF_KEYSTORE_PASSWORD_FILE;
   const r = spawnSync("cast", args, {
     encoding: "utf-8",
     env: keystoreSpawnEnv(useKeystore),
@@ -86,9 +86,8 @@ export function castFund(
       wei.toString(),
       "--rpc-url",
       rpcUrl,
-      "--account",
-      walletName,
-    ], true)
+      ...(process.env.PRIVATE_KEY ? ["--private-key", process.env.PRIVATE_KEY] : ["--account", walletName]),
+    ], !process.env.PRIVATE_KEY)
   );
 }
 

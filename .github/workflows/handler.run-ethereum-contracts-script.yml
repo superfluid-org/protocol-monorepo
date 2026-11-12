@@ -1,62 +1,49 @@
-name: Run Ethereum Contracts Script
+name: Simulate Ethereum Contracts Operation
 
 on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Protocol release version (test/master/v1/etc.)'
+        description: Protocol release version
         required: true
-        default: 'v1'
+        default: v1
       network:
-        description: 'Network for the script to run on'
+        description: Canonical metadata network name
         required: true
-      admin_type:
-        description: 'Choose the admin type: MULTISIG, or OWNABLE. Defaults to autodetect.'
-        required: false
       script_name:
-        description: 'Script name'
+        description: Maintained operation (simulation only; execute approved payloads locally)
+        type: choice
+        options:
+          - gov-action
+          - resolver-token
+          - resolver-set-key
+          - deploy-custom-super-token
         required: true
       script_args:
-        description: 'Script arguments'
-        required: false
-      environments:
-        description: 'Additional env vars, separated by semicolons'
-        required: false
+        description: Arguments as a JSON array of strings (without network)
+        required: true
+        default: '[]'
 
 jobs:
-
-  run-ethereum-contracts-script:
+  simulate:
     runs-on: ubuntu-22.04
-
     defaults:
       run:
-        shell: nix develop .#ci-default -c bash -xe {0}
-
-    env:
-      RELEASE_VERSION: ${{ github.event.inputs.release_version }}
-      RESOLVER_ADMIN_TYPE: ${{ github.event.inputs.admin_type }}
-      GOVERNANCE_ADMIN_TYPE: ${{ github.event.inputs.admin_type }}
-
+        shell: nix develop .#ci-default -c bash -e {0}
     steps:
       - uses: actions/checkout@v4
-  
       - uses: DeterminateSystems/nix-installer-action@v13
-
-      - name: Build
-        run: |
-          yarn install --immutable
-          yarn build-for-contracts-dev
-
-      - name: Execute truffle script
-        run: |
-          cd packages/ethereum-contracts
-          echo "Admin type: ${{ github.event.inputs.admin_type }}"
-          echo "${{ github.event.inputs.environments }}" | sed 's/;/\n/' > .env
-          npx truffle exec \
-            --network ${{ github.event.inputs.network }} \
-            ${{ github.event.inputs.script_name }} \
-            ${{ github.event.inputs.script_args }}
+      - run: yarn install --immutable
+      - name: Simulate maintained operation (no wallet or proposal credentials)
+        working-directory: packages/ethereum-contracts
         env:
-          RELEASE_VERSION: ${{ github.event.inputs.release_version }}
-          DEFAULT_MNEMONIC: ${{ secrets.BUILD_AGENT_MNEMONIC  }}
-          PROVIDER_URL_TEMPLATE: ${{ secrets.PROVIDER_URL_TEMPLATE }}
+          NETWORK: ${{ inputs.network }}
+          SCRIPT: ${{ inputs.script_name }}
+          ARGS_JSON: ${{ inputs.script_args }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+        run: |
+          case "$SCRIPT" in gov-action|resolver-token|resolver-set-key|deploy-custom-super-token) ;; *) exit 1 ;; esac
+          jq -e 'type == "array" and all(.[]; type == "string" and (contains("\u0000") | not) and . != "--broadcast" and . != "--resume")' <<< "$ARGS_JSON"
+          mapfile -d '' -t args < <(jq -j '.[] | ., "\u0000"' <<< "$ARGS_JSON")
+          export RPC_URL="https://${NETWORK}.rpc.x.superfluid.dev"
+          bash "new-ops-scripts/${SCRIPT}.sh" "$NETWORK" "${args[@]}"

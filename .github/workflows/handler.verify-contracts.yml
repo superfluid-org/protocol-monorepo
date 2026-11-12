@@ -1,40 +1,37 @@
-name: Verify on Etherscan
+name: Verify framework sources
 
 on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Protocol release version (test/master/v1/etc.)'
+        description: 'Resolver protocol release version'
         required: true
-        default: 'test'
+        default: 'v1'
       only_network:
-        description: 'Only a specific network is to be verified'
+        description: 'Only a specific canonical metadata network'
         required: false
+      plan:
+        description: 'Read-only discovery and verification plan (no explorer requests)'
+        type: boolean
+        default: true
 
 jobs:
-
-  verify-on-etherscan:
-    name: Verify on Etherscan
-
+  verify-framework:
+    name: Verify framework sources
     runs-on: ubuntu-22.04
-
-    env:
-      RELEASE_VERSION: ${{ github.event.inputs.release_version }}
-
     strategy:
       fail-fast: false
       matrix:
-          network: [eth-sepolia, optimism-sepolia, avalanche-fuji, polygon-mainnet, xdai-mainnet, optimism-mainnet, arbitrum-one, avalanche-c, bsc-mainnet, eth-mainnet, celo-mainnet, base-mainnnet, scroll-mainnet]
-
+        network: [avalanche-fuji, eth-sepolia, optimism-sepolia, base-sepolia, arc-testnet, xdai-mainnet, polygon-mainnet, optimism-mainnet, arbitrum-one, avalanche-c, bsc-mainnet, eth-mainnet, celo-mainnet, base-mainnet, scroll-mainnet, arc-mainnet]
     defaults:
       run:
         shell: nix develop .#ci-default -c bash -xe {0}
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Check only_network
-        if: ${{ github.event.inputs.only_network != '' && github.event.inputs.only_network != matrix.network }}
+        if: ${{ inputs.only_network != '' && inputs.only_network != matrix.network }}
+        shell: bash
         run: echo "DO_SKIP=1" >> "$GITHUB_ENV"
 
       - uses: cachix/install-nix-action@v27
@@ -42,23 +39,34 @@ jobs:
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build
+      - name: Install dependencies
         if: env.DO_SKIP != 1
-        run: |
-          yarn install --immutable
-          yarn build-for-contracts-dev
+        run: yarn install --immutable
 
-      - name: Etherscan verification of ${{ matrix.network }} deployment
+      - name: Build verification artifacts
+        if: env.DO_SKIP != 1 && !inputs.plan
+        run: yarn workspace @superfluid-finance/ethereum-contracts build:contracts:foundry
+
+      - name: Discover and verify framework
         if: env.DO_SKIP != 1
-        run: |
-          cd packages/ethereum-contracts
-          npx truffle exec --network ${{ matrix.network }} ops-scripts/info-print-contract-addresses.js : addresses.vars
-          tasks/etherscan-verify-framework.sh ${{ matrix.network }} addresses.vars
         env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-          POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
-          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
-          OPTIMISTIC_API_KEY: ${{ secrets.OPTIMISTIC_API_KEY }}
-          ARBISCAN_API_KEY: ${{ secrets.ARBISCAN_API_KEY }}
-          BSCSCAN_API_KEY: ${{ secrets.BSCSCAN_API_KEY }}
-          CELOSCAN_API_KEY: ${{ secrets.CELOSCAN_API_KEY }}}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          RPC_URL: https://${{ matrix.network }}.rpc.x.superfluid.dev
+          NETWORK: ${{ matrix.network }}
+          PLAN: ${{ inputs.plan }}
+        run: |
+          set -o pipefail
+          cd packages/ethereum-contracts
+          args=()
+          if [[ "$PLAN" == "true" ]]; then args+=(--plan); fi
+          # Sourcify needs no explorer key or manual-workflow-only secret.
+          bash new-ops-scripts/verify-framework.sh "$NETWORK" \
+            --verifier sourcify "${args[@]}" | tee framework-verification.json
+
+      - name: Upload aggregate report
+        if: always() && env.DO_SKIP != 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: framework-verification-${{ matrix.network }}
+          path: packages/ethereum-contracts/framework-verification.json
+          if-no-files-found: warn

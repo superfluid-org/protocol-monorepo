@@ -5,7 +5,7 @@
  *
  * Usage (from packages/ethereum-contracts):
  *   npx ts-node new-ops-scripts/deploy-deterministic-forwarder.ts <network> <contractName>
- *     [--rpc-url <url>] [--host <address>] [--chain-id <id>]
+ *     --rpc-url <url> --host <address> --chain-id <id> [--broadcast]
  *
  * Prerequisite: forge build
  *
@@ -17,10 +17,10 @@
  *   EXPECTED_ADDRESS, SKIP_ADDRESS_CHECK=1
  *   GAS_LIMIT, MAX_FEE_PER_GAS, MAX_PRIORITY_FEE_PER_GAS, EST_TX_COST
  *     (manual override if auto-estimate unsupported)
- *   SIMULATE=1                — checks only, no fund/deploy
+ *   Default simulation only; --broadcast funds and deploys.
  *
- * Follow-up: verify-forwarder.sh, register-forwarder.sh, activate-forwarder.sh
- *            (or deploy-clearmacro-forwarder.sh for the full rollout).
+ * Follow-up: verify-forwarder.sh, activate-forwarder.sh, then register-forwarder.sh
+ *            after activation execution (or a forwarder task for the full rollout).
  */
 import type { Address, Hex } from "viem";
 import {
@@ -40,18 +40,12 @@ import {
   CANONICAL_FORWARDER_ADDRESSES,
   FORWARDER_CONTRACTS,
 } from "./lib/forwarder-contracts";
-import {
-  findMetadataNetwork,
-  getMetadataJsonPath,
-  loadOpsEnv,
-  resolveMetadataRpcUrl,
-} from "./lib/ops-env";
 
 function usage(): never {
   console.error(
     "Usage: npx ts-node new-ops-scripts/deploy-deterministic-forwarder.ts <network> <contractName> " +
-      "[--rpc-url <url>] [--host <address>] [--chain-id <id>]\n" +
-      `Contracts: ${[...FORWARDER_CONTRACTS].join(", ")}`
+      "--rpc-url <url> --host <address> --chain-id <id> [--broadcast]\n" +
+      `Contracts: ${Object.keys(FORWARDER_CONTRACTS).join(", ")}`
   );
   process.exit(1);
 }
@@ -62,6 +56,7 @@ type CliArgs = {
   rpcUrl?: string;
   host?: Address;
   chainId?: number;
+  broadcast?: boolean;
 };
 
 function parseArgs(argv: string[]): CliArgs {
@@ -76,6 +71,8 @@ function parseArgs(argv: string[]): CliArgs {
       args.host = argv[++i] as Address;
     } else if (arg === "--chain-id") {
       args.chainId = Number(argv[++i]);
+    } else if (arg === "--broadcast") {
+      args.broadcast = true;
     } else if (arg.startsWith("--")) {
       usage();
     } else {
@@ -97,11 +94,9 @@ function parsePrivateKey(raw: string): Hex {
 }
 
 async function main(): Promise<void> {
-  loadOpsEnv();
-
   const cli = parseArgs(process.argv);
   const { networkName, contractName } = cli;
-  if (!FORWARDER_CONTRACTS.has(contractName)) {
+  if (!Object.prototype.hasOwnProperty.call(FORWARDER_CONTRACTS, contractName)) {
     console.error(`Unknown contract: ${contractName}`);
     usage();
   }
@@ -112,22 +107,21 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const row = findMetadataNetwork(networkName);
-  const rpc = cli.rpcUrl ?? (row ? resolveMetadataRpcUrl(networkName, row) : null);
-  const host = cli.host ?? (row?.contractsV1?.host as Address | undefined);
-  const chainId = cli.chainId ?? row?.chainId;
+  const rpc = cli.rpcUrl;
+  const host = cli.host;
+  const chainId = cli.chainId;
 
   if (!host || !isAddress(host) || typeof chainId !== "number" || !Number.isInteger(chainId)) {
-    console.error(`network/host/chainId missing in metadata (${getMetadataJsonPath()})`);
+    console.error("--host and --chain-id are required; use the bash wrapper for metadata lookup");
     process.exit(1);
   }
   if (!rpc) {
-    console.error("no RPC (RPC_URL, PROVIDER_URL_OVERRIDE, or metadata publicRPCs)");
+    console.error("--rpc-url is required; use the bash wrapper for RPC resolution");
     process.exit(1);
   }
 
   const nonce = process.env.NONCE ? parseInt(process.env.NONCE, 10) : 0;
-  const simulate = process.env.SIMULATE === "1";
+  const simulate = !cli.broadcast;
   const funder = process.env.WALLET_NAME ?? "sf-ops";
   const expected =
     (process.env.EXPECTED_ADDRESS?.trim() as Address | undefined) ??
@@ -207,7 +201,7 @@ async function main(): Promise<void> {
   }
 
   if (simulate) {
-    console.log("SIMULATE=1: done");
+    console.log("Simulation complete; nothing signed or broadcast.");
     console.log(predicted);
     return;
   }

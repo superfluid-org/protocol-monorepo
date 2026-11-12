@@ -1,58 +1,46 @@
-name: List Super Token
+name: Simulate Super Token Listing
 
 on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Protocol release version (test/master/v1/etc.)'
+        description: Protocol release version
         required: true
-        default: 'v1'
-      admin_type:
-        description: 'Choose the admin type: MULTISIG, or OWNABLE'
-        required: true
-        default: 'MULTISIG'
+        default: v1
       network:
-        description: 'Network for the script to run on'
+        description: Canonical metadata network name
         required: true
       token_address:
-        description: 'Address of the Super Token to be listed'
+        description: SuperToken address
         required: true
-      environments:
-        description: 'Additional env vars, separated by semicolons'
+      symbol_override:
+        description: Optional resolver symbol override
         required: false
+      allow_update:
+        description: Deliberately replace an occupied resolver entry
+        type: boolean
+        default: false
 
 jobs:
-
-  list-super-token-script:
+  simulate:
     runs-on: ubuntu-22.04
-
-    env:
-      RELEASE_VERSION: ${{ github.event.inputs.release_version }}
-      RESOLVER_ADMIN_TYPE: ${{ github.event.inputs.admin_type }}
-
-      DEFAULT_MNEMONIC: ${{ secrets.BUILD_AGENT_MNEMONIC  }}
-      PROVIDER_URL_TEMPLATE: ${{ secrets.PROVIDER_URL_TEMPLATE }}
-
     defaults:
       run:
-        shell: nix develop .#ci-default -c bash -xe {0}
-
+        shell: nix develop .#ci-default -c bash -e {0}
     steps:
       - uses: actions/checkout@v4
-
       - uses: DeterminateSystems/nix-installer-action@v13
-
-      - name: Build
+      - run: yarn install --immutable
+      - name: Simulate resolver action (never broadcast or propose)
+        working-directory: packages/ethereum-contracts
+        env:
+          NETWORK: ${{ inputs.network }}
+          TOKEN: ${{ inputs.token_address }}
+          SYMBOL: ${{ inputs.symbol_override }}
+          RELEASE_VERSION: ${{ inputs.release_version }}
+          ALLOW_UPDATE: ${{ inputs.allow_update && '1' || '' }}
         run: |
-          yarn install --immutable
-          yarn build-for-contracts-dev
-
-      - name: Execute truffle script
-        run: |
-          cd packages/ethereum-contracts
-          echo "Admin type: ${{ github.event.inputs.admin_type }}"
-          echo "${{ github.event.inputs.environments }}" | sed 's/;/\n/' > .env
-          npx truffle exec \
-            --network ${{ github.event.inputs.network }} \
-            ops-scripts/resolver-list-super-token.js \
-            : ${{ github.event.inputs.token_address }}
+          export RPC_URL="https://${NETWORK}.rpc.x.superfluid.dev"
+          args=("$NETWORK" list "$TOKEN")
+          [[ -z "$SYMBOL" ]] || args+=("$SYMBOL")
+          bash new-ops-scripts/resolver-token.sh "${args[@]}"
