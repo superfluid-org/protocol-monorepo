@@ -11,40 +11,28 @@
 #   NEW_SAFE_OWNER        — address to add as Safe owner (default below)
 #   GOV_SAFE_OPS_NETWORKS — optional comma-separated canonical network names from networks.json
 #                           (e.g. "eth-mainnet,base-mainnet"). If unset, all entries in metadata are tried.
-#   SIMULATE=1            — print payloads and run safe-ops with --dry-run (no proposal)
+#   --broadcast enables proposal submission; otherwise prints payloads only.
 #   SAFE_ORIGIN           — optional label for the Safe UI (default: gov-safe-add-owner)
 #   METADATA_JSON         — override path to networks.json
 #
 # Per-iteration RPC_URL is cleared so each network uses metadata RPCs (or PROVIDER_URL_TEMPLATE).
 #
-# TypeScript variant (same env, calls proposeSafeTx in-process): gov-safe-add-owner.ts
 #
 set -e
 set -o pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
-
 # shellcheck source=/dev/null
-_env=$(set -o posix; export -p); [[ -f "$PKG_ROOT/.env" ]] && source "$PKG_ROOT/.env"; [[ -f "$PKG_ROOT/../.env" ]] && source "$PKG_ROOT/../.env"; eval "$_env"
-export SAFE_PROPOSER_PK="${SAFE_PROPOSER_PK:-}"
-export SAFE_API_KEY="${SAFE_API_KEY:-}"
-export SAFE_TX_SERVICE_URL="${SAFE_TX_SERVICE_URL:-}"
-# shellcheck source=/dev/null
-[ -f "$SCRIPT_DIR/lib/network-config.sh" ] && . "$SCRIPT_DIR/lib/network-config.sh"
+source "$SCRIPT_DIR/lib/ops.sh"
+parse_ops_args "$@"
+require_args 0 'gov-safe-add-owner.sh'
+(( ! RESUME )) || { echo 'Safe proposals do not support --resume' >&2; exit 1; }
 
 GOV_SAFE="${GOV_SAFE:-0x06a858185b3b2abb246128bb9415d57e5c09aeb6}"
 NEW_SAFE_OWNER="${NEW_SAFE_OWNER:-0x4289a2b29be2555b0973422167321bF42CC39A3B}"
 
-if [[ ! "$GOV_SAFE" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
-    echo "Error: GOV_SAFE must be a valid Ethereum address: $GOV_SAFE" >&2
-    exit 1
-fi
-if [[ ! "$NEW_SAFE_OWNER" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
-    echo "Error: NEW_SAFE_OWNER must be a valid Ethereum address: $NEW_SAFE_OWNER" >&2
-    exit 1
-fi
+require_address GOV_SAFE "$GOV_SAFE"
+require_address NEW_SAFE_OWNER "$NEW_SAFE_OWNER"
 
 GOV_SAFE_LC=$(echo "$GOV_SAFE" | tr '[:upper:]' '[:lower:]')
 
@@ -101,13 +89,13 @@ while IFS= read -r NETWORK; do
 
     unset RPC_URL
     if ! PROVIDER_URL=$(get_rpc_url "$NETWORK"); then
-        echo "[$NETWORK] skip: no RPC" >&2
-        ((skipped++)) || true
+        echo "[$NETWORK] error: RPC unavailable or bound to the wrong chain" >&2
+        ((errors++)) || true
         continue
     fi
 
     HOST_ADDRESS=$(get_host "$NETWORK")
-    if [[ -z "$HOST_ADDRESS" || "$HOST_ADDRESS" == "null" || ! "$HOST_ADDRESS" =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+    if ! require_address HOST_ADDRESS "$HOST_ADDRESS"; then
         echo "[$NETWORK] skip: invalid host in metadata" >&2
         ((skipped++)) || true
         continue
@@ -164,9 +152,9 @@ while IFS= read -r NETWORK; do
     }
 
     PAYLOAD_FILE=$(mktemp "$SAFE_PAYLOADS_DIR/gov-safe-add-owner.XXXXXX.jsonl")
-    CHAIN_ID=$(cast chain-id --rpc-url "$PROVIDER_URL")
+    CHAIN_ID=$(get_chain_id "$NETWORK")
     SAFE_PAYLOAD_SIMULATED=true
-    [[ -n "${SIMULATE:-}" ]] || SAFE_PAYLOAD_SIMULATED=false
+    (( ! BROADCAST )) || SAFE_PAYLOAD_SIMULATED=false
     jq -nc --arg safe "$GOV_SAFE_CHECKSUM" --arg chainId "$CHAIN_ID" \
         --arg deployer "${DEPLOYER:-0x0000000000000000000000000000000000000000}" \
         --arg data "$CALLDATA" --argjson simulated "$SAFE_PAYLOAD_SIMULATED" \
@@ -186,8 +174,8 @@ while IFS= read -r NETWORK; do
         --mode single
         --origin "${SAFE_ORIGIN:-gov-safe-add-owner}"
     )
-    if [[ -n "${SIMULATE:-}" ]]; then
-        safe_ops_args+=(--dry-run)
+    if (( BROADCAST )); then
+        safe_ops_args+=(--broadcast)
     fi
 
     if (cd "$PKG_ROOT" && npx ts-node "$SCRIPT_DIR/safe-ops.ts" "${safe_ops_args[@]}"); then

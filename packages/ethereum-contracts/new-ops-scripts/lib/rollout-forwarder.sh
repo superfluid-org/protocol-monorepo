@@ -1,18 +1,10 @@
 #!/usr/bin/env bash
 # Source from forwarder tasks. Deploy → verify → activate → confirm execution → register.
-# Optional sixth argument / FORWARDER_PHASE: all (default), deploy, verify, activate, register.
+# Optional sixth argument: all (default), deploy, verify, activate, register.
 # Rerun register after a pending governance transaction executes; a proposal is not activation.
 # Existing ClearMacro callers may additionally grant a provider role after registration.
-# Flags: SKIP_DEPLOY, SKIP_VERIFY, SKIP_ACTIVATE, SKIP_REGISTER, SKIP_GRANT_PROVIDER, SIMULATE.
-
-_OPS_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-_PKG_ROOT="$(cd "$_OPS_SCRIPT_DIR/.." && pwd)"
-
-# shellcheck source=/dev/null
-_env=$(set -o posix; export -p); [[ -f "$_PKG_ROOT/.env" ]] && source "$_PKG_ROOT/.env"; [[ -f "$_PKG_ROOT/../.env" ]] && source "$_PKG_ROOT/../.env"; eval "$_env"
-# shellcheck source=/dev/null
-source "$_OPS_SCRIPT_DIR/lib/network-config.sh"
-METADATA_JSON="${METADATA_JSON:-$_PKG_ROOT/../metadata/networks.json}"
+# Sourced by deploy-forwarder.sh after the common ops prelude.
+_OPS_SCRIPT_DIR=$OPS_DIR
 
 has_deployed_code() {
     local code
@@ -30,20 +22,18 @@ has_provider_role() {
 
 rollout_forwarder() {
     local network=$1 contract=$2 resolver_key=$3 expected=$4 deployer_pk=$5
-    local phase=${6:-${FORWARDER_PHASE:-all}}
+    local phase=${6:-all}
     local rpc host verification_failed=0
     case "$phase" in
         all|deploy|verify|activate|register) ;;
         *) echo "Unknown forwarder phase: $phase (use all, deploy, verify, activate, register)" >&2; return 1 ;;
     esac
-    # Normalize the existing nonempty SIMULATE convention for every child component.
-    if [[ -n "${SIMULATE:-}" ]]; then export SIMULATE=1; fi
-    rpc=$(get_rpc_url "$network") || return 1
-    host=${HOST_ADDRESS:-$(get_host "$network")} || return 1
-    export HOST_ADDRESS=$host
-    export RESOLVER_ADDRESS=${RESOLVER_ADDRESS:-$(jq -r --arg network "$network" \
-        '.[] | select(.name == $network) | .contractsV1.resolver' "$METADATA_JSON")}
-    if [[ ! "$host" =~ ^0x[a-fA-F0-9]{40}$ ]] || ! has_deployed_code "$rpc" "$host"; then
+    local flags=()
+    (( ! BROADCAST )) || flags+=(--broadcast)
+    init_network "$network" || return 1
+    rpc=$RPC_URL
+    host=$HOST_ADDRESS
+    if ! require_address HOST_ADDRESS "$host" || ! has_deployed_code "$rpc" "$host"; then
         echo "No deployed host for $network" >&2
         return 1
     fi
@@ -60,9 +50,9 @@ rollout_forwarder() {
                 return 1
             fi
             DETERMINISTIC_DEPLOYER_PK="$deployer_pk" EXPECTED_ADDRESS="$expected" SKIP_ADDRESS_CHECK=0 \
-                "$_OPS_SCRIPT_DIR/deploy-deterministic-forwarder.sh" "$network" "$contract" || return 1
+                "$_OPS_SCRIPT_DIR/deploy-deterministic-forwarder.sh" "$network" "$contract" "${flags[@]}" || return 1
         fi
-        if [[ -n "${SIMULATE:-}" ]] && ! has_deployed_code "$rpc" "$expected"; then
+        if (( ! BROADCAST )) && ! has_deployed_code "$rpc" "$expected"; then
             echo "Simulation only: activation and registration require deployed bytecode; run those phases after deployment."
             return 0
         fi
@@ -74,8 +64,8 @@ rollout_forwarder() {
     [[ "$phase" != deploy ]] || return 0
 
     if [[ "$phase" == all || "$phase" == verify ]]; then
-        if [[ -n "${SKIP_VERIFY:-}" || -n "${SIMULATE:-}" ]]; then
-            echo "Verify skipped (SKIP_VERIFY or SIMULATE)"
+        if (( ! BROADCAST )) || [[ -n "${SKIP_VERIFY:-}" ]]; then
+            echo 'Verify skipped (simulation or SKIP_VERIFY)'
         elif ! "$_OPS_SCRIPT_DIR/verify-forwarder.sh" "$network" "$contract" "$expected"; then
             echo "Verification failed; activation/registration remain independently resumable" >&2
             verification_failed=1
@@ -89,7 +79,7 @@ rollout_forwarder() {
         elif [[ -n "${SKIP_ACTIVATE:-}" ]]; then
             echo "Activate skipped (SKIP_ACTIVATE); registration still requires onchain activation"
         else
-            "$_OPS_SCRIPT_DIR/activate-forwarder.sh" "$network" "$expected" || return 1
+            "$_OPS_SCRIPT_DIR/activate-forwarder.sh" "$network" "$expected" "${flags[@]}" || return 1
         fi
     fi
     [[ "$phase" != activate ]] || return 0
@@ -101,19 +91,18 @@ rollout_forwarder() {
             echo "After governance execution, rerun this task with phase register (or rerun all)." >&2
             return 1
         fi
-        "$_OPS_SCRIPT_DIR/register-forwarder.sh" "$network" "$resolver_key" "$expected" || return 1
+        "$_OPS_SCRIPT_DIR/register-forwarder.sh" "$network" "$resolver_key" "$expected" "${flags[@]}" || return 1
     elif [[ "$phase" == all ]]; then
         echo "Register skipped (SKIP_REGISTER)"
     fi
 
     if [[ "$phase" == all && -z "${SKIP_GRANT_PROVIDER:-}" && -n "${CLEARMACRO_PROVIDER_GRANTEE:-}" ]]; then
         local provider_name=${CLEARMACRO_PROVIDER_NAME:-macros.superfluid.eth}
-        if [[ -n "${SIMULATE:-}" ]]; then
-            echo "Provider role grant skipped (SIMULATE)"
-        elif has_provider_role "$CLEARMACRO_PROVIDER_GRANTEE" "$provider_name" "$rpc" "$host"; then
+        if has_provider_role "$CLEARMACRO_PROVIDER_GRANTEE" "$provider_name" "$rpc" "$host"; then
             echo "Provider role already granted"
         else
-            "$_OPS_SCRIPT_DIR/grant-macro-provider-role.sh" "$network" "$CLEARMACRO_PROVIDER_GRANTEE" "$provider_name" || return 1
+            WALLET_NAME=${MACRO_PROVIDER_ADMIN_WALLET:-${WALLET_NAME:-sf-ops}} \
+                "$_OPS_SCRIPT_DIR/acl-grant-role.sh" "$network" "$provider_name" "$CLEARMACRO_PROVIDER_GRANTEE" "${flags[@]}" || return 1
         fi
     fi
     echo "$expected"

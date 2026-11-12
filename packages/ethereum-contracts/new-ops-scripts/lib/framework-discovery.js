@@ -39,6 +39,7 @@ function parseOptions(argv) {
     for (let i = 1; i < argv.length; i++) {
         const arg = argv[i];
         if (arg === "--plan") options.plan = true;
+        else if (arg === "--validate") options.validate = true;
         else if (arg === "--skip-tokens") options.skipTokens = true;
         else if (arg === "--verify-proxy") {
             throw new Error("--verify-proxy explorer association is not implemented. Proxy SOURCE verification is included automatically; link implementations in the explorer separately.");
@@ -48,22 +49,13 @@ function parseOptions(argv) {
     return options;
 }
 
-function loadEnvironment() {
-    // Discovery never loads a keystore or creates password files.
-    const dotenv = require("dotenv");
-    const original = { ...process.env };
-    dotenv.config({ path: path.join(PACKAGE_ROOT, ".env"), quiet: true });
-    dotenv.config({ path: path.join(PACKAGE_ROOT, "../.env"), override: true, quiet: true });
-    Object.assign(process.env, original);
-}
 
 async function discoverFramework(options) {
     const rows = JSON.parse(fs.readFileSync(process.env.METADATA_JSON || path.join(PACKAGE_ROOT, "../metadata/networks.json"), "utf8"));
     const row = rows.find((r) => r.name === options.network);
     if (!row) throw new Error(`Unsupported metadata network: ${options.network}`);
-    const rpcUrl = options.rpcUrl || process.env.RPC_URL || process.env.PROVIDER_URL_OVERRIDE ||
-        process.env.PROVIDER_URL_TEMPLATE?.replace(/\{\{NETWORK\}\}/g, row.name) || row.publicRPCs?.[0];
-    if (!rpcUrl) throw new Error("No RPC URL configured");
+    const rpcUrl = options.rpcUrl;
+    if (!rpcUrl) throw new Error("--rpc-url is required; use the bash entry point for network resolution");
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
     const chainId = (await provider.getNetwork()).chainId;
     if (chainId !== row.chainId) throw new Error(`RPC chain ${chainId} does not match ${row.name} (${row.chainId})`);
@@ -197,7 +189,7 @@ async function discoverFramework(options) {
             const logic = await address("SUPERFLUID_POOL_LOGIC", read(beacon, "implementation() view returns (address)"));
             add("pool logic", logic, "contracts/agreements/gdav1/SuperfluidPool.sol:SuperfluidPool", ["address"], [await read(logic, "GDA() view returns (address)")]);
         });
-        await attempt("beacon constructor", async () => {
+        if (!options.validate) await attempt("beacon constructor", async () => {
             const override = constructorArgs.get(beacon.toLowerCase());
             if (override) {
                 add("pool beacon", beacon, "contracts/upgradability/SuperfluidUpgradeableBeacon.sol:SuperfluidUpgradeableBeacon");
@@ -295,7 +287,7 @@ async function discoverFramework(options) {
         ["batchLiquidator", "BatchLiquidator"], ["toga", "TOGA"],
     ]) {
         // Metadata periphery belongs to v1, not an operator's alternate release/host.
-        if (options.release !== "v1" || host.toLowerCase() !== row.contractsV1.host.toLowerCase()) continue;
+        if (options.release !== "v1" || host.toLowerCase() !== row.contractsV1?.host?.toLowerCase()) continue;
         if (!row.contractsV1[field]) continue;
         await attempt(name, async () => {
             const deployedAddress = await address(name, row.contractsV1[field]);
@@ -304,7 +296,33 @@ async function discoverFramework(options) {
             add(name, deployedAddress, `contracts/utils/${name}.sol:${name}`, types, values);
         });
     }
+    if (options.validate) await attempt("validation", async () => {
+        function check(condition, message) {
+            if (!condition) throw new Error(message);
+        }
+        for (const [key, name] of [
+            ["SUPER_TOKEN_FACTORY_PROXY", "SuperTokenFactory"],
+            ["SUPER_TOKEN_LOGIC", "SuperToken"],
+            ["SUPERFLUID_POOL_LOGIC", "SuperfluidPool"],
+        ]) {
+            check(addresses[key], `Missing ${key}`);
+            check(await read(addresses[key], "proxiableUUID() view returns (bytes32)") ===
+                ethers.utils.id(`org.superfluid-finance.contracts.${name}.implementation`), `${name} UUID mismatch`);
+        }
+        check(await read(host, "getSuperTokenFactoryLogic() view returns (address)") === addresses.SUPER_TOKEN_FACTORY_LOGIC,
+            "Canonical factory logic differs from proxy logic");
+        check(addresses.POOL_ADMIN_NFT_LOGIC === addresses.POOL_ADMIN_NFT_FACTORY_LOGIC,
+            "Pool admin proxy logic differs from canonical factory logic");
+        check(await read(addresses.POOL_ADMIN_NFT_PROXY, "baseURI() view returns (string)") ===
+            "https://nft.superfluid.finance/pool/v2/getmeta", "PoolAdminNFT baseURI mismatch");
+        for (const [key, name] of [["CFA", "ConstantFlow"], ["IDA", "InstantDistribution"], ["GDA", "GeneralDistribution"]]) {
+            check(await read(addresses[`${key}_PROXY`], "agreementType() view returns (bytes32)") ===
+                ethers.utils.id(`org.superfluid-finance.agreements.${name}Agreement.v1`), `${key} agreement type mismatch`);
+        }
+        const forwarder = await read(resolver, "get(string) view returns (address)", ["CFAv1Forwarder"]);
+        check(await read(host, "isTrustedForwarder(address) view returns (bool)", [forwarder]), "CFA forwarder is not trusted");
+    });
     return result;
 }
 
-module.exports = { PACKAGE_ROOT, discoverFramework, loadEnvironment, parseOptions };
+module.exports = { PACKAGE_ROOT, discoverFramework, parseOptions };

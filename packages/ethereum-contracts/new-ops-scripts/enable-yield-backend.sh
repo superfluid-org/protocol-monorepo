@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
-# Convenience wrapper for super-token-admin-action.sh enableYieldBackend.
-# Usage: enable-yield-backend.sh <network> <superToken> <yieldBackend> [adminOverride]
-#   adminOverride: optional; use when on-chain admin not yet set (e.g. pending gov action)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-[ -n "${4:-}" ] && export SUPER_TOKEN_ADMIN_OVERRIDE="$4"
-exec "$SCRIPT_DIR/super-token-admin-action.sh" "$1" enableYieldBackend "$2" "$3"
+set -euo pipefail
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/lib/ops.sh"
+parse_ops_args "$@"
+[[ ${#OPS_ARGS[@]} == 3 || ${#OPS_ARGS[@]} == 4 ]] || { echo 'Usage: enable-yield-backend.sh NETWORK TOKEN BACKEND [ADMIN_OVERRIDE] [--broadcast]' >&2; exit 1; }
+if [[ ${#OPS_ARGS[@]} == 4 ]]; then export SUPER_TOKEN_ADMIN_OVERRIDE=${OPS_ARGS[3]}; fi
+FLAGS=()
+(( ! BROADCAST )) || FLAGS+=(--broadcast)
+(( ! RESUME )) || FLAGS+=(--resume)
+exec "$SCRIPT_DIR/super-token-admin-action.sh" "${OPS_ARGS[0]}" enableYieldBackend "${OPS_ARGS[@]:1:2}" "${FLAGS[@]}"

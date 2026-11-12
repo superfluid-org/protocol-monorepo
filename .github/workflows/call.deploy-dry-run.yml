@@ -32,5 +32,5 @@ jobs:
         with:
           name: framework-simulation-${{ inputs.network }}
           path: |
-            packages/ethereum-contracts/.tmp/framework-safe-payloads.jsonl
+            packages/ethereum-contracts/.tmp/*-framework-*-dry-run.jsonl
             packages/ethereum-contracts/broadcast/**/dry-run/*.json

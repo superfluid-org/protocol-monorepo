@@ -2,14 +2,12 @@
 # EIP-1820 canonical presigned transaction. Default prints the plan, sends nothing.
 set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PKG_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
-METADATA_JSON=${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}
 # shellcheck source=/dev/null
-source "$SCRIPT_DIR/lib/network-config.sh"
-NETWORK=${1:?Usage: deploy-erc1820.sh NETWORK [--broadcast]}
-MODE=${2:-}
-[[ -z "$MODE" || "$MODE" == --broadcast ]] || { echo 'Only --broadcast is supported' >&2; exit 1; }
-RPC_URL=$(get_rpc_url "$NETWORK")
+source "$SCRIPT_DIR/lib/ops.sh"
+parse_ops_args "$@"
+require_args 1 'deploy-erc1820.sh NETWORK'
+(( ! RESUME )) || { echo 'ERC1820 deployment does not support --resume' >&2; exit 1; }
+init_network "${OPS_ARGS[0]}"
 REGISTRY=0x1820a4B7618BdE71Dce8cdc73aAB6C95905faD24
 SIGNER=0xa990077c3205cbDf861e17Fa532eeB069cE9fF96
 if [[ $(cast code "$REGISTRY" --rpc-url "$RPC_URL") != 0x ]]; then
@@ -30,13 +28,13 @@ console.log(raw);
 JS
 )
 echo "Plan: fund canonical signer $SIGNER up to 0.1 ETH, then publish EIP-1820 presigned transaction ($REGISTRY)."
-if [[ -z "$MODE" ]]; then echo "Simulation only: no funding or publishing. Raw transaction: $RAW"; exit 0; fi
+if (( ! BROADCAST )); then echo "Simulation only: no funding or publishing. Raw transaction: $RAW"; exit 0; fi
 BALANCE=$(cast balance "$SIGNER" --rpc-url "$RPC_URL")
 NEEDED=$(node -e 'console.log((100000000000000000n-BigInt(process.argv[1])).toString())' "$BALANCE")
-AUTH=(--account "${WALLET_NAME:-sf-ops}")
-if [[ -n "${PRIVATE_KEY:-}" ]]; then AUTH=(--private-key "$PRIVATE_KEY"); fi
+build_forge_auth
+SIGNING_AUTH=("${AUTH[@]:0:2}")
 if [[ "$NEEDED" != -* && "$NEEDED" != 0 ]]; then
-    with_keystore_password cast send "$SIGNER" --value "$NEEDED" --rpc-url "$RPC_URL" "${AUTH[@]}"
+    with_keystore_password cast send "$SIGNER" --value "$NEEDED" --rpc-url "$RPC_URL" "${SIGNING_AUTH[@]}"
 fi
 cast publish "$RAW" --rpc-url "$RPC_URL"
 [[ $(cast code "$REGISTRY" --rpc-url "$RPC_URL") != 0x ]] || { echo 'ERC1820 deployment failed' >&2; exit 1; }

@@ -23,7 +23,7 @@
  * if any discovered implementation remains unsupported.
  */
 const { spawnSync } = require("child_process");
-const { PACKAGE_ROOT, discoverFramework, loadEnvironment, parseOptions } = require("./lib/framework-discovery");
+const { PACKAGE_ROOT, discoverFramework, parseOptions } = require("./lib/framework-discovery");
 
 function verificationArgs(target, snapshot, options) {
     const args = ["verify-contract", target.address, target.contract,
@@ -37,7 +37,6 @@ function verificationArgs(target, snapshot, options) {
 }
 
 async function main() {
-    loadEnvironment();
     const options = parseOptions(process.argv.slice(2));
     options.verifier = options.verifier || "sourcify";
     if (!["sourcify", "etherscan", "blockscout"].includes(options.verifier)) throw new Error("Unsupported verifier (choose sourcify, etherscan or blockscout)");

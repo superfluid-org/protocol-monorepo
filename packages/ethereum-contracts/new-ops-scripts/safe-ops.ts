@@ -231,7 +231,7 @@ export async function proposeSafeTx({
 function usage(): string {
   return [
     "Usage:",
-    "  npx ts-node safe-ops.ts propose-file --rpc-url <url> --payload-file <path> --mode <single|batch> [--require-single-safe] [--origin <label>] [--dry-run]",
+    "  npx ts-node safe-ops.ts propose-file --rpc-url <url> --payload-file <path> --mode <single|batch> [--require-single-safe] [--origin <label>] [--broadcast]",
     "",
     "Secrets are read from env:",
     "  SAFE_PROPOSER_PK, SAFE_API_KEY, SAFE_TX_SERVICE_URL"
@@ -245,7 +245,7 @@ function parseCliArgs(argv: string[]): CliOptions {
 
   const options: Partial<CliOptions> = {
     requireSingleSafe: false,
-    dryRun: false
+    dryRun: true
   };
 
   for (let i = 3; i < argv.length; i++) {
@@ -271,8 +271,8 @@ function parseCliArgs(argv: string[]): CliOptions {
       case "--origin":
         options.origin = argv[++i];
         break;
-      case "--dry-run":
-        options.dryRun = true;
+      case "--broadcast":
+        options.dryRun = false;
         break;
       default:
         throw new Error(`Unknown argument: ${arg}`);
