@@ -96,10 +96,10 @@ jobs:
         working-directory: ./packages/ethereum-contracts
 
       - name: Exercise local framework deployment and recovery
-        run: yarn test:deployment:local
+        run: yarn deployment-local
         working-directory: ./packages/ethereum-contracts
         env:
-          FRAMEWORK_LOCAL_PORT: 19300
+          FRAMEWORK_LOCAL_PORT: 19600
 
       - name: Run test suite
         if: steps.base.outputs.cache-hit != 'true' && inputs.run-coverage-tests == false
