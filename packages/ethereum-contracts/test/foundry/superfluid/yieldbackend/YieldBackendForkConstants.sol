@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
+// Disposable CI verification: warm native RPC state before checking its restore.
 
 /**
  * @title YieldBackendForkConstants
