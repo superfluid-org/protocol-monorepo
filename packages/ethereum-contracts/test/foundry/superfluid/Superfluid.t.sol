@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPLv3
 pragma solidity ^0.8.23;
+// Disposable CI verification: change package inputs without changing the RPC cache key.
 
 import "../FoundrySuperfluidTester.t.sol";
 import { UUPSProxiable } from "../../../contracts/upgradability/UUPSProxiable.sol";
