@@ -135,6 +135,15 @@ jobs:
         run: ./tasks/coverage-cleanup.sh
         working-directory: ./packages/ethereum-contracts
 
+      - name: Preserve warm native cache for local offline experiment
+        if: inputs.run-coverage-tests == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: disposable-foundry-rpc-cache
+          path: ~/.foundry/cache/rpc
+          include-hidden-files: true
+          retention-days: 1
+
       - name: Create coverage artifact
         if: inputs.run-coverage-tests == true
         uses: actions/upload-artifact@v4
