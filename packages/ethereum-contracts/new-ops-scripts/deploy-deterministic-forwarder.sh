@@ -10,5 +10,5 @@ init_network "${OPS_ARGS[0]}"
 FLAGS=()
 (( ! BROADCAST )) || FLAGS+=(--broadcast)
 if (( BROADCAST )) && [[ -z "${PRIVATE_KEY:-}" ]]; then apply_keystore_password_env; fi
-ts_node "$SCRIPT_DIR/deploy-deterministic-forwarder.ts" "${OPS_ARGS[@]}" \
+npx ts-node "$SCRIPT_DIR/deploy-deterministic-forwarder.ts" "${OPS_ARGS[@]}" \
     --rpc-url "$RPC_URL" --host "$HOST_ADDRESS" --chain-id "$CHAIN_ID" "${FLAGS[@]}"

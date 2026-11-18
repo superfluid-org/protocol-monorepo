@@ -22,10 +22,8 @@ fails. No environment variable switches simulation/broadcast mode.
 
 [ops.sh](../new-ops-scripts/lib/ops.sh) is the shared argument, environment,
 sender/authentication and payload policy. Exported caller values win over package
-and parent `.env` defaults. Run from the nix devshell (`nix develop`). It pins solc and Foundry via `flake.lock`
-and sets `SOLC` and `FOUNDRY_OFFLINE`, so forge does not fetch a compiler.
-Also required: Bash, jq, and Node/Yarn (`yarn install --immutable`).
-`anvil` for local tests comes from the same shell. Simulations do not unlock a wallet.
+and parent `.env` defaults. Prerequisites are Bash, jq, Node/Yarn and Foundry
+(`forge`, `cast`; `anvil` for local tests). Simulations do not unlock a wallet.
 
 - RPC resolution and chain binding are centralized in
   [network-config.sh](../new-ops-scripts/lib/network-config.sh): `RPC_URL`, then
@@ -199,9 +197,9 @@ DEPLOYER="$ACL_ADMIN" bash new-ops-scripts/acl-grant-role.sh "$NETWORK" ACL_SUPE
 bash tasks/deploy-cfa-forwarder.sh "$NETWORK" all
 # After activation actually executes, resume publication:
 ALLOW_UPDATE=1 bash tasks/deploy-cfa-forwarder.sh "$NETWORK" register
-../../node_modules/.bin/ts-node new-ops-scripts/safe-ops.ts propose-file --rpc-url "$RPC_URL" --payload-file "$REVIEWED_PAYLOAD" --mode single
+npx ts-node new-ops-scripts/safe-ops.ts propose-file --rpc-url "$RPC_URL" --payload-file "$REVIEWED_PAYLOAD" --mode single
 # Submission is explicit even when using this CLI directly:
-../../node_modules/.bin/ts-node new-ops-scripts/safe-ops.ts propose-file --rpc-url "$RPC_URL" --payload-file "$REVIEWED_PAYLOAD" --mode single --broadcast
+npx ts-node new-ops-scripts/safe-ops.ts propose-file --rpc-url "$RPC_URL" --payload-file "$REVIEWED_PAYLOAD" --mode single --broadcast
 ```
 
 Listing requires explicit release; symbol defaults to `symbol()` unless overridden.

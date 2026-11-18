@@ -178,7 +178,7 @@ while IFS= read -r NETWORK; do
         safe_ops_args+=(--broadcast)
     fi
 
-    if (cd "$PKG_ROOT" && ts_node "$SCRIPT_DIR/safe-ops.ts" "${safe_ops_args[@]}"); then
+    if (cd "$PKG_ROOT" && npx ts-node "$SCRIPT_DIR/safe-ops.ts" "${safe_ops_args[@]}"); then
         ((proposed++)) || true
     else
         echo "[$NETWORK] error: safe-ops failed" >&2

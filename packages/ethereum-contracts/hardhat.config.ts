@@ -21,21 +21,30 @@ try {
     );
 }
 
-// solc is the binary the nix devshell pins (flake.nix sets SOLC). No compiler download.
+// The built-in compiler (auto-downloaded if not yet present) can be overridden by setting SOLC
+// If set, we assume it's a native compiler which matches the required Solidity version.
 subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(
-    async (args) => {
-        const solc = process.env.SOLC;
-        if (!solc) {
-            throw new Error("SOLC is not set. Compile from the nix devshell (nix develop), which pins solc.");
+    async (args, hre, runSuper) => {
+        console.log("subtask TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD");
+        if (process.env.SOLC !== undefined) {
+            const versionOutput = execSync(`${process.env.SOLC} --version`, { encoding: 'utf8' }).trim();
+            const longVersion = versionOutput.match(/Version: (.+)/)?.[1] || `${args.solcVersion}+commit.unknown.Linux.g++`;
+            console.log(
+                "Using Solidity compiler set in SOLC:",
+                process.env.SOLC,
+                ", longVersion:",
+                longVersion
+            );
+            return {
+                compilerPath: process.env.SOLC,
+                isSolcJs: false, // false for native compiler
+                version: args.solcVersion,
+                longVersion,
+            };
+        } else {
+            // fall back to the default
+            return runSuper();
         }
-        const versionOutput = execSync(`${solc} --version`, { encoding: "utf8" }).trim();
-        const longVersion = versionOutput.match(/Version: (.+)/)?.[1] || `${args.solcVersion}+commit.unknown.Linux.g++`;
-        return {
-            compilerPath: solc,
-            isSolcJs: false,
-            version: args.solcVersion,
-            longVersion,
-        };
     }
 );
 
