@@ -62,7 +62,7 @@ Now you are ready. If you're editing the Superfluid contracts, start the auto-co
 
 ```bash
 cd packages/ethereum-contracts
-npx truffle watch
+yarn run-nodemon yarn build:contracts:hardhat
 ```
 
 Then, copy-and-watch the changes into your Superfluid App.
@@ -90,7 +90,7 @@ See our [examples repo](https://github.com/superfluid-finance/super-examples) if
 We are using `solidity-coverage`. Use this command to run the coverage tests in the contracts package:
 
 ```bash
-truffle run test-coverage
+yarn test-coverage:hardhat
 ```
 
 > Note: This step is not integrated with the unit test because of the time it consumes to execute.

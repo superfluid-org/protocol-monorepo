@@ -20,7 +20,7 @@ contract MaliciousUUPSLogic {
     }
 }
 
-/// @dev PoC referenced by warnProductionUUPSProxyInitRisk() in ops-scripts/libs/common.js.
+/// @dev PoC for the inherited proxy initialization window documented in docs/deployment-tooling.md.
 contract UUPSProxyResetTest is Test {
     bytes32 internal constant IMPLEMENTATION_SLOT =
         0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;

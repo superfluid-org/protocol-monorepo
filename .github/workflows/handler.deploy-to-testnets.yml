@@ -1,77 +1,20 @@
-name: Deploy to Testnets
+name: Plan Testnet Framework Upgrade
 
+# Persistent upgrades use production tooling; faucet provisioning is explicitly separate.
+# No deployment credentials are needed by this manual simulation workflow.
 on:
   workflow_dispatch:
     inputs:
-      release_version:
-        description: 'Protocol release version (test/master/v1/etc.)'
+      network:
+        description: 'Testnet to simulate'
         required: true
-        default: 'test'
-      only_network:
-        description: 'Only a specific network is to be deployed'
-        required: false
-      environments:
-        description: 'Additional env vars, separated by semicolons'
-        required: false
+        type: choice
+        options: [eth-sepolia, optimism-sepolia, avalanche-fuji, base-sepolia, arc-testnet]
+        default: eth-sepolia
 
 jobs:
-
-  deploy-to-testnets:
-    name: Deploy to testnets
-
-    runs-on: ubuntu-22.04
-
-    env:
-      RELEASE_VERSION: ${{ github.event.inputs.release_version }}
-      DEFAULT_MNEMONIC: ${{ secrets.BUILD_AGENT_MNEMONIC }}
-      PROVIDER_URL_TEMPLATE: ${{ secrets.PROVIDER_URL_TEMPLATE }}
-
-    defaults:
-      run:
-        shell: nix develop .#ci-default -c bash -xe {0}
-
-    strategy:
-      fail-fast: false
-      matrix:
-          network: [eth-sepolia, optimism-sepolia, avalanche-fuji]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # if only_network is set, skip all steps until the value matches one of the entries in matrix.network
-      - name: Check only_network
-        if: ${{ github.event.inputs.only_network != '' && github.event.inputs.only_network != matrix.network }}
-        run: echo "DO_SKIP=1" >> "$GITHUB_ENV"
-
-      - uses: cachix/install-nix-action@v27
-        if: env.DO_SKIP != 1
-        with:
-          github_access_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build
-        if: env.DO_SKIP != 1
-        run: |
-          yarn install --immutable
-          yarn build-for-contracts-dev
-
-      - name: Deploy to ${{ matrix.network }}
-        if: env.DO_SKIP != 1
-        run: |
-          cd packages/ethereum-contracts
-          echo "${{ github.event.inputs.environments }}" | sed 's/;/\n/' > .env
-          npx truffle exec --network ${{ matrix.network }} ops-scripts/deploy-test-environment.js
-
-      - name: Etherscan verification of ${{ matrix.network }} deployment
-        if: env.DO_SKIP != 1
-        run: |
-          cd packages/ethereum-contracts
-          echo "${{ github.event.inputs.environments }}" | sed 's/;/\n/' > .env
-          npx truffle exec --network ${{ matrix.network }} ops-scripts/info-print-contract-addresses.js : addresses.vars
-          tasks/etherscan-verify-framework.sh ${{ matrix.network }} addresses.vars
-        env:
-          SKIP_IF_UNSUPPORTED: 1
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-          POLYGONSCAN_API_KEY: ${{ secrets.POLYGONSCAN_API_KEY }}
-          SNOWTRACE_API_KEY: ${{ secrets.SNOWTRACE_API_KEY }}
-          OPTIMISTIC_API_KEY: ${{ secrets.OPTIMISTIC_API_KEY }}
-          ARBISCAN_API_KEY: ${{ secrets.ARBISCAN_API_KEY }}
+  simulate:
+    uses: ./.github/workflows/call.deploy-dry-run.yml
+    with:
+      network: ${{ inputs.network }}
+      provider-url: https://${{ inputs.network }}.rpc.x.superfluid.dev

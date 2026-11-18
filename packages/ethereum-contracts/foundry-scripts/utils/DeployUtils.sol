@@ -11,7 +11,7 @@ import {ISafe} from "../../contracts/interfaces/utils/ISafe.sol";
 
 /**
  * @title DeployUtils
- * @notice Utility library for deployment scripts including admin action execution and version string handling
+ * @notice Deployment admin routing and chain-bound Safe payloads.
  */
 library DeployUtils {
     Vm private constant VM = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
@@ -105,8 +105,14 @@ library DeployUtils {
             console.log("  Safe transaction data:");
             console.logBytes(actionData);
 
+            (, address sender,) = VM.readCallers();
             string memory safeTxJson = string(abi.encodePacked(
                 "{\"safeAddress\":\"", Strings.toChecksumHexString(adminAddress), "\",",
+                "\"chainId\":\"", Strings.toString(block.chainid), "\",",
+                "\"deployer\":\"", Strings.toChecksumHexString(VM.envOr("DEPLOYER", sender)), "\",",
+                "\"simulated\":", VM.envOr("SAFE_PAYLOAD_SIMULATED", true) ? "true" : "false", ",",
+                ""));
+            safeTxJson = string(abi.encodePacked(safeTxJson,
                 "\"to\":\"", Strings.toChecksumHexString(targetContract), "\",",
                 "\"value\":\"0\",",
                 "\"data\":\"0x", _bytesToHex(actionData), "\",",
@@ -122,7 +128,7 @@ library DeployUtils {
                 console.log("  Safe payload JSON:");
                 console.log("%s", safeTxJson);
             }
-            console.log("*** Safe transaction will be proposed by the TypeScript layer ***");
+            console.log("*** Payload only: review and explicitly submit with safe-ops.ts ***");
 
         } else {
             revert("Unknown admin type");
@@ -163,16 +169,15 @@ library DeployUtils {
      * @return adminAddress The admin address
      */
     function getResolverAdmin(Resolver resolver) internal view returns (address adminAddress) {
-        bytes32 adminRole = 0x0000000000000000000000000000000000000000000000000000000000000000;
-        uint256 adminCount = resolver.getRoleMemberCount(adminRole);
-
-        if (adminCount > 0) {
-            // Get the last admin (following the legacy pattern)
-            adminAddress = resolver.getRoleMember(adminRole, adminCount - 1);
-        } else {
-            console.log("!!! resolver.getRoleMemberCount() returned 0. Using deployer as resolver admin.");
-            adminAddress = msg.sender;
+        bytes32 adminRole = bytes32(0);
+        address selected = VM.envOr("RESOLVER_ADMIN", address(0));
+        if (selected != address(0)) {
+            require(resolver.hasRole(adminRole, selected), "RESOLVER_ADMIN does not hold DEFAULT_ADMIN_ROLE");
+            return selected;
         }
+        uint256 adminCount = resolver.getRoleMemberCount(adminRole);
+        require(adminCount == 1, "Expected one resolver admin; select authorized RESOLVER_ADMIN explicitly");
+        return resolver.getRoleMember(adminRole, 0);
     }
 
     /**
@@ -196,125 +201,6 @@ library DeployUtils {
 
         // Execute resolver action
         executeResolverAction(address(resolver), actionData, resolverAdmin);
-    }
-
-    /****************************************************************
-     * Version string encoding/decoding utilities
-     ****************************************************************/
-
-    /**
-     * @dev Encode version string to pseudo address
-     * Format: [x]x.[y]y.[z]z-rrrr... -> 0x000000000000000000MMPPSSRRRR...
-     * @param versionString The version string to encode
-     * @return Encoded version as address
-     */
-    function versionStringToPseudoAddress(string memory versionString) internal pure returns (address) {
-        bytes memory v = bytes(versionString);
-        uint256 dot1;
-        uint256 dot2;
-        uint256 dash;
-
-        for (uint256 i = 0; i < v.length; i++) {
-            if (v[i] == "." && dot1 == 0) {
-                dot1 = i;
-            } else if (v[i] == "." && dot2 == 0) {
-                dot2 = i;
-            } else if (v[i] == "-") {
-                dash = i;
-                break;
-            }
-        }
-        require(dot1 > 0 && dot2 > dot1 && dash > dot2, "Invalid version format");
-
-        // Parse version numbers and build hex string: "000000000000000000" + MM + PP + SS + revision
-        bytes memory hexStr = abi.encodePacked(
-            "000000000000000000",
-            _pad2(v, 0, dot1),
-            _pad2(v, dot1 + 1, dot2),
-            _pad2(v, dot2 + 1, dash),
-            _slice(v, dash + 1, v.length)
-        );
-
-        // Convert hex string to address
-        uint160 result;
-        for (uint256 i = 0; i < 40 && i < hexStr.length; i++) {
-            result = result * 16 + _hexVal(hexStr[i]);
-        }
-        return address(result);
-    }
-
-    /**
-     * @dev Decode pseudo address back to version string
-     * @param addr The pseudo address to decode
-     * @return The decoded version string
-     */
-    function pseudoAddressToVersionString(address addr) internal pure returns (string memory) {
-        if (addr == address(0)) return "";
-        bytes memory b = abi.encodePacked(addr);
-
-        // Check prefix zeros
-        for (uint256 i = 0; i < 9; i++) {
-            if (b[i] != 0) return "";
-        }
-
-        // Convert to hex and parse: bytes 9-11 contain MM PP SS as hex chars
-        bytes memory hexStr = bytes(Strings.toHexString(uint160(addr), 20));
-        uint256 maj = (uint8(hexStr[20]) - 48) * 10 + (uint8(hexStr[21]) - 48);
-        uint256 min = (uint8(hexStr[22]) - 48) * 10 + (uint8(hexStr[23]) - 48);
-        uint256 pat = (uint8(hexStr[24]) - 48) * 10 + (uint8(hexStr[25]) - 48);
-
-        // Extract revision (trim trailing zeros)
-        uint256 len = 16;
-        for (uint256 i = 41; i >= 26 && i < 42; i--) {
-            if (hexStr[i] != "0") {
-                len = i - 25;
-                break;
-            }
-        }
-
-        return string(abi.encodePacked(
-            Strings.toString(maj), ".",
-            Strings.toString(min), ".",
-            Strings.toString(pat), "-",
-            _slice(hexStr, 26, 26 + len)
-        ));
-    }
-
-    /****************************************************************
-     * Private helper functions for version string encoding
-     ****************************************************************/
-
-    /**
-     * @dev Pad number to 2 digits
-     */
-    function _pad2(bytes memory s, uint256 start, uint256 end) private pure returns (bytes memory) {
-        uint256 n;
-        for (uint256 i = start; i < end; i++) {
-            n = n * 10 + uint8(s[i]) - 48;
-        }
-        return bytes(n < 10 ? string(abi.encodePacked("0", Strings.toString(n))) : Strings.toString(n));
-    }
-
-    /**
-     * @dev Slice bytes array
-     */
-    function _slice(bytes memory s, uint256 start, uint256 end) private pure returns (bytes memory) {
-        bytes memory r = new bytes(end - start);
-        for (uint256 i = 0; i < r.length; i++) {
-            r[i] = s[start + i];
-        }
-        return r;
-    }
-
-    /**
-     * @dev Convert hex character to value
-     */
-    function _hexVal(bytes1 c) private pure returns (uint8) {
-        uint8 v = uint8(c);
-        if (v >= 48 && v <= 57) return v - 48;
-        if (v >= 97 && v <= 102) return v - 87;
-        if (v >= 65 && v <= 70) return v - 55;
-        revert("Invalid hex char");
     }
 
     /**

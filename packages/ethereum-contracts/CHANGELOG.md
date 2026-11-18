@@ -3,6 +3,49 @@ All notable changes to the ethereum-contracts will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased — v1.16.0]
+
+### Breaking
+
+- Stop generating and publishing flat `build/truffle/*.json` artifacts. Import
+  `build/hardhat/contracts/<source>.sol/<Contract>.json` instead and read `.abi`,
+  or use the unchanged `build/bundled-abi.js` / `build/bundled-abi.json` exports.
+  For example, `build/truffle/ISuperToken.json` becomes
+  `build/hardhat/contracts/interfaces/superfluid/ISuperToken.sol/ISuperToken.json`.
+  Hardhat artifacts do not contain Truffle `networks`/address metadata or restore
+  Truffle contract abstractions. Use deployment metadata/resolver reads for
+  addresses and ethers, viem or Foundry for deployment and library linking.
+- Retire `@superfluid-finance/js-sdk` from this repository's workspaces,
+  builds, tests and publication. Migrate to `@superfluid-finance/sdk-core`;
+  see [the migration guide](../js-sdk/README.md). Historical npm releases are
+  not deprecated or unpublished by this change, and are not compatible with
+  the removed Truffle tooling/artifact paths in contracts 1.16.0.
+- Build and contract tests use Hardhat/ethers and Foundry, without the
+  Hardhat Truffle/web3 runtime plugins.
+- Remove legacy `ops-scripts`, task verification wrappers, Truffle runner/config,
+  CLI/plugins and runtime dependencies. Operators must migrate to the maintained
+  [Foundry/ethers deployment tooling](docs/deployment-tooling.md); there are no
+  legacy aliases. Production mocks/non-upgradeable/reset flags and temporary
+  inspection/indexer-refresh helpers are retired. Automatic `ALL` token discovery
+  and explorer proxy association explicitly fail as not implemented.
+
+### Changed
+
+- Add explicit fresh upgradeable deployment, framework/GovernanceII upgrade,
+  reviewed token batches, optional persistent-testnet faucet provisioning and
+  independent governance/resolver handover. Fresh policy follows the dated
+  [onchain inventory](docs/deployment-inventory.md); upgrades read and preserve
+  deployed immutables, IDA policy, authority and persistent dependencies.
+- Use native Foundry simulation/broadcast/resume artifacts, keystore authentication
+  and existing EOA/legacy multisig/Safe routing. Framework Safe payload generation
+  never submits proposals; manual deployment/listing workflows simulate without
+  custom secrets. Document inherited proxy-initialization/private-channel windows.
+- Consolidate token/resolver/governance commands and forwarder rollout; require
+  onchain activation before resolver publication. Verification emits JSON plans
+  and aggregate results with constructors, linked libraries and proxy sources;
+  historical-source/archival limits are explicit. Relocate the post-action validator
+  and local MFA deployer out of legacy operations.
+
 ## [v1.15.3]
 
 ### Fixed

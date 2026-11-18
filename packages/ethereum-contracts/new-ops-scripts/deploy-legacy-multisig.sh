@@ -25,14 +25,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/lib/ops.sh"
+parse_ops_args "$@"
+set -- "${OPS_ARGS[@]}"
+(( ! RESUME )) || { echo 'Legacy multisig deployment does not support --resume' >&2; exit 1; }
 EXPECTED_RUNTIME="0x4f2d2a000021b45b6faa718a04464eed65365b687475ffbf5fa2d846717f346f"
 
-# shellcheck source=/dev/null
-_env=$(set -o posix; export -p); [[ -f "$PKG_ROOT/.env" ]] && source "$PKG_ROOT/.env"; [[ -f "$PKG_ROOT/../.env" ]] && source "$PKG_ROOT/../.env"; eval "$_env"
-# shellcheck source=/dev/null
-[ -f "$SCRIPT_DIR/lib/network-config.sh" ] && . "$SCRIPT_DIR/lib/network-config.sh"
+# Environment and chain binding are shared with the forge wrappers.
 
 WALLET_NAME="${WALLET_NAME:-sf-ops}"
 
@@ -92,8 +92,15 @@ main() {
     done
 
     local out addr got
-    out=$(cast_send_account "$WALLET_NAME" --rpc-url "$rpc" --json --create "$data")
-    addr=$(echo "$out" | python3 -c 'import json,sys; print(json.load(sys.stdin)["contractAddress"])')
+    export RPC_URL=$rpc
+    build_forge_auth
+    if (( ! BROADCAST )); then
+        cast call --create "$data" --rpc-url "$rpc" --from "$DEPLOYER"
+        echo 'Simulation only: no multisig deployed.'
+        return
+    fi
+    out=$(with_keystore_password cast send "${AUTH[@]:0:2}" --rpc-url "$rpc" --json --create "$data")
+    addr=$(jq -er .contractAddress <<< "$out")
     addr=$(cast to-check-sum-address "$addr")
 
     got=$(cast keccak "$(cast code "$addr" --rpc-url "$rpc")")

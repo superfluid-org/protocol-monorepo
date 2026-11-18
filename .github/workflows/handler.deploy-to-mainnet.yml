@@ -1,66 +1,20 @@
-name: Deploy to Mainnet
+name: Plan Mainnet Framework Upgrade
 
+# Manual workflow deliberately requires no possibly absent deployment secrets.
+# Broadcast and Safe proposal remain explicit operator-machine operations.
 on:
   workflow_dispatch:
     inputs:
-      release_version:
-        description: 'Protocol release version (test/master/v1/etc.)'
-        required: true
-        default: 'v1'
       network:
-        description: 'Mainnet on which to deploy/upgrade'
+        description: 'Supported metadata network name'
         required: true
-      environments:
-        description: 'Additional env vars, separated by semicolons'
-        required: false
+      provider-url:
+        description: 'Read-only RPC URL (do not put credentials in public inputs)'
+        required: true
 
 jobs:
-
-  deploy-to-mainnet:
-    name: Deploy to mainnet
-
-    runs-on: ubuntu-22.04
-
-    env:
-      RELEASE_VERSION: ${{ github.event.inputs.release_version }}
-      DEFAULT_MNEMONIC: ${{ secrets.BUILD_AGENT_MNEMONIC }}
-      PROVIDER_URL_TEMPLATE: ${{ secrets.PROVIDER_URL_TEMPLATE }}
-
-    defaults:
-      run:
-        shell: nix develop .#ci-default -c bash -xe {0}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/checkout@v4
-        with:
-          repository: superfluid-finance/build-scripts
-          path: build-scripts
-
-      - uses: DeterminateSystems/nix-installer-action@v13
-
-      - name: Build
-        run: |
-          yarn install --immutable
-          yarn build-for-contracts-dev
-
-      - name: Deploy to ${{ github.event.inputs.network }}
-        run: |
-          cd packages/ethereum-contracts
-          echo "${{ github.event.inputs.environments }}" | sed 's/;/\n/' > .env
-          mkdir tmp
-          npx truffle exec --network ${{ github.event.inputs.network }} ops-scripts/deploy-framework.js
-        env:
-          GOVERNANCE_ADMIN_TYPE: MULTISIG
-          OUTPUT_FILE: tmp/contract-addresses.txt
-
-      - name: Upload new contract addresses
-        uses: ./build-scripts/s3cloudfront-hosting/actions/sync
-        with:
-          local_build_dir: packages/ethereum-contracts/tmp
-          aws_region: eu-west-2
-          aws_access_key_id: ${{ secrets.SITE_DEPLOYER_AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.SITE_DEPLOYER_AWS_SECRET_ACCESS_KEY }}
-          s3_uri: ${{ format('{0}{1}-contract-addrs@{2}', secrets.SITE_DEPLOYER_AWS_S3_DOCS_URI, github.event.inputs.network, github.run_id) }}
-          cloudfront_distribution_id: E3JEO5R14CT8IH
+  simulate:
+    uses: ./.github/workflows/call.deploy-dry-run.yml
+    with:
+      network: ${{ inputs.network }}
+      provider-url: ${{ inputs.provider-url }}

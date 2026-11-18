@@ -1,35 +1,14 @@
 #!/usr/bin/env bash
-set -eu
-set -o pipefail
-
-# Step 1 — Deterministic forwarder deploy only (see deploy-deterministic-forwarder.ts).
-# Full rollout: deploy-clearmacro-forwarder.sh or steps 2–4 individually.
-#
-# Usage:
-#   new-ops-scripts/deploy-deterministic-forwarder.sh <network> <contractName>
-#
-# Env: DETERMINISTIC_DEPLOYER_PK, WALLET_NAME (default sf-ops), SIMULATE=1, etc.
-# Prerequisite: forge build
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PKG_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-METADATA_JSON="${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}"
-
+set -euo pipefail
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=/dev/null
-_env=$(set -o posix; export -p); [[ -f "$PKG_ROOT/.env" ]] && source "$PKG_ROOT/.env"; [[ -f "$PKG_ROOT/../.env" ]] && source "$PKG_ROOT/../.env"; eval "$_env"
-# shellcheck source=/dev/null
-[[ -f "$SCRIPT_DIR/lib/network-config.sh" ]] && source "$SCRIPT_DIR/lib/network-config.sh"
-
-network="${1:?Usage: $0 <network> <contractName>}"
-contract="${2:?Usage: $0 <network> <contractName>}"
-rpc=$(get_rpc_url "$network") || exit 1
-host=$(get_host "$network")
-chain_id=$(get_chain_id "$network")
-
-cd "$PKG_ROOT"
-npx ts-node "$SCRIPT_DIR/deploy-deterministic-forwarder.ts" \
-    "$network" \
-    "$contract" \
-    --rpc-url "$rpc" \
-    --host "$host" \
-    --chain-id "$chain_id"
+source "$SCRIPT_DIR/lib/ops.sh"
+parse_ops_args "$@"
+require_args 2 'deploy-deterministic-forwarder.sh NETWORK CONTRACT'
+(( ! RESUME )) || { echo 'Deterministic deployment resumes by rerunning the rollout after checking deployed code, not --resume.' >&2; exit 1; }
+init_network "${OPS_ARGS[0]}"
+FLAGS=()
+(( ! BROADCAST )) || FLAGS+=(--broadcast)
+if (( BROADCAST )) && [[ -z "${PRIVATE_KEY:-}" ]]; then apply_keystore_password_env; fi
+npx ts-node "$SCRIPT_DIR/deploy-deterministic-forwarder.ts" "${OPS_ARGS[@]}" \
+    --rpc-url "$RPC_URL" --host "$HOST_ADDRESS" --chain-id "$CHAIN_ID" "${FLAGS[@]}"

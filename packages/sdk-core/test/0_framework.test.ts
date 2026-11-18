@@ -1,9 +1,13 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
-import { Framework } from "../src/index";
+import type { providers } from "ethers";
+import hre, { ethers } from "hardhat";
+import Web3 from "web3";
+import type { provider as Web3Provider } from "web3-core";
+
 import { networkNameToChainIdMap } from "../src/constants";
-import hre from "hardhat";
-import { TestEnvironment, makeSuite } from "./TestEnvironment";
+import { Framework } from "../src/index";
+
+import { makeSuite, TestEnvironment } from "./TestEnvironment";
 
 makeSuite("Framework Tests", (testEnv: TestEnvironment) => {
     describe("Validate Framework Constructor Options Tests", async () => {
@@ -107,26 +111,55 @@ makeSuite("Framework Tests", (testEnv: TestEnvironment) => {
         });
 
         it("Should be able to create a framework with web3.js via ethers.providers.Web3Provider", async () => {
+            const web3 = new Web3(
+                hre.network.provider as unknown as Web3Provider
+            );
             const provider = new ethers.providers.Web3Provider(
-                (global as any).web3.currentProvider
+                web3.currentProvider as providers.ExternalProvider
             );
             const chainId = (await provider.getNetwork()).chainId;
-            await Framework.create({
+            const framework = await Framework.create({
                 chainId,
                 provider,
                 resolverAddress: testEnv.frameworkAddresses.resolver,
                 protocolReleaseVersion: "test",
             });
+            expect(framework.settings.config).to.include({
+                hostAddress: testEnv.frameworkAddresses.host,
+                resolverAddress: testEnv.frameworkAddresses.resolver,
+                cfaV1Address: testEnv.frameworkAddresses.cfa,
+                idaV1Address: testEnv.frameworkAddresses.ida,
+                gdaV1Address: testEnv.frameworkAddresses.gda,
+            });
+            expect(
+                await framework.host.contract
+                    .connect(framework.settings.provider)
+                    .getGovernance()
+            ).to.equal(testEnv.frameworkAddresses.governance);
         });
 
         it("Should be able to create a framework with injected web3", async () => {
             const chainId = (await testEnv.provider.getNetwork()).chainId;
-            await Framework.create({
+            const framework = await Framework.create({
                 chainId,
-                provider: (global as any).web3,
+                provider: new Web3(
+                    hre.network.provider as unknown as Web3Provider
+                ),
                 resolverAddress: testEnv.frameworkAddresses.resolver,
                 protocolReleaseVersion: "test",
             });
+            expect(framework.settings.config).to.include({
+                hostAddress: testEnv.frameworkAddresses.host,
+                resolverAddress: testEnv.frameworkAddresses.resolver,
+                cfaV1Address: testEnv.frameworkAddresses.cfa,
+                idaV1Address: testEnv.frameworkAddresses.ida,
+                gdaV1Address: testEnv.frameworkAddresses.gda,
+            });
+            expect(
+                await framework.host.contract
+                    .connect(framework.settings.provider)
+                    .getGovernance()
+            ).to.equal(testEnv.frameworkAddresses.governance);
         });
 
         it("Should be able to create a framework with injected hardhat ethers", async () => {

@@ -7,7 +7,7 @@ set -o pipefail
 # Usage:
 #   new-ops-scripts/activate-forwarder.sh <network> <forwarderAddress>
 #
-# Env: WALLET_NAME, SIMULATE=1, SAFE_* (see gov-action.sh)
+# Default simulation; --broadcast enables transactions and Safe proposals.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -15,4 +15,5 @@ network="${1:?Usage: $0 <network> <forwarderAddress>}"
 forwarder="${2:?Usage: $0 <network> <forwarderAddress>}"
 zero=0x0000000000000000000000000000000000000000
 
-exec "$SCRIPT_DIR/gov-action.sh" "$network" enableTrustedForwarder "$zero" "$forwarder"
+shift 2
+exec "$SCRIPT_DIR/gov-action.sh" "$network" enableTrustedForwarder "$zero" "$forwarder" "$@"

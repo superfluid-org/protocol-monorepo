@@ -8,9 +8,6 @@
   <a href="#superfluid-finance/subgraph" target="_blank">
     <img alt="GitHub package.json version (subfolder of monorepo)" src="https://img.shields.io/github/package-json/v/superfluid-finance/protocol-monorepo?filename=packages%2Fsubgraph%2Fpackage.json&label=subgraph">
   </a>
-  <a href="#superfluid-finance/js-sdk" target="_blank">
-    <img alt="npm" src="https://img.shields.io/npm/v/@superfluid-finance/js-sdk?label=js-sdk">
-  </a>
   <a href="#superfluid-finance/sdk-core" target="_blank">
     <img alt="npm" src="https://img.shields.io/npm/v/@superfluid-finance/sdk-core?label=sdk-core">
   </a>
@@ -132,22 +129,13 @@ your Superfluid smart contracts applications, including [Super Apps](https://doc
 
 Official subgraph for the Superfluid Protocol.
 
-#### [`@superfluid-finance/js-sdk`](https://superfluid-finance/superfluid-finance/protocol-monorepo/tree/release-js-sdk-stable/packages/js-sdk)
+#### Legacy `@superfluid-finance/js-sdk`
 
-<p>
-  <a href="https://www.npmjs.com/package/@superfluid-finance/js-sdk" target="_blank">
-    <img alt="Version" src="https://img.shields.io/npm/v/@superfluid-finance/js-sdk.svg">
-  </a>
-  <a href="#" target="_blank">
-    <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
-  </a>
-</p>
-
-:warning: This package is fully deprecated, use sdk-core instead :warning:
-
-You can get the last release of js-sdk at the branch [here](https://superfluid-finance/superfluid-finance/protocol-monorepo/tree/release-js-sdk-stable/packages/js-sdk).
-
-Javascript SDK for building with Superfluid Protocol.
+Retired from active workspaces, builds, tests and publication. Use
+[`@superfluid-finance/sdk-core`](packages/sdk-core) instead; see the
+[migration guide](packages/js-sdk/README.md) for API and artifact changes.
+Historical source remains in Git history. This repository retirement does not
+deprecate or unpublish npm releases.
 
 ## Bug Bounty
 
