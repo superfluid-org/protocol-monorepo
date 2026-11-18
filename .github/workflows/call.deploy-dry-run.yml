@@ -15,19 +15,19 @@ jobs:
     runs-on: ubuntu-22.04
     defaults:
       run:
-        working-directory: packages/ethereum-contracts
+        shell: nix develop .#ci-default -c bash -e {0}
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: v1.8.3
+      - uses: DeterminateSystems/nix-installer-action@v13
       - name: Simulate only (no key, broadcast or proposal)
         env:
           RPC_URL: ${{ inputs.provider-url }}
           NETWORK: ${{ inputs.network }}
-        run: new-ops-scripts/framework.sh "$NETWORK" upgrade
+        run: |
+          cd packages/ethereum-contracts
+          new-ops-scripts/framework.sh "$NETWORK" upgrade
       - uses: actions/upload-artifact@v4
         with:
           name: framework-simulation-${{ inputs.network }}

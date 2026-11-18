@@ -12,8 +12,21 @@ set +a
 eval "$_env"
 unset _env
 METADATA_JSON=${METADATA_JSON:-$PKG_ROOT/../metadata/networks.json}
+# Compiler and Foundry come from the nix devshell (flake.nix / flake.lock).
+# FOUNDRY_OFFLINE stops forge from downloading solc.
+[[ -n "${SOLC:-}" && -x "$SOLC" && -n "${FOUNDRY_OFFLINE:-}" ]] || {
+    echo "Run from the nix devshell (nix develop). It pins solc and Foundry and sets SOLC and FOUNDRY_OFFLINE." >&2
+    return 1
+}
+export FOUNDRY_SOLC_VERSION="${FOUNDRY_SOLC_VERSION:-$SOLC}"
 # shellcheck source=/dev/null
 source "$OPS_DIR/lib/network-config.sh"
+
+ts_node() {
+    local bin="$PKG_ROOT/../../node_modules/.bin/ts-node"
+    [[ -x "$bin" ]] || { echo "Missing $bin. From the repo root: yarn install --immutable" >&2; return 1; }
+    "$bin" "$@"
+}
 
 parse_ops_args() {
     BROADCAST=0
@@ -105,7 +118,7 @@ submit_safe_payloads() {
     if (( ! BROADCAST )); then cat "$SAFE_PAYLOADS_FILE"; return; fi
     local args=(propose-file --rpc-url "$RPC_URL" --payload-file "$SAFE_PAYLOADS_FILE" --mode single --broadcast)
     [[ -z "${SAFE_ORIGIN:-}" ]] || args+=(--origin "$SAFE_ORIGIN")
-    npx ts-node "$OPS_DIR/safe-ops.ts" "${args[@]}"
+    ts_node "$OPS_DIR/safe-ops.ts" "${args[@]}"
 }
 
 init_network() {

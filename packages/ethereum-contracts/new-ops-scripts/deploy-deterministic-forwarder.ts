@@ -4,7 +4,7 @@
  * viem: reads + fee estimates. cast: fund (keystore) + publish (deployer PK).
  *
  * Usage (from packages/ethereum-contracts):
- *   npx ts-node new-ops-scripts/deploy-deterministic-forwarder.ts <network> <contractName>
+ *   ../../node_modules/.bin/ts-node new-ops-scripts/deploy-deterministic-forwarder.ts <network> <contractName>
  *     --rpc-url <url> --host <address> --chain-id <id> [--broadcast]
  *
  * Prerequisite: forge build
@@ -43,7 +43,7 @@ import {
 
 function usage(): never {
   console.error(
-    "Usage: npx ts-node new-ops-scripts/deploy-deterministic-forwarder.ts <network> <contractName> " +
+    "Usage: ../../node_modules/.bin/ts-node new-ops-scripts/deploy-deterministic-forwarder.ts <network> <contractName> " +
       "--rpc-url <url> --host <address> --chain-id <id> [--broadcast]\n" +
       `Contracts: ${Object.keys(FORWARDER_CONTRACTS).join(", ")}`
   );

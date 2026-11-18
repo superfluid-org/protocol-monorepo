@@ -231,7 +231,7 @@ export async function proposeSafeTx({
 function usage(): string {
   return [
     "Usage:",
-    "  npx ts-node safe-ops.ts propose-file --rpc-url <url> --payload-file <path> --mode <single|batch> [--require-single-safe] [--origin <label>] [--broadcast]",
+    "  ../../node_modules/.bin/ts-node safe-ops.ts propose-file --rpc-url <url> --payload-file <path> --mode <single|batch> [--require-single-safe] [--origin <label>] [--broadcast]",
     "",
     "Secrets are read from env:",
     "  SAFE_PROPOSER_PK, SAFE_API_KEY, SAFE_TX_SERVICE_URL"

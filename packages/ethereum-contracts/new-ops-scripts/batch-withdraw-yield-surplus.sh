@@ -15,6 +15,6 @@ for token in "${OPS_ARGS[@]:1}"; do
     require_address TOKEN "$token"
     SKIP_SAFE_TX_PROPOSAL=1 "$SCRIPT_DIR/super-token-admin-action.sh" "$NETWORK" withdrawSurplusFromYieldBackend "$token" "${FLAGS[@]}"
 done
-npx ts-node "$SCRIPT_DIR/safe-ops.ts" propose-file --rpc-url "$RPC_URL" \
+ts_node "$SCRIPT_DIR/safe-ops.ts" propose-file --rpc-url "$RPC_URL" \
     --payload-file "$SAFE_PAYLOADS_FILE" --mode batch --require-single-safe \
     --origin "${SAFE_ORIGIN:-batchWithdrawYieldSurplus}" "${FLAGS[@]}"
