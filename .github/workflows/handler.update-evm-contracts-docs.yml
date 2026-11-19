@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Show contexts
         env:
@@ -24,7 +24,7 @@ jobs:
           echo github.base_ref: ${{ github.base_ref }}
 
       - name: Use Node.js 24.x
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.x
           cache: "yarn"
@@ -33,7 +33,7 @@ jobs:
         run: |
           yarn install --immutable
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: superfluid-finance/build-scripts
           path: build-scripts
@@ -60,7 +60,7 @@ jobs:
       #     cloudfront_distribution_id: E3JEO5R14CT8IH
 
       - name: Update the docs repo
-        uses: dmnemec/copy_file_to_another_repo_action@main
+        uses: dmnemec/copy_file_to_another_repo_action@bbebd3da22e4a37d04dca5f782edd5201cb97083 # main
         env:
           # Personal Access Token of the GH user accessing the docs repo
           API_TOKEN_GITHUB: ${{ secrets.CI_GITHUB_API_TOKEN_FOR_DOCS_UPDATE }}

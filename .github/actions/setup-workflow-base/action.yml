@@ -23,7 +23,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: DeterminateSystems/nix-installer-action@v13
+    - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
 
     - name: Load the half-board nix module
       id: hb
@@ -39,7 +39,7 @@ runs:
 
     - name: Lookup cache
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ fromJSON(steps.hb.outputs.path) }}
         key: ${{ steps.hb.outputs.key }}

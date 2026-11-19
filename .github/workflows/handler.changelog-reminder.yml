@@ -17,7 +17,7 @@ jobs:
       build_spec_haskell: ${{ env.BUILD_SPEC_HASKELL }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Create build set
         run: tasks/create-build-set.sh ${{ github.sha }} dev origin
@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Create Reminder
-        uses: peter-evans/create-or-update-comment@v2
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: |

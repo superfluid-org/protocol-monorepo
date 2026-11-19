@@ -36,14 +36,14 @@ jobs:
           network: [eth-sepolia, optimism-sepolia, avalanche-fuji]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # if only_network is set, skip all steps until the value matches one of the entries in matrix.network
       - name: Check only_network
         if: ${{ github.event.inputs.only_network != '' && github.event.inputs.only_network != matrix.network }}
         run: echo "DO_SKIP=1" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@v27
+      - uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31.11.5
         if: env.DO_SKIP != 1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
