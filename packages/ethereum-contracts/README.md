@@ -123,6 +123,19 @@ The paths in the npm package are the same as in this repository.
 For all future tests, we will be using Foundry as the main framework for writing property, integration and invariant tests.
 Please read this section if you would like to contribute to the test suite.
 
+CI runs the pinned yield-backend fork tests once, in the Foundry coverage job,
+rather than repeating them for every Node version. It persists Foundry's native
+`~/.foundry/cache/rpc` cache with `actions/cache`; Nix supplies the Foundry binary
+without changing this home-directory path. The cache key includes the toolchain
+lock, fork block constants, fork tests and contract sources, with a restore key
+for the same toolchain and pinned blocks.
+
+This reduces archive RPC traffic, but does not make fork tests offline: Foundry
+still contacts the endpoint to initialize a fork (including retrieving its chain
+ID), even with cached state. A cache miss or newly accessed state needs the
+configured archive RPCs (`BASE_MAINNET_ARCHIVE_RPC_URL` and
+`ETH_MAINNET_ARCHIVE_RPC_URL`); a successful coverage job saves the warmed cache.
+
 #### Testing Principles
 
 The ultimate purpose of testing is to **ensure correctness** of expected behavior. We aim to write the tests in a way that is easy to understand, maintain and extend.
