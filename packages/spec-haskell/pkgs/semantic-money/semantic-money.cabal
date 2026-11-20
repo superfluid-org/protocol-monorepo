@@ -22,11 +22,16 @@ library
     import:           optiongs
     hs-source-dirs:   src
     exposed-modules:
+        Money.Theory.MonetaryTypes
         Money.Theory.SemanticMoney
+        Money.Theory.TokenModel
+        Money.Theory.TokenModel.NaiveTokenModel
+        Money.Theory.TokenModel.TwoPhaseTokenModel
     -- other-modules:
     -- other-extensions:
     build-depends:
         base >=4.16.0.0 && <5,
+        containers >= 0.8,
         data-default
 
 test-suite semantic-money-test-suite
